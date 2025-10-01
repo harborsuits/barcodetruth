@@ -54,6 +54,10 @@ All colors MUST be HSL.
     --social: 25 95% 53%;
     --social-foreground: 0 0% 100%;
     --social-light: 25 95% 95%;
+    
+    --cultural-values: 200 70% 55%;
+    --cultural-values-foreground: 0 0% 100%;
+    --cultural-values-light: 200 70% 95%;
 
     /* Status colors */
     --success: 142 76% 36%;
