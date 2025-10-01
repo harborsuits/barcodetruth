@@ -197,21 +197,30 @@ Deno.serve(async (req) => {
         }))
         .filter(({ delta }) => Math.abs(delta) >= 5);
 
-      // Queue push notification jobs for significant changes
-      for (const { category, delta: deltaValue } of changes) {
-        await supabase.from('jobs').insert({
-          stage: 'send_push_for_score_change',
-          payload: {
-            brand_id,
-            brand_name: brandData?.name ?? brand_id,
-            category,
-            delta: deltaValue,
-            at: new Date().toISOString(),
-          },
-          not_before: new Date().toISOString(),
+      // Queue coalesced push notification job (5-minute bucket)
+      if (changes.length > 0) {
+        const bucketSec = Math.floor(Date.now() / (5 * 60 * 1000)) * 5 * 60;
+        const coalesceKey = `${brand_id}:${bucketSec}`;
+
+        const payload = {
+          brand_id,
+          brand_name: brandData?.name ?? brand_id,
+          at: new Date().toISOString(),
+          events: changes.map(c => ({ category: c.category, delta: c.delta }))
+        };
+
+        const { error: upsertErr } = await supabase.rpc('upsert_coalesced_job', {
+          p_stage: 'send_push_for_score_change',
+          p_key: coalesceKey,
+          p_payload: payload,
+          p_not_before: new Date().toISOString()
         });
-        
-        console.log(`[${requestId}] Queued push notification: ${brandData?.name ?? brand_id} ${category} ${deltaValue > 0 ? '+' : ''}${deltaValue}`);
+
+        if (upsertErr) {
+          console.error(`[${requestId}] Failed to queue coalesced job:`, upsertErr);
+        } else {
+          console.log(`[${requestId}] Queued coalesced push: ${brandData?.name ?? brand_id}, ${changes.length} events`);
+        }
       }
     }
 

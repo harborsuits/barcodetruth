@@ -239,6 +239,75 @@ export type Database = {
           },
         ]
       }
+      jobs: {
+        Row: {
+          attempts: number
+          coalesce_key: string | null
+          created_at: string
+          id: string
+          last_error: string | null
+          locked_at: string | null
+          locked_by: string | null
+          not_before: string
+          payload: Json
+          stage: string
+        }
+        Insert: {
+          attempts?: number
+          coalesce_key?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          not_before?: string
+          payload?: Json
+          stage: string
+        }
+        Update: {
+          attempts?: number
+          coalesce_key?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          not_before?: string
+          payload?: Json
+          stage?: string
+        }
+        Relationships: []
+      }
+      jobs_dead: {
+        Row: {
+          attempts: number
+          id: string
+          last_error: string | null
+          moved_to_dead_at: string
+          original_created_at: string | null
+          payload: Json
+          stage: string
+        }
+        Insert: {
+          attempts: number
+          id: string
+          last_error?: string | null
+          moved_to_dead_at?: string
+          original_created_at?: string | null
+          payload: Json
+          stage: string
+        }
+        Update: {
+          attempts?: number
+          id?: string
+          last_error?: string | null
+          moved_to_dead_at?: string
+          original_created_at?: string | null
+          payload?: Json
+          stage?: string
+        }
+        Relationships: []
+      }
       notification_log: {
         Row: {
           brand_id: string
@@ -428,6 +497,10 @@ export type Database = {
         Args: { p_brand: string; p_category: string; p_user_id: string }
         Returns: boolean
       }
+      brand_events_last_24h: {
+        Args: { brand_id_param: string }
+        Returns: number
+      }
       get_source_credibility: {
         Args: { source_name_param: string }
         Returns: number
@@ -474,6 +547,19 @@ export type Database = {
       show_trgm: {
         Args: { "": string }
         Returns: string[]
+      }
+      unlock_stale_jobs: {
+        Args: { timeout_seconds: number }
+        Returns: number
+      }
+      upsert_coalesced_job: {
+        Args: {
+          p_key: string
+          p_not_before: string
+          p_payload: Json
+          p_stage: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

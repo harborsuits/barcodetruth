@@ -170,7 +170,23 @@ Deno.serve(async (req) => {
           console.log('Publishing snapshots (not yet implemented)');
 
         } else if (job.stage === 'send_push_for_score_change') {
-          const { brand_id, brand_name, category, delta, at } = job.payload;
+          const { brand_id, brand_name } = job.payload;
+          const events: Array<{category: string; delta: number}> = job.payload?.events ?? [];
+
+          // Coalesce same-category deltas in the batch
+          const byCat = new Map<string, number>();
+          for (const e of events) {
+            const delta = Number.isFinite(e.delta) ? e.delta : 0;
+            byCat.set(e.category, (byCat.get(e.category) ?? 0) + delta);
+          }
+
+          // Build concise summary: "Environment +7, Labor -5"
+          const parts = Array.from(byCat.entries()).map(([cat, d]) => {
+            const sign = d > 0 ? '+' : '';
+            const titleCase = cat.charAt(0).toUpperCase() + cat.slice(1);
+            return `${titleCase} ${sign}${Math.round(d)}`;
+          });
+          const body = parts.join(', ') + '. Tap to view.';
 
           // Quiet hours (10pm-7am UTC) - delay to 7am UTC
           const now = new Date();
@@ -226,7 +242,18 @@ Deno.serve(async (req) => {
             continue;
           }
 
+          // Build payload once (coalesced notification)
+          const notificationPayload = {
+            title: `${brand_name} score updated`,
+            body,
+            icon: '/placeholder.svg',
+            badge: '/favicon.ico',
+            tag: `score-change-${brand_id}`,
+            data: { brand_id, summary: parts }
+          };
+
           // Filter by rate limit (max 2 per user per brand per day)
+          // This coalesced message counts as ONE notification
           let sentCount = 0;
           let rateLimited = 0;
 
@@ -235,7 +262,7 @@ Deno.serve(async (req) => {
             const { data: allowed } = await supabase.rpc('allow_push_send', {
               p_user_id: sub.user_id,
               p_brand: brand_id,
-              p_category: category
+              p_category: 'batch'
             });
 
             if (!allowed) {
@@ -249,9 +276,10 @@ Deno.serve(async (req) => {
                 body: { 
                   subscription: { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
                   brand_id, 
-                  brand_name, 
-                  category, 
-                  delta 
+                  brand_name,
+                  category: 'batch',
+                  delta: 0,
+                  payload: notificationPayload
                 }
               });
 
@@ -259,8 +287,8 @@ Deno.serve(async (req) => {
               await supabase.from('notification_log').insert({
                 user_id: sub.user_id,
                 brand_id,
-                category,
-                delta,
+                category: 'batch',
+                delta: 0,
                 success: !fnErr,
                 error: fnErr ? String(fnErr.message ?? fnErr) : null,
                 sent_at: new Date().toISOString()
@@ -272,7 +300,21 @@ Deno.serve(async (req) => {
             }
           }
 
-          console.log(`[${requestId}] Push notification batch: sent=${sentCount}, rate_limited=${rateLimited}, followers=${followers.length}`);
+          // Simple backoff on complete failure
+          if (sentCount === 0 && (job.attempts ?? 0) < 3) {
+            const delayMin = (job.attempts + 1) * 5; // 5m, 10m, 15m
+            const retryAt = new Date(Date.now() + delayMin * 60_000).toISOString();
+            await supabase.from('jobs').update({
+              not_before: retryAt,
+              attempts: (job.attempts ?? 0) + 1,
+              locked_by: null,
+              locked_at: null
+            }).eq('id', job.id);
+            console.log(`[${requestId}] Rescheduled job ${job.id} for backoff retry at ${retryAt}`);
+            continue;
+          }
+
+          console.log(`[${requestId}] Coalesced push: sent=${sentCount}, rate_limited=${rateLimited}, events=${events.length}, followers=${followers.length}`);
           await supabase.from('jobs').delete().eq('id', job.id);
         }
 

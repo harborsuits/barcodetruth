@@ -61,7 +61,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body = await req.json();
-    const { subscription, brand_id, brand_name, category, delta } = body;
+    const { subscription, brand_id, brand_name, category, delta, payload: customPayload } = body;
     
     if (!subscription?.endpoint) {
       return new Response(JSON.stringify({ error: 'subscription required' }), {
@@ -70,7 +70,7 @@ serve(async (req) => {
       });
     }
 
-    if (!brand_id || !brand_name || !category || delta === undefined) {
+    if (!brand_id || !brand_name) {
       throw new Error('Missing required fields');
     }
 
@@ -80,7 +80,8 @@ serve(async (req) => {
       delta,
     });
 
-    const payload: NotificationPayload = {
+    // Use custom payload if provided (for coalesced notifications), otherwise build default
+    const payload: NotificationPayload = customPayload ?? {
       title: `${brand_name} score updated`,
       body: `${category} ${delta > 0 ? '+' : ''}${delta} (last 24h). Tap to view.`,
       icon: '/placeholder.svg',
