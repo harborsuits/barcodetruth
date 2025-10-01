@@ -6,9 +6,11 @@ import { TrendingPreview } from "@/components/landing/TrendingPreview";
 import { TrustedSources } from "@/components/landing/TrustedSources";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { AttributionFooter } from "@/components/AttributionFooter";
+import { useSnapshotPrewarm } from "@/hooks/useSnapshotPrewarm";
 
 export const Home = () => {
   const navigate = useNavigate();
+  useSnapshotPrewarm(); // Prewarm snapshot cache for offline use
 
   return (
     <div className="min-h-screen bg-background">
