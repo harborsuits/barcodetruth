@@ -31,7 +31,7 @@ verify_jwt = false
 [functions.send-test-push]
 verify_jwt = false
 
-[functions.fetch-news]
+[functions.fetch-news-events]
 verify_jwt = false
 
 [functions.send-daily-digest]

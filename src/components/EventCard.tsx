@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { User, Sprout, Building2, Users, ExternalLink, CheckCircle2, Info, ChevronDown, ChevronUp, AlertCircle, Clock, Flame, Shield } from "lucide-react";
+import { User, Sprout, Building2, Users, ExternalLink, CheckCircle2, Info, ChevronDown, ChevronUp, AlertCircle, Clock, Flame, Shield, Newspaper } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { lineFromEvent } from "@/lib/events";
@@ -106,6 +106,9 @@ function getSourceLogo(sourceName?: string) {
   if (sourceName === "EPA") return Shield;
   if (sourceName === "OSHA") return Shield;
   if (sourceName === "FEC") return Building2;
+  if (sourceName === "The Guardian") return Newspaper;
+  if (sourceName === "The New York Times") return Newspaper;
+  if (sourceName?.includes("News")) return Newspaper;
   return null;
 }
 
