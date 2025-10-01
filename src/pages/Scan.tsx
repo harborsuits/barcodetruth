@@ -1,14 +1,69 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, AlertCircle } from "lucide-react";
+import { ArrowLeft, Camera, AlertCircle, Download, Wifi, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ReportIssue } from "@/components/ReportIssue";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { initA2HS, triggerA2HS, isA2HSAvailable, dismissA2HS, isA2HSDismissed } from "@/lib/a2hs";
+import { toast } from "@/hooks/use-toast";
 
 export const Scan = () => {
   const navigate = useNavigate();
   const [scanResult, setScanResult] = useState<'pending' | 'success' | 'not_found'>('pending');
   const [scannedBarcode, setScannedBarcode] = useState<string>('');
+  const [showA2HSPrompt, setShowA2HSPrompt] = useState(false);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  // Initialize A2HS
+  useEffect(() => { 
+    initA2HS(); 
+  }, []);
+
+  // Track scan count and show A2HS prompt
+  useEffect(() => {
+    const count = Number(localStorage.getItem('scan-count') || '0') + 1;
+    localStorage.setItem('scan-count', String(count));
+    
+    const shouldPrompt = count >= 2 && isA2HSAvailable() && !isA2HSDismissed();
+    if (shouldPrompt) {
+      setShowA2HSPrompt(true);
+    }
+  }, []);
+
+  // Monitor online/offline status
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+      toast({ title: "Back online", description: "Connection restored" });
+    };
+    const handleOffline = () => {
+      setIsOffline(true);
+      toast({ 
+        title: "You're offline", 
+        description: "Scans will be queued and sent when you're back online",
+        variant: "destructive" 
+      });
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    const accepted = await triggerA2HS();
+    if (accepted) {
+      toast({ title: "App installed!", description: "ShopSignals is now on your home screen" });
+      setShowA2HSPrompt(false);
+    } else {
+      dismissA2HS();
+      setShowA2HSPrompt(false);
+    }
+  };
 
   const handleMockScan = () => {
     // Simulate scanning a barcode
@@ -31,16 +86,54 @@ export const Scan = () => {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-10 bg-card border-b">
         <div className="container max-w-2xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="text-xl font-bold">Scan Product</h1>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <h1 className="text-xl font-bold">Scan Product</h1>
+            </div>
+            {isOffline && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <WifiOff className="h-4 w-4" />
+                <span>Offline</span>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
-      <main className="container max-w-2xl mx-auto px-4 py-6">
+      <main className="container max-w-2xl mx-auto px-4 py-6 space-y-4">
+        {/* A2HS Prompt */}
+        {showA2HSPrompt && (
+          <Card className="border-primary">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <Download className="h-8 w-8 text-primary" />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <h3 className="font-semibold">Install ShopSignals</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Add to your home screen for quick access and offline scanning
+                  </p>
+                  <div className="flex gap-2">
+                    <Button onClick={handleInstallApp} size="sm">
+                      Install App
+                    </Button>
+                    <Button 
+                      onClick={() => { dismissA2HS(); setShowA2HSPrompt(false); }} 
+                      variant="ghost" 
+                      size="sm"
+                    >
+                      Not now
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
         <Card>
           <CardContent className="pt-6">
             <div className="aspect-[4/3] bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
