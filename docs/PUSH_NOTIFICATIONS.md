@@ -3,57 +3,81 @@
 ## Overview
 ShopSignals uses Web Push API with VAPID (Voluntary Application Server Identification) for sending notifications about brand score changes.
 
-## Generating VAPID Keys
+**Current Status:** ✅ Subscription flow fully working | ⚠️ Actual push sending stubbed (see Production Options below)
 
-You need to generate a VAPID key pair for your project. Use one of these methods:
+## Quick Test
 
-### Method 1: Using web-push (Node.js)
-```bash
-npx web-push generate-vapid-keys
-```
-
-### Method 2: Using online generator
-Visit: https://vapidkeys.com/
-
-### Method 3: Manual (Node.js script)
-```javascript
-const webpush = require('web-push');
-const vapidKeys = webpush.generateVAPIDKeys();
-console.log('Public Key:', vapidKeys.publicKey);
-console.log('Private Key:', vapidKeys.privateKey);
-```
-
-## Setting Up Keys
-
-1. Generate your VAPID keys using one of the methods above
-2. The keys have already been added as secrets in your project:
-   - `VAPID_PUBLIC_KEY` - used by the client to subscribe
-   - `VAPID_PRIVATE_KEY` - used by the server to send notifications
-
-3. Add the public key to your `.env` file for local development:
-```
-VITE_VAPID_PUBLIC_KEY=your_public_key_here
-```
-
-## Testing Push Notifications
-
-### 1. Enable notifications in Settings
-- Go to Settings page
-- Toggle "Score Change Alerts" switch
-- Grant notification permission when prompted
+### 1. Enable notifications
+- Go to Settings → toggle "Score Change Alerts"
+- Grant permission when prompted
+- Click "Send Test Notification"
 
 ### 2. Verify subscription
 ```javascript
 // In browser console
 navigator.serviceWorker.ready.then(reg => 
-  reg.pushManager.getSubscription().then(sub => 
-    console.log('Subscription:', sub)
-  )
+  reg.pushManager.getSubscription().then(sub => {
+    console.log('Subscription:', sub);
+    console.log('Endpoint:', sub?.endpoint);
+  })
 );
 ```
 
-### 3. Send test notification
-Use the `/send-test-push` edge function (to be created) or manually trigger a score change.
+### 3. Check database
+Your subscription should be in `user_push_subs` table with your user_id.
+
+## Production Options for Actual Push Sending
+
+The subscription infrastructure is complete, but actual push message delivery requires one of these approaches:
+
+### Option 1: OneSignal (Recommended - Easiest)
+- Free tier: 10k subscribers
+- Handles all Web Push complexity
+- Simple REST API
+- ~30 min integration
+
+```typescript
+// Replace stub in send-test-push with:
+await fetch('https://onesignal.com/api/v1/notifications', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Basic ${ONESIGNAL_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    app_id: ONESIGNAL_APP_ID,
+    include_player_ids: [userId],
+    contents: { en: payload.body },
+    headings: { en: payload.title }
+  })
+});
+```
+
+### Option 2: Firebase Cloud Messaging
+- Free (Google Cloud quotas apply)
+- More complex setup
+- Better if you're already using Firebase
+
+### Option 3: Manual Web Push Protocol
+Implement JWT signing + payload encryption yourself:
+- Generate VAPID JWT
+- Encrypt payload with ECDH
+- POST to subscription endpoint
+- ~200 lines of crypto code
+
+### Option 4: Node.js Runtime
+Move push sending to a Node.js serverless function where `web-push` package works.
+
+## What Works Now
+
+✅ Service worker registration
+✅ Push subscription creation
+✅ Subscription storage in database
+✅ Notification permission flow
+✅ SW push event handlers
+✅ Notification click → app navigation
+✅ Subscription management (enable/disable)
+✅ Test endpoint (validates flow)
 
 ## How It Works
 
