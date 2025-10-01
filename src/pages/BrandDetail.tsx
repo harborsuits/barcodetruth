@@ -16,6 +16,9 @@ import {
 import { EventCard, type BrandEvent } from "@/components/EventCard";
 import { formatMonthYear } from "@/lib/events";
 import CategoryFilter from "@/components/CategoryFilter";
+import { AttributionFooter } from "@/components/AttributionFooter";
+import { ReportIssue } from "@/components/ReportIssue";
+import { topImpacts } from "@/lib/events";
 
 // Updated events data matching unified structure
 const eventsData: Record<string, BrandEvent> = {
@@ -240,6 +243,32 @@ const BrandDetail = () => {
                   <span className="text-muted-foreground">Stable</span>
                 )}
               </div>
+              
+              {/* Why this matters */}
+              {Object.keys(brand.signals).length > 0 && (
+                <div className="pt-4 mt-4 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Why this matters:</strong> {
+                      (() => {
+                        const impacts = topImpacts(brand.signals);
+                        if (impacts.length === 0) return "No significant recent activity.";
+                        
+                        const descriptions: string[] = [];
+                        impacts.forEach(item => {
+                          const signal = brand.signals[item.key];
+                          if (item.key === 'labor') descriptions.push(`labor practices`);
+                          if (item.key === 'environment') descriptions.push(`environmental impact`);
+                          if (item.key === 'politics') descriptions.push(`political activity`);
+                          if (item.key === 'social') descriptions.push(`community impact`);
+                        });
+                        
+                        return `Recent activity in ${descriptions.join(' and ')}.`;
+                      })()
+                    }
+                  </p>
+                </div>
+              )}
+              
               <div className="flex items-center justify-center gap-1.5 text-xs">
                 <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                 <span 
@@ -424,6 +453,18 @@ const BrandDetail = () => {
             </CardContent>
           </Card>
         )}
+        
+        {/* Attribution Footer */}
+        <AttributionFooter />
+        
+        {/* Report Issue */}
+        <div className="flex justify-center">
+          <ReportIssue 
+            subjectType="brand" 
+            subjectId={brandId} 
+            contextUrl={window.location.href}
+          />
+        </div>
       </main>
     </div>
   );

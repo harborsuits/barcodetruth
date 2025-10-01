@@ -1,5 +1,15 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
+// Brand normalization overrides
+const BRAND_OVERRIDES: Record<string, string> = {
+  "campbell's": "campbells",
+  "campbells": "campbells",
+  "procter & gamble": "procter_gamble",
+  "p&g": "procter_gamble",
+  "coca cola": "coca-cola",
+  "coke": "coca-cola",
+};
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -60,19 +70,79 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 2. Fallback: External API (UPC database - mock for now)
-    // In production, integrate with services like:
-    // - https://world.openfoodfacts.org/api/v0/product/{barcode}.json
-    // - https://api.upcdatabase.org/product/{barcode}
+    // 2. Fallback: OpenFoodFacts API
+    console.log(`[${barcode}] Checking OpenFoodFacts...`);
     
-    console.log('Barcode not in cache, would call external API:', barcode);
+    const offUrl = `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`;
+    const offRes = await fetch(offUrl);
     
-    // For now, return not found - integration ready
+    if (offRes.ok) {
+      const offData = await offRes.json();
+      
+      if (offData.status === 1 && offData.product) {
+        const brands = offData.product.brands || offData.product.brands_tags?.[0] || '';
+        const normalized = brands.split(',')[0].trim().toLowerCase();
+        const productName = offData.product.product_name || offData.product.product_name_en || 'Unknown Product';
+        
+        // Apply brand overrides
+        const mappedBrand = BRAND_OVERRIDES[normalized] || normalized;
+        
+        console.log(`[${barcode}] Found on OpenFoodFacts: ${productName} -> ${mappedBrand}`);
+        
+        // Try to find the brand in our database
+        const { data: brandMatch } = await supabase
+          .from('brands')
+          .select('*')
+          .ilike('id', mappedBrand)
+          .maybeSingle();
+        
+        // Cache the result (24h TTL implied by usage pattern)
+        if (brandMatch) {
+          const { error: insertError } = await supabase
+            .from('products')
+            .insert({
+              name: productName,
+              barcode,
+              brand_id: brandMatch.id,
+            });
+          
+          if (!insertError) {
+            return new Response(
+              JSON.stringify({
+                success: true,
+                product: { name: productName, barcode },
+                brand: brandMatch,
+                source: 'openfoodfacts',
+              }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        }
+        
+        // Brand found but not in our DB - suggest mapping
+        return new Response(
+          JSON.stringify({
+            success: false,
+            product: { name: productName, barcode },
+            brand_guess: mappedBrand,
+            error: 'Brand not in database',
+            message: 'Product found but brand needs to be added to our database.',
+            action: 'report_mapping',
+          }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+    
+    console.log(`[${barcode}] Not found on OpenFoodFacts`);
+    
+    // Cache 404s (1h TTL - future optimization)
     return new Response(
       JSON.stringify({
         success: false,
         error: 'Product not found',
-        message: 'Barcode not in database. External API integration pending.',
+        message: 'Barcode not found in any database.',
+        action: 'report_mapping',
       }),
       { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

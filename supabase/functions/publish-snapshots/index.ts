@@ -32,8 +32,7 @@ Deno.serve(async (req) => {
         *,
         brands!inner(name, parent_company)
       `)
-      .eq('verification', 'corroborated')
-      .or('verification.eq.official')
+      .in('verification', ['corroborated', 'official'])
       .gte('event_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
       .order('event_date', { ascending: false })
       .limit(50);
@@ -49,8 +48,42 @@ Deno.serve(async (req) => {
       count: trendingEvents?.length || 0,
     };
 
-    // Upload trending snapshot (using storage would be better, but we'll use a simple approach)
-    console.log(`[${requestId}] Built trending snapshot with ${trendingSnapshot.count} events`);
+    // Upload to storage
+    const version = Date.now().toString();
+    
+    const trendingBlob = new Blob(
+      [JSON.stringify(trendingSnapshot)],
+      { type: 'application/json' }
+    );
+
+    const { error: uploadError } = await supabase.storage
+      .from('snapshots')
+      .upload(`v/${version}/trending.json`, trendingBlob, {
+        contentType: 'application/json',
+        cacheControl: '900', // 15 minutes
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error(`[${requestId}] Upload error:`, uploadError);
+      throw uploadError;
+    }
+
+    // Update latest.json pointer
+    const latestBlob = new Blob(
+      [JSON.stringify({ version, generated_at: new Date().toISOString() })],
+      { type: 'application/json' }
+    );
+
+    await supabase.storage
+      .from('snapshots')
+      .upload('latest.json', latestBlob, {
+        contentType: 'application/json',
+        cacheControl: '60', // 1 minute
+        upsert: true,
+      });
+
+    console.log(`[${requestId}] Built trending snapshot: ${trendingSnapshot.count} events (v${version})`);
 
     // Build per-brand snapshots for brands with recent activity
     const { data: activeBrands, error: brandsError } = await supabase
@@ -63,7 +96,7 @@ Deno.serve(async (req) => {
       throw brandsError;
     }
 
-    const brandSnapshots: Record<string, any> = {};
+    let brandSnapshotsCount = 0;
 
     for (const brand of activeBrands || []) {
       const { data: brandData, error: brandError } = await supabase
@@ -77,24 +110,40 @@ Deno.serve(async (req) => {
           )
         `)
         .eq('id', brand.brand_id)
-        .single();
+        .maybeSingle();
 
       if (!brandError && brandData) {
-        brandSnapshots[brand.brand_id] = {
+        const brandSnapshot = {
           generated_at: new Date().toISOString(),
           brand: brandData,
         };
+
+        const brandBlob = new Blob(
+          [JSON.stringify(brandSnapshot)],
+          { type: 'application/json' }
+        );
+
+        await supabase.storage
+          .from('snapshots')
+          .upload(`v/${version}/brand_${brand.brand_id}.json`, brandBlob, {
+            contentType: 'application/json',
+            cacheControl: '900',
+            upsert: true,
+          });
+
+        brandSnapshotsCount++;
       }
     }
 
-    console.log(`[${requestId}] Built ${Object.keys(brandSnapshots).length} brand snapshots`);
+    console.log(`[${requestId}] Built ${brandSnapshotsCount} brand snapshots`);
 
     const result = {
       success: true,
       generated_at: new Date().toISOString(),
+      version,
       snapshots: {
         trending: trendingSnapshot.count,
-        brands: Object.keys(brandSnapshots).length,
+        brands: brandSnapshotsCount,
       },
     };
 

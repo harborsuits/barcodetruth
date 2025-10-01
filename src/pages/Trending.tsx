@@ -7,6 +7,7 @@ import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { EventCard, type BrandEvent } from "@/components/EventCard";
 import { topImpacts } from "@/lib/events";
+import { AttributionFooter } from "@/components/AttributionFooter";
 
 const trendingBrands: Array<{
   id: string;
@@ -419,6 +420,9 @@ const Trending = () => {
             </Card>
           ))}
         </div>
+        
+        {/* Attribution Footer */}
+        <AttributionFooter />
       </main>
     </div>
   );

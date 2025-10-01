@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.publish-snapshots]
 verify_jwt = false
+
+[functions.pull-feeds]
+verify_jwt = false

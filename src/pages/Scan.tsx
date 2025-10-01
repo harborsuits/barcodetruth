@@ -1,15 +1,29 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera } from "lucide-react";
+import { ArrowLeft, Camera, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ReportIssue } from "@/components/ReportIssue";
+import { useState } from "react";
 
 const Scan = () => {
   const navigate = useNavigate();
+  const [scanResult, setScanResult] = useState<'pending' | 'success' | 'not_found'>('pending');
+  const [scannedBarcode, setScannedBarcode] = useState<string>('');
 
   const handleMockScan = () => {
-    // Simulate a scan result
+    // Simulate scanning a barcode
+    const mockBarcode = '012345678901';
+    setScannedBarcode(mockBarcode);
+    
+    // Simulate scan result after delay
     setTimeout(() => {
-      navigate("/brand/nike");
+      // 70% success rate for demo
+      if (Math.random() > 0.3) {
+        setScanResult('success');
+        setTimeout(() => navigate("/brand/nike"), 1000);
+      } else {
+        setScanResult('not_found');
+      }
     }, 1000);
   };
 
@@ -41,22 +55,60 @@ const Scan = () => {
               <Camera className="h-16 w-16 text-muted-foreground" />
             </div>
             
-            <div className="mt-6 space-y-4 text-center">
-              <div className="space-y-2">
-                <h3 className="font-semibold">Position barcode in frame</h3>
-                <p className="text-sm text-muted-foreground">
-                  We'll automatically scan when the barcode is detected
+            {scanResult === 'pending' && (
+              <div className="mt-6 space-y-4 text-center">
+                <div className="space-y-2">
+                  <h3 className="font-semibold">Position barcode in frame</h3>
+                  <p className="text-sm text-muted-foreground">
+                    We'll automatically scan when the barcode is detected
+                  </p>
+                </div>
+                
+                <Button onClick={handleMockScan} className="w-full">
+                  Simulate Scan (Demo)
+                </Button>
+                
+                <p className="text-xs text-muted-foreground">
+                  Camera access required. This is a demo - real scanning will be available soon.
                 </p>
               </div>
-              
-              <Button onClick={handleMockScan} className="w-full">
-                Simulate Scan (Demo)
-              </Button>
-              
-              <p className="text-xs text-muted-foreground">
-                Camera access required. This is a demo - real scanning will be available soon.
-              </p>
-            </div>
+            )}
+            
+            {scanResult === 'not_found' && (
+              <div className="mt-6 space-y-4">
+                <div className="flex items-start gap-3 p-4 bg-muted rounded-lg">
+                  <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div className="flex-1 space-y-2 text-left">
+                    <p className="font-semibold">Product not found</p>
+                    <p className="text-sm text-muted-foreground">
+                      Barcode {scannedBarcode} isn't in our database yet. 
+                      Help us add it by reporting the product details.
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={() => setScanResult('pending')}
+                  >
+                    Scan Again
+                  </Button>
+                  
+                  <ReportIssue
+                    subjectType="product"
+                    subjectId={scannedBarcode}
+                    contextUrl={`barcode:${scannedBarcode}`}
+                    trigger={
+                      <Button className="flex-1">
+                        Report Product
+                      </Button>
+                    }
+                  />
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>
