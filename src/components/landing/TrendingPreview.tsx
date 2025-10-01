@@ -29,26 +29,30 @@ export function TrendingPreview() {
 
   const loadTrending = async () => {
     try {
-      // Try snapshot first
-      const { data: snapshotData } = await supabase.storage
-        .from('snapshots')
-        .download('latest.json');
+      // Try snapshot first with proper cache headers
+      const baseUrl = `${supabase.storage.from('snapshots').getPublicUrl('').data.publicUrl}`;
       
-      if (snapshotData) {
-        const { version } = await snapshotData.text().then(JSON.parse);
-        const { data: trendingData } = await supabase.storage
-          .from('snapshots')
-          .download(`v/${version}/trending.json`);
+      const latestRes = await fetch(`${baseUrl}latest.json`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      
+      if (latestRes.ok) {
+        const { version } = await latestRes.json();
+        const trendingRes = await fetch(`${baseUrl}v/${version}/trending.json`, {
+          cache: 'force-cache',
+          headers: { 'Cache-Control': 'public, max-age=900, immutable' }
+        });
         
-        if (trendingData) {
-          const snapshot = await trendingData.text().then(JSON.parse);
+        if (trendingRes.ok) {
+          const snapshot = await trendingRes.json();
           setTrending(snapshot.brands?.slice(0, 5) || []);
           setLoading(false);
           return;
         }
       }
     } catch (e) {
-      console.log('Snapshot not available, using live data');
+      console.log('Snapshot not available, using live data', e);
     }
 
     // Fallback to live query

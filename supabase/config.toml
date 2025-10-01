@@ -1,9 +1,19 @@
 project_id = "midmvcwtywnexzdwbekp"
 
-[functions.verify-event]
-verify_jwt = false
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
 
 [functions.calculate-brand-score]
+verify_jwt = true
+
+[functions.jobs-runner]
+verify_jwt = false
+
+[functions.publish-snapshots]
 verify_jwt = false
 
 [functions.resolve-barcode]
@@ -12,11 +22,8 @@ verify_jwt = false
 [functions.categorize-event]
 verify_jwt = false
 
-[functions.jobs-runner]
-verify_jwt = false
-
-[functions.publish-snapshots]
-verify_jwt = false
+[functions.verify-event]
+verify_jwt = true
 
 [functions.pull-feeds]
 verify_jwt = false

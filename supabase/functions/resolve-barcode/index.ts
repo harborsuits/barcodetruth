@@ -15,6 +15,20 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Simple rate limiter
+const rateLimitBuckets = new Map<string, { tokens: number; ts: number }>();
+function checkRateLimit(ip: string, maxTokens = 30, perMs = 60_000): boolean {
+  const now = Date.now();
+  const bucket = rateLimitBuckets.get(ip) ?? { tokens: maxTokens, ts: now };
+  const refill = Math.floor((now - bucket.ts) / perMs) * maxTokens;
+  bucket.tokens = Math.min(maxTokens, bucket.tokens + refill);
+  bucket.ts = now;
+  if (bucket.tokens <= 0) return false;
+  bucket.tokens--;
+  rateLimitBuckets.set(ip, bucket);
+  return true;
+}
+
 interface BarcodeRequest {
   barcode: string;
 }
@@ -22,6 +36,18 @@ interface BarcodeRequest {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Rate limiting
+  const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown';
+  if (!checkRateLimit(clientIp)) {
+    return new Response(
+      JSON.stringify({ error: 'RATE_LIMITED', message: 'Too many requests' }),
+      { 
+        status: 429, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': '60' }
+      }
+    );
   }
 
   try {
@@ -74,7 +100,11 @@ Deno.serve(async (req) => {
     console.log(`[${barcode}] Checking OpenFoodFacts...`);
     
     const offUrl = `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`;
-    const offRes = await fetch(offUrl);
+    const offRes = await fetch(offUrl, {
+      headers: {
+        'User-Agent': 'ShopSignals/1.0 (contact@shopsignals.app)',
+      }
+    });
     
     if (offRes.ok) {
       const offData = await offRes.json();

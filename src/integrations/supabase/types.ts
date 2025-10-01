@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      brand_aliases: {
+        Row: {
+          canonical_brand_id: string
+          created_at: string
+          created_by: string | null
+          external_name: string
+          id: string
+          source: string
+        }
+        Insert: {
+          canonical_brand_id: string
+          created_at?: string
+          created_by?: string | null
+          external_name: string
+          id?: string
+          source: string
+        }
+        Update: {
+          canonical_brand_id?: string
+          created_at?: string
+          created_by?: string | null
+          external_name?: string
+          id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_aliases_canonical_brand_id_fkey"
+            columns: ["canonical_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brand_events: {
         Row: {
           brand_id: string
@@ -324,6 +359,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_admin: {
+        Args: Record<PropertyKey, never>
         Returns: boolean
       }
       set_limit: {
