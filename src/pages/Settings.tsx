@@ -6,8 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { subscribeToPush, unsubscribeFromPush, isPushSubscribed } from "@/lib/pushNotifications";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 export const Settings = () => {
@@ -21,6 +23,7 @@ export const Settings = () => {
   const [nuanceMode, setNuanceMode] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [checkingPush, setCheckingPush] = useState(true);
+  const [mutedCategories, setMutedCategories] = useState<string[]>([]);
 
   useEffect(() => {
     const saved = localStorage.getItem("userValues");
@@ -33,11 +36,48 @@ export const Settings = () => {
       setPushEnabled(subscribed);
       setCheckingPush(false);
     });
+
+    // Load muted categories from user preferences
+    const loadPreferences = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from('user_preferences')
+          .select('muted_categories')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (data?.muted_categories) {
+          setMutedCategories(data.muted_categories);
+        }
+      }
+    };
+    loadPreferences();
   }, []);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     localStorage.setItem("userValues", JSON.stringify(values));
+    
+    // Save muted categories to user preferences
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+        .from('user_preferences')
+        .upsert({
+          user_id: user.id,
+          muted_categories: mutedCategories,
+        });
+    }
+    
     navigate(-1);
+  };
+
+  const toggleCategory = (category: string) => {
+    setMutedCategories(prev =>
+      prev.includes(category)
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    );
   };
 
   const handlePushToggle = async (enabled: boolean) => {
@@ -243,49 +283,119 @@ export const Settings = () => {
             </div>
             
             {pushEnabled && (
-              <div className="pt-3 border-t">
-                <Button 
-                  onClick={async () => {
-                    try {
-                      const res = await fetch(
-                        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-test-push`,
-                        {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            title: "Test notification",
-                            body: "If you see this, push notifications are working! 🎉",
-                            data: { brand_id: "nike" }
-                          })
+              <>
+                <div className="pt-3 border-t space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium mb-3 block">Alert Topics</Label>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Choose which types of events you want to be notified about
+                    </p>
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="labor-alerts"
+                          checked={!mutedCategories.includes('labor')}
+                          onCheckedChange={() => toggleCategory('labor')}
+                        />
+                        <label
+                          htmlFor="labor-alerts"
+                          className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
+                        >
+                          <Users className="h-4 w-4 text-labor" />
+                          Labor Practices
+                        </label>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="environment-alerts"
+                          checked={!mutedCategories.includes('environment')}
+                          onCheckedChange={() => toggleCategory('environment')}
+                        />
+                        <label
+                          htmlFor="environment-alerts"
+                          className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
+                        >
+                          <Leaf className="h-4 w-4 text-environment" />
+                          Environment
+                        </label>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="politics-alerts"
+                          checked={!mutedCategories.includes('politics')}
+                          onCheckedChange={() => toggleCategory('politics')}
+                        />
+                        <label
+                          htmlFor="politics-alerts"
+                          className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
+                        >
+                          <Megaphone className="h-4 w-4 text-politics" />
+                          Political Giving
+                        </label>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="social-alerts"
+                          checked={!mutedCategories.includes('social')}
+                          onCheckedChange={() => toggleCategory('social')}
+                        />
+                        <label
+                          htmlFor="social-alerts"
+                          className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
+                        >
+                          <Heart className="h-4 w-4 text-social" />
+                          Community & Culture
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <Button 
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(
+                          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-test-push`,
+                          {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              title: "Test notification",
+                              body: "If you see this, push notifications are working! 🎉",
+                              data: { brand_id: "nike" }
+                            })
+                          }
+                        );
+                        const data = await res.json();
+                        if (data.success) {
+                          toast({
+                            title: "Test sent!",
+                            description: `Check your notifications (sent to ${data.sent} device${data.sent !== 1 ? 's' : ''})`,
+                          });
+                        } else {
+                          throw new Error(data.error || 'Failed to send');
                         }
-                      );
-                      const data = await res.json();
-                      if (data.success) {
+                      } catch (error) {
                         toast({
-                          title: "Test sent!",
-                          description: `Check your notifications (sent to ${data.sent} device${data.sent !== 1 ? 's' : ''})`,
+                          title: "Test failed",
+                          description: error instanceof Error ? error.message : "Could not send test notification",
+                          variant: "destructive",
                         });
-                      } else {
-                        throw new Error(data.error || 'Failed to send');
                       }
-                    } catch (error) {
-                      toast({
-                        title: "Test failed",
-                        description: error instanceof Error ? error.message : "Could not send test notification",
-                        variant: "destructive",
-                      });
-                    }
-                  }}
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                >
-                  Send Test Notification
-                </Button>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Note: Actual push sending is stubbed. Subscription flow and UI are fully functional.
-                </p>
-              </div>
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                  >
+                    Send Test Notification
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Note: Actual push sending is stubbed. Subscription flow and UI are fully functional.
+                  </p>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>

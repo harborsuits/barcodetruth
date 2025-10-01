@@ -371,6 +371,26 @@ export type Database = {
         }
         Relationships: []
       }
+      pilot_brands: {
+        Row: {
+          brand_id: string
+        }
+        Insert: {
+          brand_id: string
+        }
+        Update: {
+          brand_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pilot_brands_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           barcode: string
@@ -456,6 +476,30 @@ export type Database = {
           brand_id?: string
           created_at?: string | null
           notifications_enabled?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          created_at: string
+          id: string
+          muted_categories: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          muted_categories?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          muted_categories?: string[]
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

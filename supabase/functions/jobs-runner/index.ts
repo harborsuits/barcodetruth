@@ -268,6 +268,21 @@ Deno.serve(async (req) => {
             continue;
           }
 
+          // Load user preferences (muted categories)
+          const { data: preferences } = await supabase
+            .from('user_preferences')
+            .select('user_id, muted_categories')
+            .in('user_id', followerIds);
+
+          const mutedByUser = new Map<string, string[]>();
+          preferences?.forEach(p => mutedByUser.set(p.user_id, p.muted_categories || []));
+
+          // Extract event categories from job payload
+          const eventCategories = new Set<string>();
+          events.forEach((evt: any) => {
+            if (evt.category) eventCategories.add(evt.category);
+          });
+
           // Build payload once (coalesced notification)
           const notificationPayload = {
             title: `${brand_name} score updated`,
@@ -284,6 +299,16 @@ Deno.serve(async (req) => {
           let rateLimited = 0;
 
           for (const sub of subs) {
+            // Check if user has muted all event categories
+            const userMuted = mutedByUser.get(sub.user_id) || [];
+            const allMuted = Array.from(eventCategories).every(cat => userMuted.includes(cat));
+            
+            if (allMuted && eventCategories.size > 0) {
+              console.log(`[${requestId}] User ${sub.user_id} muted all categories; skipping`);
+              rateLimited++;
+              continue;
+            }
+
             // Check rate limit
             const { data: allowed } = await supabase.rpc('allow_push_send', {
               p_user_id: sub.user_id,
