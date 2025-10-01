@@ -6,6 +6,29 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helpers
+const normalizeUrl = (raw: string) => {
+  try {
+    const u = new URL(raw);
+    // strip common tracking noise
+    u.search = '';
+    u.hash = '';
+    // remove trailing slash
+    return u.toString().replace(/\/$/, '');
+  } catch {
+    return raw;
+  }
+};
+
+const fetchWithTimeout = (url: string, timeoutMs = 8000, init?: RequestInit) => {
+  return Promise.race([
+    fetch(url, init),
+    new Promise<Response>((_, reject) =>
+      setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs)
+    ),
+  ]) as Promise<Response>;
+};
+
 interface NewsArticle {
   title: string;
   summary: string;
@@ -27,7 +50,7 @@ async function fetchGuardian(apiKey: string, brandName: string): Promise<NewsArt
   url.searchParams.set("page-size", "10");
   url.searchParams.set("order-by", "newest");
 
-  const response = await fetch(url.toString());
+  const response = await fetchWithTimeout(url.toString(), 8000);
   if (!response.ok) throw new Error(`Guardian API error: ${response.status}`);
 
   const data = await response.json();
@@ -60,7 +83,7 @@ async function fetchNewsAPI(apiKey: string, brandName: string): Promise<NewsArti
   url.searchParams.set("pageSize", "10");
   url.searchParams.set("language", "en");
 
-  const response = await fetch(url.toString());
+  const response = await fetchWithTimeout(url.toString(), 8000);
   if (!response.ok) {
     if (response.status === 429) throw new Error("NewsAPI rate limit exceeded");
     throw new Error(`NewsAPI error: ${response.status}`);
@@ -95,7 +118,7 @@ async function fetchNYTimes(apiKey: string, brandName: string): Promise<NewsArti
   url.searchParams.set("sort", "newest");
   url.searchParams.set("fl", "headline,abstract,web_url,pub_date,source,lead_paragraph");
 
-  const response = await fetch(url.toString());
+  const response = await fetchWithTimeout(url.toString(), 8000);
   if (!response.ok) throw new Error(`NYTimes API error: ${response.status}`);
 
   const data = await response.json();
@@ -128,7 +151,7 @@ async function fetchGNews(apiKey: string, brandName: string): Promise<NewsArticl
   url.searchParams.set("max", "10");
   url.searchParams.set("sortby", "publishedAt");
 
-  const response = await fetch(url.toString());
+  const response = await fetchWithTimeout(url.toString(), 8000);
   if (!response.ok) {
     if (response.status === 429) throw new Error("GNews rate limit exceeded");
     throw new Error(`GNews API error: ${response.status}`);
@@ -229,46 +252,55 @@ serve(async (req) => {
       );
     }
 
+    // Circuit breaker state (per-invocation)
+    const failures = new Map<string, number>();
+    const incFail = (key: string) => failures.set(key, (failures.get(key) || 0) + 1);
+    const shouldSkipSource = (key: string) => (failures.get(key) || 0) >= 3;
+
     // Fetch from all available sources
     const allArticles: NewsArticle[] = [];
     
-    if (guardianKey) {
+    if (guardianKey && !shouldSkipSource('guardian')) {
       try {
         const articles = await fetchGuardian(guardianKey, brand.name);
         allArticles.push(...articles);
         console.log(`[fetch-news-events] Fetched ${articles.length} from Guardian`);
       } catch (err) {
-        console.error(`[fetch-news-events] Guardian error:`, err);
+        incFail('guardian');
+        console.error(`[fetch-news-events] Guardian error (${failures.get('guardian')} fails):`, err);
       }
     }
 
-    if (newsApiKey) {
+    if (newsApiKey && !shouldSkipSource('newsapi')) {
       try {
         const articles = await fetchNewsAPI(newsApiKey, brand.name);
         allArticles.push(...articles);
         console.log(`[fetch-news-events] Fetched ${articles.length} from NewsAPI`);
       } catch (err) {
-        console.error(`[fetch-news-events] NewsAPI error:`, err);
+        incFail('newsapi');
+        console.error(`[fetch-news-events] NewsAPI error (${failures.get('newsapi')} fails):`, err);
       }
     }
 
-    if (nytKey) {
+    if (nytKey && !shouldSkipSource('nyt')) {
       try {
         const articles = await fetchNYTimes(nytKey, brand.name);
         allArticles.push(...articles);
         console.log(`[fetch-news-events] Fetched ${articles.length} from NYT`);
       } catch (err) {
-        console.error(`[fetch-news-events] NYT error:`, err);
+        incFail('nyt');
+        console.error(`[fetch-news-events] NYT error (${failures.get('nyt')} fails):`, err);
       }
     }
 
-    if (gnewsKey) {
+    if (gnewsKey && !shouldSkipSource('gnews')) {
       try {
         const articles = await fetchGNews(gnewsKey, brand.name);
         allArticles.push(...articles);
         console.log(`[fetch-news-events] Fetched ${articles.length} from GNews`);
       } catch (err) {
-        console.error(`[fetch-news-events] GNews error:`, err);
+        incFail('gnews');
+        console.error(`[fetch-news-events] GNews error (${failures.get('gnews')} fails):`, err);
       }
     }
 
@@ -277,16 +309,18 @@ serve(async (req) => {
     let skipped = 0;
 
     for (const article of allArticles) {
-      // Dedupe check by URL
+      const normalizedUrl = normalizeUrl(article.url);
+
+      // Dedupe check by normalized URL
       const { data: existing } = await supabase
         .from('brand_events')
         .select('event_id')
         .eq('brand_id', brandId)
-        .eq('source_url', article.url)
+        .eq('source_url', normalizedUrl)
         .limit(1);
 
       if (existing && existing.length > 0) {
-        console.log(`[fetch-news-events] Skipping duplicate: ${article.url}`);
+        console.log(`[fetch-news-events] Skipping duplicate: ${normalizedUrl}`);
         skipped++;
         continue;
       }
@@ -300,7 +334,7 @@ serve(async (req) => {
         verification: 'corroborated',
         orientation: 'negative',
         impact_social: article.category === 'social' ? -3 : -1,
-        source_url: article.url,
+        source_url: normalizedUrl,
         raw_data: article.raw_data,
       };
 
@@ -333,7 +367,7 @@ serve(async (req) => {
         .insert({
           event_id: eventData.event_id,
           source_name: article.source_name,
-          source_url: article.url,
+          source_url: normalizedUrl,
           quote: article.summary?.slice(0, 200),
           source_date: article.published_at,
         });
