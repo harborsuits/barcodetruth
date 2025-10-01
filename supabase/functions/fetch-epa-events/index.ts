@@ -29,10 +29,26 @@ serve(async (req) => {
 
     // EPA ECHO API - get recent enforcement actions
     // Note: In production, map brand_id -> facility IDs via brand_facilities table
-    const daysBack = 90;
-    const url = `https://echo.epa.gov/api/echo_rest_services.get_facilities?output=JSON&p_ptype=AIR&p_limit=10`;
+    // Get brand name for matching
+    const { data: brand } = await supabase
+      .from('brands')
+      .select('name')
+      .eq('id', brandId)
+      .single();
 
-    const res = await fetch(url);
+    if (!brand) {
+      console.error('[fetch-epa-events] Brand not found');
+      return new Response(JSON.stringify({ error: "Brand not found" }), { 
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    // Search EPA for facilities matching brand name
+    const searchUrl = `https://echo.epa.gov/api/echo_rest_services.get_facilities?output=JSON&p_fn=${encodeURIComponent(brand.name)}&p_limit=20`;
+    console.log(`[fetch-epa-events] Searching EPA for: ${brand.name}`);
+
+    const res = await fetch(searchUrl);
     if (!res.ok) {
       console.error('[fetch-epa-events] EPA API error:', res.status);
       return new Response(JSON.stringify({ error: "EPA fetch failed" }), { 
@@ -44,21 +60,39 @@ serve(async (req) => {
     const json = await res.json();
     const facilities = json?.Results?.Results ?? [];
 
-    console.log(`[fetch-epa-events] Found ${facilities.length} facilities`);
+    console.log(`[fetch-epa-events] Found ${facilities.length} facilities for ${brand.name}`);
 
     const events = [];
     
-    for (const facility of facilities.slice(0, 5)) {
+    for (const facility of facilities.slice(0, 10)) {
       // Check for violations
       if (facility.Viol_Flag === 'Y' || facility.Qtrs_with_NC > 0) {
+        const sourceUrl = `https://echo.epa.gov/detailed-facility-report?fid=${facility.RegistryID}`;
+        
+        // Check if we already have this event (dedupe by source_url)
+        const { data: existing } = await supabase
+          .from('brand_events')
+          .select('event_id, event_sources!inner(source_url)')
+          .eq('brand_id', brandId)
+          .eq('event_sources.source_url', sourceUrl)
+          .limit(1);
+
+        if (existing && existing.length > 0) {
+          console.log(`[fetch-epa-events] Skipping duplicate: ${sourceUrl}`);
+          continue;
+        }
+
+        const impact = facility.Qtrs_with_NC > 2 ? -5 : facility.Qtrs_with_NC > 0 ? -3 : -1;
+        
         const event = {
           brand_id: brandId,
           title: `EPA violation at ${facility.FacName}`,
-          description: `Facility ${facility.RegistryID} reported ${facility.Qtrs_with_NC ?? 0} quarters with non-compliance. Status: ${facility.Viol_Flag === 'Y' ? 'Active violations' : 'Monitoring required'}.`,
+          description: `Facility ${facility.RegistryID} reported ${facility.Qtrs_with_NC ?? 0} quarters with non-compliance. ${facility.Viol_Flag === 'Y' ? 'Active violations flagged.' : 'Monitoring required.'}`,
           category: 'environment',
-          occurred_at: new Date().toISOString(),
+          event_date: new Date().toISOString(),
           verification: 'official',
-          ingested_from: 'epa-echo',
+          orientation: 'negative',
+          impact_environment: impact,
         };
 
         // Insert event
@@ -79,9 +113,9 @@ serve(async (req) => {
           .insert({
             event_id: eventData.event_id,
             source_name: 'EPA ECHO',
-            source_url: `https://echo.epa.gov/detailed-facility-report?fid=${facility.RegistryID}`,
-            source_quote: `Facility: ${facility.FacName}, Registry ID: ${facility.RegistryID}`,
-            published_at: new Date().toISOString(),
+            source_url: sourceUrl,
+            quote: `Facility: ${facility.FacName}, Registry ID: ${facility.RegistryID}`,
+            source_date: new Date().toISOString(),
           });
 
         if (sourceError) {

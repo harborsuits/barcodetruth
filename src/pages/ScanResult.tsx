@@ -7,12 +7,13 @@ import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ValueFitBar } from "@/components/ValueFitBar";
+import { WhyThisScore } from "@/components/WhyThisScore";
 import { AlternativesDrawer } from "@/components/AlternativesDrawer";
 import { CompareSheet } from "@/components/CompareSheet";
 import { EventCard, type BrandEvent } from "@/components/EventCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { getUserWeights, calculateValueFit } from "@/lib/valueFit";
+import { getUserWeights, calculateValueFit, getTopContributors } from "@/lib/valueFit";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -102,7 +103,68 @@ export default function ScanResult() {
     enabled: !!product?.brand_id,
   });
 
-  // Query recent events for this brand
+  // Fetch recent brand events (last 12 months)
+  const { data: recentEvents } = useQuery({
+    queryKey: ['recentEvents', product?.brand_id],
+    queryFn: async () => {
+      if (!product?.brand_id) return [];
+      
+      const twelveMonthsAgo = new Date();
+      twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+      
+      const { data, error } = await supabase
+        .from('brand_events')
+        .select(`
+          *,
+          event_sources(*)
+        `)
+        .eq('brand_id', product.brand_id)
+        .gte('event_date', twelveMonthsAgo.toISOString())
+        .order('event_date', { ascending: false })
+        .limit(20);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!product?.brand_id,
+  });
+
+  // Calculate score drivers from events
+  const scoreDrivers = recentEvents?.reduce((acc, event) => {
+    const categories = ['labor', 'environment', 'politics', 'social'] as const;
+    
+    categories.forEach(cat => {
+      const impactKey = `impact_${cat}` as keyof typeof event;
+      const impact = event[impactKey] as number | null;
+      
+      if (impact && impact < 0) { // Only show negative impacts
+        if (!acc[cat]) {
+          acc[cat] = {
+            category: cat,
+            categoryLabel: cat.charAt(0).toUpperCase() + cat.slice(1),
+            impact: 0,
+            eventCount: 0,
+            events: []
+          };
+        }
+        acc[cat].impact += impact;
+        acc[cat].eventCount += 1;
+        if (acc[cat].events.length < 3) { // Top 3 events per category
+          acc[cat].events.push(event);
+        }
+      }
+    });
+    
+    return acc;
+  }, {} as Record<string, any>);
+
+  const topDrivers = scoreDrivers 
+    ? Object.values(scoreDrivers)
+        .sort((a: any, b: any) => a.impact - b.impact) // Most negative first
+        .slice(0, 4) // Top 4 categories
+    : [];
+
+  // Query recent events for display (separate from scoring)
   const { data: events } = useQuery({
     queryKey: ['brand-events', product?.brand_id],
     queryFn: async () => {
@@ -110,7 +172,7 @@ export default function ScanResult() {
         .from('brand_events')
         .select('*')
         .eq('brand_id', product!.brand_id)
-        .order('occurred_at', { ascending: false })
+        .order('event_date', { ascending: false })
         .limit(3);
       
       if (error) throw error;
@@ -121,9 +183,13 @@ export default function ScanResult() {
 
   // Query alternatives (same category, sorted by Value Fit)
   const { data: alternatives } = useQuery({
-    queryKey: ['alternatives', product?.brand_id, product?.category],
+    queryKey: ['alternatives', product?.brand_id, product?.category, brandData?.brand_scores?.[0]],
     queryFn: async () => {
+      if (!brandData?.brand_scores?.[0]) return [];
+      
       const weights = getUserWeights();
+      const currentScores = brandData.brand_scores[0];
+      const currentValueFit = calculateValueFit(currentScores, weights);
       
       // Filter by same product category
       const categoryQuery = supabase
@@ -161,6 +227,13 @@ export default function ScanResult() {
             if (!scores) return null;
             
             const valueFit = calculateValueFit(scores, weights);
+            const delta = valueFit - currentValueFit;
+            
+            // Build specific rationale based on weighted deltas
+            let why = delta > 0 
+              ? `+${delta} better: ${getTopContributors(currentScores, scores, weights)}`
+              : `${delta} points: ${getTopContributors(currentScores, scores, weights)}`;
+            
             return {
               brand_id: brand.id,
               brand_name: brand.name,
@@ -172,7 +245,7 @@ export default function ScanResult() {
                   scores.score_social) /
                   4
               ),
-              why: "Generally better alignment with your values.",
+              why,
               price_context: undefined,
               scores,
             };
@@ -203,12 +276,21 @@ export default function ScanResult() {
         .map((brand) => {
           const scores = brand.brand_scores[0];
           const valueFit = calculateValueFit(scores, weights);
+          const delta = valueFit - currentValueFit;
+          
+          // Build specific rationale
+          let why = delta > 0 
+            ? `+${delta} better: ${getTopContributors(currentScores, scores, weights)}`
+            : delta < 0
+            ? `${delta} points: ${getTopContributors(currentScores, scores, weights)}`
+            : `Similar values: ${getTopContributors(currentScores, scores, weights)}`;
+          
           return {
             brand_id: brand.id,
             brand_name: brand.name,
             valueFit,
             overall_score: Math.round((scores.score_labor + scores.score_environment + scores.score_politics + scores.score_social) / 4),
-            why: `Better alignment with your priorities.`,
+            why,
             price_context: undefined,
             scores,
           };
@@ -216,7 +298,7 @@ export default function ScanResult() {
         .sort((a, b) => b.valueFit - a.valueFit)
         .slice(0, 5);
     },
-    enabled: !!product?.brand_id,
+    enabled: !!product?.brand_id && !!brandData?.brand_scores?.[0],
   });
 
   // Query compare brand data
@@ -427,6 +509,13 @@ export default function ScanResult() {
                 </div>
 
                 <ValueFitBar score={currentBrandData.valueFit} showExplainer />
+
+                {topDrivers.length > 0 && (
+                  <WhyThisScore 
+                    brandId={product.brand_id} 
+                    impacts={topDrivers}
+                  />
+                )}
 
                 {/* Quick explanation */}
                 <p className="text-sm text-muted-foreground leading-relaxed">
