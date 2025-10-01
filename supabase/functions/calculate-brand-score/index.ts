@@ -147,18 +147,73 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Fetch previous scores for delta detection
+    const { data: prevScores } = await supabase
+      .from('brand_scores')
+      .select('score_labor, score_environment, score_politics, score_social')
+      .eq('brand_id', brand_id)
+      .single();
+
+    const { data: brandData } = await supabase
+      .from('brands')
+      .select('name')
+      .eq('id', brand_id)
+      .single();
+
+    const newScores = {
+      score_labor: Math.round(scores.labor),
+      score_environment: Math.round(scores.environment),
+      score_politics: Math.round(scores.politics),
+      score_social: Math.round(scores.social),
+    };
+
     // Upsert brand scores
     const { error: upsertError } = await supabase
       .from('brand_scores')
       .upsert({
         brand_id,
-        score_labor: Math.round(scores.labor),
-        score_environment: Math.round(scores.environment),
-        score_politics: Math.round(scores.politics),
-        score_social: Math.round(scores.social),
+        ...newScores,
       }, { onConflict: 'brand_id' });
 
     if (upsertError) throw upsertError;
+
+    // Detect deltas and queue push notifications for changes ≥5
+    if (prevScores) {
+      type Slider = 'labor' | 'environment' | 'politics' | 'social';
+      const sliders: Slider[] = ['labor', 'environment', 'politics', 'social'];
+      
+      const delta = (a: number | null | undefined, b: number | null | undefined) => {
+        if (a == null || b == null) return 0;
+        return Math.round(b - a);
+      };
+
+      const changes = sliders
+        .map((s) => ({ 
+          category: s, 
+          delta: delta(
+            prevScores[`score_${s}` as keyof typeof prevScores], 
+            newScores[`score_${s}` as keyof typeof newScores]
+          ) 
+        }))
+        .filter(({ delta }) => Math.abs(delta) >= 5);
+
+      // Queue push notification jobs for significant changes
+      for (const { category, delta: deltaValue } of changes) {
+        await supabase.from('jobs').insert({
+          stage: 'send_push_for_score_change',
+          payload: {
+            brand_id,
+            brand_name: brandData?.name ?? brand_id,
+            category,
+            delta: deltaValue,
+            at: new Date().toISOString(),
+          },
+          not_before: new Date().toISOString(),
+        });
+        
+        console.log(`[${requestId}] Queued push notification: ${brandData?.name ?? brand_id} ${category} ${deltaValue > 0 ? '+' : ''}${deltaValue}`);
+      }
+    }
 
     const response = JSON.stringify({ success: true, scores });
     idemState.set(response);

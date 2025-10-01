@@ -239,6 +239,39 @@ export type Database = {
           },
         ]
       }
+      notification_log: {
+        Row: {
+          brand_id: string
+          category: string
+          delta: number | null
+          error: string | null
+          id: string
+          sent_at: string | null
+          success: boolean | null
+          user_id: string | null
+        }
+        Insert: {
+          brand_id: string
+          category: string
+          delta?: number | null
+          error?: string | null
+          id?: string
+          sent_at?: string | null
+          success?: boolean | null
+          user_id?: string | null
+        }
+        Update: {
+          brand_id?: string
+          category?: string
+          delta?: number | null
+          error?: string | null
+          id?: string
+          sent_at?: string | null
+          success?: boolean | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           barcode: string
@@ -360,6 +393,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      allow_push_send: {
+        Args: { p_brand: string; p_category: string; p_user_id: string }
+        Returns: boolean
+      }
       get_source_credibility: {
         Args: { source_name_param: string }
         Returns: number

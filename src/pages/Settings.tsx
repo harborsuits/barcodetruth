@@ -231,7 +231,7 @@ export const Settings = () => {
                   <Label htmlFor="push-notifications">Score Change Alerts</Label>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Get notified when brands you follow have significant score changes (±5 or more)
+                  Get notified when brand scores change significantly. Up to 2 alerts per brand per day. No notifications between 10pm–7am UTC.
                 </p>
               </div>
               <Switch

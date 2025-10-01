@@ -168,6 +168,95 @@ Deno.serve(async (req) => {
         } else if (job.stage === 'publish_snapshots') {
           // Placeholder for snapshot/cache publishing
           console.log('Publishing snapshots (not yet implemented)');
+
+        } else if (job.stage === 'send_push_for_score_change') {
+          const { brand_id, brand_name, category, delta, at } = job.payload;
+
+          // Quiet hours (10pm-7am UTC) - delay to 7am
+          const now = new Date();
+          const hour = now.getUTCHours();
+          const inQuiet = hour >= 22 || hour < 7;
+          
+          if (inQuiet) {
+            const next7am = new Date(now);
+            if (hour >= 22) {
+              next7am.setUTCDate(next7am.getUTCDate() + 1);
+              next7am.setUTCHours(7, 0, 0, 0);
+            } else {
+              next7am.setUTCHours(7, 0, 0, 0);
+            }
+            
+            await supabase.from('jobs').update({
+              not_before: next7am.toISOString(),
+              locked_by: null,
+              locked_at: null
+            }).eq('id', job.id);
+            
+            console.log(`[${requestId}] Job ${job.id} delayed to ${next7am.toISOString()} (quiet hours)`);
+            continue;
+          }
+
+          // Fetch all push subscriptions
+          const { data: subs, error: subErr } = await supabase
+            .from('user_push_subs')
+            .select('endpoint, p256dh, auth, user_id');
+
+          if (subErr) throw subErr;
+
+          if (!subs?.length) {
+            console.log(`[${requestId}] No subscriptions found, deleting job`);
+            await supabase.from('jobs').delete().eq('id', job.id);
+            continue;
+          }
+
+          // Filter by rate limit (max 2 per user per brand per day)
+          let sentCount = 0;
+          let rateLimited = 0;
+
+          for (const sub of subs) {
+            // Check rate limit
+            const { data: allowed } = await supabase.rpc('allow_push_send', {
+              p_user_id: sub.user_id,
+              p_brand: brand_id,
+              p_category: category
+            });
+
+            if (!allowed) {
+              rateLimited++;
+              continue;
+            }
+
+            // Send push notification
+            try {
+              const { error: fnErr } = await supabase.functions.invoke('send-push-notification', {
+                body: { 
+                  subscription: { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
+                  brand_id, 
+                  brand_name, 
+                  category, 
+                  delta 
+                }
+              });
+
+              // Log the attempt
+              await supabase.from('notification_log').insert({
+                user_id: sub.user_id,
+                brand_id,
+                category,
+                delta,
+                success: !fnErr,
+                error: fnErr ? String(fnErr.message ?? fnErr) : null,
+                sent_at: new Date().toISOString()
+              });
+
+              if (!fnErr) sentCount++;
+            } catch (err) {
+              console.error(`[${requestId}] Failed to send push to ${sub.endpoint.substring(0, 50)}:`, err);
+            }
+          }
+
+          console.log(`[${requestId}] Push notification batch: sent=${sentCount}, rate_limited=${rateLimited}`);
+          await supabase.from('jobs').delete().eq('id', job.id);
         }
 
         // Job completed successfully - delete it
