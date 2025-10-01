@@ -259,7 +259,10 @@ export const BrandDetail = () => {
       {/* Header */}
       <header className="sticky top-0 z-10 bg-card border-b">
         <div className="container max-w-2xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
+          <div 
+            className={`flex items-center gap-3 ${toggleNotifications.isPending ? 'opacity-70 pointer-events-none' : ''}`}
+            aria-busy={toggleNotifications.isPending}
+          >
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
