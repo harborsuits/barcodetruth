@@ -414,7 +414,14 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_notification_usage_today: {
+        Row: {
+          brand_id: string | null
+          sent_today: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       allow_push_send: {

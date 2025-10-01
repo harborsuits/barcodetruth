@@ -184,6 +184,25 @@ export const BrandDetail = () => {
     enabled: !!brandId,
   });
 
+  // Query for notification usage today
+  const { data: usage } = useQuery({
+    queryKey: ['notif-usage', brandId],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return { sent_today: 0 };
+      
+      const { data } = await supabase
+        .from('v_notification_usage_today')
+        .select('sent_today')
+        .eq('user_id', session.user.id)
+        .eq('brand_id', brandId)
+        .maybeSingle();
+      
+      return data ?? { sent_today: 0 };
+    },
+    enabled: !!brandId,
+  });
+
   // Mutation to toggle notifications
   const toggleNotifications = useMutation({
     mutationFn: async () => {
@@ -254,6 +273,22 @@ export const BrandDetail = () => {
     return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
   };
 
+  // Quiet hours helper functions
+  const isQuietHoursUTC = () => {
+    const h = new Date().getUTCHours();
+    return h >= 22 || h < 7;
+  };
+
+  const nextQuietLiftUTC = () => {
+    const now = new Date();
+    const next = new Date(now);
+    if (now.getUTCHours() >= 22) {
+      next.setUTCDate(next.getUTCDate() + 1);
+    }
+    next.setUTCHours(7, 0, 0, 0);
+    return next;
+  };
+
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
@@ -271,26 +306,38 @@ export const BrandDetail = () => {
               <p className="text-sm text-muted-foreground">{brand.parent_company}</p>
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => toggleNotifications.mutate()}
-                disabled={toggleNotifications.isPending}
-              >
-                {toggleNotifications.isPending ? (
-                  'Saving...'
-                ) : followData?.notifications_enabled ? (
-                  <>
-                    <Bell className="h-4 w-4 mr-2" />
-                    Following
-                  </>
-                ) : (
-                  <>
-                    <BellOff className="h-4 w-4 mr-2" />
-                    Notify me
-                  </>
+              <div className="flex flex-col items-end gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => toggleNotifications.mutate()}
+                  disabled={toggleNotifications.isPending}
+                >
+                  {toggleNotifications.isPending ? (
+                    'Saving...'
+                  ) : followData?.notifications_enabled ? (
+                    <>
+                      <Bell className="h-4 w-4 mr-2" />
+                      Following
+                    </>
+                  ) : (
+                    <>
+                      <BellOff className="h-4 w-4 mr-2" />
+                      Notify me
+                    </>
+                  )}
+                </Button>
+                {followData?.notifications_enabled && (
+                  <p className="text-xs text-muted-foreground">
+                    Alerts today: {usage?.sent_today ?? 0}/2
+                  </p>
                 )}
-              </Button>
+                {isQuietHoursUTC() && (
+                  <div className="text-xs text-muted-foreground">
+                    Paused until {nextQuietLiftUTC().toUTCString().slice(17, 22)} UTC
+                  </div>
+                )}
+              </div>
               <Button
                 variant="ghost"
                 size="icon"
