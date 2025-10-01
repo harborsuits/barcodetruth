@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Bell, BellOff, Bookmark, Package } from "lucide-react";
+import { ArrowLeft, Bell, BellOff, Bookmark, Package, Share2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
@@ -13,6 +13,16 @@ import { EventCard, type BrandEvent } from "@/components/EventCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { getUserWeights, calculateValueFit } from "@/lib/valueFit";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Product {
   id: string;
@@ -42,6 +52,18 @@ export default function ScanResult() {
   const queryClient = useQueryClient();
   const [compareOpen, setCompareOpen] = useState(false);
   const [compareBrandId, setCompareBrandId] = useState<string | null>(null);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const lastScanRef = useRef<{ barcode: string; timestamp: number } | null>(null);
+
+  // Debounce repeated scans (10s)
+  useEffect(() => {
+    if (!barcode) return;
+    const now = Date.now();
+    if (lastScanRef.current?.barcode === barcode && now - lastScanRef.current.timestamp < 10000) {
+      return;
+    }
+    lastScanRef.current = { barcode, timestamp: now };
+  }, [barcode]);
 
   // Query product by barcode
   const { data: product, isLoading: productLoading, error: productError } = useQuery({
@@ -130,6 +152,7 @@ export default function ScanResult() {
             overall_score: Math.round((scores.score_labor + scores.score_environment + scores.score_politics + scores.score_social) / 4),
             why: `Better alignment with your priorities.`,
             price_context: undefined,
+            scores,
           };
         })
         .sort((a, b) => b.valueFit - a.valueFit)
@@ -209,7 +232,10 @@ export default function ScanResult() {
   const toggleNotifications = useMutation({
     mutationFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Please sign in to enable notifications');
+      if (!session) {
+        setShowAuthDialog(true);
+        throw new Error('auth_required');
+      }
 
       const enabled = !followData?.notifications_enabled;
       const { error } = await supabase
@@ -236,13 +262,40 @@ export default function ScanResult() {
       queryClient.invalidateQueries({ queryKey: ['follow', product?.brand_id] });
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
+      if (error.message !== 'auth_required') {
+        toast({
+          title: 'Error',
+          description: error.message,
+          variant: 'destructive',
+        });
+      }
     }
   });
+
+  const handleShare = async () => {
+    if (!product || !brandData || !currentBrandData) return;
+    
+    const shareData = {
+      title: `${product.name} - ${brandData.name}`,
+      text: `Value Fit: ${currentBrandData.valueFit}/100`,
+      url: window.location.href,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        // User cancelled or share failed
+      }
+    } else {
+      // Fallback: copy to clipboard
+      await navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}\n${shareData.url}`);
+      toast({
+        title: 'Link copied',
+        description: 'Share link copied to clipboard',
+      });
+    }
+  };
 
   const currentBrandData = brandData && {
     brand_id: brandData.id,
@@ -315,7 +368,7 @@ export default function ScanResult() {
                   </Badge>
                 </div>
 
-                <ValueFitBar score={currentBrandData.valueFit} />
+                <ValueFitBar score={currentBrandData.valueFit} showExplainer />
 
                 {/* Quick explanation */}
                 <p className="text-sm text-muted-foreground leading-relaxed">
@@ -328,29 +381,36 @@ export default function ScanResult() {
               </CardContent>
             </Card>
 
-            {/* Action buttons */}
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                variant="outline"
-                onClick={() => toggleNotifications.mutate()}
-                disabled={toggleNotifications.isPending}
-              >
-                {followData?.notifications_enabled ? (
-                  <>
-                    <Bell className="h-4 w-4 mr-2" />
-                    Following
-                  </>
-                ) : (
-                  <>
-                    <BellOff className="h-4 w-4 mr-2" />
-                    Notify me
-                  </>
-                )}
-              </Button>
-              <Button variant="outline" disabled>
-                <Bookmark className="h-4 w-4 mr-2" />
-                Save
-              </Button>
+            {/* Action buttons - sticky on mobile */}
+            <div className="sticky bottom-0 bg-[var(--bg)] pt-2 pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 sm:static border-t sm:border-t-0">
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => toggleNotifications.mutate()}
+                  disabled={toggleNotifications.isPending}
+                >
+                  {followData?.notifications_enabled ? (
+                    <>
+                      <Bell className="h-4 w-4 mr-1" />
+                      <span className="hidden sm:inline">Following</span>
+                    </>
+                  ) : (
+                    <>
+                      <BellOff className="h-4 w-4 mr-1" />
+                      <span className="hidden sm:inline">Notify</span>
+                    </>
+                  )}
+                </Button>
+                <Button variant="outline" size="sm" disabled>
+                  <Bookmark className="h-4 w-4 mr-1" />
+                  <span className="hidden sm:inline">Save</span>
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleShare}>
+                  <Share2 className="h-4 w-4 mr-1" />
+                  <span className="hidden sm:inline">Share</span>
+                </Button>
+              </div>
             </div>
 
             {/* Alternatives */}
@@ -358,6 +418,7 @@ export default function ScanResult() {
               <AlternativesDrawer
                 alternatives={alternatives}
                 currentScore={currentBrandData.valueFit}
+                currentScores={brandData.brand_scores[0]}
                 onCompare={(brandId) => {
                   setCompareBrandId(brandId);
                   setCompareOpen(true);
@@ -391,6 +452,24 @@ export default function ScanResult() {
           alternative={compareBrand}
         />
       )}
+
+      {/* Auth Dialog */}
+      <AlertDialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Create a free account</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sign up to save alerts and track brands that matter to you.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Maybe later</AlertDialogCancel>
+            <AlertDialogAction onClick={() => navigate('/auth')}>
+              Sign up
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

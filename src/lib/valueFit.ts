@@ -52,6 +52,32 @@ export function getValueFitLabel(score: number): { label: string; color: string;
   return { label: "Not a fit", color: "text-[var(--danger)]", icon: "×" };
 }
 
+export function getTopContributors(currentScores: BrandScores, altScores: BrandScores, weights: UserWeights): string {
+  const categories = [
+    { key: 'labor' as const, label: 'Labor' },
+    { key: 'environment' as const, label: 'Environment' },
+    { key: 'politics' as const, label: 'Politics' },
+    { key: 'social' as const, label: 'Social' },
+  ];
+
+  const deltas = categories.map(({ key, label }) => ({
+    label,
+    delta: (altScores[`score_${key}`] - currentScores[`score_${key}`]) * weights[key],
+    rawDelta: altScores[`score_${key}`] - currentScores[`score_${key}`],
+  }));
+
+  deltas.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+
+  const top = deltas.slice(0, 2).filter(d => Math.abs(d.rawDelta) >= 3);
+  if (!top.length) return "Similar across all categories.";
+
+  const parts = top.map(d => 
+    `${d.rawDelta > 0 ? 'Better' : 'Worse'} on ${d.label} (${d.rawDelta > 0 ? '+' : ''}${d.rawDelta})`
+  );
+
+  return parts.join(', ') + '.';
+}
+
 export function getScoreDelta(currentScore: number, alternativeScore: number): number {
   return alternativeScore - currentScore;
 }

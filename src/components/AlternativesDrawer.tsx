@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatDelta, getScoreDelta, getValueFitLabel } from "@/lib/valueFit";
+import { formatDelta, getScoreDelta, getValueFitLabel, getTopContributors, type BrandScores, getUserWeights } from "@/lib/valueFit";
 
 interface Alternative {
   brand_id: string;
@@ -19,16 +19,19 @@ interface Alternative {
   overall_score: number;
   why: string;
   price_context?: string;
+  scores: BrandScores;
 }
 
 interface AlternativesDrawerProps {
   alternatives: Alternative[];
   currentScore: number;
+  currentScores: BrandScores;
   onCompare: (brandId: string) => void;
 }
 
-export function AlternativesDrawer({ alternatives, currentScore, onCompare }: AlternativesDrawerProps) {
+export function AlternativesDrawer({ alternatives, currentScore, currentScores, onCompare }: AlternativesDrawerProps) {
   const [open, setOpen] = useState(false);
+  const weights = getUserWeights();
 
   if (!alternatives.length) {
     return (
@@ -58,6 +61,7 @@ export function AlternativesDrawer({ alternatives, currentScore, onCompare }: Al
           {alternatives.map((alt) => {
             const delta = getScoreDelta(currentScore, alt.valueFit);
             const fit = getValueFitLabel(alt.valueFit);
+            const why = getTopContributors(currentScores, alt.scores, weights);
             
             return (
               <div
@@ -83,7 +87,7 @@ export function AlternativesDrawer({ alternatives, currentScore, onCompare }: Al
                   </div>
                   
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    {alt.why}
+                    {why}
                   </p>
                   
                   {alt.price_context && (
