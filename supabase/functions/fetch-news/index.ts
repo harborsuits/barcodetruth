@@ -86,6 +86,74 @@ async function fetchNewsAPI(apiKey: string, brandName: string): Promise<NewsArti
   });
 }
 
+async function fetchNYTimes(apiKey: string, brandName: string): Promise<NewsArticle[]> {
+  const query = "lawsuit OR recall OR boycott OR scandal OR controversy";
+  const searchQuery = `${brandName} AND (${query})`;
+  const url = new URL("https://api.nytimes.com/svc/search/v2/articlesearch.json");
+  url.searchParams.set("q", searchQuery);
+  url.searchParams.set("api-key", apiKey);
+  url.searchParams.set("sort", "newest");
+  url.searchParams.set("fl", "headline,abstract,web_url,pub_date,source,lead_paragraph");
+
+  const response = await fetch(url.toString());
+  if (!response.ok) throw new Error(`NYTimes API error: ${response.status}`);
+
+  const data = await response.json();
+  const docs = data.response?.docs || [];
+
+  return docs.map((article: any) => {
+    const text = `${article.headline?.main || ""} ${article.abstract || ""}`.toLowerCase();
+    const socialKeywords = ["lawsuit", "recall", "boycott", "protest", "scandal", "controversy"];
+    const category = socialKeywords.some(kw => text.includes(kw)) ? "social" : "general";
+
+    return {
+      title: article.headline?.main || "",
+      summary: article.abstract || article.lead_paragraph?.slice(0, 300) || "",
+      url: article.web_url,
+      published_at: article.pub_date,
+      source_name: "The New York Times",
+      category,
+      raw_data: article,
+    };
+  });
+}
+
+async function fetchGNews(apiKey: string, brandName: string): Promise<NewsArticle[]> {
+  const query = "lawsuit OR recall OR boycott OR scandal OR controversy";
+  const searchQuery = `${brandName} AND (${query})`;
+  const url = new URL("https://gnews.io/api/v4/search");
+  url.searchParams.set("q", searchQuery);
+  url.searchParams.set("token", apiKey);
+  url.searchParams.set("lang", "en");
+  url.searchParams.set("max", "10");
+  url.searchParams.set("sortby", "publishedAt");
+
+  const response = await fetch(url.toString());
+  if (!response.ok) {
+    if (response.status === 429) throw new Error("GNews rate limit exceeded");
+    throw new Error(`GNews API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const articles = data.articles || [];
+
+  return articles.map((article: any) => {
+    const text = `${article.title} ${article.description || ""}`.toLowerCase();
+    const socialKeywords = ["lawsuit", "recall", "boycott", "protest", "scandal", "controversy"];
+    const category = socialKeywords.some(kw => text.includes(kw)) ? "social" : "general";
+
+    return {
+      title: article.title,
+      summary: article.description || article.content?.slice(0, 300) || "",
+      url: article.url,
+      published_at: article.publishedAt,
+      source_name: article.source?.name || "GNews",
+      category,
+      raw_data: article,
+    };
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -98,8 +166,10 @@ serve(async (req) => {
 
     const guardianKey = Deno.env.get("GUARDIAN_API_KEY");
     const newsApiKey = Deno.env.get("NEWSAPI_KEY");
+    const nytKey = Deno.env.get("NYT_API_KEY");
+    const gnewsKey = Deno.env.get("GNEWS_API_KEY");
 
-    if (!guardianKey && !newsApiKey) {
+    if (!guardianKey && !newsApiKey && !nytKey && !gnewsKey) {
       return new Response(
         JSON.stringify({ error: "No news API keys configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -142,6 +212,28 @@ serve(async (req) => {
           console.log(`Fetched ${articles.length} articles from NewsAPI for ${brandName}`);
         } catch (err) {
           console.error(`NewsAPI fetch error for ${brandName}:`, err);
+        }
+      }
+
+      // Fetch from NYTimes
+      if (nytKey) {
+        try {
+          const articles = await fetchNYTimes(nytKey, brandName);
+          allArticles.push(...articles);
+          console.log(`Fetched ${articles.length} articles from NYTimes for ${brandName}`);
+        } catch (err) {
+          console.error(`NYTimes fetch error for ${brandName}:`, err);
+        }
+      }
+
+      // Fetch from GNews
+      if (gnewsKey) {
+        try {
+          const articles = await fetchGNews(gnewsKey, brandName);
+          allArticles.push(...articles);
+          console.log(`Fetched ${articles.length} articles from GNews for ${brandName}`);
+        } catch (err) {
+          console.error(`GNews fetch error for ${brandName}:`, err);
         }
       }
 
