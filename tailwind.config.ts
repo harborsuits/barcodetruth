@@ -67,6 +67,11 @@ export default {
           foreground: "hsl(var(--social-foreground))",
           light: "hsl(var(--social-light))",
         },
+        "cultural-values": {
+          DEFAULT: "hsl(var(--cultural-values))",
+          foreground: "hsl(var(--cultural-values-foreground))",
+          light: "hsl(var(--cultural-values-light))",
+        },
         success: {
           DEFAULT: "hsl(var(--success))",
           foreground: "hsl(var(--success-foreground))",

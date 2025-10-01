@@ -14,6 +14,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { EventCard, type BrandEvent } from "@/components/EventCard";
+import { formatMonthYear } from "@/lib/events";
 
 // Updated events data matching unified structure
 const eventsData: Record<string, BrandEvent> = {
@@ -101,8 +102,33 @@ const brandData: Record<string, any> = {
     trending: { velocity: "stable", sentiment_shift: -5 },
     community_insights: { percent_avoid: 23, trend_change: "+5%" },
     alternatives: [
-      { brand_id: "allbirds", name: "Allbirds", score: 89, why: "Strong environmental focus", price_context: "~15% more" },
-      { brand_id: "veja", name: "Veja", score: 87, why: "Transparent supply chain", price_context: "Similar price" },
+      { 
+        brand_id: "allbirds", 
+        name: "Allbirds", 
+        score: 89, 
+        why: "Higher labor score (+15) and comprehensive environmental transparency", 
+        price_context: "~15% more",
+        sources: [
+          { 
+            name: "Bloomberg", 
+            date: "2025-08-10",
+            url: "https://bloomberg.com/allbirds-carbon-2025"
+          }
+        ]
+      },
+      { 
+        brand_id: "veja", 
+        name: "Veja", 
+        score: 87, 
+        why: "Transparent supply chain with fair trade certification", 
+        price_context: "Similar price",
+        sources: [
+          { 
+            name: "Fair Trade International", 
+            date: "2025-06-15"
+          }
+        ]
+      },
     ],
   },
   patagonia: {
@@ -343,13 +369,25 @@ const BrandDetail = () => {
                 >
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 space-y-1">
-                        <h4 className="font-semibold">{alt.name}</h4>
-                        <p className="text-sm text-muted-foreground">{alt.why}</p>
-                        <p className="text-xs text-muted-foreground">{alt.price_context}</p>
-                      </div>
-                      <div className={`text-2xl font-bold ${getScoreColor(alt.score)}`}>
-                        {alt.score}
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-semibold">{alt.name}</h4>
+                          <div className={`text-xl font-bold ${getScoreColor(alt.score)}`}>
+                            {alt.score}
+                          </div>
+                        </div>
+                        <p className="text-sm text-foreground leading-relaxed">{alt.why}</p>
+                        {alt.price_context && (
+                          <p className="text-xs text-muted-foreground">
+                            <span className="font-medium">Price:</span> {alt.price_context}
+                          </p>
+                        )}
+                        {alt.sources?.[0] && (
+                          <p className="text-xs italic text-muted-foreground/70 pt-1 border-t">
+                            According to {alt.sources[0].name}
+                            {alt.sources[0].date ? `, ${formatMonthYear(alt.sources[0].date)}` : ''}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </CardContent>

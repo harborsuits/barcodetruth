@@ -2,9 +2,11 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, TrendingUp, TrendingDown, Heart, Ban, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { EventCard, type BrandEvent } from "@/components/EventCard";
+import { topImpacts } from "@/lib/events";
 
 const trendingBrands: Array<{
   id: string;
@@ -331,15 +333,15 @@ const Trending = () => {
                           </>
                         )}
                       </div>
-                      <span className="text-xs text-muted-foreground font-medium px-2 py-0.5 rounded-full bg-muted">
+                      <Badge variant="outline" className="text-xs font-medium">
                         {brand.velocity === "rising" ? "rising fast" : "falling"}
-                      </span>
+                      </Badge>
                     </div>
 
                     {/* Events */}
                     <div className="space-y-2.5">
                       {brand.events.slice(0, 2).map((event, idx) => (
-                        <EventCard key={idx} event={event} />
+                        <EventCard key={idx} event={event} compact />
                       ))}
                       
                       {brand.events.length > 2 && (
@@ -355,6 +357,20 @@ const Trending = () => {
                         </Button>
                       )}
                     </div>
+
+                    {/* Why it matters */}
+                    {(() => {
+                      const impacts = topImpacts(brand.events[0]?.impact, 2)
+                        .map(({ key, val }) => `${val > 0 ? '+' : ''}${val} ${key.charAt(0).toUpperCase() + key.slice(1)}`)
+                        .join(' • ');
+                      return impacts ? (
+                        <div className="pt-2 border-t">
+                          <p className="text-xs text-muted-foreground">
+                            <span className="font-medium">Why it matters:</span> {impacts}
+                          </p>
+                        </div>
+                      ) : null;
+                    })()}
 
                     {/* Quick Actions */}
                     <div className="flex items-center gap-2 pt-2">
