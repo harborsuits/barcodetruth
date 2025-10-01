@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { User, Sprout, Building2, Users, ExternalLink, CheckCircle2, Info, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
+import { User, Sprout, Building2, Users, ExternalLink, CheckCircle2, Info, ChevronDown, ChevronUp, AlertCircle, Clock, Flame, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { lineFromEvent } from "@/lib/events";
@@ -57,10 +57,55 @@ function relTime(iso?: string): string {
   const ms = Math.max(0, Date.now() - new Date(iso).getTime());
   const m = Math.floor(ms / 60000);
   const h = Math.floor(ms / 36e5);
+  const d = Math.floor(h / 24);
   
   if (m < 60) return `${Math.max(1, m)}m ago`;
   if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h/24)}d ago`;
+  if (d < 31) return `${d}d ago`;
+  const months = Math.floor(d / 30);
+  return `${months}mo ago`;
+}
+
+function isNewEvent(iso?: string): boolean {
+  if (!iso) return false;
+  const ms = Date.now() - new Date(iso).getTime();
+  const days = ms / (1000 * 60 * 60 * 24);
+  return days <= 7;
+}
+
+function getSeverityConfig(severity?: "minor" | "moderate" | "severe") {
+  if (severity === "severe") {
+    return {
+      label: "Severe",
+      icon: Flame,
+      className: "bg-red-600/10 text-red-700 border-red-600/20",
+      tooltip: "Major issue requiring attention"
+    };
+  }
+  if (severity === "moderate") {
+    return {
+      label: "Moderate",
+      icon: AlertCircle,
+      className: "bg-orange-600/10 text-orange-700 border-orange-600/20",
+      tooltip: "Significant concern"
+    };
+  }
+  if (severity === "minor") {
+    return {
+      label: "Minor",
+      icon: Info,
+      className: "bg-blue-600/10 text-blue-700 border-blue-600/20",
+      tooltip: "Low-level issue"
+    };
+  }
+  return null;
+}
+
+function getSourceLogo(sourceName?: string) {
+  if (sourceName === "EPA") return Shield;
+  if (sourceName === "OSHA") return Shield;
+  if (sourceName === "FEC") return Building2;
+  return null;
 }
 
 function getVerificationBadge(v?: Verification, verified?: boolean) {
@@ -131,6 +176,9 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
   const verificationBadge = getVerificationBadge(event.verification, event.verified);
   const attributionLine = lineFromEvent(event);
   const showUnverifiedWarning = event.verification === "unverified" && !showFullDetails;
+  const severityConfig = getSeverityConfig(event.severity);
+  const isNew = isNewEvent(timestamp);
+  const SourceLogo = getSourceLogo(primarySource?.name);
   
   // Enhanced tooltip for FEC sources
   const sourceTooltip = useMemo(() => {
@@ -166,11 +214,31 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
               <span 
                 role="status"
                 aria-label={`${verificationBadge.label} – ${verificationBadge.tooltip}`}
-                className={`text-[11px] px-1.5 py-0.5 rounded-md ${verificationBadge.className}`}
+                className={`inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md ${verificationBadge.className}`}
                 title={verificationBadge.tooltip}
               >
+                {SourceLogo && <SourceLogo className="h-3 w-3 opacity-60" />}
                 {verificationBadge.label}
               </span>
+            )}
+            
+            {severityConfig && (
+              <span
+                role="status"
+                aria-label={`${severityConfig.label} – ${severityConfig.tooltip}`}
+                className={`inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md border ${severityConfig.className}`}
+                title={severityConfig.tooltip}
+              >
+                <severityConfig.icon className="h-3 w-3" />
+                {severityConfig.label}
+              </span>
+            )}
+            
+            {isNew && (
+              <Badge variant="outline" className="text-xs bg-emerald-600/10 text-emerald-700 border-emerald-600/20">
+                <Clock className="h-3 w-3 mr-1" />
+                New
+              </Badge>
             )}
             
             {event.resolved && (
