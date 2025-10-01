@@ -24,15 +24,21 @@ const RequestBody = z.object({
 });
 
 Deno.serve(async (req) => {
+  const requestId = req.headers.get('X-Request-Id') ?? crypto.randomUUID();
+  const baseHeaders = { 
+    ...corsHeaders, 
+    'Content-Type': 'application/json', 
+    'X-API-Version': '1',
+    'X-Request-Id': requestId 
+  };
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: baseHeaders });
   }
 
   const idemState = handleIdempotency(req, 'verify-event');
   if (idemState.replay) {
-    return new Response(idemState.payload, {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-API-Version': '1' }
-    });
+    return new Response(idemState.payload, { headers: baseHeaders });
   }
 
   try {
@@ -43,6 +49,8 @@ Deno.serve(async (req) => {
 
     const body = RequestBody.parse(await req.json());
     const { event_id } = body;
+    
+    console.log(`[${requestId}] Verifying event:`, event_id);
 
     // Fetch event with sources
     const { data: event, error: eventError } = await supabase
@@ -100,11 +108,11 @@ Deno.serve(async (req) => {
     const response = JSON.stringify({ success: true, verification });
     idemState.set(response);
     
-    return new Response(response, {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-API-Version': '1' }
-    });
+    console.log(`[${requestId}] Verified event ${event_id} as ${verification}`);
+    return new Response(response, { headers: baseHeaders });
+    
   } catch (error) {
-    console.error('Verification error:', error);
+    console.error(`[${requestId}] Verification error:`, error);
     
     const errorType = error instanceof z.ZodError ? 'INVALID_REQUEST' : 'INTERNAL';
     const status = errorType === 'INVALID_REQUEST' ? 422 : 500;
@@ -114,7 +122,7 @@ Deno.serve(async (req) => {
     
     return new Response(
       JSON.stringify({ error: errorType, message }),
-      { status, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-API-Version': '1' } }
+      { status, headers: baseHeaders }
     );
   }
 });

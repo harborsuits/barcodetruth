@@ -6,11 +6,18 @@ const corsHeaders = {
 };
 
 const MAX_BATCH = 25;
-const LOCK_TIMEOUT_MS = 90_000;
+const LOCK_TIMEOUT_SECONDS = 120; // 2 minutes
 
 Deno.serve(async (req) => {
+  const requestId = req.headers.get('X-Request-Id') ?? crypto.randomUUID();
+  const baseHeaders = { 
+    ...corsHeaders, 
+    'Content-Type': 'application/json',
+    'X-Request-Id': requestId 
+  };
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: baseHeaders });
   }
 
   try {
@@ -18,6 +25,15 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // First, unlock stale locks
+    const { data: unlocked } = await supabase.rpc('unlock_stale_jobs', { 
+      timeout_seconds: LOCK_TIMEOUT_SECONDS 
+    });
+    
+    if (unlocked && unlocked > 0) {
+      console.log(`[${requestId}] Unlocked ${unlocked} stale jobs`);
+    }
 
     // Fetch unlocked jobs ready to run
     const { data: jobs, error: fetchError } = await supabase
@@ -34,14 +50,17 @@ Deno.serve(async (req) => {
     }
 
     if (!jobs?.length) {
+      console.log(`[${requestId}] No jobs to process`);
       return new Response(
         JSON.stringify({ ok: true, processed: 0, message: 'No jobs to process' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: baseHeaders }
       );
     }
 
-    const workerId = crypto.randomUUID();
+    const workerId = requestId; // Use request ID as worker ID for tracing
     const now = new Date().toISOString();
+    
+    console.log(`[${requestId}] Processing ${jobs.length} jobs`);
 
     // Lock jobs optimistically
     const jobIds = jobs.map(j => j.id);
@@ -60,7 +79,7 @@ Deno.serve(async (req) => {
 
     for (const job of jobs) {
       try {
-        console.log(`Processing job ${job.id} (${job.stage})`);
+        console.log(`[${requestId}] Processing job ${job.id} (${job.stage})`);
 
         if (job.stage === 'verify_event') {
           // Call verify-event function
@@ -80,7 +99,18 @@ Deno.serve(async (req) => {
           // Parse payload and insert event + sources
           const { brand_id, title, description, category, event_date, sources, impacts } = job.payload;
           
-          // Generate event_id and dedupe_hash
+          // Flood control: check events in last 24h
+          const { data: eventCount } = await supabase.rpc('brand_events_last_24h', {
+            brand_id_param: brand_id
+          });
+          
+          if (eventCount && eventCount > 30) {
+            console.warn(`[${requestId}] Flood detected for brand ${brand_id}: ${eventCount} events in 24h`);
+            // Insert but don't auto-score; flag for review
+            job.payload.flood_flagged = true;
+          }
+          
+          // Generate event_id
           const event_id = `evt_${crypto.randomUUID()}`;
           
           // Insert event
@@ -125,11 +155,15 @@ Deno.serve(async (req) => {
             payload: { event_id },
           });
 
-          // Queue scoring job
-          await supabase.from('jobs').insert({
-            stage: 'score_brand',
-            payload: { brand_id },
-          });
+          // Only queue scoring if not flood-flagged
+          if (!job.payload.flood_flagged) {
+            await supabase.from('jobs').insert({
+              stage: 'score_brand',
+              payload: { brand_id },
+            });
+          } else {
+            console.log(`[${requestId}] Skipping auto-score for flood-flagged event ${event_id}`);
+          }
 
         } else if (job.stage === 'publish_snapshots') {
           // Placeholder for snapshot/cache publishing
@@ -139,18 +173,28 @@ Deno.serve(async (req) => {
         // Job completed successfully - delete it
         await supabase.from('jobs').delete().eq('id', job.id);
         processed++;
-        console.log(`Job ${job.id} completed successfully`);
+        console.log(`[${requestId}] Job ${job.id} completed successfully`);
 
       } catch (err) {
         failed++;
         const attempts = (job.attempts ?? 0) + 1;
         const maxAttempts = 3;
 
-        console.error(`Job ${job.id} failed (attempt ${attempts}/${maxAttempts}):`, err);
+        console.error(`[${requestId}] Job ${job.id} failed (attempt ${attempts}/${maxAttempts}):`, err);
 
         if (attempts >= maxAttempts) {
-          // Max retries exceeded - delete the job
-          console.error(`Job ${job.id} exceeded max attempts, deleting`);
+          // Max retries exceeded - move to dead-letter queue
+          console.error(`[${requestId}] Job ${job.id} exceeded max attempts, moving to dead-letter`);
+          
+          await supabase.from('jobs_dead').insert({
+            id: job.id,
+            stage: job.stage,
+            payload: job.payload,
+            attempts: maxAttempts,
+            last_error: String(err instanceof Error ? err.message : err),
+            original_created_at: job.created_at,
+          });
+          
           await supabase.from('jobs').delete().eq('id', job.id);
         } else {
           // Exponential backoff: 1s, 5s, 30s
@@ -176,21 +220,21 @@ Deno.serve(async (req) => {
       worker_id: workerId,
     };
 
-    console.log('Job batch completed:', result);
+    console.log(`[${requestId}] Job batch completed:`, result);
 
     return new Response(
       JSON.stringify(result),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: baseHeaders }
     );
 
   } catch (error) {
-    console.error('Jobs runner error:', error);
+    console.error(`[${requestId}] Jobs runner error:`, error);
     return new Response(
       JSON.stringify({ 
         ok: false, 
         error: error instanceof Error ? error.message : 'Unknown error' 
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: baseHeaders }
     );
   }
 });

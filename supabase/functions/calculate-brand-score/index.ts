@@ -57,15 +57,21 @@ function applyEventImpact(
 }
 
 Deno.serve(async (req) => {
+  const requestId = req.headers.get('X-Request-Id') ?? crypto.randomUUID();
+  const baseHeaders = { 
+    ...corsHeaders, 
+    'Content-Type': 'application/json', 
+    'X-API-Version': '1',
+    'X-Request-Id': requestId 
+  };
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: baseHeaders });
   }
 
   const idemState = handleIdempotency(req, 'calculate-brand-score');
   if (idemState.replay) {
-    return new Response(idemState.payload, {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-API-Version': '1' }
-    });
+    return new Response(idemState.payload, { headers: baseHeaders });
   }
 
   try {
@@ -76,6 +82,8 @@ Deno.serve(async (req) => {
 
     const body = RequestBody.parse(await req.json());
     const { brand_id } = body;
+    
+    console.log(`[${requestId}] Calculating scores for brand:`, brand_id);
 
     // Start with base scores (50/50/50/50)
     let scores: Weights = {
@@ -152,16 +160,14 @@ Deno.serve(async (req) => {
 
     if (upsertError) throw upsertError;
 
-    console.log('Calculated scores for brand', brand_id, scores);
-
     const response = JSON.stringify({ success: true, scores });
     idemState.set(response);
-
-    return new Response(response, {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-API-Version': '1' }
-    });
+    
+    console.log(`[${requestId}] Calculated scores for brand ${brand_id}:`, scores);
+    return new Response(response, { headers: baseHeaders });
+    
   } catch (error) {
-    console.error('Score calculation error:', error);
+    console.error(`[${requestId}] Score calculation error:`, error);
     
     const errorType = error instanceof z.ZodError ? 'INVALID_REQUEST' : 'INTERNAL';
     const status = errorType === 'INVALID_REQUEST' ? 422 : 500;
@@ -171,7 +177,7 @@ Deno.serve(async (req) => {
     
     return new Response(
       JSON.stringify({ error: errorType, message }),
-      { status, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-API-Version': '1' } }
+      { status, headers: baseHeaders }
     );
   }
 });
