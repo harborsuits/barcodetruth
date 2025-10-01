@@ -16,6 +16,7 @@ import { NotFound } from "./pages/NotFound";
 const Home = lazyNamed(() => import("./pages/Home"), "Home");
 const BrandDetail = lazyNamed(() => import("./pages/BrandDetail"), "BrandDetail");
 const Scan = lazyNamed(() => import("./pages/Scan"), "Scan");
+const ScanResult = lazyNamed(() => import("./pages/ScanResult"), "default");
 const Trending = lazyNamed(() => import("./pages/Trending"), "Trending");
 const Lists = lazyNamed(() => import("./pages/Lists"), "Lists");
 const Settings = lazyNamed(() => import("./pages/Settings"), "Settings");
@@ -72,6 +73,18 @@ const App = () => (
                 <RouteErrorBoundary>
                   <Suspense fallback={<RouteFallback label="Loading scanner…" />}>
                     <Scan />
+                  </Suspense>
+                </RouteErrorBoundary>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/scan-result/:barcode"
+            element={
+              <ProtectedRoute>
+                <RouteErrorBoundary>
+                  <Suspense fallback={<RouteFallback label="Loading result…" />}>
+                    <ScanResult />
                   </Suspense>
                 </RouteErrorBoundary>
               </ProtectedRoute>
