@@ -170,6 +170,11 @@ const BrandDetail = () => {
     return variants[risk] || variants.low;
   };
 
+  const getStalenessBadge = (lastUpdated: string) => {
+    const daysSince = Math.floor((Date.now() - new Date(lastUpdated).getTime()) / (1000 * 60 * 60 * 24));
+    return daysSince > 30 ? "text-warning font-medium" : "text-muted-foreground";
+  };
+
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
@@ -224,9 +229,12 @@ const BrandDetail = () => {
                   <span className="text-muted-foreground">Stable</span>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Last updated: {new Date(brand.last_updated).toLocaleDateString()}
-              </p>
+              <div className="flex items-center justify-center gap-1.5 text-xs">
+                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className={getStalenessBadge(brand.last_updated)}>
+                  Last updated: {new Date(brand.last_updated).toLocaleDateString()}
+                </span>
+              </div>
             </div>
           </CardContent>
         </Card>

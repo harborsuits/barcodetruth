@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { User, Sprout, Building2, Users, ExternalLink, CheckCircle2, Info, ChevronDown, ChevronUp } from "lucide-react";
+import { User, Sprout, Building2, Users, ExternalLink, CheckCircle2, Info, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { lineFromEvent } from "@/lib/events";
 
 type CategoryKey = "labor" | "environment" | "politics" | "social" | "cultural-values" | "general";
 type EventOrientation = "positive" | "negative" | "mixed";
@@ -83,6 +84,7 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
   const allSources = event.sources ?? (event.source ? [event.source] : []);
   const primarySource = allSources[0];
   const additionalSources = allSources.slice(1);
+  const hasNoSource = !primarySource;
 
   // Memoized impact chips
   const impactChips = useMemo(() => {
@@ -96,11 +98,9 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
   const isPositive = event.orientation === "positive" || impactChips.some(({ val }) => val > 0);
   const borderColor = isPositive ? "border-l-success" : getSeverityColor(event.severity);
 
-  // Attribution text
-  const verificationLabel = getVerificationLabel(event.verification, event.verified);
-  const attributionPrefix = event.verification === "official" ? "Per" : 
-                           event.verification === "unverified" ? "Reported by" : 
-                           "According to";
+  // Get attribution line using utility
+  const attributionLine = lineFromEvent(event);
+  const showUnverifiedWarning = event.verification === "unverified" && !showFullDetails;
 
   return (
     <Card className={`border-l-4 ${borderColor} transition-shadow hover:shadow-md`}>
@@ -118,7 +118,7 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
               className="flex items-center gap-1 text-xs"
             >
               <CheckCircle2 className="h-3 w-3" />
-              {verificationLabel}
+              {getVerificationLabel(event.verification, event.verified)}
             </Badge>
           )}
           
@@ -166,9 +166,15 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
         )}
 
         {/* Primary Source Citation */}
-        {primarySource && (
+        {hasNoSource ? (
+          <div className="pt-2 border-t">
+            <p className="text-xs text-muted-foreground/70 italic">
+              Source unavailable.
+            </p>
+          </div>
+        ) : (
           <div className="space-y-2 pt-2 border-t">
-            {showFullDetails && primarySource.quote ? (
+            {showFullDetails && primarySource?.quote ? (
               <blockquote className="pl-3 border-l-2 border-muted text-xs text-muted-foreground italic leading-relaxed">
                 "{primarySource.quote}"
               </blockquote>
@@ -176,13 +182,9 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
             
             <div className="flex items-center justify-between gap-2">
               <p className="text-xs text-muted-foreground/70 italic">
-                {attributionPrefix} <span className="font-medium">{primarySource.name}</span>
-                {primarySource.date && `, ${formatDate(primarySource.date)}`}
-                {event.verification === "unverified" && (
-                  <span className="text-warning"> • Not yet corroborated</span>
-                )}
+                {attributionLine}
               </p>
-              {primarySource.url && (
+              {primarySource?.url && (
                 <a
                   href={primarySource.url}
                   target="_blank"
@@ -197,6 +199,16 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
               )}
             </div>
 
+            {/* Unverified Warning */}
+            {showUnverifiedWarning && (
+              <div className="flex items-start gap-2 p-2 rounded bg-warning/10 border border-warning/20">
+                <AlertCircle className="h-3 w-3 text-warning shrink-0 mt-0.5" />
+                <p className="text-xs text-warning">
+                  This report is not yet corroborated and does not affect the score.
+                </p>
+              </div>
+            )}
+
             {/* Additional Sources */}
             {additionalSources.length > 0 && (
               <div className="space-y-2">
@@ -205,6 +217,7 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                   size="sm"
                   className="h-auto p-0 text-xs text-primary hover:no-underline"
                   onClick={() => setShowAllSources(!showAllSources)}
+                  aria-label={showAllSources ? "Hide additional sources" : "Show additional sources"}
                 >
                   {showAllSources ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />}
                   {showAllSources ? "Hide" : "Show"} +{additionalSources.length} more source{additionalSources.length > 1 ? "s" : ""}

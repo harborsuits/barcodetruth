@@ -381,6 +381,7 @@ const Trending = () => {
                           brandActions[brand.id]?.following ? "bg-success hover:bg-success/90" : ""
                         }`}
                         onClick={(e) => handleFollow(brand.id, brand.name, e)}
+                        aria-label={`${brandActions[brand.id]?.following ? "Unfollow" : "Follow"} ${brand.name}`}
                       >
                         <Heart className={`h-3 w-3 ${brandActions[brand.id]?.following ? "fill-current" : ""}`} />
                         Follow
@@ -392,6 +393,7 @@ const Trending = () => {
                           brandActions[brand.id]?.avoiding ? "bg-danger hover:bg-danger/90" : ""
                         }`}
                         onClick={(e) => handleAvoid(brand.id, brand.name, e)}
+                        aria-label={`${brandActions[brand.id]?.avoiding ? "Remove from avoid list" : "Add to avoid list"} ${brand.name}`}
                       >
                         <Ban className={`h-3 w-3 ${brandActions[brand.id]?.avoiding ? "fill-current" : ""}`} />
                         Avoid
@@ -403,6 +405,7 @@ const Trending = () => {
                           brandActions[brand.id]?.notifying ? "bg-primary hover:bg-primary/90" : ""
                         }`}
                         onClick={(e) => handleNotify(brand.id, brand.name, e)}
+                        aria-label={`${brandActions[brand.id]?.notifying ? "Turn off notifications" : "Turn on notifications"} for ${brand.name}`}
                       >
                         <Bell className={`h-3 w-3 ${brandActions[brand.id]?.notifying ? "fill-current" : ""}`} />
                         Notify
