@@ -125,17 +125,35 @@ export default function ScanResult() {
     queryFn: async () => {
       const weights = getUserWeights();
       
-      // Get all brands in same category (or all if no category)
-      const { data, error } = await supabase
+      // Filter by same product category
+      const categoryQuery = supabase
+        .from('products')
+        .select('brand_id, category')
+        .neq('brand_id', product!.brand_id);
+      
+      // Only filter by category if product has one
+      if (product?.category) {
+        categoryQuery.eq('category', product.category);
+      }
+      
+      const { data: products, error: prodError } = await categoryQuery;
+      if (prodError) throw prodError;
+      
+      // Extract unique brand IDs
+      const brandIds = [...new Set(products?.map((p) => p.brand_id) ?? [])];
+      
+      if (brandIds.length === 0) return [];
+      
+      // Fetch brand scores for those alternatives
+      const { data: brands, error: brandError } = await supabase
         .from('brands')
         .select('id, name, brand_scores!inner(score_labor, score_environment, score_politics, score_social)')
-        .neq('id', product!.brand_id)
-        .limit(10);
+        .in('id', brandIds);
       
-      if (error) throw error;
+      if (brandError) throw brandError;
       
       // Cast and normalize brand_scores to array
-      const normalized = (data as any[]).map(brand => ({
+      const normalized = (brands as any[]).map(brand => ({
         ...brand,
         brand_scores: Array.isArray(brand.brand_scores) ? brand.brand_scores : [brand.brand_scores]
       })) as BrandWithScores[];
