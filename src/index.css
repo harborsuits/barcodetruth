@@ -8,99 +8,144 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
+    /* Base colors - soft neutral for low eye fatigue */
     --background: 0 0% 98%;
-    --foreground: 220 13% 13%;
+    --foreground: 0 0% 12%;
 
+    /* Card surfaces - clean white with subtle depth */
     --card: 0 0% 100%;
-    --card-foreground: 220 13% 13%;
+    --card-foreground: 0 0% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 13% 13%;
+    --popover-foreground: 0 0% 12%;
 
-    --primary: 220 13% 13%;
-    --primary-foreground: 0 0% 98%;
+    /* Primary - Teal-blue for trust & calm (research-backed) */
+    --primary: 190 60% 45%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 13% 95%;
-    --secondary-foreground: 220 13% 13%;
+    /* Secondary - Soft cool grey for subtle elements */
+    --secondary: 200 15% 95%;
+    --secondary-foreground: 0 0% 12%;
 
-    --muted: 220 13% 95%;
-    --muted-foreground: 220 9% 46%;
+    /* Muted - Mid-grey for supporting text */
+    --muted: 200 10% 95%;
+    --muted-foreground: 0 0% 45%;
 
-    --accent: 220 13% 95%;
-    --accent-foreground: 220 13% 13%;
+    /* Accent - Warm orange for calls to action (retention driver) */
+    --accent: 25 100% 63%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
+    /* Destructive - Warm red for alerts */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 220 13% 13%;
+    /* Borders & inputs - subtle cool grey */
+    --border: 200 15% 88%;
+    --input: 200 15% 88%;
+    --ring: 190 60% 45%;
 
     --radius: 0.75rem;
 
-    /* Category colors */
-    --labor: 217 91% 60%;
+    /* Category colors - distinct but harmonious with base palette */
+    --labor: 210 80% 55%;
     --labor-foreground: 0 0% 100%;
-    --labor-light: 217 91% 95%;
+    --labor-light: 210 80% 96%;
     
-    --environment: 142 76% 36%;
+    --environment: 150 55% 42%;
     --environment-foreground: 0 0% 100%;
-    --environment-light: 142 76% 95%;
+    --environment-light: 150 55% 96%;
     
-    --politics: 262 52% 47%;
+    --politics: 280 45% 50%;
     --politics-foreground: 0 0% 100%;
-    --politics-light: 262 52% 95%;
+    --politics-light: 280 45% 96%;
     
-    --social: 25 95% 53%;
+    --social: 20 85% 58%;
     --social-foreground: 0 0% 100%;
-    --social-light: 25 95% 95%;
+    --social-light: 20 85% 96%;
     
-    --cultural-values: 200 70% 55%;
+    --cultural-values: 330 50% 50%;
     --cultural-values-foreground: 0 0% 100%;
-    --cultural-values-light: 200 70% 95%;
+    --cultural-values-light: 330 50% 96%;
 
-    /* Status colors */
-    --success: 142 76% 36%;
+    /* Status colors - aligned with research (green=positive, orange=caution, red=negative) */
+    --success: 150 55% 42%;
     --success-foreground: 0 0% 100%;
+    --success-light: 150 55% 96%;
     
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
+    --warning: 40 90% 55%;
+    --warning-foreground: 0 0% 12%;
+    --warning-light: 40 90% 96%;
     
-    --danger: 0 84% 60%;
+    --danger: 0 72% 51%;
     --danger-foreground: 0 0% 100%;
+    --danger-light: 0 72% 96%;
 
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .dark {
-    --background: 220 13% 9%;
-    --foreground: 0 0% 98%;
+    /* Dark mode - softer contrast for reduced eye strain */
+    --background: 200 15% 10%;
+    --foreground: 0 0% 95%;
 
-    --card: 220 13% 13%;
-    --card-foreground: 0 0% 98%;
+    /* Cards - elevated surfaces with subtle depth */
+    --card: 200 12% 14%;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 220 13% 13%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 200 12% 14%;
+    --popover-foreground: 0 0% 95%;
 
-    --primary: 0 0% 98%;
-    --primary-foreground: 220 13% 13%;
+    /* Primary - brightened teal for dark mode visibility */
+    --primary: 190 65% 55%;
+    --primary-foreground: 200 15% 10%;
 
-    --secondary: 220 13% 18%;
-    --secondary-foreground: 0 0% 98%;
+    /* Secondary - darker cool grey */
+    --secondary: 200 10% 20%;
+    --secondary-foreground: 0 0% 95%;
 
-    --muted: 220 13% 18%;
-    --muted-foreground: 220 9% 65%;
+    /* Muted - mid-tone grey for dark mode */
+    --muted: 200 10% 20%;
+    --muted-foreground: 0 0% 65%;
 
-    --accent: 220 13% 18%;
-    --accent-foreground: 0 0% 98%;
+    /* Accent - warm orange maintains energy in dark mode */
+    --accent: 25 95% 60%;
+    --accent-foreground: 200 15% 10%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
+    /* Destructive */
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 95%;
 
-    --border: 220 13% 18%;
-    --input: 220 13% 18%;
-    --ring: 0 0% 98%;
+    /* Borders - subtle in dark mode */
+    --border: 200 10% 22%;
+    --input: 200 10% 22%;
+    --ring: 190 65% 55%;
+
+    /* Category colors - adjusted for dark mode contrast */
+    --labor: 210 70% 60%;
+    --labor-light: 210 70% 20%;
+    
+    --environment: 150 50% 50%;
+    --environment-light: 150 50% 20%;
+    
+    --politics: 280 40% 60%;
+    --politics-light: 280 40% 20%;
+    
+    --social: 20 80% 65%;
+    --social-light: 20 80% 20%;
+    
+    --cultural-values: 330 45% 60%;
+    --cultural-values-light: 330 45% 20%;
+
+    /* Status colors for dark mode */
+    --success: 150 50% 50%;
+    --success-light: 150 50% 20%;
+    
+    --warning: 40 85% 60%;
+    --warning-light: 40 85% 20%;
+    
+    --danger: 0 70% 58%;
+    --danger-light: 0 70% 20%;
   }
 }
 
