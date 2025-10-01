@@ -63,8 +63,11 @@ serve(async (req) => {
     console.log(`[fetch-epa-events] Found ${facilities.length} facilities for ${brand.name}`);
 
     const events = [];
+    let scanned = 0;
+    let skipped = 0;
     
-    for (const facility of facilities.slice(0, 10)) {
+    for (const facility of facilities.slice(0, 50)) {
+      scanned++;
       // Small delay to respect API rate limits
       await new Promise(r => setTimeout(r, 150));
       
@@ -82,10 +85,12 @@ serve(async (req) => {
 
         if (existing && existing.length > 0) {
           console.log(`[fetch-epa-events] Skipping duplicate: ${sourceUrl}`);
+          skipped++;
           continue;
         }
 
-        const impact = facility.Qtrs_with_NC > 2 ? -5 : facility.Qtrs_with_NC > 0 ? -3 : -1;
+        const qnc = Number(facility.Qtrs_with_NC ?? 0) || 0;
+        const impact = qnc > 2 ? -5 : qnc > 0 ? -3 : -1;
         
         const event = {
           brand_id: brandId,
@@ -110,6 +115,7 @@ serve(async (req) => {
           // Check if it's a unique violation (race condition)
           if (eventError.code === '23505') {
             console.log(`[fetch-epa-events] Duplicate detected via constraint: ${sourceUrl}`);
+            skipped++;
             continue;
           }
           console.error('[fetch-epa-events] Error inserting event:', eventError);
@@ -135,14 +141,16 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[fetch-epa-events] Inserted ${events.length} events`);
+    console.log(`[fetch-epa-events] Scanned: ${scanned}, Inserted: ${events.length}, Skipped: ${skipped}`);
 
     return new Response(
       JSON.stringify({ 
-        success: true, 
+        success: true,
+        scanned,
         inserted: events.length,
+        skipped,
         event_ids: events 
-      }), 
+      }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
