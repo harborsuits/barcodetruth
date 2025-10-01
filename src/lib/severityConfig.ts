@@ -86,7 +86,35 @@ const FEC_THRESHOLDS: Thresholds = {
   }
 };
 
-// Generic fallback (for social/general or unknown sources)
+// News/Social (Guardian, NewsAPI, etc.)
+// Use keyword detection + sentiment when available; else impact_social.
+const NEWS_THRESHOLDS: Thresholds = {
+  toLevel: (input) => {
+    const title = String(input.raw?.title || input.raw?.headline || "").toLowerCase();
+    const summary = String(input.raw?.summary || input.raw?.description || "").toLowerCase();
+    const text = `${title} ${summary}`;
+    const impact = Number(input.impact_social ?? 0);
+
+    // High-severity keywords
+    if (/(class.action|criminal|felony|indictment|sentenced)/i.test(text)) {
+      return { level: "severe", reason: "Legal action", badge: "danger" };
+    }
+    if (/(lawsuit|recall|boycott)/i.test(text)) {
+      return { level: "moderate", reason: "Significant issue", badge: "warn" };
+    }
+    if (/(scandal|controversy|protest|discrimination)/i.test(text)) {
+      return { level: "minor", reason: "Controversy reported", badge: "info" };
+    }
+
+    // Fallback to impact_social
+    if (impact <= -5) return { level: "severe", reason: "Severe impact", badge: "danger" };
+    if (impact <= -3) return { level: "moderate", reason: "Moderate impact", badge: "warn" };
+    if (impact < 0)   return { level: "minor", reason: "Minor impact", badge: "info" };
+    return { level: "minor", reason: "Informational", badge: "info" };
+  }
+};
+
+// Generic fallback (for unknown sources)
 const GENERIC_THRESHOLDS: Thresholds = {
   toLevel: (input) => {
     const byCatImpact =
@@ -108,6 +136,11 @@ export function computeSeverity(input: SeverityInput): SeverityResult {
   if (source === "EPA"  || input.category === "environment") return EPA_THRESHOLDS.toLevel(input);
   if (source === "OSHA" || input.category === "labor")       return OSHA_THRESHOLDS.toLevel(input);
   if (source === "FEC"  || input.category === "politics")    return FEC_THRESHOLDS.toLevel(input);
+  
+  // News sources (Guardian, NewsAPI, etc.)
+  if (source === "THE GUARDIAN" || source === "NEWSAPI" || input.category === "social") {
+    return NEWS_THRESHOLDS.toLevel(input);
+  }
 
   return GENERIC_THRESHOLDS.toLevel(input);
 }
