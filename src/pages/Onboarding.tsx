@@ -51,13 +51,13 @@ const Onboarding = () => {
             <Card>
               <CardContent className="pt-6 pb-4 space-y-2">
                 <Megaphone className="h-6 w-6 mx-auto text-politics" />
-                <p className="text-sm font-medium">Politics</p>
+                <p className="text-sm font-medium">Political Giving</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6 pb-4 space-y-2">
                 <Heart className="h-6 w-6 mx-auto text-social" />
-                <p className="text-sm font-medium">Social Impact</p>
+                <p className="text-sm font-medium">Community & Culture</p>
               </CardContent>
             </Card>
           </div>
@@ -120,7 +120,7 @@ const Onboarding = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Megaphone className="h-5 w-5 text-politics" />
-                  <span className="font-medium">Politics</span>
+                  <span className="font-medium">Political Giving</span>
                 </div>
                 <span className="text-sm text-muted-foreground">{values.politics}%</span>
               </div>
@@ -137,7 +137,7 @@ const Onboarding = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Heart className="h-5 w-5 text-social" />
-                  <span className="font-medium">Social Impact</span>
+                  <span className="font-medium">Community & Culture</span>
                 </div>
                 <span className="text-sm text-muted-foreground">{values.social}%</span>
               </div>
