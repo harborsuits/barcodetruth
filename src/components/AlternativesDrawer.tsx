@@ -53,7 +53,7 @@ export function AlternativesDrawer({ alternatives, currentScore, currentScores, 
         <SheetHeader>
           <SheetTitle>Better Alternatives</SheetTitle>
           <SheetDescription>
-            Ranked by your values and priorities
+            Brands in the same product category, ranked by your values and priorities
           </SheetDescription>
         </SheetHeader>
         

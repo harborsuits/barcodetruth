@@ -99,8 +99,8 @@ export function CompareSheet({ open, onOpenChange, current, alternative }: Compa
                 <div key={key} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">{label}</span>
-                    <span className={`text-xs font-semibold ${deltaColor}`}>
-                      {delta !== 0 && formatDelta(delta)}
+                    <span className={`text-xs font-semibold ${deltaColor} ${delta === 0 ? 'opacity-40' : ''}`}>
+                      {formatDelta(delta)}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
