@@ -247,6 +247,7 @@ export type Database = {
           error: string | null
           id: string
           sent_at: string | null
+          sent_day: string | null
           success: boolean | null
           user_id: string | null
         }
@@ -257,6 +258,7 @@ export type Database = {
           error?: string | null
           id?: string
           sent_at?: string | null
+          sent_day?: string | null
           success?: boolean | null
           user_id?: string | null
         }
@@ -267,6 +269,7 @@ export type Database = {
           error?: string | null
           id?: string
           sent_at?: string | null
+          sent_day?: string | null
           success?: boolean | null
           user_id?: string | null
         }

@@ -172,19 +172,18 @@ Deno.serve(async (req) => {
         } else if (job.stage === 'send_push_for_score_change') {
           const { brand_id, brand_name, category, delta, at } = job.payload;
 
-          // Quiet hours (10pm-7am UTC) - delay to 7am
+          // Quiet hours (10pm-7am UTC) - delay to 7am UTC
           const now = new Date();
-          const hour = now.getUTCHours();
-          const inQuiet = hour >= 22 || hour < 7;
+          const hourUTC = now.getUTCHours();
+          const inQuiet = hourUTC >= 22 || hourUTC < 7;
           
           if (inQuiet) {
             const next7am = new Date(now);
-            if (hour >= 22) {
+            // If past 22:00 UTC, schedule next day 07:00 UTC; else same day 07:00 UTC
+            if (hourUTC >= 22) {
               next7am.setUTCDate(next7am.getUTCDate() + 1);
-              next7am.setUTCHours(7, 0, 0, 0);
-            } else {
-              next7am.setUTCHours(7, 0, 0, 0);
             }
+            next7am.setUTCHours(7, 0, 0, 0);
             
             await supabase.from('jobs').update({
               not_before: next7am.toISOString(),
