@@ -21,7 +21,8 @@ export interface BrandEvent {
   category: CategoryKey;
   title?: string;
   description: string;
-  date?: string;
+  occurred_at?: string;
+  date?: string; // alias for occurred_at (backwards compat)
   severity?: "minor" | "moderate" | "severe";
   verified?: boolean;
   verification?: Verification;
@@ -40,7 +41,7 @@ const categoryConfig: Record<CategoryKey, { icon: any; label: string; color: str
   politics: { icon: Building2, label: "Politics", color: "text-indigo-700", dotColor: "bg-indigo-500" },
   social: { icon: Users, label: "Social", color: "text-amber-700", dotColor: "bg-amber-500" },
   "cultural-values": { icon: Users, label: "Cultural/Values", color: "text-purple-700", dotColor: "bg-purple-500" },
-  general: { icon: Info, label: "General", color: "text-muted-foreground", dotColor: "bg-muted" },
+  general: { icon: Info, label: "General", color: "text-[var(--muted)]", dotColor: "bg-neutral-400" },
 };
 
 function scoreTone(n?: number) {
@@ -52,7 +53,8 @@ function scoreTone(n?: number) {
 
 function relTime(iso?: string): string {
   if (!iso) return "";
-  const ms = Date.now() - new Date(iso).getTime();
+  // Guard against future-skewed timestamps (clock drift)
+  const ms = Math.max(0, Date.now() - new Date(iso).getTime());
   const m = Math.floor(ms / 60000);
   const h = Math.floor(ms / 36e5);
   
@@ -95,8 +97,11 @@ interface EventCardProps {
 export const EventCard = ({ event, showFullDetails = false, compact = false }: EventCardProps) => {
   const [showAllSources, setShowAllSources] = useState(false);
   
+  // Single source of truth for timestamp
+  const timestamp = event.occurred_at ?? event.date;
+  
   useEffect(() => {
-    if (event.event_id) {
+    if (typeof window !== 'undefined' && event.event_id) {
       const stored = localStorage.getItem(`source-expanded-${event.event_id}`);
       if (stored === 'true') setShowAllSources(true);
     }
@@ -105,7 +110,7 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
   const handleToggleSources = () => {
     const newState = !showAllSources;
     setShowAllSources(newState);
-    if (event.event_id) {
+    if (typeof window !== 'undefined' && event.event_id) {
       localStorage.setItem(`source-expanded-${event.event_id}`, String(newState));
     }
   };
@@ -119,7 +124,8 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
     if (!event.impact) return [];
     return Object.entries(event.impact)
       .map(([key, value]) => ({ key, val: Number(value) }))
-      .filter(({ val }) => !Number.isNaN(val) && val !== 0);
+      .filter(({ val }) => !Number.isNaN(val) && val !== 0)
+      .sort((a, b) => Math.abs(b.val) - Math.abs(a.val)); // biggest movement first
   }, [event.impact]);
 
   const verificationBadge = getVerificationBadge(event.verification, event.verified);
@@ -144,6 +150,8 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
             
             {verificationBadge && (
               <span 
+                role="status"
+                aria-label={`${verificationBadge.label} – ${verificationBadge.tooltip}`}
                 className={`text-[11px] px-1.5 py-0.5 rounded-md ${verificationBadge.className}`}
                 title={verificationBadge.tooltip}
               >
@@ -157,8 +165,8 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
               </Badge>
             )}
             
-            {event.date && (
-              <span className="ml-auto text-xs text-[var(--muted)]">{relTime(event.date)}</span>
+            {timestamp && (
+              <span className="ml-auto text-xs text-[var(--muted)]">{relTime(timestamp)}</span>
             )}
           </div>
 
@@ -205,16 +213,19 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
               )}
               
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs text-[var(--muted)] italic">
+                <div 
+                  className="text-xs text-[var(--muted)] italic truncate" 
+                  title={primarySource.url ?? attributionLine}
+                >
                   {attributionLine}
-                </p>
+                </div>
                 {primarySource.url && (
                   <a
                     href={primarySource.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-xs text-blue-700 hover:underline shrink-0"
-                    aria-label={`Open source: ${primarySource.name}`}
+                    aria-label={`Open source: ${primarySource.name ?? 'external link'}`}
                   >
                     Source
                     <ExternalLink className="h-3 w-3 opacity-70 group-hover:opacity-100" />
@@ -257,16 +268,19 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                             </blockquote>
                           )}
                           <div className="flex items-center justify-between gap-2">
-                            <p className="text-xs text-[var(--muted)] italic">
+                            <div 
+                              className="text-xs text-[var(--muted)] italic truncate"
+                              title={source.url ?? source.name}
+                            >
                               {source.name}{source.date && `, ${relTime(source.date)}`}
-                            </p>
+                            </div>
                             {source.url && (
                               <a
                                 href={source.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 text-xs text-primary hover:underline shrink-0"
-                                aria-label={`Open source: ${source.name}`}
+                                aria-label={`Open source: ${source.name ?? 'external link'}`}
                               >
                                 Source
                                 <ExternalLink className="h-3 w-3" />
