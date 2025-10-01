@@ -19,6 +19,11 @@ serve(async (req) => {
 
     const brandId = new URL(req.url).searchParams.get("brand_id");
     const dryrun = new URL(req.url).searchParams.get("dryrun") === "1";
+    
+    if (dryrun) {
+      console.log('[fetch-epa-events] 🧪 DRY RUN enabled - no inserts, no push jobs');
+    }
+    
     if (!brandId) {
       return new Response(JSON.stringify({ error: "brand_id required" }), { 
         status: 400,
@@ -219,6 +224,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true,
+        dryrun,
         scanned,
         inserted: events.length,
         skipped,
