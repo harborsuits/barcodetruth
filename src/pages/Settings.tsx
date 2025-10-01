@@ -223,7 +223,7 @@ export const Settings = () => {
           <CardHeader>
             <CardTitle>Notifications</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-1 flex-1">
                 <div className="flex items-center gap-2">
@@ -241,6 +241,52 @@ export const Settings = () => {
                 onCheckedChange={handlePushToggle}
               />
             </div>
+            
+            {pushEnabled && (
+              <div className="pt-3 border-t">
+                <Button 
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(
+                        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-test-push`,
+                        {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            title: "Test notification",
+                            body: "If you see this, push notifications are working! 🎉",
+                            data: { brand_id: "nike" }
+                          })
+                        }
+                      );
+                      const data = await res.json();
+                      if (data.success) {
+                        toast({
+                          title: "Test sent!",
+                          description: `Check your notifications (sent to ${data.sent} device${data.sent !== 1 ? 's' : ''})`,
+                        });
+                      } else {
+                        throw new Error(data.error || 'Failed to send');
+                      }
+                    } catch (error) {
+                      toast({
+                        title: "Test failed",
+                        description: error instanceof Error ? error.message : "Could not send test notification",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                >
+                  Send Test Notification
+                </Button>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Note: Actual push sending is stubbed. Subscription flow and UI are fully functional.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
