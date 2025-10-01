@@ -143,6 +143,51 @@ serve(async (req) => {
 
     console.log(`[fetch-epa-events] Scanned: ${scanned}, Inserted: ${events.length}, Skipped: ${skipped}`);
 
+    // If we created any events, enqueue a coalesced push for this brand
+    if (events.length > 0) {
+      // Fetch brand name for nicer notification text
+      const { data: brandRow } = await supabase
+        .from('brands')
+        .select('id, name')
+        .eq('id', brandId)
+        .maybeSingle();
+
+      // 5-minute coalescing bucket key (same pattern as score-change producer)
+      const bucketSec = Math.floor(Date.now() / (5 * 60 * 1000)) * 5 * 60;
+      const coalesceKey = `${brandId}:${bucketSec}`;
+
+      // Build a concise events summary for payload (environment-only here)
+      const nowISO = new Date().toISOString();
+      const payload = {
+        brand_id: brandId,
+        brand_name: brandRow?.name ?? brandId,
+        at: nowISO,
+        events: [
+          {
+            category: 'environment',
+            // Treat EPA inserts as a negative movement "signal"; consumer will coalesce.
+            delta: -1 * events.length, // keeps "one clean alert" behavior while conveying magnitude
+          },
+        ],
+      };
+
+      // Atomically merge into any existing bucketed job
+      const { error: upsertErr } = await supabase.rpc('upsert_coalesced_job', {
+        p_stage: 'send_push_for_score_change',
+        p_key: coalesceKey,
+        p_payload: payload,
+        p_not_before: nowISO,
+      });
+
+      if (upsertErr) {
+        console.error('[fetch-epa-events] Failed to enqueue coalesced job:', upsertErr);
+      } else {
+        console.log(
+          `[fetch-epa-events] Enqueued coalesced job for ${brandRow?.name ?? brandId} (inserted=${events.length})`
+        );
+      }
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true,
