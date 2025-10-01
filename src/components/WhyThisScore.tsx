@@ -27,7 +27,21 @@ const categoryConfig = {
 export function WhyThisScore({ brandId, impacts }: WhyThisScoreProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
-  if (!impacts || impacts.length === 0) return null;
+  if (!impacts || impacts.length === 0) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium text-muted-foreground">Score Drivers</h3>
+          <Badge variant="outline" className="text-xs">
+            EPA & public records
+          </Badge>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          No recent negative drivers found in the last 12 months.
+        </p>
+      </div>
+    );
+  }
 
   const toggleCategory = (category: string) => {
     setExpandedCategories(prev => {
@@ -68,7 +82,7 @@ export function WhyThisScore({ brandId, impacts }: WhyThisScoreProps) {
                       {config.label}
                     </span>
                     <span className="text-sm text-muted-foreground">
-                      {impact.impact > 0 ? '+' : ''}{impact.impact}
+                      {Math.round(impact.impact)} {/* Integer display for cleaner readability */}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -99,7 +113,7 @@ export function WhyThisScore({ brandId, impacts }: WhyThisScoreProps) {
       </div>
       
       <p className="text-xs text-muted-foreground">
-        Based on verified events from the last 12 months
+        Based on verified events from the last 12 months. Data sources: EPA ECHO (official).
       </p>
     </div>
   );

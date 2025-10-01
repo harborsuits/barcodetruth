@@ -83,10 +83,12 @@ export type Database = {
           impact_politics: number | null
           impact_social: number | null
           jurisdiction: string | null
+          occurred_at: string | null
           orientation: Database["public"]["Enums"]["event_orientation"] | null
           raw_data: Json | null
           resolved: boolean | null
           severity: string | null
+          source_url: string | null
           title: string | null
           updated_at: string
           verification: Database["public"]["Enums"]["verification_level"] | null
@@ -107,10 +109,12 @@ export type Database = {
           impact_politics?: number | null
           impact_social?: number | null
           jurisdiction?: string | null
+          occurred_at?: string | null
           orientation?: Database["public"]["Enums"]["event_orientation"] | null
           raw_data?: Json | null
           resolved?: boolean | null
           severity?: string | null
+          source_url?: string | null
           title?: string | null
           updated_at?: string
           verification?:
@@ -133,10 +137,12 @@ export type Database = {
           impact_politics?: number | null
           impact_social?: number | null
           jurisdiction?: string | null
+          occurred_at?: string | null
           orientation?: Database["public"]["Enums"]["event_orientation"] | null
           raw_data?: Json | null
           resolved?: boolean | null
           severity?: string | null
+          source_url?: string | null
           title?: string | null
           updated_at?: string
           verification?:

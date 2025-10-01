@@ -65,16 +65,19 @@ serve(async (req) => {
     const events = [];
     
     for (const facility of facilities.slice(0, 10)) {
+      // Small delay to respect API rate limits
+      await new Promise(r => setTimeout(r, 150));
+      
       // Check for violations
       if (facility.Viol_Flag === 'Y' || facility.Qtrs_with_NC > 0) {
         const sourceUrl = `https://echo.epa.gov/detailed-facility-report?fid=${facility.RegistryID}`;
         
-        // Check if we already have this event (dedupe by source_url)
+        // Check if we already have this event (fast dedupe via source_url on brand_events)
         const { data: existing } = await supabase
           .from('brand_events')
-          .select('event_id, event_sources!inner(source_url)')
+          .select('event_id')
           .eq('brand_id', brandId)
-          .eq('event_sources.source_url', sourceUrl)
+          .eq('source_url', sourceUrl)
           .limit(1);
 
         if (existing && existing.length > 0) {
@@ -93,6 +96,7 @@ serve(async (req) => {
           verification: 'official',
           orientation: 'negative',
           impact_environment: impact,
+          source_url: sourceUrl, // For O(1) dedupe
         };
 
         // Insert event
@@ -103,11 +107,16 @@ serve(async (req) => {
           .single();
 
         if (eventError) {
+          // Check if it's a unique violation (race condition)
+          if (eventError.code === '23505') {
+            console.log(`[fetch-epa-events] Duplicate detected via constraint: ${sourceUrl}`);
+            continue;
+          }
           console.error('[fetch-epa-events] Error inserting event:', eventError);
           continue;
         }
 
-        // Insert source
+        // Insert source (for attribution, quotes, etc.)
         const { error: sourceError } = await supabase
           .from('event_sources')
           .insert({

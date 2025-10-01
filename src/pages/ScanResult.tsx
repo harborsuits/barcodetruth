@@ -325,7 +325,7 @@ export default function ScanResult() {
         .from('brand_events')
         .select('*')
         .eq('brand_id', compareBrandId!)
-        .order('occurred_at', { ascending: false })
+        .order('event_date', { ascending: false })
         .limit(2);
       
       if (eventsError) throw eventsError;
