@@ -18,6 +18,7 @@ serve(async (req) => {
     );
 
     const brandId = new URL(req.url).searchParams.get("brand_id");
+    const dryrun = new URL(req.url).searchParams.get("dryrun") === "1";
     if (!brandId) {
       return new Response(JSON.stringify({ error: "brand_id required" }), { 
         status: 400,
@@ -125,6 +126,12 @@ serve(async (req) => {
           source_url: sourceUrl, // For O(1) dedupe
         };
 
+        if (dryrun) {
+          console.log(`[fetch-epa-events] [DRYRUN] Would insert event:`, event);
+          events.push('dryrun-' + sourceUrl);
+          continue;
+        }
+
         // Insert event
         const { data: eventData, error: eventError } = await supabase
           .from('brand_events')
@@ -165,7 +172,7 @@ serve(async (req) => {
     console.log(`[fetch-epa-events] Scanned: ${scanned}, Inserted: ${events.length}, Skipped: ${skipped}`);
 
     // If we created any events, enqueue a coalesced push for this brand
-    if (events.length > 0) {
+    if (events.length > 0 && !dryrun) {
       // Fetch brand name for nicer notification text
       const { data: brandRow } = await supabase
         .from('brands')
