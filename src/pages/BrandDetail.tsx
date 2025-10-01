@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle, ExternalLink, Heart, HeartOff } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle, ExternalLink, Heart, HeartOff, CheckCircle2, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,52 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
+// Mock events data
+const eventsData: Record<string, any> = {
+  event1: {
+    event_id: "event1",
+    brand_id: "nike",
+    category: "labor",
+    severity: "moderate",
+    title: "Factory working conditions concerns",
+    description: "Reports of wage disputes at supplier factories in Southeast Asia",
+    date: "2024-11-20",
+    verified: true,
+    sources: [
+      {
+        name: "The Guardian",
+        url: "https://example.com",
+        credibility_score: 0.92,
+        date: "2024-11-20"
+      },
+      {
+        name: "Reuters",
+        url: "https://example.com",
+        credibility_score: 0.95,
+        date: "2024-11-22"
+      }
+    ]
+  },
+  event2: {
+    event_id: "event2",
+    brand_id: "nike",
+    category: "politics",
+    severity: "minor",
+    title: "Political campaign contributions",
+    description: "FEC filings show $2.5M in political donations across parties",
+    date: "2025-01-15",
+    verified: true,
+    sources: [
+      {
+        name: "Federal Election Commission",
+        url: "https://fec.gov",
+        credibility_score: 1.0,
+        date: "2025-01-15"
+      }
+    ]
+  }
+};
+
 // Mock data
 const brandData: Record<string, any> = {
   nike: {
@@ -24,7 +70,7 @@ const brandData: Record<string, any> = {
     signals: {
       labor: { score: 65, risk_level: "medium", recent_events: ["event1"] },
       environment: { score: 78, risk_level: "low", recent_events: [] },
-      politics: { score: 60, donations_total: 2500000, party_breakdown: { D: 60, R: 40, Other: 0 } },
+      politics: { score: 60, donations_total: 2500000, party_breakdown: { D: 60, R: 40, Other: 0 }, recent_events: ["event2"] },
       social: { score: 85, risk_level: "low", recent_events: [] },
     },
     trending: { velocity: "stable", sentiment_shift: -5 },
@@ -42,7 +88,7 @@ const brandData: Record<string, any> = {
     signals: {
       labor: { score: 92, risk_level: "low", recent_events: [] },
       environment: { score: 95, risk_level: "low", recent_events: [] },
-      politics: { score: 85, donations_total: 1000000, party_breakdown: { D: 80, R: 10, Other: 10 } },
+      politics: { score: 85, donations_total: 1000000, party_breakdown: { D: 80, R: 10, Other: 10 }, recent_events: [] },
       social: { score: 92, risk_level: "low", recent_events: [] },
     },
     trending: { velocity: "rising", sentiment_shift: 12 },
@@ -156,61 +202,135 @@ const BrandDetail = () => {
                         Explain
                       </Button>
                     </SheetTrigger>
-                    <SheetContent side="bottom" className="h-[80vh]">
+                    <SheetContent side="bottom" className="h-[80vh] overflow-y-auto">
                       <SheetHeader>
-                        <SheetTitle className="capitalize">{category} Score</SheetTitle>
+                        <SheetTitle className="capitalize">{category} Score Breakdown</SheetTitle>
                         <SheetDescription>
-                          Sources and details for this score
+                          Verified sources and recent events affecting this score
                         </SheetDescription>
                       </SheetHeader>
-                      <div className="mt-6 space-y-4">
+                      <div className="mt-6 space-y-6">
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">Score</span>
+                            <span className="text-sm font-medium">Current Score</span>
                             <span className={`text-2xl font-bold ${getScoreColor(data.score)}`}>
                               {data.score}/100
                             </span>
                           </div>
                           <Progress value={data.score} className="h-2" />
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            <span>Last updated: {new Date(brand.last_updated).toLocaleDateString()}</span>
+                          </div>
                         </div>
                         
                         {category === "politics" && (
-                          <div className="space-y-2">
-                            <h4 className="font-medium text-sm">Political Donations</h4>
+                          <div className="space-y-3 p-4 bg-muted rounded-lg">
+                            <h4 className="font-medium text-sm">Political Contributions</h4>
                             <p className="text-sm text-muted-foreground">
                               Total: ${(data.donations_total / 1000000).toFixed(1)}M
                             </p>
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between text-sm">
-                                <span>Democratic: {data.party_breakdown.D}%</span>
-                                <Progress value={data.party_breakdown.D} className="h-2 w-32" />
+                            <div className="space-y-2">
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span>Democratic</span>
+                                  <span className="font-medium">{data.party_breakdown.D}%</span>
+                                </div>
+                                <Progress value={data.party_breakdown.D} className="h-2" />
                               </div>
-                              <div className="flex items-center justify-between text-sm">
-                                <span>Republican: {data.party_breakdown.R}%</span>
-                                <Progress value={data.party_breakdown.R} className="h-2 w-32" />
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span>Republican</span>
+                                  <span className="font-medium">{data.party_breakdown.R}%</span>
+                                </div>
+                                <Progress value={data.party_breakdown.R} className="h-2" />
                               </div>
                             </div>
                           </div>
                         )}
 
-                        <div className="space-y-3">
-                          <h4 className="font-medium text-sm">Sources</h4>
-                          <div className="space-y-2">
-                            <Card>
-                              <CardContent className="p-3">
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="space-y-1">
-                                    <p className="text-sm font-medium">FEC Filing</p>
-                                    <p className="text-xs text-muted-foreground">Jan 15, 2025</p>
-                                  </div>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                                    <ExternalLink className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </CardContent>
-                            </Card>
+                        {data.recent_events && data.recent_events.length > 0 && (
+                          <div className="space-y-3">
+                            <h4 className="font-medium">Recent Events</h4>
+                            {data.recent_events.map((eventId: string) => {
+                              const event = eventsData[eventId];
+                              if (!event) return null;
+                              
+                              const getSeverityColor = (severity: string) => {
+                                if (severity === "severe") return "text-danger";
+                                if (severity === "moderate") return "text-warning";
+                                return "text-muted-foreground";
+                              };
+
+                              return (
+                                <Card key={eventId} className="border-l-4 border-l-warning">
+                                  <CardContent className="p-4 space-y-3">
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="space-y-1 flex-1">
+                                        <div className="flex items-center gap-2">
+                                          <h5 className="font-semibold text-sm">{event.title}</h5>
+                                          {event.verified && (
+                                            <CheckCircle2 className="h-4 w-4 text-success" />
+                                          )}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">
+                                          {new Date(event.date).toLocaleDateString()}
+                                        </p>
+                                      </div>
+                                      <Badge className={getSeverityColor(event.severity)}>
+                                        {event.severity}
+                                      </Badge>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground">
+                                      {event.description}
+                                    </p>
+                                    
+                                    <div className="space-y-2 pt-2 border-t">
+                                      <p className="text-xs font-medium">
+                                        Verified by {event.sources.length} source{event.sources.length > 1 ? 's' : ''}
+                                      </p>
+                                      <div className="space-y-1">
+                                        {event.sources.map((source: any, idx: number) => (
+                                          <a
+                                            key={idx}
+                                            href={source.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center justify-between p-2 rounded hover:bg-accent transition-colors group"
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
+                                                <span className="text-xs font-bold text-primary">
+                                                  {source.name.charAt(0)}
+                                                </span>
+                                              </div>
+                                              <div>
+                                                <p className="text-xs font-medium">{source.name}</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                  Credibility: {(source.credibility_score * 100).toFixed(0)}%
+                                                </p>
+                                              </div>
+                                            </div>
+                                            <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                          </a>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              );
+                            })}
                           </div>
-                        </div>
+                        )}
+
+                        {(!data.recent_events || data.recent_events.length === 0) && (
+                          <div className="text-center py-8 space-y-2">
+                            <CheckCircle2 className="h-12 w-12 mx-auto text-success opacity-50" />
+                            <p className="text-sm text-muted-foreground">
+                              No recent events or concerns in this category
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </SheetContent>
                   </Sheet>
