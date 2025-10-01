@@ -290,10 +290,10 @@ export const BrandDetail = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-[var(--bg)] pb-20">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-card border-b">
-        <div className="container max-w-2xl mx-auto px-4 py-4">
+        <div className="container max-w-screen-md mx-auto px-4 sm:px-6 py-4">
           <div 
             className={`flex items-center gap-3 ${toggleNotifications.isPending ? 'opacity-70 pointer-events-none' : ''}`}
             aria-busy={toggleNotifications.isPending}
@@ -354,7 +354,7 @@ export const BrandDetail = () => {
         </div>
       </header>
 
-      <main className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <main className="container max-w-screen-md mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* Overall Score */}
         <Card>
           <CardContent className="pt-6">

@@ -13,7 +13,7 @@ export const Home = () => {
   useSnapshotPrewarm(); // Prewarm snapshot cache for offline use
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[var(--bg)]">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b">
         <div className="container max-w-6xl mx-auto px-4 py-4">
@@ -32,15 +32,12 @@ export const Home = () => {
         </div>
       </header>
 
-      <main className="pb-24">
+      <main className="max-w-screen-md mx-auto px-4 sm:px-6 space-y-8 pb-24">
         <HeroSection />
         <TrendingPreview />
         <HowItWorks />
         <TrustedSources />
-        
-        <div className="max-w-5xl mx-auto px-4">
-          <AttributionFooter />
-        </div>
+        <AttributionFooter />
       </main>
 
       {/* Bottom Nav */}

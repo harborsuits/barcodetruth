@@ -1,3 +1,5 @@
+@import "./styles/tokens.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -158,8 +160,13 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
   }
 
   /* Accessibility - Enhanced focus rings */

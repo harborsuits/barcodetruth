@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/Card";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, ArrowRight } from "lucide-react";
@@ -90,15 +91,17 @@ export function TrendingPreview() {
 
   if (loading) {
     return (
-      <section className="py-8 px-4 bg-muted/30">
-        <div className="max-w-5xl mx-auto">
-          <div className="h-8 w-48 bg-muted animate-pulse rounded mb-4" />
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-32 bg-muted animate-pulse rounded-lg" />
-            ))}
-          </div>
-        </div>
+      <section>
+        <Card>
+          <CardHeader className="pb-2">
+            <Skeleton className="h-6 w-48" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </CardContent>
+        </Card>
       </section>
     );
   }
@@ -106,37 +109,31 @@ export function TrendingPreview() {
   if (!trending.length) return null;
 
   return (
-    <section className="py-8 px-4 bg-muted/30">
-      <div className="max-w-5xl mx-auto space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-primary" />
-            <h2 className="text-2xl font-bold">Trending Now</h2>
+    <section>
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold">Trending Now</h2>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/trending')}>
+              View All
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
           </div>
-          <Button variant="ghost" onClick={() => navigate('/trending')}>
-            View All
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        </div>
+        </CardHeader>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <CardContent className="space-y-3">
           {trending.map((brand) => (
-            <Card
+            <div
               key={brand.brand_id}
-              className="cursor-pointer hover:shadow-md transition-shadow"
+              className="group rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 cursor-pointer transition-all duration-150 ease-[var(--ease)] hover:shadow-[var(--shadow-md)]"
               onClick={() => navigate(`/brand/${brand.brand_id}`)}
             >
-              <CardContent className="pt-6">
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between">
-                    <h3 className="font-semibold text-lg">{brand.brand_name}</h3>
-                    <div className="text-right">
-                      <div className={`text-2xl font-bold ${getScoreColor(brand.overall_score)}`}>
-                        {brand.overall_score}
-                      </div>
-                      <div className="text-xs text-muted-foreground">/100</div>
-                    </div>
-                  </div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 space-y-2">
+                  <h3 className="font-semibold text-base">{brand.brand_name}</h3>
                   {brand.recent_event && (
                     <div className="space-y-2">
                       <div className="flex gap-2">
@@ -153,11 +150,17 @@ export function TrendingPreview() {
                     </div>
                   )}
                 </div>
-              </CardContent>
-            </Card>
+                <div className="text-right">
+                  <div className={`text-2xl font-bold ${getScoreColor(brand.overall_score)}`}>
+                    {brand.overall_score}
+                  </div>
+                  <div className="text-xs text-muted-foreground">/100</div>
+                </div>
+              </div>
+            </div>
           ))}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </section>
   );
 }
