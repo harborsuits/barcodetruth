@@ -11,7 +11,7 @@ import Scan from "./pages/Scan";
 import Trending from "./pages/Trending";
 import Lists from "./pages/Lists";
 import Settings from "./pages/Settings";
-import AdminReview from "./pages/AdminReview";
+import { AdminReview } from "./pages/AdminReview";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();

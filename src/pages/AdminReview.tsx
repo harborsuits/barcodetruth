@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, AlertCircle, CheckCircle2, Settings } from "lucide-react";
 import { SourceCredibilityManager } from "@/components/admin/SourceCredibilityManager";
 
-function AdminReview() {
+export function AdminReview() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
@@ -327,5 +327,3 @@ function AdminReview() {
     </div>
   );
 }
-
-export default AdminReview;
