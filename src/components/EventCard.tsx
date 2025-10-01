@@ -3,6 +3,7 @@ import { User, Sprout, Building2, Users, ExternalLink, CheckCircle2, Info, Chevr
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { lineFromEvent } from "@/lib/events";
+import { computeSeverity, type Severity } from "@/lib/severityConfig";
 
 type CategoryKey = "labor" | "environment" | "politics" | "social" | "cultural-values" | "general";
 type EventOrientation = "positive" | "negative" | "mixed";
@@ -73,13 +74,13 @@ function isNewEvent(iso?: string): boolean {
   return days <= 7;
 }
 
-function getSeverityConfig(severity?: "minor" | "moderate" | "severe") {
+function getSeverityUIConfig(severity: Severity, reason: string) {
   if (severity === "severe") {
     return {
       label: "Severe",
       icon: Flame,
       className: "bg-red-600/10 text-red-700 border-red-600/20",
-      tooltip: "Major issue requiring attention"
+      tooltip: reason || "Major issue requiring attention"
     };
   }
   if (severity === "moderate") {
@@ -87,18 +88,15 @@ function getSeverityConfig(severity?: "minor" | "moderate" | "severe") {
       label: "Moderate",
       icon: AlertCircle,
       className: "bg-orange-600/10 text-orange-700 border-orange-600/20",
-      tooltip: "Significant concern"
+      tooltip: reason || "Significant concern"
     };
   }
-  if (severity === "minor") {
-    return {
-      label: "Minor",
-      icon: Info,
-      className: "bg-blue-600/10 text-blue-700 border-blue-600/20",
-      tooltip: "Low-level issue"
-    };
-  }
-  return null;
+  return {
+    label: "Minor",
+    icon: Info,
+    className: "bg-blue-600/10 text-blue-700 border-blue-600/20",
+    tooltip: reason || "Low-level issue"
+  };
 }
 
 function getSourceLogo(sourceName?: string) {
@@ -176,7 +174,22 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
   const verificationBadge = getVerificationBadge(event.verification, event.verified);
   const attributionLine = lineFromEvent(event);
   const showUnverifiedWarning = event.verification === "unverified" && !showFullDetails;
-  const severityConfig = getSeverityConfig(event.severity);
+  
+  // Compute severity using centralized config
+  const severityResult = useMemo(() => 
+    computeSeverity({
+      category: event.category as any,
+      source: primarySource?.name,
+      impact_labor: event.impact?.labor,
+      impact_environment: event.impact?.environment,
+      impact_politics: event.impact?.politics,
+      impact_social: event.impact?.social,
+      raw: (event as any).raw_data ?? null,
+    }), 
+    [event.category, primarySource?.name, event.impact]
+  );
+  
+  const severityConfig = getSeverityUIConfig(severityResult.level, severityResult.reason);
   const isNew = isNewEvent(timestamp);
   const SourceLogo = getSourceLogo(primarySource?.name);
   
@@ -222,17 +235,15 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
               </span>
             )}
             
-            {severityConfig && (
-              <span
-                role="status"
-                aria-label={`${severityConfig.label} – ${severityConfig.tooltip}`}
-                className={`inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md border ${severityConfig.className}`}
-                title={severityConfig.tooltip}
-              >
-                <severityConfig.icon className="h-3 w-3" />
-                {severityConfig.label}
-              </span>
-            )}
+            <span
+              role="status"
+              aria-label={`${severityConfig.label} – ${severityConfig.tooltip}`}
+              className={`inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md border ${severityConfig.className}`}
+              title={severityConfig.tooltip}
+            >
+              <severityConfig.icon className="h-3 w-3" />
+              {severityConfig.label}
+            </span>
             
             {isNew && (
               <Badge variant="outline" className="text-xs bg-emerald-600/10 text-emerald-700 border-emerald-600/20">
