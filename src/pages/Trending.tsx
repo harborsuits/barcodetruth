@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 type CategoryType = "labor" | "environment" | "politics" | "cultural-values";
 
@@ -124,6 +125,7 @@ const trendingBrands = [
 
 const Trending = () => {
   const navigate = useNavigate();
+  const [brandActions, setBrandActions] = useState<Record<string, { following: boolean; avoiding: boolean; notifying: boolean }>>({});
 
   const getScoreColor = (score: number) => {
     if (score >= 70) return "bg-success/10 text-success border-success/20";
@@ -135,19 +137,40 @@ const Trending = () => {
     return velocity === "rising" ? "text-success" : "text-danger";
   };
 
-  const handleFollow = (brandName: string, e: React.MouseEvent) => {
+  const handleFollow = (brandId: string, brandName: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    toast({ title: "Following", description: `You're now following ${brandName}` });
+    setBrandActions(prev => ({
+      ...prev,
+      [brandId]: { ...prev[brandId], following: !prev[brandId]?.following }
+    }));
+    toast({ 
+      title: brandActions[brandId]?.following ? "Unfollowed" : "Following", 
+      description: brandActions[brandId]?.following ? `Stopped following ${brandName}` : `You're now following ${brandName}` 
+    });
   };
 
-  const handleAvoid = (brandName: string, e: React.MouseEvent) => {
+  const handleAvoid = (brandId: string, brandName: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    toast({ title: "Added to Avoid", description: `${brandName} added to your avoid list` });
+    setBrandActions(prev => ({
+      ...prev,
+      [brandId]: { ...prev[brandId], avoiding: !prev[brandId]?.avoiding }
+    }));
+    toast({ 
+      title: brandActions[brandId]?.avoiding ? "Removed from Avoid" : "Added to Avoid", 
+      description: brandActions[brandId]?.avoiding ? `${brandName} removed from avoid list` : `${brandName} added to your avoid list` 
+    });
   };
 
-  const handleNotify = (brandName: string, e: React.MouseEvent) => {
+  const handleNotify = (brandId: string, brandName: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    toast({ title: "Notifications On", description: `You'll be notified of changes to ${brandName}` });
+    setBrandActions(prev => ({
+      ...prev,
+      [brandId]: { ...prev[brandId], notifying: !prev[brandId]?.notifying }
+    }));
+    toast({ 
+      title: brandActions[brandId]?.notifying ? "Notifications Off" : "Notifications On", 
+      description: brandActions[brandId]?.notifying ? `Stopped notifications for ${brandName}` : `You'll be notified of changes to ${brandName}` 
+    });
   };
 
   return (
@@ -257,30 +280,36 @@ const Trending = () => {
                     {/* Quick Actions */}
                     <div className="flex items-center gap-2 pt-2">
                       <Button
-                        variant="outline"
+                        variant={brandActions[brand.id]?.following ? "default" : "outline"}
                         size="sm"
-                        className="h-8 text-xs rounded-full"
-                        onClick={(e) => handleFollow(brand.name, e)}
+                        className={`h-8 text-xs rounded-full transition-all ${
+                          brandActions[brand.id]?.following ? "bg-success hover:bg-success/90" : ""
+                        }`}
+                        onClick={(e) => handleFollow(brand.id, brand.name, e)}
                       >
-                        <Heart className="h-3 w-3" />
+                        <Heart className={`h-3 w-3 ${brandActions[brand.id]?.following ? "fill-current" : ""}`} />
                         Follow
                       </Button>
                       <Button
-                        variant="outline"
+                        variant={brandActions[brand.id]?.avoiding ? "default" : "outline"}
                         size="sm"
-                        className="h-8 text-xs rounded-full"
-                        onClick={(e) => handleAvoid(brand.name, e)}
+                        className={`h-8 text-xs rounded-full transition-all ${
+                          brandActions[brand.id]?.avoiding ? "bg-danger hover:bg-danger/90" : ""
+                        }`}
+                        onClick={(e) => handleAvoid(brand.id, brand.name, e)}
                       >
-                        <Ban className="h-3 w-3" />
+                        <Ban className={`h-3 w-3 ${brandActions[brand.id]?.avoiding ? "fill-current" : ""}`} />
                         Avoid
                       </Button>
                       <Button
-                        variant="outline"
+                        variant={brandActions[brand.id]?.notifying ? "default" : "outline"}
                         size="sm"
-                        className="h-8 text-xs rounded-full"
-                        onClick={(e) => handleNotify(brand.name, e)}
+                        className={`h-8 text-xs rounded-full transition-all ${
+                          brandActions[brand.id]?.notifying ? "bg-primary hover:bg-primary/90" : ""
+                        }`}
+                        onClick={(e) => handleNotify(brand.id, brand.name, e)}
                       >
-                        <Bell className="h-3 w-3" />
+                        <Bell className={`h-3 w-3 ${brandActions[brand.id]?.notifying ? "fill-current" : ""}`} />
                         Notify
                       </Button>
                     </div>
