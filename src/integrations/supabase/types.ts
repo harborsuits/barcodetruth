@@ -14,16 +14,342 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      brand_events: {
+        Row: {
+          brand_id: string
+          category: Database["public"]["Enums"]["event_category"]
+          company_response_date: string | null
+          company_response_summary: string | null
+          company_response_url: string | null
+          created_at: string
+          description: string
+          event_date: string | null
+          event_id: string
+          impact_environment: number | null
+          impact_labor: number | null
+          impact_politics: number | null
+          impact_social: number | null
+          jurisdiction: string | null
+          orientation: Database["public"]["Enums"]["event_orientation"] | null
+          raw_data: Json | null
+          resolved: boolean | null
+          severity: string | null
+          title: string | null
+          updated_at: string
+          verification: Database["public"]["Enums"]["verification_level"] | null
+          verified: boolean | null
+        }
+        Insert: {
+          brand_id: string
+          category?: Database["public"]["Enums"]["event_category"]
+          company_response_date?: string | null
+          company_response_summary?: string | null
+          company_response_url?: string | null
+          created_at?: string
+          description: string
+          event_date?: string | null
+          event_id?: string
+          impact_environment?: number | null
+          impact_labor?: number | null
+          impact_politics?: number | null
+          impact_social?: number | null
+          jurisdiction?: string | null
+          orientation?: Database["public"]["Enums"]["event_orientation"] | null
+          raw_data?: Json | null
+          resolved?: boolean | null
+          severity?: string | null
+          title?: string | null
+          updated_at?: string
+          verification?:
+            | Database["public"]["Enums"]["verification_level"]
+            | null
+          verified?: boolean | null
+        }
+        Update: {
+          brand_id?: string
+          category?: Database["public"]["Enums"]["event_category"]
+          company_response_date?: string | null
+          company_response_summary?: string | null
+          company_response_url?: string | null
+          created_at?: string
+          description?: string
+          event_date?: string | null
+          event_id?: string
+          impact_environment?: number | null
+          impact_labor?: number | null
+          impact_politics?: number | null
+          impact_social?: number | null
+          jurisdiction?: string | null
+          orientation?: Database["public"]["Enums"]["event_orientation"] | null
+          raw_data?: Json | null
+          resolved?: boolean | null
+          severity?: string | null
+          title?: string | null
+          updated_at?: string
+          verification?:
+            | Database["public"]["Enums"]["verification_level"]
+            | null
+          verified?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brand_scores: {
+        Row: {
+          brand_id: string
+          created_at: string
+          id: string
+          last_updated: string
+          score_environment: number
+          score_labor: number
+          score_politics: number
+          score_social: number
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          id?: string
+          last_updated?: string
+          score_environment?: number
+          score_labor?: number
+          score_politics?: number
+          score_social?: number
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          id?: string
+          last_updated?: string
+          score_environment?: number
+          score_labor?: number
+          score_politics?: number
+          score_social?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_scores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brands: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          parent_company: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          parent_company?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          parent_company?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      event_sources: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          quote: string | null
+          source_date: string | null
+          source_name: string
+          source_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          quote?: string | null
+          source_date?: string | null
+          source_name: string
+          source_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          quote?: string | null
+          source_date?: string | null
+          source_name?: string
+          source_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_sources_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_events"
+            referencedColumns: ["event_id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          barcode: string
+          brand_id: string | null
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          barcode: string
+          brand_id?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          barcode?: string
+          brand_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      source_credibility: {
+        Row: {
+          base_credibility: number
+          created_at: string
+          dynamic_adjustment: number | null
+          id: string
+          notes: string | null
+          source_name: string
+          updated_at: string
+        }
+        Insert: {
+          base_credibility: number
+          created_at?: string
+          dynamic_adjustment?: number | null
+          id?: string
+          notes?: string | null
+          source_name: string
+          updated_at?: string
+        }
+        Update: {
+          base_credibility?: number
+          created_at?: string
+          dynamic_adjustment?: number | null
+          id?: string
+          notes?: string | null
+          source_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_source_credibility: {
+        Args: { source_name_param: string }
+        Returns: number
+      }
+      gtrgm_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_decompress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_in: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_options: {
+        Args: { "": unknown }
+        Returns: undefined
+      }
+      gtrgm_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      set_limit: {
+        Args: { "": number }
+        Returns: number
+      }
+      show_limit: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      show_trgm: {
+        Args: { "": string }
+        Returns: string[]
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
+      event_category:
+        | "labor"
+        | "environment"
+        | "politics"
+        | "social"
+        | "cultural-values"
+        | "general"
+      event_orientation: "positive" | "negative" | "mixed"
+      verification_level: "unverified" | "corroborated" | "official"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +476,18 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+      event_category: [
+        "labor",
+        "environment",
+        "politics",
+        "social",
+        "cultural-values",
+        "general",
+      ],
+      event_orientation: ["positive", "negative", "mixed"],
+      verification_level: ["unverified", "corroborated", "official"],
+    },
   },
 } as const
