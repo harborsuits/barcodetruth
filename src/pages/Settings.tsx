@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Users, Leaf, Megaphone, Heart, Info } from "lucide-react";
+import { ArrowLeft, Users, Leaf, Megaphone, Heart, Info, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { subscribeToPush, unsubscribeFromPush, isPushSubscribed } from "@/lib/pushNotifications";
+import { toast } from "@/hooks/use-toast";
 
 export const Settings = () => {
   const navigate = useNavigate();
@@ -17,17 +19,60 @@ export const Settings = () => {
     social: 50,
   });
   const [nuanceMode, setNuanceMode] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [checkingPush, setCheckingPush] = useState(true);
 
   useEffect(() => {
     const saved = localStorage.getItem("userValues");
     if (saved) {
       setValues(JSON.parse(saved));
     }
+    
+    // Check if push is already subscribed
+    isPushSubscribed().then(subscribed => {
+      setPushEnabled(subscribed);
+      setCheckingPush(false);
+    });
   }, []);
 
   const handleSave = () => {
     localStorage.setItem("userValues", JSON.stringify(values));
     navigate(-1);
+  };
+
+  const handlePushToggle = async (enabled: boolean) => {
+    setPushEnabled(enabled);
+    
+    if (enabled) {
+      const success = await subscribeToPush();
+      if (success) {
+        toast({
+          title: "Notifications enabled",
+          description: "You'll be notified when brands you follow have score changes",
+        });
+      } else {
+        setPushEnabled(false);
+        toast({
+          title: "Failed to enable notifications",
+          description: "Please check your browser permissions",
+          variant: "destructive",
+        });
+      }
+    } else {
+      const success = await unsubscribeFromPush();
+      if (success) {
+        toast({
+          title: "Notifications disabled",
+          description: "You won't receive score change notifications",
+        });
+      } else {
+        setPushEnabled(true);
+        toast({
+          title: "Failed to disable notifications",
+          variant: "destructive",
+        });
+      }
+    }
   };
 
   return (
@@ -169,6 +214,31 @@ export const Settings = () => {
                 id="nuance-mode"
                 checked={nuanceMode}
                 onCheckedChange={setNuanceMode}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Notifications</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="space-y-1 flex-1">
+                <div className="flex items-center gap-2">
+                  <Bell className="h-4 w-4" />
+                  <Label htmlFor="push-notifications">Score Change Alerts</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Get notified when brands you follow have significant score changes (±5 or more)
+                </p>
+              </div>
+              <Switch
+                id="push-notifications"
+                checked={pushEnabled}
+                disabled={checkingPush}
+                onCheckedChange={handlePushToggle}
               />
             </div>
           </CardContent>

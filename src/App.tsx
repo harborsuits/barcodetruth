@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { RouteFallback } from "@/components/RouteFallback";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { ServiceWorkerUpdate } from "@/components/ServiceWorkerUpdate";
 import { lazyNamed } from "@/lib/lazyNamed";
 import { Onboarding } from "./pages/Onboarding";
 import { NotFound } from "./pages/NotFound";
@@ -36,6 +37,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <OfflineIndicator />
+      <ServiceWorkerUpdate />
       <Toaster />
       <Sonner />
       <BrowserRouter>

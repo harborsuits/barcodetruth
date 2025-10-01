@@ -17,8 +17,14 @@ self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_APP);
     await cache.addAll(APP_SHELL);
-    self.skipWaiting();
     console.log('[SW] App shell cached');
+    
+    // Notify clients that an update is available
+    self.clients.matchAll().then(clients => {
+      clients.forEach(client => client.postMessage({ type: 'SW_UPDATE_AVAILABLE' }));
+    });
+    
+    self.skipWaiting();
   })());
 });
 
@@ -36,6 +42,12 @@ self.addEventListener('activate', (event) => {
       await self.registration.navigationPreload.enable();
       console.log('[SW] Navigation preload enabled');
     }
+    
+    // Flush any queued scans (iOS fallback)
+    if (navigator.onLine) {
+      await flushScanQueue();
+    }
+    
     self.clients.claim();
     console.log('[SW] Service worker activated');
   })());
@@ -189,3 +201,69 @@ async function networkFirst(request, cacheName) {
     return new Response('Offline', { status: 503 });
   }
 }
+
+// Push notification handlers
+self.addEventListener('push', (event) => {
+  console.log('[SW] Push received');
+  const data = event.data?.json() ?? {};
+  
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'ShopSignals', {
+      body: data.body || 'New update available',
+      icon: data.icon || '/placeholder.svg',
+      badge: data.badge || '/favicon.ico',
+      data: data.data || {},
+      tag: data.tag || 'default',
+      requireInteraction: false,
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  console.log('[SW] Notification clicked');
+  event.notification.close();
+  
+  const brandId = event.notification.data?.brand_id;
+  const url = brandId ? `/brand/${brandId}` : '/';
+  
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      // Focus existing window if available
+      for (const client of clientList) {
+        if (client.url.includes(url) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // Open new window
+      if (clients.openWindow) {
+        return clients.openWindow(url);
+      }
+    })
+  );
+});
+
+// Flush scan queue on activation (iOS fallback)
+self.addEventListener('activate', (event) => {
+  console.log('[SW] Activating service worker...');
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.map((k) => {
+      if (![CACHE_APP, CACHE_SNAPSHOTS, CACHE_FONTS].includes(k)) {
+        console.log('[SW] Deleting old cache:', k);
+        return caches.delete(k);
+      }
+    }));
+    if (self.registration.navigationPreload) {
+      await self.registration.navigationPreload.enable();
+      console.log('[SW] Navigation preload enabled');
+    }
+    
+    // Flush any queued scans (iOS fallback)
+    if (navigator.onLine) {
+      await flushScanQueue();
+    }
+    
+    self.clients.claim();
+    console.log('[SW] Service worker activated');
+  })());
+});
