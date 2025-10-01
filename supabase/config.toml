@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.categorize-event]
 verify_jwt = false
+
+[functions.jobs-runner]
+verify_jwt = false
