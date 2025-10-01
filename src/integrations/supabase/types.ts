@@ -483,24 +483,36 @@ export type Database = {
       user_preferences: {
         Row: {
           created_at: string
+          digest_time: string | null
           id: string
           muted_categories: string[]
+          notification_mode: string | null
+          political_alignment: string | null
           updated_at: string
           user_id: string
+          value_weights: Json | null
         }
         Insert: {
           created_at?: string
+          digest_time?: string | null
           id?: string
           muted_categories?: string[]
+          notification_mode?: string | null
+          political_alignment?: string | null
           updated_at?: string
           user_id: string
+          value_weights?: Json | null
         }
         Update: {
           created_at?: string
+          digest_time?: string | null
           id?: string
           muted_categories?: string[]
+          notification_mode?: string | null
+          political_alignment?: string | null
           updated_at?: string
           user_id?: string
+          value_weights?: Json | null
         }
         Relationships: []
       }

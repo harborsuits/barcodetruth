@@ -12,6 +12,8 @@ import { subscribeToPush, unsubscribeFromPush, isPushSubscribed } from "@/lib/pu
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
+type ValuePreset = "balanced" | "worker-first" | "green-first" | "politics-light" | "custom";
+
 export const Settings = () => {
   const navigate = useNavigate();
   const [values, setValues] = useState({
@@ -20,10 +22,14 @@ export const Settings = () => {
     politics: 50,
     social: 50,
   });
+  const [activePreset, setActivePreset] = useState<ValuePreset>("balanced");
   const [nuanceMode, setNuanceMode] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [checkingPush, setCheckingPush] = useState(true);
   const [mutedCategories, setMutedCategories] = useState<string[]>([]);
+  const [notificationMode, setNotificationMode] = useState<"instant" | "digest">("instant");
+  const [digestTime, setDigestTime] = useState("18:00");
+  const [politicalAlignment, setPoliticalAlignment] = useState<string | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem("userValues");
@@ -37,28 +43,68 @@ export const Settings = () => {
       setCheckingPush(false);
     });
 
-    // Load muted categories from user preferences
+    // Load all preferences from database
     const loadPreferences = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data } = await supabase
           .from('user_preferences')
-          .select('muted_categories')
+          .select('muted_categories, notification_mode, political_alignment, value_weights, digest_time')
           .eq('user_id', user.id)
           .maybeSingle();
         
-        if (data?.muted_categories) {
-          setMutedCategories(data.muted_categories);
+        if (data) {
+          if (data.muted_categories) {
+            setMutedCategories(data.muted_categories);
+          }
+          if (data.notification_mode) {
+            setNotificationMode(data.notification_mode as "instant" | "digest");
+          }
+          if (data.political_alignment) {
+            setPoliticalAlignment(data.political_alignment);
+          }
+          if (data.value_weights && typeof data.value_weights === 'object') {
+            const weights = data.value_weights as Record<string, number>;
+            if ('labor' in weights && 'environment' in weights && 'politics' in weights && 'social' in weights) {
+              setValues(weights as typeof values);
+            }
+          }
+          if (data.digest_time) {
+            setDigestTime(data.digest_time);
+          }
         }
       }
     };
     loadPreferences();
   }, []);
 
+  const applyPreset = (preset: ValuePreset) => {
+    setActivePreset(preset);
+    switch (preset) {
+      case "balanced":
+        setValues({ labor: 50, environment: 50, politics: 50, social: 50 });
+        break;
+      case "worker-first":
+        setValues({ labor: 70, environment: 40, politics: 30, social: 60 });
+        break;
+      case "green-first":
+        setValues({ labor: 40, environment: 70, politics: 30, social: 50 });
+        break;
+      case "politics-light":
+        setValues({ labor: 60, environment: 60, politics: 20, social: 60 });
+        break;
+    }
+  };
+
+  const handleValueChange = (category: keyof typeof values, value: number) => {
+    setValues({ ...values, [category]: value });
+    setActivePreset("custom");
+  };
+
   const handleSave = async () => {
     localStorage.setItem("userValues", JSON.stringify(values));
     
-    // Save muted categories to user preferences
+    // Save all preferences to database
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       await supabase
@@ -66,8 +112,17 @@ export const Settings = () => {
         .upsert({
           user_id: user.id,
           muted_categories: mutedCategories,
+          notification_mode: notificationMode,
+          political_alignment: politicalAlignment,
+          value_weights: values,
+          digest_time: digestTime,
         });
     }
+    
+    toast({
+      title: "Settings saved",
+      description: "Your preferences have been updated",
+    });
     
     navigate(-1);
   };
@@ -136,6 +191,43 @@ export const Settings = () => {
           </CardHeader>
           <CardContent className="space-y-8">
             <div className="space-y-3">
+              <Label className="text-sm font-medium">Quick Presets</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant={activePreset === "balanced" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => applyPreset("balanced")}
+                >
+                  Balanced
+                </Button>
+                <Button
+                  variant={activePreset === "worker-first" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => applyPreset("worker-first")}
+                >
+                  Worker-First
+                </Button>
+                <Button
+                  variant={activePreset === "green-first" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => applyPreset("green-first")}
+                >
+                  Green-First
+                </Button>
+                <Button
+                  variant={activePreset === "politics-light" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => applyPreset("politics-light")}
+                >
+                  Politics-Light
+                </Button>
+              </div>
+              {activePreset === "custom" && (
+                <p className="text-xs text-muted-foreground">Custom weights active</p>
+              )}
+            </div>
+
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Users className="h-5 w-5 text-labor" />
@@ -153,7 +245,7 @@ export const Settings = () => {
               </div>
               <Slider
                 value={[values.labor]}
-                onValueChange={(v) => setValues({ ...values, labor: v[0] })}
+                onValueChange={(v) => handleValueChange("labor", v[0])}
                 max={100}
                 step={1}
                 className="[&_[role=slider]]:bg-labor"
@@ -178,7 +270,7 @@ export const Settings = () => {
               </div>
               <Slider
                 value={[values.environment]}
-                onValueChange={(v) => setValues({ ...values, environment: v[0] })}
+                onValueChange={(v) => handleValueChange("environment", v[0])}
                 max={100}
                 step={1}
                 className="[&_[role=slider]]:bg-environment"
@@ -203,7 +295,7 @@ export const Settings = () => {
               </div>
               <Slider
                 value={[values.politics]}
-                onValueChange={(v) => setValues({ ...values, politics: v[0] })}
+                onValueChange={(v) => handleValueChange("politics", v[0])}
                 max={100}
                 step={1}
                 className="[&_[role=slider]]:bg-politics"
@@ -228,7 +320,7 @@ export const Settings = () => {
               </div>
               <Slider
                 value={[values.social]}
-                onValueChange={(v) => setValues({ ...values, social: v[0] })}
+                onValueChange={(v) => handleValueChange("social", v[0])}
                 max={100}
                 step={1}
                 className="[&_[role=slider]]:bg-social"
@@ -237,6 +329,48 @@ export const Settings = () => {
           </CardContent>
         </Card>
         </TooltipProvider>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Political Context</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Label className="text-sm">Contextualize political giving based on my values</Label>
+            <p className="text-xs text-muted-foreground">
+              When enabled, we'll frame FEC data based on your preferences
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant={politicalAlignment === "progressive" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setPoliticalAlignment("progressive")}
+              >
+                Progressive
+              </Button>
+              <Button
+                variant={politicalAlignment === "conservative" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setPoliticalAlignment("conservative")}
+              >
+                Conservative
+              </Button>
+              <Button
+                variant={politicalAlignment === "moderate" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setPoliticalAlignment("moderate")}
+              >
+                Moderate
+              </Button>
+              <Button
+                variant={politicalAlignment === "neutral" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setPoliticalAlignment("neutral")}
+              >
+                Just Facts
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
@@ -271,7 +405,7 @@ export const Settings = () => {
                   <Label htmlFor="push-notifications">Score Change Alerts</Label>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Get notified when brand scores change significantly. Up to 2 alerts per brand per day. No notifications between 10pm–7am UTC.
+                  Get notified when brand scores change significantly
                 </p>
               </div>
               <Switch
@@ -285,6 +419,44 @@ export const Settings = () => {
             {pushEnabled && (
               <>
                 <div className="pt-3 border-t space-y-4">
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Notification Mode</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        variant={notificationMode === "instant" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setNotificationMode("instant")}
+                      >
+                        Instant
+                      </Button>
+                      <Button
+                        variant={notificationMode === "digest" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setNotificationMode("digest")}
+                      >
+                        Daily Digest
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {notificationMode === "instant" 
+                        ? "Up to 2 alerts per brand per day. No notifications between 10pm–7am UTC."
+                        : "One daily summary of all score changes at your preferred time."}
+                    </p>
+                  </div>
+
+                  {notificationMode === "digest" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="digest-time" className="text-sm">Digest Time (UTC)</Label>
+                      <input
+                        id="digest-time"
+                        type="time"
+                        value={digestTime}
+                        onChange={(e) => setDigestTime(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-md"
+                      />
+                    </div>
+                  )}
+
                   <div>
                     <Label className="text-sm font-medium mb-3 block">Alert Topics</Label>
                     <p className="text-xs text-muted-foreground mb-3">
@@ -391,9 +563,6 @@ export const Settings = () => {
                   >
                     Send Test Notification
                   </Button>
-                  <p className="text-xs text-muted-foreground">
-                    Note: Actual push sending is stubbed. Subscription flow and UI are fully functional.
-                  </p>
                 </div>
               </>
             )}

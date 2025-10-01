@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { lineFromEvent } from "@/lib/events";
 import { computeSeverity, type Severity } from "@/lib/severityConfig";
+import { getPoliticalContext, getAlignmentBadgeColor, type PoliticalAlignment } from "@/lib/politicsContext";
+import { supabase } from "@/integrations/supabase/client";
 
 type CategoryKey = "labor" | "environment" | "politics" | "social" | "cultural-values" | "general";
 type EventOrientation = "positive" | "negative" | "mixed";
@@ -34,6 +36,7 @@ export interface BrandEvent {
   jurisdiction?: string;
   company_response?: { date?: string; url?: string; summary?: string };
   resolved?: boolean;
+  raw_data?: Record<string, any>;
 }
 
 const categoryConfig: Record<CategoryKey, { icon: any; label: string; color: string; dotColor: string }> = {
@@ -139,6 +142,7 @@ interface EventCardProps {
 
 export const EventCard = ({ event, showFullDetails = false, compact = false }: EventCardProps) => {
   const [showAllSources, setShowAllSources] = useState(false);
+  const [politicalAlignment, setPoliticalAlignment] = useState<PoliticalAlignment>(null);
   
   // Single source of truth for timestamp
   const timestamp = event.occurred_at ?? event.date;
@@ -149,6 +153,25 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
       if (stored === 'true') setShowAllSources(true);
     }
   }, [event.event_id]);
+
+  useEffect(() => {
+    // Load user's political alignment preference
+    const loadAlignment = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from('user_preferences')
+          .select('political_alignment')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (data?.political_alignment) {
+          setPoliticalAlignment(data.political_alignment as PoliticalAlignment);
+        }
+      }
+    };
+    loadAlignment();
+  }, []);
 
   const handleToggleSources = () => {
     const newState = !showAllSources;
@@ -192,6 +215,22 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
   const severityConfig = getSeverityUIConfig(severityResult.level, severityResult.reason);
   const isNew = isNewEvent(timestamp);
   const SourceLogo = getSourceLogo(primarySource?.name);
+  
+  // Political context for FEC events
+  const politicalContext = useMemo(() => {
+    if (event.category !== 'politics' || !event.raw_data || !politicalAlignment) {
+      return null;
+    }
+
+    const raw = event.raw_data as any;
+    if (raw.dem_percent !== undefined && raw.rep_percent !== undefined) {
+      return getPoliticalContext(
+        { dem_percent: raw.dem_percent, rep_percent: raw.rep_percent },
+        politicalAlignment
+      );
+    }
+    return null;
+  }, [event, politicalAlignment]);
   
   // Enhanced tooltip for FEC sources
   const sourceTooltip = useMemo(() => {
@@ -275,9 +314,18 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
 
           {/* Description */}
           {!compact && (
-            <p className="text-sm leading-relaxed text-foreground">
-              {event.description}
-            </p>
+            <div className="space-y-2">
+              <p className="text-sm leading-relaxed text-foreground">
+                {event.description}
+              </p>
+              
+              {/* Political Context */}
+              {politicalContext && (
+                <div className={`p-2 rounded-md border text-xs ${getAlignmentBadgeColor(politicalContext.alignmentMatch)}`}>
+                  {politicalContext.message}
+                </div>
+              )}
+            </div>
           )}
 
           {/* Impact chips */}
