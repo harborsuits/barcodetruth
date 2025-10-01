@@ -224,7 +224,7 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                     href={primarySource.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-blue-700 hover:underline shrink-0"
+                    className="inline-flex items-center gap-1 text-xs text-blue-700 underline underline-offset-2 hover:no-underline shrink-0"
                     aria-label={`Open source: ${primarySource.name ?? 'external link'}`}
                   >
                     Source
@@ -279,7 +279,7 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                                 href={source.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-xs text-primary hover:underline shrink-0"
+                                className="inline-flex items-center gap-1 text-xs text-blue-700 underline underline-offset-2 hover:no-underline shrink-0"
                                 aria-label={`Open source: ${source.name ?? 'external link'}`}
                               >
                                 Source
@@ -302,16 +302,16 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
               <p className="text-xs font-medium text-foreground">Company Response:</p>
               <p className="text-xs text-muted-foreground">{event.company_response.summary}</p>
               {event.company_response.url && (
-                <a
-                  href={event.company_response.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                  aria-label="View company response"
-                >
-                  Read full response
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+              <a
+                href={event.company_response.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-blue-700 underline underline-offset-2 hover:no-underline"
+                aria-label="View company response"
+              >
+                Read full response
+                <ExternalLink className="h-3 w-3" />
+              </a>
               )}
             </div>
           )}

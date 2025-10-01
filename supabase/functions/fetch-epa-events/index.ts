@@ -1,0 +1,121 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    const brandId = new URL(req.url).searchParams.get("brand_id");
+    if (!brandId) {
+      return new Response(JSON.stringify({ error: "brand_id required" }), { 
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    console.log(`[fetch-epa-events] Fetching EPA data for brand: ${brandId}`);
+
+    // EPA ECHO API - get recent enforcement actions
+    // Note: In production, map brand_id -> facility IDs via brand_facilities table
+    const daysBack = 90;
+    const url = `https://echo.epa.gov/api/echo_rest_services.get_facilities?output=JSON&p_ptype=AIR&p_limit=10`;
+
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error('[fetch-epa-events] EPA API error:', res.status);
+      return new Response(JSON.stringify({ error: "EPA fetch failed" }), { 
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    const json = await res.json();
+    const facilities = json?.Results?.Results ?? [];
+
+    console.log(`[fetch-epa-events] Found ${facilities.length} facilities`);
+
+    const events = [];
+    
+    for (const facility of facilities.slice(0, 5)) {
+      // Check for violations
+      if (facility.Viol_Flag === 'Y' || facility.Qtrs_with_NC > 0) {
+        const event = {
+          brand_id: brandId,
+          title: `EPA violation at ${facility.FacName}`,
+          description: `Facility ${facility.RegistryID} reported ${facility.Qtrs_with_NC ?? 0} quarters with non-compliance. Status: ${facility.Viol_Flag === 'Y' ? 'Active violations' : 'Monitoring required'}.`,
+          category: 'environment',
+          occurred_at: new Date().toISOString(),
+          verification: 'official',
+          ingested_from: 'epa-echo',
+        };
+
+        // Insert event
+        const { data: eventData, error: eventError } = await supabase
+          .from('brand_events')
+          .insert(event)
+          .select('event_id')
+          .single();
+
+        if (eventError) {
+          console.error('[fetch-epa-events] Error inserting event:', eventError);
+          continue;
+        }
+
+        // Insert source
+        const { error: sourceError } = await supabase
+          .from('event_sources')
+          .insert({
+            event_id: eventData.event_id,
+            source_name: 'EPA ECHO',
+            source_url: `https://echo.epa.gov/detailed-facility-report?fid=${facility.RegistryID}`,
+            source_quote: `Facility: ${facility.FacName}, Registry ID: ${facility.RegistryID}`,
+            published_at: new Date().toISOString(),
+          });
+
+        if (sourceError) {
+          console.error('[fetch-epa-events] Error inserting source:', sourceError);
+        } else {
+          events.push(eventData.event_id);
+        }
+      }
+    }
+
+    console.log(`[fetch-epa-events] Inserted ${events.length} events`);
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        inserted: events.length,
+        event_ids: events 
+      }), 
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      }
+    );
+
+  } catch (error) {
+    console.error('[fetch-epa-events] Error:', error);
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      }),
+      { 
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      }
+    );
+  }
+});
