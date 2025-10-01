@@ -1,54 +1,39 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, TrendingUp, TrendingDown, Heart, Ban, Bell, User, Sprout, Building2, Users } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Heart, Ban, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { EventCard, type BrandEvent } from "@/components/EventCard";
 
-type CategoryType = "labor" | "environment" | "politics" | "cultural-values";
-
-interface Event {
-  category: CategoryType;
-  description: string;
-  source: {
-    name: string;
-    date: string;
-  };
-  impact?: {
-    labor?: number;
-    environment?: number;
-    politics?: number;
-    social?: number;
-  };
-}
-
-const categoryConfig: Record<CategoryType, { icon: any; label: string; color: string }> = {
-  labor: { icon: User, label: "Labor", color: "text-labor" },
-  environment: { icon: Sprout, label: "Environment", color: "text-environment" },
-  politics: { icon: Building2, label: "Politics", color: "text-politics" },
-  "cultural-values": { icon: Users, label: "Cultural/Values", color: "text-[hsl(var(--cultural-values))]" },
-};
-
-const trendingBrands = [
+const trendingBrands: Array<{
+  id: string;
+  name: string;
+  score: number;
+  velocity: "rising" | "falling";
+  change: number;
+  events: BrandEvent[];
+}> = [
   {
     id: "nike",
     name: "Nike",
     score: 72,
-    velocity: "falling" as const,
+    velocity: "falling",
     change: -8,
     events: [
       {
-        category: "labor" as const,
+        category: "labor",
         description: "Workers at manufacturing facilities reported wage and safety concerns.",
         source: { name: "Reuters", date: "Sept 2025" },
         impact: { labor: -15, social: -5 },
+        severity: "moderate",
       },
       {
-        category: "labor" as const,
+        category: "labor",
         description: "Supplier audit disputes over working conditions.",
         source: { name: "Bloomberg", date: "July 2025" },
         impact: { labor: -8 },
+        severity: "minor",
       },
     ],
   },
@@ -56,20 +41,22 @@ const trendingBrands = [
     id: "patagonia",
     name: "Patagonia",
     score: 91,
-    velocity: "rising" as const,
+    velocity: "rising",
     change: 12,
     events: [
       {
-        category: "environment" as const,
+        category: "environment",
         description: "Launched comprehensive supply chain transparency initiative with third-party verification.",
-        source: { name: "The Guardian", date: "Aug 2025" },
+        source: { name: "The Guardian", date: "Aug 2025", quote: "Patagonia's new initiative sets a new standard for supply chain transparency in the apparel industry." },
         impact: { environment: 15, social: 8 },
+        verified: true,
       },
       {
-        category: "labor" as const,
+        category: "labor",
         description: "Unionization disputes at distribution centers.",
         source: { name: "AP News", date: "May 2025" },
         impact: { labor: -5 },
+        severity: "minor",
       },
     ],
   },
@@ -77,26 +64,30 @@ const trendingBrands = [
     id: "amazon",
     name: "Amazon",
     score: 45,
-    velocity: "falling" as const,
+    velocity: "falling",
     change: -15,
     events: [
       {
-        category: "labor" as const,
+        category: "labor",
         description: "Multiple reports surfaced regarding warehouse working conditions.",
-        source: { name: "New York Times", date: "Sept 2025" },
+        source: { name: "New York Times", date: "Sept 2025", quote: "Warehouse workers described grueling conditions with limited breaks and intense productivity monitoring." },
         impact: { labor: -12, social: -8 },
+        severity: "severe",
+        verified: true,
       },
       {
-        category: "politics" as const,
+        category: "politics",
         description: "Increased political spending disclosures raised concerns.",
         source: { name: "Washington Post", date: "Aug 2025" },
         impact: { politics: -10 },
+        severity: "moderate",
       },
       {
-        category: "environment" as const,
+        category: "environment",
         description: "Carbon emissions reduction targets announced.",
         source: { name: "Bloomberg", date: "June 2025" },
         impact: { environment: 8 },
+        verified: true,
       },
     ],
   },
@@ -104,17 +95,18 @@ const trendingBrands = [
     id: "allbirds",
     name: "Allbirds",
     score: 89,
-    velocity: "rising" as const,
+    velocity: "rising",
     change: 7,
     events: [
       {
-        category: "environment" as const,
+        category: "environment",
         description: "Released detailed carbon footprint data for all products and expanded sustainable materials program.",
-        source: { name: "Bloomberg", date: "Aug 2025" },
+        source: { name: "Bloomberg", date: "Aug 2025", quote: "Allbirds' transparency initiative includes detailed lifecycle analysis for every product in their catalog." },
         impact: { environment: 12, social: 5 },
+        verified: true,
       },
       {
-        category: "cultural-values" as const,
+        category: "cultural-values",
         description: "CEO publicly supported Pride Month campaigns.",
         source: { name: "CNN", date: "June 2025" },
         impact: { social: 3 },
@@ -227,41 +219,9 @@ const Trending = () => {
 
                     {/* Events */}
                     <div className="space-y-2.5">
-                      {brand.events.slice(0, 2).map((event, idx) => {
-                        const config = categoryConfig[event.category];
-                        const CategoryIcon = config.icon;
-                        return (
-                          <div key={idx} className="space-y-1">
-                            {/* Category Badge */}
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className={`flex items-center gap-1 ${config.color}`}>
-                                <CategoryIcon className="h-3 w-3" />
-                                {config.label}
-                              </Badge>
-                            </div>
-                            
-                            {/* Event Description */}
-                            <p className="text-sm leading-relaxed text-foreground">
-                              {event.description}
-                            </p>
-                            
-                            {/* Impact */}
-                            {event.impact && (
-                              <p className="text-xs text-muted-foreground">
-                                <span className="font-medium">Impact:</span>{" "}
-                                {Object.entries(event.impact)
-                                  .map(([key, value]) => `${(value as number) > 0 ? "+" : ""}${value} ${key.charAt(0).toUpperCase() + key.slice(1)}`)
-                                  .join(" | ")}
-                              </p>
-                            )}
-                            
-                            {/* Source Citation */}
-                            <p className="text-xs text-muted-foreground/70 italic">
-                              According to {event.source.name}, {event.source.date}
-                            </p>
-                          </div>
-                        );
-                      })}
+                      {brand.events.slice(0, 2).map((event, idx) => (
+                        <EventCard key={idx} event={event} />
+                      ))}
                       
                       {brand.events.length > 2 && (
                         <Button 

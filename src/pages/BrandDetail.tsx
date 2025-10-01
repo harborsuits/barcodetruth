@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle, ExternalLink, Heart, HeartOff, CheckCircle2, Clock } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle, Heart, HeartOff, Clock, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,96 +13,48 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { EventCard, type BrandEvent } from "@/components/EventCard";
 
-// Enhanced events data with full source citations
-interface EventSource {
-  name: string;
-  url: string;
-  credibility_score: number;
-  date: string;
-  quote?: string;
-}
-
-interface BrandEvent {
-  event_id: string;
-  brand_id: string;
-  category: "labor" | "environment" | "politics" | "social";
-  severity: "minor" | "moderate" | "severe";
-  title: string;
-  description: string;
-  date: string;
-  verified: boolean;
-  impact: "positive" | "negative";
-  sources: EventSource[];
-}
-
+// Updated events data matching unified structure
 const eventsData: Record<string, BrandEvent> = {
   event1: {
-    event_id: "event1",
-    brand_id: "nike",
     category: "labor",
+    description: "Workers at manufacturing facilities reported wage and safety concerns.",
+    source: { 
+      name: "Reuters", 
+      date: "Sept 2024",
+      url: "https://reuters.com/nike-wages-2024",
+      quote: "Workers reported extended shifts without adequate breaks, raising concerns about workplace conditions."
+    },
+    impact: { labor: -15, social: -5 },
     severity: "moderate",
-    title: "Factory working conditions concerns",
-    description: "Reports of wage disputes at supplier factories in Southeast Asia",
-    date: "2024-11-20",
     verified: true,
-    impact: "negative",
-    sources: [
-      {
-        name: "The Guardian",
-        url: "https://theguardian.com/nike-factory-2024",
-        credibility_score: 0.92,
-        date: "2024-11-20",
-        quote: "Workers reported extended shifts without adequate breaks, raising concerns about workplace conditions."
-      },
-      {
-        name: "Reuters",
-        url: "https://reuters.com/nike-wages-2024",
-        credibility_score: 0.95,
-        date: "2024-11-22",
-        quote: "Independent audits confirmed discrepancies in wage calculations at multiple supplier facilities."
-      }
-    ]
   },
   event2: {
-    event_id: "event2",
-    brand_id: "nike",
     category: "politics",
+    description: "FEC filings show $2.5M in political donations across parties.",
+    source: { 
+      name: "Federal Election Commission", 
+      date: "Jan 2025",
+      url: "https://fec.gov/nike-donations-2025",
+      quote: "Nike PAC contributed $2.5M to federal candidates during the 2024 election cycle."
+    },
+    impact: { politics: -10 },
     severity: "minor",
-    title: "Political campaign contributions",
-    description: "FEC filings show $2.5M in political donations across parties",
-    date: "2025-01-15",
     verified: true,
-    impact: "negative",
-    sources: [
-      {
-        name: "Federal Election Commission",
-        url: "https://fec.gov/nike-donations-2025",
-        credibility_score: 1.0,
-        date: "2025-01-15",
-        quote: "Nike PAC contributed $2.5M to federal candidates during the 2024 election cycle."
-      }
-    ]
   },
   event3: {
-    event_id: "event3",
-    brand_id: "nike",
     category: "environment",
+    description: "Company pledged to achieve carbon neutrality by 2030 with third-party verification.",
+    source: { 
+      name: "Bloomberg", 
+      date: "Jan 2025",
+      url: "https://bloomberg.com/nike-carbon-2025",
+      quote: "Nike announced a comprehensive plan to reduce emissions by 50% across its global supply chain within five years."
+    },
+    impact: { environment: 12 },
     severity: "minor",
-    title: "Carbon neutrality commitment announced",
-    description: "Company pledged to achieve carbon neutrality by 2030 with third-party verification",
-    date: "2025-01-08",
     verified: true,
-    impact: "positive",
-    sources: [
-      {
-        name: "Bloomberg",
-        url: "https://bloomberg.com/nike-carbon-2025",
-        credibility_score: 0.90,
-        date: "2025-01-08",
-        quote: "Nike announced a comprehensive plan to reduce emissions by 50% across its global supply chain within five years."
-      }
-    ]
   }
 };
 
@@ -302,81 +254,8 @@ const BrandDetail = () => {
                               const event = eventsData[eventId];
                               if (!event) return null;
                               
-                              const getSeverityColor = (severity: string) => {
-                                if (severity === "severe") return "text-danger";
-                                if (severity === "moderate") return "text-warning";
-                                return "text-muted-foreground";
-                              };
-                              
-                              const getBorderColor = (impact: string) => {
-                                return impact === "positive" ? "border-l-success" : "border-l-warning";
-                              };
-
                               return (
-                                <Card key={eventId} className={`border-l-4 ${getBorderColor(event.impact)}`}>
-                                  <CardContent className="p-4 space-y-3">
-                                    <div className="flex items-start justify-between gap-2">
-                                      <div className="space-y-1 flex-1">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          <h5 className="font-semibold text-sm">{event.title}</h5>
-                                          {event.verified && (
-                                            <CheckCircle2 className="h-4 w-4 text-success" />
-                                          )}
-                                          <Badge variant={event.impact === "positive" ? "default" : "secondary"} className="text-xs">
-                                            {event.impact}
-                                          </Badge>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground">
-                                          {new Date(event.date).toLocaleDateString()}
-                                        </p>
-                                      </div>
-                                      <Badge className={getSeverityColor(event.severity)}>
-                                        {event.severity}
-                                      </Badge>
-                                    </div>
-                                    <p className="text-sm text-muted-foreground">
-                                      {event.description}
-                                    </p>
-                                    
-                                    <div className="space-y-2 pt-2 border-t">
-                                      <p className="text-xs font-medium">
-                                        Verified by {event.sources.length} source{event.sources.length > 1 ? 's' : ''}
-                                      </p>
-                                       <div className="space-y-2">
-                                        {event.sources.map((source: EventSource, idx: number) => (
-                                          <div key={idx} className="space-y-1">
-                                            <a
-                                              href={source.url}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="flex items-center justify-between p-2 rounded hover:bg-accent transition-colors group"
-                                            >
-                                              <div className="flex items-center gap-2">
-                                                <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
-                                                  <span className="text-xs font-bold text-primary">
-                                                    {source.name.charAt(0)}
-                                                  </span>
-                                                </div>
-                                                <div>
-                                                  <p className="text-xs font-medium">{source.name}</p>
-                                                  <p className="text-xs text-muted-foreground">
-                                                    Credibility: {(source.credibility_score * 100).toFixed(0)}% • {new Date(source.date).toLocaleDateString()}
-                                                  </p>
-                                                </div>
-                                              </div>
-                                              <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                            </a>
-                                            {source.quote && (
-                                              <blockquote className="ml-8 pl-3 border-l-2 border-muted text-xs text-muted-foreground italic">
-                                                "{source.quote}"
-                                              </blockquote>
-                                            )}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </CardContent>
-                                </Card>
+                                <EventCard key={eventId} event={event} showFullDetails={true} />
                               );
                             })}
                           </div>
