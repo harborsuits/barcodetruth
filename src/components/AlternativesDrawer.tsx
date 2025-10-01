@@ -27,9 +27,10 @@ interface AlternativesDrawerProps {
   currentScore: number;
   currentScores: BrandScores;
   onCompare: (brandId: string) => void;
+  productCategory?: string;
 }
 
-export function AlternativesDrawer({ alternatives, currentScore, currentScores, onCompare }: AlternativesDrawerProps) {
+export function AlternativesDrawer({ alternatives, currentScore, currentScores, onCompare, productCategory }: AlternativesDrawerProps) {
   const [open, setOpen] = useState(false);
   const weights = getUserWeights();
 
@@ -53,7 +54,9 @@ export function AlternativesDrawer({ alternatives, currentScore, currentScores, 
         <SheetHeader>
           <SheetTitle>Better Alternatives</SheetTitle>
           <SheetDescription>
-            Brands in the same product category, ranked by your values and priorities
+            {productCategory
+              ? "Brands in the same product category, ranked by your values and priorities"
+              : "No same-category options yet — showing generally better-aligned brands"}
           </SheetDescription>
         </SheetHeader>
         

@@ -142,7 +142,45 @@ export default function ScanResult() {
       // Extract unique brand IDs
       const brandIds = [...new Set(products?.map((p) => p.brand_id) ?? [])];
       
-      if (brandIds.length === 0) return [];
+      if (brandIds.length === 0) {
+        // Fallback: show generally better-aligned brands
+        const { data: fallbackBrands, error: fallbackError } = await supabase
+          .from('brands')
+          .select('id, name, brand_scores!inner(score_labor, score_environment, score_politics, score_social)')
+          .neq('id', product!.brand_id)
+          .limit(8);
+        
+        if (fallbackError) throw fallbackError;
+        if (!fallbackBrands) return [];
+        
+        return fallbackBrands
+          .map((brand) => {
+            const scores = Array.isArray(brand.brand_scores)
+              ? brand.brand_scores[0]
+              : brand.brand_scores;
+            if (!scores) return null;
+            
+            const valueFit = calculateValueFit(scores, weights);
+            return {
+              brand_id: brand.id,
+              brand_name: brand.name,
+              valueFit,
+              overall_score: Math.round(
+                (scores.score_labor +
+                  scores.score_environment +
+                  scores.score_politics +
+                  scores.score_social) /
+                  4
+              ),
+              why: "Generally better alignment with your values.",
+              price_context: undefined,
+              scores,
+            };
+          })
+          .filter(Boolean)
+          .sort((a, b) => b!.valueFit - a!.valueFit)
+          .slice(0, 5) as any[];
+      }
       
       // Fetch brand scores for those alternatives
       const { data: brands, error: brandError } = await supabase
@@ -152,11 +190,13 @@ export default function ScanResult() {
       
       if (brandError) throw brandError;
       
-      // Cast and normalize brand_scores to array
-      const normalized = (brands as any[]).map(brand => ({
-        ...brand,
-        brand_scores: Array.isArray(brand.brand_scores) ? brand.brand_scores : [brand.brand_scores]
-      })) as BrandWithScores[];
+      // Cast and normalize brand_scores to array, filter out brands without scores
+      const normalized = (brands as any[])
+        .map(brand => ({
+          ...brand,
+          brand_scores: Array.isArray(brand.brand_scores) ? brand.brand_scores : [brand.brand_scores]
+        }))
+        .filter((b) => b.brand_scores?.[0]) as BrandWithScores[]; // only brands with scores
       
       // Calculate Value Fit for each and sort
       return normalized
@@ -437,6 +477,7 @@ export default function ScanResult() {
                 alternatives={alternatives}
                 currentScore={currentBrandData.valueFit}
                 currentScores={brandData.brand_scores[0]}
+                productCategory={product.category}
                 onCompare={(brandId) => {
                   setCompareBrandId(brandId);
                   setCompareOpen(true);
