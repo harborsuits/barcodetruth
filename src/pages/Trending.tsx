@@ -22,18 +22,44 @@ const trendingBrands: Array<{
     change: -8,
     events: [
       {
+        event_id: "nike_labor_2025",
+        brand_id: "nike",
         category: "labor",
         description: "Workers at manufacturing facilities reported wage and safety concerns.",
-        source: { name: "Reuters", date: "Sept 2025" },
-        impact: { labor: -15, social: -5 },
+        date: "2025-09-15",
         severity: "moderate",
+        verification: "corroborated",
+        orientation: "negative",
+        impact: { labor: -15, social: -5 },
+        sources: [
+          {
+            name: "Reuters",
+            date: "2025-09-15",
+            url: "https://reuters.com/nike-labor-2025",
+            quote: "Workers reported extended shifts without adequate breaks, raising concerns about workplace conditions."
+          },
+          {
+            name: "Bloomberg",
+            date: "2025-09-16",
+            url: "https://bloomberg.com/nike-audit-2025",
+            quote: "Independent audits confirmed discrepancies in wage calculations at supplier facilities."
+          }
+        ],
+        jurisdiction: "Southeast Asia",
       },
       {
+        event_id: "nike_labor_july",
+        brand_id: "nike",
         category: "labor",
         description: "Supplier audit disputes over working conditions.",
-        source: { name: "Bloomberg", date: "July 2025" },
-        impact: { labor: -8 },
+        date: "2025-07-10",
         severity: "minor",
+        verification: "corroborated",
+        orientation: "negative",
+        impact: { labor: -8 },
+        sources: [
+          { name: "Bloomberg", date: "2025-07-10" }
+        ],
       },
     ],
   },
@@ -45,18 +71,49 @@ const trendingBrands: Array<{
     change: 12,
     events: [
       {
+        event_id: "patagonia_env_2025",
+        brand_id: "patagonia",
         category: "environment",
         description: "Launched comprehensive supply chain transparency initiative with third-party verification.",
-        source: { name: "The Guardian", date: "Aug 2025", quote: "Patagonia's new initiative sets a new standard for supply chain transparency in the apparel industry." },
+        date: "2025-08-20",
+        verification: "official",
+        orientation: "positive",
         impact: { environment: 15, social: 8 },
-        verified: true,
+        sources: [
+          {
+            name: "The Guardian",
+            date: "2025-08-20",
+            url: "https://theguardian.com/patagonia-transparency-2025",
+            quote: "Patagonia's new initiative sets a new standard for supply chain transparency in the apparel industry."
+          },
+          {
+            name: "Environmental Working Group",
+            date: "2025-08-21",
+            url: "https://ewg.org/patagonia-certification",
+            quote: "Third-party auditors confirmed compliance with the highest environmental standards."
+          }
+        ],
+        jurisdiction: "Global",
       },
       {
+        event_id: "patagonia_labor_may",
+        brand_id: "patagonia",
         category: "labor",
         description: "Unionization disputes at distribution centers.",
-        source: { name: "AP News", date: "May 2025" },
-        impact: { labor: -5 },
+        date: "2025-05-15",
         severity: "minor",
+        verification: "corroborated",
+        orientation: "negative",
+        impact: { labor: -5 },
+        sources: [
+          { name: "AP News", date: "2025-05-15" }
+        ],
+        company_response: {
+          date: "2025-05-20",
+          url: "https://patagonia.com/labor-response",
+          summary: "Company committed to ongoing dialogue with workers and third-party mediation."
+        },
+        resolved: true,
       },
     ],
   },
@@ -68,26 +125,69 @@ const trendingBrands: Array<{
     change: -15,
     events: [
       {
+        event_id: "amazon_labor_sept",
+        brand_id: "amazon",
         category: "labor",
         description: "Multiple reports surfaced regarding warehouse working conditions.",
-        source: { name: "New York Times", date: "Sept 2025", quote: "Warehouse workers described grueling conditions with limited breaks and intense productivity monitoring." },
-        impact: { labor: -12, social: -8 },
+        date: "2025-09-10",
         severity: "severe",
-        verified: true,
+        verification: "corroborated",
+        orientation: "negative",
+        impact: { labor: -12, social: -8 },
+        sources: [
+          {
+            name: "New York Times",
+            date: "2025-09-10",
+            url: "https://nytimes.com/amazon-warehouse-2025",
+            quote: "Warehouse workers described grueling conditions with limited breaks and intense productivity monitoring."
+          },
+          {
+            name: "ProPublica",
+            date: "2025-09-11",
+            url: "https://propublica.org/amazon-investigation",
+            quote: "Investigation found injury rates at Amazon warehouses significantly exceed industry averages."
+          }
+        ],
+        jurisdiction: "US",
       },
       {
+        event_id: "amazon_politics_aug",
+        brand_id: "amazon",
         category: "politics",
         description: "Increased political spending disclosures raised concerns.",
-        source: { name: "Washington Post", date: "Aug 2025" },
-        impact: { politics: -10 },
+        date: "2025-08-05",
         severity: "moderate",
+        verification: "official",
+        orientation: "negative",
+        impact: { politics: -10 },
+        sources: [
+          {
+            name: "Federal Election Commission",
+            date: "2025-08-05",
+            url: "https://fec.gov/amazon-pac-2025",
+            quote: "Amazon PAC increased lobbying expenditures by 45% compared to previous year."
+          }
+        ],
+        jurisdiction: "US",
       },
       {
+        event_id: "amazon_env_june",
+        brand_id: "amazon",
         category: "environment",
         description: "Carbon emissions reduction targets announced.",
-        source: { name: "Bloomberg", date: "June 2025" },
+        date: "2025-06-15",
+        verification: "official",
+        orientation: "positive",
         impact: { environment: 8 },
-        verified: true,
+        sources: [
+          {
+            name: "Bloomberg",
+            date: "2025-06-15",
+            url: "https://bloomberg.com/amazon-climate-2025",
+            quote: "Amazon pledged to achieve net-zero carbon by 2040 with significant investments in renewable energy."
+          }
+        ],
+        jurisdiction: "Global",
       },
     ],
   },
@@ -99,17 +199,36 @@ const trendingBrands: Array<{
     change: 7,
     events: [
       {
+        event_id: "allbirds_env_aug",
+        brand_id: "allbirds",
         category: "environment",
         description: "Released detailed carbon footprint data for all products and expanded sustainable materials program.",
-        source: { name: "Bloomberg", date: "Aug 2025", quote: "Allbirds' transparency initiative includes detailed lifecycle analysis for every product in their catalog." },
+        date: "2025-08-10",
+        verification: "official",
+        orientation: "positive",
         impact: { environment: 12, social: 5 },
-        verified: true,
+        sources: [
+          {
+            name: "Bloomberg",
+            date: "2025-08-10",
+            url: "https://bloomberg.com/allbirds-carbon-2025",
+            quote: "Allbirds' transparency initiative includes detailed lifecycle analysis for every product in their catalog."
+          }
+        ],
+        jurisdiction: "Global",
       },
       {
+        event_id: "allbirds_cultural_june",
+        brand_id: "allbirds",
         category: "cultural-values",
         description: "CEO publicly supported Pride Month campaigns.",
-        source: { name: "CNN", date: "June 2025" },
+        date: "2025-06-01",
+        verification: "unverified",
+        orientation: "mixed",
         impact: { social: 3 },
+        sources: [
+          { name: "CNN", date: "2025-06-01" }
+        ],
       },
     ],
   },

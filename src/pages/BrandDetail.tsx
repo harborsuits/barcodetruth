@@ -18,43 +18,70 @@ import { EventCard, type BrandEvent } from "@/components/EventCard";
 // Updated events data matching unified structure
 const eventsData: Record<string, BrandEvent> = {
   event1: {
+    event_id: "event1",
+    brand_id: "nike",
     category: "labor",
     description: "Workers at manufacturing facilities reported wage and safety concerns.",
-    source: { 
-      name: "Reuters", 
-      date: "Sept 2024",
-      url: "https://reuters.com/nike-wages-2024",
-      quote: "Workers reported extended shifts without adequate breaks, raising concerns about workplace conditions."
-    },
-    impact: { labor: -15, social: -5 },
+    date: "2024-11-20",
     severity: "moderate",
-    verified: true,
+    verification: "corroborated",
+    orientation: "negative",
+    impact: { labor: -15, social: -5 },
+    sources: [
+      {
+        name: "The Guardian",
+        url: "https://theguardian.com/nike-factory-2024",
+        date: "2024-11-20",
+        quote: "Workers reported extended shifts without adequate breaks, raising concerns about workplace conditions."
+      },
+      {
+        name: "Reuters",
+        url: "https://reuters.com/nike-wages-2024",
+        date: "2024-11-22",
+        quote: "Independent audits confirmed discrepancies in wage calculations at multiple supplier facilities."
+      }
+    ],
+    jurisdiction: "Southeast Asia",
   },
   event2: {
+    event_id: "event2",
+    brand_id: "nike",
     category: "politics",
     description: "FEC filings show $2.5M in political donations across parties.",
-    source: { 
-      name: "Federal Election Commission", 
-      date: "Jan 2025",
-      url: "https://fec.gov/nike-donations-2025",
-      quote: "Nike PAC contributed $2.5M to federal candidates during the 2024 election cycle."
-    },
-    impact: { politics: -10 },
+    date: "2025-01-15",
     severity: "minor",
-    verified: true,
+    verification: "official",
+    orientation: "negative",
+    impact: { politics: -10 },
+    sources: [
+      {
+        name: "Federal Election Commission",
+        url: "https://fec.gov/nike-donations-2025",
+        date: "2025-01-15",
+        quote: "Nike PAC contributed $2.5M to federal candidates during the 2024 election cycle."
+      }
+    ],
+    jurisdiction: "US",
   },
   event3: {
+    event_id: "event3",
+    brand_id: "nike",
     category: "environment",
     description: "Company pledged to achieve carbon neutrality by 2030 with third-party verification.",
-    source: { 
-      name: "Bloomberg", 
-      date: "Jan 2025",
-      url: "https://bloomberg.com/nike-carbon-2025",
-      quote: "Nike announced a comprehensive plan to reduce emissions by 50% across its global supply chain within five years."
-    },
-    impact: { environment: 12 },
+    date: "2025-01-08",
     severity: "minor",
-    verified: true,
+    verification: "official",
+    orientation: "positive",
+    impact: { environment: 12 },
+    sources: [
+      {
+        name: "Bloomberg",
+        url: "https://bloomberg.com/nike-carbon-2025",
+        date: "2025-01-08",
+        quote: "Nike announced a comprehensive plan to reduce emissions by 50% across its global supply chain within five years."
+      }
+    ],
+    jurisdiction: "Global",
   }
 };
 

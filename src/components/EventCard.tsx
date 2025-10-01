@@ -1,35 +1,46 @@
-import { User, Sprout, Building2, Users, ExternalLink, CheckCircle2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { User, Sprout, Building2, Users, ExternalLink, CheckCircle2, Info, ChevronDown, ChevronUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
-type CategoryType = "labor" | "environment" | "politics" | "cultural-values";
+type CategoryKey = "labor" | "environment" | "politics" | "social" | "cultural-values" | "general";
+type EventOrientation = "positive" | "negative" | "mixed";
+type Verification = "unverified" | "corroborated" | "official";
 
 interface EventSource {
   name: string;
   url?: string;
-  date: string;
+  date?: string;
   quote?: string;
 }
 
 export interface BrandEvent {
-  category: CategoryType;
+  event_id?: string;
+  brand_id?: string;
+  category: CategoryKey;
+  title?: string;
   description: string;
-  source: EventSource;
-  impact?: {
-    labor?: number;
-    environment?: number;
-    politics?: number;
-    social?: number;
-  };
-  verified?: boolean;
+  date?: string;
   severity?: "minor" | "moderate" | "severe";
+  verified?: boolean;
+  verification?: Verification;
+  orientation?: EventOrientation;
+  impact?: Partial<Record<"labor" | "environment" | "politics" | "social", number>>;
+  sources?: EventSource[];
+  source?: EventSource; // backwards compat
+  jurisdiction?: string;
+  company_response?: { date?: string; url?: string; summary?: string };
+  resolved?: boolean;
 }
 
-const categoryConfig: Record<CategoryType, { icon: any; label: string; color: string }> = {
+const categoryConfig: Record<CategoryKey, { icon: any; label: string; color: string }> = {
   labor: { icon: User, label: "Labor", color: "text-labor" },
   environment: { icon: Sprout, label: "Environment", color: "text-environment" },
   politics: { icon: Building2, label: "Politics", color: "text-politics" },
+  social: { icon: Users, label: "Social", color: "text-social" },
   "cultural-values": { icon: Users, label: "Cultural/Values", color: "text-[hsl(var(--cultural-values))]" },
+  general: { icon: Info, label: "General", color: "text-muted-foreground" },
 };
 
 const getSeverityColor = (severity?: string) => {
@@ -38,77 +49,228 @@ const getSeverityColor = (severity?: string) => {
   return "border-l-muted";
 };
 
+const formatDate = (dateString?: string): string => {
+  if (!dateString) return "Date unknown";
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  } catch {
+    return dateString;
+  }
+};
+
+const getVerificationLabel = (verification?: Verification, verified?: boolean): string => {
+  if (verification === "official") return "Official";
+  if (verification === "corroborated") return "Corroborated";
+  if (verified) return "Verified";
+  return "Reported";
+};
+
 interface EventCardProps {
   event: BrandEvent;
   showFullDetails?: boolean;
+  compact?: boolean;
 }
 
-export const EventCard = ({ event, showFullDetails = false }: EventCardProps) => {
-  const config = categoryConfig[event.category];
-  const CategoryIcon = config.icon;
-  const isPositive = event.impact && Object.values(event.impact).some(v => v > 0);
+export const EventCard = ({ event, showFullDetails = false, compact = false }: EventCardProps) => {
+  const [showAllSources, setShowAllSources] = useState(false);
+  
+  // Null-safe category config
+  const cfg = categoryConfig[(event.category as CategoryKey) ?? "general"];
+  const CategoryIcon = cfg?.icon ?? Info;
+
+  // Determine primary source (backwards compat with single source field)
+  const allSources = event.sources ?? (event.source ? [event.source] : []);
+  const primarySource = allSources[0];
+  const additionalSources = allSources.slice(1);
+
+  // Memoized impact chips
+  const impactChips = useMemo(() => {
+    if (!event.impact) return [];
+    return Object.entries(event.impact)
+      .map(([key, value]) => ({ key, val: Number(value) }))
+      .filter(({ val }) => !Number.isNaN(val) && val !== 0);
+  }, [event.impact]);
+
+  // Determine border color: orientation > severity
+  const isPositive = event.orientation === "positive" || impactChips.some(({ val }) => val > 0);
+  const borderColor = isPositive ? "border-l-success" : getSeverityColor(event.severity);
+
+  // Attribution text
+  const verificationLabel = getVerificationLabel(event.verification, event.verified);
+  const attributionPrefix = event.verification === "official" ? "Per" : 
+                           event.verification === "unverified" ? "Reported by" : 
+                           "According to";
 
   return (
-    <Card className={`border-l-4 ${isPositive ? "border-l-success" : getSeverityColor(event.severity)}`}>
-      <CardContent className="p-4 space-y-3">
-        {/* Category Badge */}
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className={`flex items-center gap-1 ${config.color}`}>
+    <Card className={`border-l-4 ${borderColor} transition-shadow hover:shadow-md`}>
+      <CardContent className={compact ? "p-3 space-y-2" : "p-4 space-y-3"}>
+        {/* Header: Category Badge + Verification */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge variant="outline" className={`flex items-center gap-1 ${cfg.color}`}>
             <CategoryIcon className="h-3 w-3" />
-            {config.label}
+            {cfg.label}
           </Badge>
-          {event.verified && (
-            <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+          
+          {(event.verified || event.verification) && (
+            <Badge 
+              variant={event.verification === "official" ? "default" : "secondary"} 
+              className="flex items-center gap-1 text-xs"
+            >
+              <CheckCircle2 className="h-3 w-3" />
+              {verificationLabel}
+            </Badge>
           )}
+          
           {event.severity && (
-            <Badge variant="secondary" className="text-xs capitalize">
+            <Badge variant="outline" className="text-xs capitalize">
               {event.severity}
+            </Badge>
+          )}
+
+          {event.resolved && (
+            <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/20">
+              Resolved
             </Badge>
           )}
         </div>
 
-        {/* Event Description */}
-        <p className="text-sm leading-relaxed text-foreground">
+        {/* Title (if present) */}
+        {event.title && !compact && (
+          <h4 className="font-semibold text-sm">{event.title}</h4>
+        )}
+
+        {/* Description */}
+        <p className={`leading-relaxed text-foreground ${compact ? "text-xs" : "text-sm"}`}>
           {event.description}
         </p>
 
-        {/* Impact */}
-        {event.impact && (
-          <p className="text-xs text-muted-foreground">
-            <span className="font-medium">Impact:</span>{" "}
-            {Object.entries(event.impact)
-              .map(([key, value]) => `${(value as number) > 0 ? "+" : ""}${value} ${key.charAt(0).toUpperCase() + key.slice(1)}`)
-              .join(" | ")}
-          </p>
+        {/* Impact Chips */}
+        {impactChips.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs text-muted-foreground font-medium">Impact:</span>
+            {impactChips.map(({ key, val }) => (
+              <Badge
+                key={key}
+                variant="outline"
+                className={`text-xs font-medium ${
+                  val > 0 
+                    ? "bg-success/10 text-success border-success/20" 
+                    : "bg-danger/10 text-danger border-danger/20"
+                }`}
+              >
+                {val > 0 ? "+" : ""}{val} {key.charAt(0).toUpperCase() + key.slice(1)}
+              </Badge>
+            ))}
+          </div>
         )}
 
-        {/* Source Citation */}
-        {showFullDetails && event.source.quote ? (
+        {/* Primary Source Citation */}
+        {primarySource && (
           <div className="space-y-2 pt-2 border-t">
-            <blockquote className="pl-3 border-l-2 border-muted text-xs text-muted-foreground italic leading-relaxed">
-              "{event.source.quote}"
-            </blockquote>
-            <div className="flex items-center justify-between">
+            {showFullDetails && primarySource.quote ? (
+              <blockquote className="pl-3 border-l-2 border-muted text-xs text-muted-foreground italic leading-relaxed">
+                "{primarySource.quote}"
+              </blockquote>
+            ) : null}
+            
+            <div className="flex items-center justify-between gap-2">
               <p className="text-xs text-muted-foreground/70 italic">
-                {event.source.name}, {event.source.date}
+                {attributionPrefix} <span className="font-medium">{primarySource.name}</span>
+                {primarySource.date && `, ${formatDate(primarySource.date)}`}
+                {event.verification === "unverified" && (
+                  <span className="text-warning"> • Not yet corroborated</span>
+                )}
               </p>
-              {event.source.url && (
+              {primarySource.url && (
                 <a
-                  href={event.source.url}
+                  href={primarySource.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline shrink-0"
                   onClick={(e) => e.stopPropagation()}
+                  aria-label={`View source from ${primarySource.name}`}
                 >
-                  View source
+                  Source
                   <ExternalLink className="h-3 w-3" />
                 </a>
               )}
             </div>
+
+            {/* Additional Sources */}
+            {additionalSources.length > 0 && (
+              <div className="space-y-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto p-0 text-xs text-primary hover:no-underline"
+                  onClick={() => setShowAllSources(!showAllSources)}
+                >
+                  {showAllSources ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />}
+                  {showAllSources ? "Hide" : "Show"} +{additionalSources.length} more source{additionalSources.length > 1 ? "s" : ""}
+                </Button>
+                
+                {showAllSources && (
+                  <div className="space-y-2 pl-3">
+                    {additionalSources.map((source, idx) => (
+                      <div key={idx} className="space-y-1">
+                        {source.quote && (
+                          <blockquote className="pl-3 border-l-2 border-muted text-xs text-muted-foreground italic">
+                            "{source.quote}"
+                          </blockquote>
+                        )}
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs text-muted-foreground/70 italic">
+                            {source.name}{source.date && `, ${formatDate(source.date)}`}
+                          </p>
+                          {source.url && (
+                            <a
+                              href={source.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline shrink-0"
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label={`View source from ${source.name}`}
+                            >
+                              Source
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        ) : (
-          <p className="text-xs text-muted-foreground/70 italic">
-            According to {event.source.name}, {event.source.date}
+        )}
+
+        {/* Company Response */}
+        {event.company_response && (
+          <div className="pt-2 border-t space-y-1">
+            <p className="text-xs font-medium text-foreground">Company Response:</p>
+            <p className="text-xs text-muted-foreground">{event.company_response.summary}</p>
+            {event.company_response.url && (
+              <a
+                href={event.company_response.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                onClick={(e) => e.stopPropagation()}
+                aria-label="View company response"
+              >
+                Read full response
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </div>
+        )}
+
+        {/* Jurisdiction (if present) */}
+        {event.jurisdiction && (
+          <p className="text-xs text-muted-foreground">
+            Jurisdiction: <span className="font-medium">{event.jurisdiction}</span>
           </p>
         )}
       </CardContent>
