@@ -14,7 +14,7 @@ const mockAvoiding = [
   { id: "amazon", name: "Amazon", score: 45 },
 ];
 
-const Lists = () => {
+export const Lists = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("following");
 
@@ -109,4 +109,4 @@ const Lists = () => {
   );
 };
 
-export default Lists;
+

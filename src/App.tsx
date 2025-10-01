@@ -1,18 +1,23 @@
-import { useEffect } from "react";
+import { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Onboarding from "./pages/Onboarding";
-import Home from "./pages/Home";
-import BrandDetail from "./pages/BrandDetail";
-import Scan from "./pages/Scan";
-import Trending from "./pages/Trending";
-import Lists from "./pages/Lists";
-import Settings from "./pages/Settings";
-import { AdminReview } from "./pages/AdminReview";
-import NotFound from "./pages/NotFound";
+import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
+import { RouteFallback } from "@/components/RouteFallback";
+import { lazyNamed } from "@/lib/lazyNamed";
+import { Onboarding } from "./pages/Onboarding";
+import { NotFound } from "./pages/NotFound";
+
+// Lazy load heavy routes
+const Home = lazyNamed(() => import("./pages/Home"), "Home");
+const BrandDetail = lazyNamed(() => import("./pages/BrandDetail"), "BrandDetail");
+const Scan = lazyNamed(() => import("./pages/Scan"), "Scan");
+const Trending = lazyNamed(() => import("./pages/Trending"), "Trending");
+const Lists = lazyNamed(() => import("./pages/Lists"), "Lists");
+const Settings = lazyNamed(() => import("./pages/Settings"), "Settings");
+const AdminReview = lazyNamed(() => import("./pages/AdminReview"), "AdminReview");
 
 const queryClient = new QueryClient();
 
@@ -38,7 +43,9 @@ const App = () => (
             path="/"
             element={
               <ProtectedRoute>
-                <Home />
+                <Suspense fallback={<RouteFallback label="Loading home…" />}>
+                  <Home />
+                </Suspense>
               </ProtectedRoute>
             }
           />
@@ -46,7 +53,11 @@ const App = () => (
             path="/brand/:brandId"
             element={
               <ProtectedRoute>
-                <BrandDetail />
+                <RouteErrorBoundary>
+                  <Suspense fallback={<RouteFallback label="Loading brand…" />}>
+                    <BrandDetail />
+                  </Suspense>
+                </RouteErrorBoundary>
               </ProtectedRoute>
             }
           />
@@ -54,7 +65,11 @@ const App = () => (
             path="/scan"
             element={
               <ProtectedRoute>
-                <Scan />
+                <RouteErrorBoundary>
+                  <Suspense fallback={<RouteFallback label="Loading scanner…" />}>
+                    <Scan />
+                  </Suspense>
+                </RouteErrorBoundary>
               </ProtectedRoute>
             }
           />
@@ -62,7 +77,11 @@ const App = () => (
             path="/trending"
             element={
               <ProtectedRoute>
-                <Trending />
+                <RouteErrorBoundary>
+                  <Suspense fallback={<RouteFallback label="Loading trending…" />}>
+                    <Trending />
+                  </Suspense>
+                </RouteErrorBoundary>
               </ProtectedRoute>
             }
           />
@@ -70,7 +89,11 @@ const App = () => (
             path="/lists"
             element={
               <ProtectedRoute>
-                <Lists />
+                <RouteErrorBoundary>
+                  <Suspense fallback={<RouteFallback label="Loading lists…" />}>
+                    <Lists />
+                  </Suspense>
+                </RouteErrorBoundary>
               </ProtectedRoute>
             }
           />
@@ -78,7 +101,11 @@ const App = () => (
             path="/settings"
             element={
               <ProtectedRoute>
-                <Settings />
+                <RouteErrorBoundary>
+                  <Suspense fallback={<RouteFallback label="Loading settings…" />}>
+                    <Settings />
+                  </Suspense>
+                </RouteErrorBoundary>
               </ProtectedRoute>
             }
           />
@@ -86,7 +113,11 @@ const App = () => (
             path="/admin/review"
             element={
               <ProtectedRoute>
-                <AdminReview />
+                <RouteErrorBoundary>
+                  <Suspense fallback={<RouteFallback label="Loading admin review…" />}>
+                    <AdminReview />
+                  </Suspense>
+                </RouteErrorBoundary>
               </ProtectedRoute>
             }
           />

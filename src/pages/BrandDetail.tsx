@@ -152,7 +152,7 @@ const brandData: Record<string, any> = {
   },
 };
 
-const BrandDetail = () => {
+export const BrandDetail = () => {
   const { brandId } = useParams();
   const navigate = useNavigate();
   const [isFollowing, setIsFollowing] = useState(false);
@@ -470,4 +470,4 @@ const BrandDetail = () => {
   );
 };
 
-export default BrandDetail;
+

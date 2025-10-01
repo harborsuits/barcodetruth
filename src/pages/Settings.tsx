@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const Settings = () => {
+export const Settings = () => {
   const navigate = useNavigate();
   const [values, setValues] = useState({
     labor: 50,
@@ -182,4 +182,4 @@ const Settings = () => {
   );
 };
 
-export default Settings;
+

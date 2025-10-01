@@ -6,7 +6,7 @@ import { Slider } from "@/components/ui/slider";
 import { ShoppingBag, Heart, Leaf, Users, Megaphone, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const Onboarding = () => {
+export const Onboarding = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [values, setValues] = useState({
@@ -202,4 +202,4 @@ const Onboarding = () => {
   return null;
 };
 
-export default Onboarding;
+

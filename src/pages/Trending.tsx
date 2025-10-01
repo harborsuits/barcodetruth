@@ -237,7 +237,7 @@ const trendingBrands: Array<{
   },
 ];
 
-const Trending = () => {
+export const Trending = () => {
   const navigate = useNavigate();
   const [brandActions, setBrandActions] = useState<Record<string, { following: boolean; avoiding: boolean; notifying: boolean }>>({});
 
@@ -428,4 +428,4 @@ const Trending = () => {
   );
 };
 
-export default Trending;
+

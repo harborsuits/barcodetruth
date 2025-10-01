@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ReportIssue } from "@/components/ReportIssue";
 import { useState } from "react";
 
-const Scan = () => {
+export const Scan = () => {
   const navigate = useNavigate();
   const [scanResult, setScanResult] = useState<'pending' | 'success' | 'not_found'>('pending');
   const [scannedBarcode, setScannedBarcode] = useState<string>('');
@@ -116,4 +116,4 @@ const Scan = () => {
   );
 };
 
-export default Scan;
+

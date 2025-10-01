@@ -7,7 +7,7 @@ import { TrustedSources } from "@/components/landing/TrustedSources";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { AttributionFooter } from "@/components/AttributionFooter";
 
-const Home = () => {
+export const Home = () => {
   const navigate = useNavigate();
 
   return (
@@ -83,4 +83,4 @@ const Home = () => {
   );
 };
 
-export default Home;
+
