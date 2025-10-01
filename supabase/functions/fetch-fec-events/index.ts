@@ -65,8 +65,8 @@ Deno.serve(async (req) => {
   let scanned = 0;
   let inserted = 0;
   let skipped = 0;
-  const maxScan = 50;
-  const events: string[] = [];
+  const maxScan = 200;
+  const eventsWithImpact: Array<{ id: string; impact: number }> = [];
 
   // Calculate date 12 months ago
   const since = new Date();
@@ -74,30 +74,51 @@ Deno.serve(async (req) => {
   const sinceStr = since.toISOString().slice(0, 10); // YYYY-MM-DD
 
   try {
-    // Step 1: Find committees by name
-    const committeesUrl = `https://api.open.fec.gov/v1/committees/?q=${encodeURIComponent(searchQuery)}&per_page=50&sort=name&api_key=${fecApiKey}`;
+    // Step 1: Find committees by name with pagination
+    const committees: any[] = [];
+    let page = 1;
+    const perPage = 50;
     
     console.log(`[FEC] Fetching committees from FEC API`);
-    const committeesRes = await fetch(committeesUrl);
+    
+    while (committees.length < maxScan) {
+      const committeesUrl = `https://api.open.fec.gov/v1/committees/?q=${encodeURIComponent(searchQuery)}&per_page=${perPage}&page=${page}&sort=name&api_key=${fecApiKey}`;
+      
+      const committeesRes = await fetch(committeesUrl);
 
-    if (!committeesRes.ok) {
-      console.error(`[FEC] API request failed: ${committeesRes.status} ${committeesRes.statusText}`);
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          brand: brand.name, 
-          scanned: 0, 
-          inserted: 0, 
-          skipped: 0,
-          note: "FEC API unavailable" 
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      if (!committeesRes.ok) {
+        console.error(`[FEC] API request failed: ${committeesRes.status} ${committeesRes.statusText}`);
+        if (page === 1) {
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              brand: brand.name, 
+              scanned: 0, 
+              inserted: 0, 
+              skipped: 0,
+              note: "FEC API unavailable" 
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        break;
+      }
+
+      const committeesJson = await committeesRes.json();
+      const pageResults = committeesJson?.results ?? [];
+      
+      if (pageResults.length === 0) break;
+      
+      committees.push(...pageResults);
+      console.log(`[FEC] Fetched page ${page}: ${pageResults.length} committees (total: ${committees.length})`);
+      
+      if (pageResults.length < perPage) break;
+      
+      page++;
+      await new Promise(resolve => setTimeout(resolve, 150));
     }
-
-    const committeesJson = await committeesRes.json();
-    const committees = committeesJson?.results ?? [];
-    console.log(`[FEC] Found ${committees.length} committees`);
+    
+    console.log(`[FEC] Found ${committees.length} total committees`);
 
     // Step 2: Process each committee
     for (const committee of committees) {
@@ -116,37 +137,69 @@ Deno.serve(async (req) => {
 
       console.log(`[FEC] Processing committee: ${cmteId} - ${committee.name || 'unnamed'}`);
 
-      // Fetch Schedule B disbursements (to candidates/party committees)
-      const disbUrl = `https://api.open.fec.gov/v1/schedules/schedule_b/?committee_id=${cmteId}&disbursement_description=contribution&min_date=${sinceStr}&per_page=50&api_key=${fecApiKey}`;
+      // Fetch Schedule B disbursements with pagination
+      const allDisbursements: any[] = [];
+      let disbPage = 1;
+      const disbPerPage = 100;
+      
+      while (allDisbursements.length < 200) {
+        const disbUrl = `https://api.open.fec.gov/v1/schedules/schedule_b/?committee_id=${cmteId}&disbursement_description=contribution&min_date=${sinceStr}&per_page=${disbPerPage}&page=${disbPage}&api_key=${fecApiKey}`;
 
-      const disbRes = await fetch(disbUrl);
-      if (!disbRes.ok) {
-        console.error(`[FEC] Failed to fetch disbursements for ${cmteId}: ${disbRes.status}`);
-        skipped++;
+        const disbRes = await fetch(disbUrl);
+        if (!disbRes.ok) {
+          console.error(`[FEC] Failed to fetch disbursements for ${cmteId}: ${disbRes.status}`);
+          break;
+        }
+
+        const disbJson = await disbRes.json();
+        const pageResults = disbJson?.results ?? [];
+        
+        if (pageResults.length === 0) break;
+        
+        allDisbursements.push(...pageResults);
+        
+        if (pageResults.length < disbPerPage) break;
+        
+        disbPage++;
         await new Promise(resolve => setTimeout(resolve, 150));
+      }
+
+      console.log(`[FEC] Found ${allDisbursements.length} total disbursements for ${cmteId}`);
+
+      if (allDisbursements.length === 0) {
+        skipped++;
         continue;
       }
 
-      const disbJson = await disbRes.json();
-      const rows = disbJson?.results ?? [];
-      console.log(`[FEC] Found ${rows.length} disbursements for ${cmteId}`);
-
-      // Aggregate by party
+      // Aggregate by party using proper FEC fields
       let toD = 0;
       let toR = 0;
       let toOther = 0;
 
-      for (const row of rows) {
+      for (const row of allDisbursements) {
         const amt = Number(row.disbursement_amount || 0);
         if (!amt) continue;
 
+        // Prefer FEC party fields over string matching
+        const recipientParty = (row.recipient_party || '').toUpperCase();
+        const recipientCommitteeParty = (row.recipient_committee_party || '').toUpperCase();
         const recipientName = (row.recipient_name || '').toUpperCase();
-        const party = (row.recipient_committee_type || '').toUpperCase();
 
-        // Simple heuristic for party detection
-        if (recipientName.includes('DEMOCRATIC') || recipientName.includes('DEM ') || party.includes('DEM')) {
+        // Party detection logic: use fields first, fall back to name matching
+        let party = recipientParty || recipientCommitteeParty;
+        
+        if (!party) {
+          // Fallback to name matching
+          if (recipientName.includes('DEMOCRATIC') || recipientName.includes('DEM ') || recipientName.includes('DNC')) {
+            party = 'DEM';
+          } else if (recipientName.includes('REPUBLICAN') || recipientName.includes('GOP') || recipientName.includes('RNC')) {
+            party = 'REP';
+          }
+        }
+
+        if (party.includes('DEM')) {
           toD += amt;
-        } else if (recipientName.includes('REPUBLICAN') || recipientName.includes('GOP') || party.includes('REP')) {
+        } else if (party.includes('REP')) {
           toR += amt;
         } else {
           toOther += amt;
@@ -155,15 +208,16 @@ Deno.serve(async (req) => {
 
       const total = toD + toR;
       if (total <= 0) {
-        console.log(`[FEC] No significant disbursements for ${cmteId}`);
+        console.log(`[FEC] No significant partisan disbursements for ${cmteId}`);
         skipped++;
-        await new Promise(resolve => setTimeout(resolve, 150));
         continue;
       }
 
       const tiltAmt = Math.max(toD, toR);
       const tilt = tiltAmt / (total + 1); // 0..1 with smoothing
-      console.log(`[FEC] Tilt for ${cmteId}: ${(tilt * 100).toFixed(1)}% (D: $${toD}, R: $${toR})`);
+      const tiltPct = Math.round(tilt * 100);
+      
+      console.log(`[FEC] Tilt for ${cmteId}: ${tiltPct}% (D: $${toD.toLocaleString()}, R: $${toR.toLocaleString()})`);
 
       // Impact mapping
       let impact = -1;
@@ -174,7 +228,7 @@ Deno.serve(async (req) => {
 
       const lean = toR > toD ? "Republican" : "Democratic";
       const title = `FEC: ${lean} donation tilt over last 12 months`;
-      const description = `Disbursements — ${lean} $${Math.round(tiltAmt).toLocaleString()} vs other $${Math.round(total - tiltAmt).toLocaleString()}.`;
+      const description = `Disbursements — ${lean} $${Math.round(tiltAmt).toLocaleString()} vs other $${Math.round(total - tiltAmt).toLocaleString()}. Tilt: ${tiltPct}%.`;
       
       // Use committee detail page as source URL (unique per committee)
       const sourceUrl = `https://www.fec.gov/data/committee/${cmteId}/`;
@@ -189,11 +243,10 @@ Deno.serve(async (req) => {
       if (existing) {
         console.log(`[FEC] Event already exists for ${sourceUrl}`);
         skipped++;
-        await new Promise(resolve => setTimeout(resolve, 150));
         continue;
       }
 
-      // Insert event
+      // Insert event with tilt metrics
       const occurredAt = new Date().toISOString();
       const { data: newEvent, error: eventError } = await supabase
         .from("brand_events")
@@ -209,9 +262,15 @@ Deno.serve(async (req) => {
           event_date: occurredAt,
           impact_politics: impact,
           raw_data: {
+            committee_id: cmteId,
+            committee_name: committee.name,
+            tilt_pct: tiltPct,
+            dem_total: toD,
+            rep_total: toR,
+            other_total: toOther,
+            lean: lean,
             committee: committee,
-            disbursements: rows.slice(0, 10),
-            totals: { democratic: toD, republican: toR, other: toOther }
+            disbursements_sample: allDisbursements.slice(0, 10)
           }
         })
         .select("event_id")
@@ -225,11 +284,10 @@ Deno.serve(async (req) => {
           console.error(`[FEC] Failed to insert event:`, eventError);
           skipped++;
         }
-        await new Promise(resolve => setTimeout(resolve, 150));
         continue;
       }
 
-      console.log(`[FEC] Inserted event ${newEvent.event_id}`);
+      console.log(`[FEC] Inserted event ${newEvent.event_id} with impact ${impact}`);
 
       // Insert source attribution
       const { error: sourceError } = await supabase
@@ -239,23 +297,24 @@ Deno.serve(async (req) => {
           source_name: "FEC",
           source_url: sourceUrl,
           source_date: occurredAt,
-          quote: `${lean} tilt: ${(tilt * 100).toFixed(0)}%`
+          quote: `${lean} tilt: ${tiltPct}% ($${Math.round(tiltAmt / 1000)}K of $${Math.round(total / 1000)}K)`
         });
 
       if (sourceError) {
         console.error(`[FEC] Failed to insert source:`, sourceError);
       }
 
-      events.push(newEvent.event_id);
+      eventsWithImpact.push({ id: newEvent.event_id, impact });
       inserted++;
-
-      // Rate limiting
-      await new Promise(resolve => setTimeout(resolve, 150));
     }
 
     // Enqueue coalesced push notification if any events were inserted
     if (inserted > 0) {
-      console.log(`[FEC] Enqueuing coalesced push notification for ${inserted} new events`);
+      // Calculate total impact (sum of all impact_politics values)
+      const totalImpact = eventsWithImpact.reduce((sum, e) => sum + e.impact, 0);
+      const delta = Math.round(totalImpact);
+      
+      console.log(`[FEC] Enqueuing coalesced push notification for ${inserted} new events (delta: ${delta})`);
       
       const bucketSec = Math.floor(Date.now() / (5 * 60 * 1000)) * 5 * 60;
       const coalesceKey = `${brandId}:${bucketSec}`;
@@ -268,7 +327,7 @@ Deno.serve(async (req) => {
           brand_id: brandId,
           brand_name: brand.name,
           at: nowISO,
-          events: [{ category: "politics", delta: -1 * inserted }]
+          events: [{ category: "politics", delta }]
         },
         p_not_before: nowISO
       });
