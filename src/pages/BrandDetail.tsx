@@ -14,8 +14,29 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-// Mock events data
-const eventsData: Record<string, any> = {
+// Enhanced events data with full source citations
+interface EventSource {
+  name: string;
+  url: string;
+  credibility_score: number;
+  date: string;
+  quote?: string;
+}
+
+interface BrandEvent {
+  event_id: string;
+  brand_id: string;
+  category: "labor" | "environment" | "politics" | "social";
+  severity: "minor" | "moderate" | "severe";
+  title: string;
+  description: string;
+  date: string;
+  verified: boolean;
+  impact: "positive" | "negative";
+  sources: EventSource[];
+}
+
+const eventsData: Record<string, BrandEvent> = {
   event1: {
     event_id: "event1",
     brand_id: "nike",
@@ -25,18 +46,21 @@ const eventsData: Record<string, any> = {
     description: "Reports of wage disputes at supplier factories in Southeast Asia",
     date: "2024-11-20",
     verified: true,
+    impact: "negative",
     sources: [
       {
         name: "The Guardian",
-        url: "https://example.com",
+        url: "https://theguardian.com/nike-factory-2024",
         credibility_score: 0.92,
-        date: "2024-11-20"
+        date: "2024-11-20",
+        quote: "Workers reported extended shifts without adequate breaks, raising concerns about workplace conditions."
       },
       {
         name: "Reuters",
-        url: "https://example.com",
+        url: "https://reuters.com/nike-wages-2024",
         credibility_score: 0.95,
-        date: "2024-11-22"
+        date: "2024-11-22",
+        quote: "Independent audits confirmed discrepancies in wage calculations at multiple supplier facilities."
       }
     ]
   },
@@ -49,12 +73,34 @@ const eventsData: Record<string, any> = {
     description: "FEC filings show $2.5M in political donations across parties",
     date: "2025-01-15",
     verified: true,
+    impact: "negative",
     sources: [
       {
         name: "Federal Election Commission",
-        url: "https://fec.gov",
+        url: "https://fec.gov/nike-donations-2025",
         credibility_score: 1.0,
-        date: "2025-01-15"
+        date: "2025-01-15",
+        quote: "Nike PAC contributed $2.5M to federal candidates during the 2024 election cycle."
+      }
+    ]
+  },
+  event3: {
+    event_id: "event3",
+    brand_id: "nike",
+    category: "environment",
+    severity: "minor",
+    title: "Carbon neutrality commitment announced",
+    description: "Company pledged to achieve carbon neutrality by 2030 with third-party verification",
+    date: "2025-01-08",
+    verified: true,
+    impact: "positive",
+    sources: [
+      {
+        name: "Bloomberg",
+        url: "https://bloomberg.com/nike-carbon-2025",
+        credibility_score: 0.90,
+        date: "2025-01-08",
+        quote: "Nike announced a comprehensive plan to reduce emissions by 50% across its global supply chain within five years."
       }
     ]
   }
@@ -69,7 +115,7 @@ const brandData: Record<string, any> = {
     last_updated: "2025-01-15",
     signals: {
       labor: { score: 65, risk_level: "medium", recent_events: ["event1"] },
-      environment: { score: 78, risk_level: "low", recent_events: [] },
+      environment: { score: 78, risk_level: "low", recent_events: ["event3"] },
       politics: { score: 60, donations_total: 2500000, party_breakdown: { D: 60, R: 40, Other: 0 }, recent_events: ["event2"] },
       social: { score: 85, risk_level: "low", recent_events: [] },
     },
@@ -261,17 +307,24 @@ const BrandDetail = () => {
                                 if (severity === "moderate") return "text-warning";
                                 return "text-muted-foreground";
                               };
+                              
+                              const getBorderColor = (impact: string) => {
+                                return impact === "positive" ? "border-l-success" : "border-l-warning";
+                              };
 
                               return (
-                                <Card key={eventId} className="border-l-4 border-l-warning">
+                                <Card key={eventId} className={`border-l-4 ${getBorderColor(event.impact)}`}>
                                   <CardContent className="p-4 space-y-3">
                                     <div className="flex items-start justify-between gap-2">
                                       <div className="space-y-1 flex-1">
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 flex-wrap">
                                           <h5 className="font-semibold text-sm">{event.title}</h5>
                                           {event.verified && (
                                             <CheckCircle2 className="h-4 w-4 text-success" />
                                           )}
+                                          <Badge variant={event.impact === "positive" ? "default" : "secondary"} className="text-xs">
+                                            {event.impact}
+                                          </Badge>
                                         </div>
                                         <p className="text-xs text-muted-foreground">
                                           {new Date(event.date).toLocaleDateString()}
@@ -289,30 +342,36 @@ const BrandDetail = () => {
                                       <p className="text-xs font-medium">
                                         Verified by {event.sources.length} source{event.sources.length > 1 ? 's' : ''}
                                       </p>
-                                      <div className="space-y-1">
-                                        {event.sources.map((source: any, idx: number) => (
-                                          <a
-                                            key={idx}
-                                            href={source.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center justify-between p-2 rounded hover:bg-accent transition-colors group"
-                                          >
-                                            <div className="flex items-center gap-2">
-                                              <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
-                                                <span className="text-xs font-bold text-primary">
-                                                  {source.name.charAt(0)}
-                                                </span>
+                                       <div className="space-y-2">
+                                        {event.sources.map((source: EventSource, idx: number) => (
+                                          <div key={idx} className="space-y-1">
+                                            <a
+                                              href={source.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="flex items-center justify-between p-2 rounded hover:bg-accent transition-colors group"
+                                            >
+                                              <div className="flex items-center gap-2">
+                                                <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
+                                                  <span className="text-xs font-bold text-primary">
+                                                    {source.name.charAt(0)}
+                                                  </span>
+                                                </div>
+                                                <div>
+                                                  <p className="text-xs font-medium">{source.name}</p>
+                                                  <p className="text-xs text-muted-foreground">
+                                                    Credibility: {(source.credibility_score * 100).toFixed(0)}% • {new Date(source.date).toLocaleDateString()}
+                                                  </p>
+                                                </div>
                                               </div>
-                                              <div>
-                                                <p className="text-xs font-medium">{source.name}</p>
-                                                <p className="text-xs text-muted-foreground">
-                                                  Credibility: {(source.credibility_score * 100).toFixed(0)}%
-                                                </p>
-                                              </div>
-                                            </div>
-                                            <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                          </a>
+                                              <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            </a>
+                                            {source.quote && (
+                                              <blockquote className="ml-8 pl-3 border-l-2 border-muted text-xs text-muted-foreground italic">
+                                                "{source.quote}"
+                                              </blockquote>
+                                            )}
+                                          </div>
                                         ))}
                                       </div>
                                     </div>
