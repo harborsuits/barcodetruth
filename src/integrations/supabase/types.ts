@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_config: {
+        Row: {
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       brand_aliases: {
         Row: {
           canonical_brand_id: string
@@ -183,6 +201,7 @@ export type Database = {
           id: string
           name: string
           parent_company: string | null
+          push_paused: boolean
           updated_at: string
         }
         Insert: {
@@ -190,6 +209,7 @@ export type Database = {
           id?: string
           name: string
           parent_company?: string | null
+          push_paused?: boolean
           updated_at?: string
         }
         Update: {
@@ -197,6 +217,7 @@ export type Database = {
           id?: string
           name?: string
           parent_company?: string | null
+          push_paused?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -483,11 +504,40 @@ export type Database = {
       }
     }
     Views: {
+      v_coalescing_effectiveness: {
+        Row: {
+          coalesced: number | null
+          coalesced_pct: number | null
+          hour: string | null
+          non_coalesced: number | null
+        }
+        Relationships: []
+      }
+      v_notification_metrics_hourly: {
+        Row: {
+          avg_delta: number | null
+          brands_notified: number | null
+          hour: string | null
+          sent_fail: number | null
+          sent_ok: number | null
+          users_notified: number | null
+        }
+        Relationships: []
+      }
       v_notification_usage_today: {
         Row: {
           brand_id: string | null
           sent_today: number | null
           user_id: string | null
+        }
+        Relationships: []
+      }
+      v_rate_limit_pressure: {
+        Row: {
+          avg_per_user: number | null
+          brand_id: string | null
+          total_sent_today: number | null
+          users_following: number | null
         }
         Relationships: []
       }

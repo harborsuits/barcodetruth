@@ -27,15 +27,23 @@ async function sendWebPush(
   payload: NotificationPayload,
   vapidKeys: { publicKey: string; privateKey: string; subject: string }
 ): Promise<boolean> {
+  // DRYRUN mode: log but don't send
+  const DRYRUN = Deno.env.get('PUSH_DRYRUN') === 'true';
+  
+  console.log(`[send-web-push] ${DRYRUN ? '[DRYRUN] ' : ''}Would send to:`, subscription.endpoint.substring(0, 50));
+  console.log(`[send-web-push] ${DRYRUN ? '[DRYRUN] ' : ''}Payload:`, JSON.stringify(payload, null, 2));
+  console.log(`[send-web-push] ${DRYRUN ? '[DRYRUN] ' : ''}VAPID subject:`, vapidKeys.subject);
+  
+  if (DRYRUN) {
+    console.log('[send-web-push] DRYRUN mode: skipping actual send');
+    return true;
+  }
+  
   // NOTE: npm:web-push doesn't work in Deno Edge Functions due to native dependencies
   // For production, you have 3 options:
   // 1. Use OneSignal/Firebase Cloud Messaging (recommended - easiest)
   // 2. Implement Web Push protocol manually (JWT + ECDH encryption)
   // 3. Use a serverless function with Node.js runtime
-  
-  console.log('[send-web-push] Would send to:', subscription.endpoint.substring(0, 50));
-  console.log('[send-web-push] Payload:', JSON.stringify(payload, null, 2));
-  console.log('[send-web-push] VAPID subject:', vapidKeys.subject);
   
   // For testing: simulate successful send
   // In production, replace with actual implementation (see docs/PRODUCTION_PUSH_SETUP.md)

@@ -173,6 +173,32 @@ Deno.serve(async (req) => {
           const { brand_id, brand_name } = job.payload;
           const events: Array<{category: string; delta: number}> = job.payload?.events ?? [];
 
+          // Check global kill switch
+          const { data: config } = await supabase
+            .from('app_config')
+            .select('value')
+            .eq('key', 'push_enabled')
+            .maybeSingle();
+          
+          if (config?.value === false) {
+            console.log(`[${requestId}] Push globally disabled; deleting job`);
+            await supabase.from('jobs').delete().eq('id', job.id);
+            continue;
+          }
+
+          // Check per-brand pause
+          const { data: brandData } = await supabase
+            .from('brands')
+            .select('push_paused')
+            .eq('id', brand_id)
+            .maybeSingle();
+          
+          if (brandData?.push_paused) {
+            console.log(`[${requestId}] Push paused for brand ${brand_id}; deleting job`);
+            await supabase.from('jobs').delete().eq('id', job.id);
+            continue;
+          }
+
           // Coalesce same-category deltas in the batch
           const byCat = new Map<string, number>();
           for (const e of events) {
