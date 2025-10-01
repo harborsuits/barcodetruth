@@ -12,6 +12,11 @@ const trendingBrands = [
     velocity: "falling",
     change: -8,
     reason: "Labor practice concerns",
+    source: {
+      name: "Reuters",
+      date: "Sept 2025",
+      summary: "Workers at manufacturing facilities reported concerns over wage practices and working conditions.",
+    },
   },
   {
     id: "patagonia",
@@ -20,6 +25,11 @@ const trendingBrands = [
     velocity: "rising",
     change: 12,
     reason: "New environmental initiatives",
+    source: {
+      name: "The Guardian",
+      date: "Aug 2025",
+      summary: "Patagonia launched a comprehensive supply chain transparency initiative with third-party verification.",
+    },
   },
   {
     id: "amazon",
@@ -28,6 +38,11 @@ const trendingBrands = [
     velocity: "falling",
     change: -15,
     reason: "Labor and political controversies",
+    source: {
+      name: "New York Times",
+      date: "Sept 2025",
+      summary: "Multiple reports surfaced regarding warehouse working conditions and increased political spending disclosures.",
+    },
   },
   {
     id: "allbirds",
@@ -36,6 +51,11 @@ const trendingBrands = [
     velocity: "rising",
     change: 7,
     reason: "Transparent supply chain updates",
+    source: {
+      name: "Bloomberg",
+      date: "Aug 2025",
+      summary: "Company released detailed carbon footprint data for all products and expanded sustainable materials program.",
+    },
   },
 ];
 
@@ -71,8 +91,8 @@ const Trending = () => {
             >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-2">
+                  <div className="flex-1 space-y-2.5">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-semibold">{brand.name}</h3>
                       <Badge
                         variant={brand.velocity === "rising" ? "default" : "destructive"}
@@ -90,10 +110,22 @@ const Trending = () => {
                           </>
                         )}
                       </Badge>
+                      <span className="text-xs text-muted-foreground font-medium">
+                        {brand.velocity === "rising" ? "rising fast" : "falling"}
+                      </span>
                     </div>
-                    <p className="text-sm text-muted-foreground">{brand.reason}</p>
+                    
+                    <div className="space-y-1.5">
+                      <p className="text-sm font-medium text-foreground">{brand.reason}</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {brand.source.summary}
+                      </p>
+                      <p className="text-xs text-muted-foreground/80 italic">
+                        According to {brand.source.name}, {brand.source.date}
+                      </p>
+                    </div>
                   </div>
-                  <div className={`text-2xl font-bold ${getScoreColor(brand.score)}`}>
+                  <div className={`text-2xl font-bold ${getScoreColor(brand.score)} shrink-0`}>
                     {brand.score}
                   </div>
                 </div>
