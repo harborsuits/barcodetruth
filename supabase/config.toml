@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.jobs-runner]
 verify_jwt = false
+
+[functions.publish-snapshots]
+verify_jwt = false
