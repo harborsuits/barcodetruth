@@ -340,6 +340,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_follows: {
+        Row: {
+          brand_id: string
+          created_at: string | null
+          notifications_enabled: boolean
+          user_id: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string | null
+          notifications_enabled?: boolean
+          user_id: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string | null
+          notifications_enabled?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_push_subs: {
         Row: {
           auth: string

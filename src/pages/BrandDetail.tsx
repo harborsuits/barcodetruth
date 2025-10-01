@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle, Heart, HeartOff, Clock, CheckCircle2, Filter } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle, Heart, HeartOff, Clock, CheckCircle2, Filter, Bell, BellOff } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,8 @@ import CategoryFilter from "@/components/CategoryFilter";
 import { AttributionFooter } from "@/components/AttributionFooter";
 import { ReportIssue } from "@/components/ReportIssue";
 import { topImpacts } from "@/lib/events";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 // Updated events data matching unified structure
 const eventsData: Record<string, BrandEvent> = {
@@ -155,10 +158,72 @@ const brandData: Record<string, any> = {
 export const BrandDetail = () => {
   const { brandId } = useParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isFollowing, setIsFollowing] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<"all" | "labor" | "environment" | "politics" | "cultural-values">("all");
   
   const brand = brandData[brandId || ""] || brandData.nike;
+
+  // Query for notification follow status
+  const { data: followData } = useQuery({
+    queryKey: ['follow', brandId],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return null;
+      
+      const { data, error } = await supabase
+        .from('user_follows')
+        .select('notifications_enabled')
+        .eq('brand_id', brandId)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!brandId,
+  });
+
+  // Mutation to toggle notifications
+  const toggleNotifications = useMutation({
+    mutationFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Please sign in to enable notifications');
+      }
+
+      const enabled = !followData?.notifications_enabled;
+      const { error } = await supabase
+        .from('user_follows')
+        .upsert(
+          { 
+            brand_id: brandId!, 
+            notifications_enabled: enabled,
+            user_id: session.user.id 
+          } as any,
+          { onConflict: 'user_id,brand_id' }
+        );
+      
+      if (error) throw error;
+      return enabled;
+    },
+    onSuccess: (enabled) => {
+      toast({
+        title: enabled ? 'Alerts enabled' : 'Alerts disabled',
+        description: enabled
+          ? 'We\'ll notify you on significant score changes.'
+          : 'You can re-enable anytime.'
+      });
+      queryClient.invalidateQueries({ queryKey: ['follow', brandId] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  });
 
   const getScoreColor = (score: number) => {
     if (score >= 70) return "text-success";
@@ -202,17 +267,32 @@ export const BrandDetail = () => {
               <h1 className="text-xl font-bold">{brand.name}</h1>
               <p className="text-sm text-muted-foreground">{brand.parent_company}</p>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsFollowing(!isFollowing)}
-            >
-              {isFollowing ? (
-                <Heart className="h-5 w-5 fill-current text-danger" />
-              ) : (
-                <HeartOff className="h-5 w-5" />
-              )}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => toggleNotifications.mutate()}
+                disabled={toggleNotifications.isPending}
+              >
+                {followData?.notifications_enabled ? (
+                  <Bell className="h-4 w-4 mr-2" />
+                ) : (
+                  <BellOff className="h-4 w-4 mr-2" />
+                )}
+                {followData?.notifications_enabled ? 'Following' : 'Notify me'}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsFollowing(!isFollowing)}
+              >
+                {isFollowing ? (
+                  <Heart className="h-5 w-5 fill-current text-danger" />
+                ) : (
+                  <HeartOff className="h-5 w-5" />
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </header>

@@ -195,15 +195,33 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          // Fetch all push subscriptions
+          // Fetch followers who have notifications enabled for this brand
+          const { data: followers, error: folErr } = await supabase
+            .from('user_follows')
+            .select('user_id')
+            .eq('brand_id', brand_id)
+            .eq('notifications_enabled', true);
+
+          if (folErr) throw folErr;
+
+          if (!followers?.length) {
+            console.log(`[${requestId}] No followers for ${brand_id}; deleting job`);
+            await supabase.from('jobs').delete().eq('id', job.id);
+            continue;
+          }
+
+          const followerIds = followers.map(f => f.user_id);
+
+          // Fetch push subscriptions only for followers
           const { data: subs, error: subErr } = await supabase
             .from('user_push_subs')
-            .select('endpoint, p256dh, auth, user_id');
+            .select('endpoint, p256dh, auth, user_id')
+            .in('user_id', followerIds);
 
           if (subErr) throw subErr;
 
           if (!subs?.length) {
-            console.log(`[${requestId}] No subscriptions found, deleting job`);
+            console.log(`[${requestId}] Followers have no push subscriptions; deleting job`);
             await supabase.from('jobs').delete().eq('id', job.id);
             continue;
           }
@@ -254,7 +272,7 @@ Deno.serve(async (req) => {
             }
           }
 
-          console.log(`[${requestId}] Push notification batch: sent=${sentCount}, rate_limited=${rateLimited}`);
+          console.log(`[${requestId}] Push notification batch: sent=${sentCount}, rate_limited=${rateLimited}, followers=${followers.length}`);
           await supabase.from('jobs').delete().eq('id', job.id);
         }
 
