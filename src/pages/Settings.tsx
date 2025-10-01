@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Users, Leaf, Megaphone, Heart } from "lucide-react";
+import { ArrowLeft, Users, Leaf, Megaphone, Heart, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -43,6 +44,7 @@ const Settings = () => {
       </header>
 
       <main className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
+        <TooltipProvider>
         <Card>
           <CardHeader>
             <CardTitle>Your Values</CardTitle>
@@ -53,6 +55,14 @@ const Settings = () => {
                 <div className="flex items-center gap-2">
                   <Users className="h-5 w-5 text-labor" />
                   <span className="font-medium">Labor Practices</span>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="h-4 w-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">How the company treats workers, including wages, rights, and workplace safety.</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
                 <span className="text-sm text-muted-foreground">{values.labor}%</span>
               </div>
@@ -70,6 +80,14 @@ const Settings = () => {
                 <div className="flex items-center gap-2">
                   <Leaf className="h-5 w-5 text-environment" />
                   <span className="font-medium">Environment</span>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="h-4 w-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Impact on the planet, including emissions, waste, and sustainability practices.</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
                 <span className="text-sm text-muted-foreground">{values.environment}%</span>
               </div>
@@ -87,6 +105,14 @@ const Settings = () => {
                 <div className="flex items-center gap-2">
                   <Megaphone className="h-5 w-5 text-politics" />
                   <span className="font-medium">Political Giving</span>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="h-4 w-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Donations and lobbying by the company and its leaders.</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
                 <span className="text-sm text-muted-foreground">{values.politics}%</span>
               </div>
@@ -104,6 +130,14 @@ const Settings = () => {
                 <div className="flex items-center gap-2">
                   <Heart className="h-5 w-5 text-social" />
                   <span className="font-medium">Community & Culture</span>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="h-4 w-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">The company's effect on society, such as inclusion, equity, and community impact.</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
                 <span className="text-sm text-muted-foreground">{values.social}%</span>
               </div>
@@ -117,6 +151,7 @@ const Settings = () => {
             </div>
           </CardContent>
         </Card>
+        </TooltipProvider>
 
         <Card>
           <CardHeader>

@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
-import { ShoppingBag, Heart, Leaf, Users, Megaphone } from "lucide-react";
+import { ShoppingBag, Heart, Leaf, Users, Megaphone, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const Onboarding = () => {
   const navigate = useNavigate();
@@ -81,12 +82,21 @@ const Onboarding = () => {
             </p>
           </div>
 
+          <TooltipProvider>
           <div className="space-y-8">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Users className="h-5 w-5 text-labor" />
                   <span className="font-medium">Labor Practices</span>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="h-4 w-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">How the company treats workers, including wages, rights, and workplace safety.</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
                 <span className="text-sm text-muted-foreground">{values.labor}%</span>
               </div>
@@ -104,6 +114,14 @@ const Onboarding = () => {
                 <div className="flex items-center gap-2">
                   <Leaf className="h-5 w-5 text-environment" />
                   <span className="font-medium">Environment</span>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="h-4 w-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Impact on the planet, including emissions, waste, and sustainability practices.</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
                 <span className="text-sm text-muted-foreground">{values.environment}%</span>
               </div>
@@ -121,6 +139,14 @@ const Onboarding = () => {
                 <div className="flex items-center gap-2">
                   <Megaphone className="h-5 w-5 text-politics" />
                   <span className="font-medium">Political Giving</span>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="h-4 w-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Donations and lobbying by the company and its leaders.</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
                 <span className="text-sm text-muted-foreground">{values.politics}%</span>
               </div>
@@ -138,6 +164,14 @@ const Onboarding = () => {
                 <div className="flex items-center gap-2">
                   <Heart className="h-5 w-5 text-social" />
                   <span className="font-medium">Community & Culture</span>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="h-4 w-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">The company's effect on society, such as inclusion, equity, and community impact.</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
                 <span className="text-sm text-muted-foreground">{values.social}%</span>
               </div>
@@ -150,6 +184,7 @@ const Onboarding = () => {
               />
             </div>
           </div>
+          </TooltipProvider>
 
           <div className="flex gap-3">
             <Button onClick={() => setStep(0)} variant="outline" className="flex-1">
