@@ -347,13 +347,15 @@ const Trending = () => {
                       {brand.events.length > 2 && (
                         <Button 
                           variant="link" 
-                          className="h-auto p-0 text-xs"
+                          className="h-auto p-0 text-xs group"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/brand/${brand.id}`);
                           }}
+                          aria-label={`View full timeline of ${brand.events.length} events for ${brand.name}`}
                         >
                           View Full Timeline ({brand.events.length} events)
+                          <span className="inline-block ml-1 transition-transform group-hover:translate-x-1">→</span>
                         </Button>
                       )}
                     </div>

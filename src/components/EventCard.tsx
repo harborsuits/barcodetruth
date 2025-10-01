@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { User, Sprout, Building2, Users, ExternalLink, CheckCircle2, Info, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -75,6 +75,22 @@ interface EventCardProps {
 
 export const EventCard = ({ event, showFullDetails = false, compact = false }: EventCardProps) => {
   const [showAllSources, setShowAllSources] = useState(false);
+  
+  // Persist source expander state per event (optional enhancement)
+  useEffect(() => {
+    if (event.event_id) {
+      const stored = localStorage.getItem(`source-expanded-${event.event_id}`);
+      if (stored === 'true') setShowAllSources(true);
+    }
+  }, [event.event_id]);
+
+  const handleToggleSources = () => {
+    const newState = !showAllSources;
+    setShowAllSources(newState);
+    if (event.event_id) {
+      localStorage.setItem(`source-expanded-${event.event_id}`, String(newState));
+    }
+  };
   
   // Null-safe category config
   const cfg = categoryConfig[(event.category as CategoryKey) ?? "general"];
@@ -216,7 +232,7 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                   variant="ghost"
                   size="sm"
                   className="h-auto p-0 text-xs text-primary hover:no-underline"
-                  onClick={() => setShowAllSources(!showAllSources)}
+                  onClick={handleToggleSources}
                   aria-label={showAllSources ? "Hide additional sources" : "Show additional sources"}
                 >
                   {showAllSources ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />}

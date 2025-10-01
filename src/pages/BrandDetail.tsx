@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle, Heart, HeartOff, Clock, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle, Heart, HeartOff, Clock, CheckCircle2, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sheet";
 import { EventCard, type BrandEvent } from "@/components/EventCard";
 import { formatMonthYear } from "@/lib/events";
+import CategoryFilter from "@/components/CategoryFilter";
 
 // Updated events data matching unified structure
 const eventsData: Record<string, BrandEvent> = {
@@ -152,6 +153,7 @@ const BrandDetail = () => {
   const { brandId } = useParams();
   const navigate = useNavigate();
   const [isFollowing, setIsFollowing] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<"all" | "labor" | "environment" | "politics" | "cultural-values">("all");
   
   const brand = brandData[brandId || ""] || brandData.nike;
 
@@ -172,7 +174,16 @@ const BrandDetail = () => {
 
   const getStalenessBadge = (lastUpdated: string) => {
     const daysSince = Math.floor((Date.now() - new Date(lastUpdated).getTime()) / (1000 * 60 * 60 * 24));
-    return daysSince > 30 ? "text-warning font-medium" : "text-muted-foreground";
+    return {
+      className: daysSince > 30 ? "text-warning font-medium" : "text-muted-foreground",
+      title: `${daysSince} day${daysSince !== 1 ? 's' : ''} since last update`,
+      isStale: daysSince > 30,
+    };
+  };
+
+  const daysSinceUpdate = (iso?: string) => {
+    if (!iso) return undefined;
+    return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
   };
 
   return (
@@ -231,8 +242,12 @@ const BrandDetail = () => {
               </div>
               <div className="flex items-center justify-center gap-1.5 text-xs">
                 <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className={getStalenessBadge(brand.last_updated)}>
+                <span 
+                  className={getStalenessBadge(brand.last_updated).className}
+                  title={getStalenessBadge(brand.last_updated).title}
+                >
                   Last updated: {new Date(brand.last_updated).toLocaleDateString()}
+                  {getStalenessBadge(brand.last_updated).isStale && " (stale)"}
                 </span>
               </div>
             </div>
@@ -242,10 +257,15 @@ const BrandDetail = () => {
         {/* Category Scores */}
         <Card>
           <CardHeader>
-            <CardTitle>Category Breakdown</CardTitle>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <CardTitle>Category Breakdown</CardTitle>
+              <CategoryFilter value={categoryFilter} onChange={setCategoryFilter} />
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {Object.entries(brand.signals).map(([category, data]: [string, any]) => (
+            {Object.entries(brand.signals)
+              .filter(([category]) => categoryFilter === "all" || category === categoryFilter)
+              .map(([category, data]: [string, any]) => (
               <div key={category} className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -256,7 +276,7 @@ const BrandDetail = () => {
                   </div>
                   <Sheet>
                     <SheetTrigger asChild>
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" aria-label={`Explain ${category} score`}>
                         <AlertCircle className="h-4 w-4 mr-1" />
                         Explain
                       </Button>
