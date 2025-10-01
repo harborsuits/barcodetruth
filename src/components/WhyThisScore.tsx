@@ -106,6 +106,16 @@ export function WhyThisScore({ brandId, impacts }: WhyThisScoreProps) {
                       <span className="font-semibold">Tilt: {impact.events[0].raw_data.tilt_pct}% {impact.events[0].raw_data.lean}</span>
                       {' '}(${Math.round(impact.events[0].raw_data.dem_total).toLocaleString()} Democratic vs ${Math.round(impact.events[0].raw_data.rep_total).toLocaleString()} Republican)
                     </p>
+                    {impact.events[0].source_url && (
+                      <a
+                        href={impact.events[0].source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-purple-700 dark:text-purple-300 underline underline-offset-2 hover:no-underline mt-1 inline-block"
+                      >
+                        Learn more on FEC →
+                      </a>
+                    )}
                   </div>
                 )}
                 {impact.events.map((event) => (

@@ -27,6 +27,27 @@ serve(async (req) => {
 
     console.log(`[fetch-epa-events] Fetching EPA data for brand: ${brandId}`);
 
+    // Check feature flag
+    const { data: config } = await supabase
+      .from("app_config")
+      .select("value")
+      .eq("key", "ingest_epa_enabled")
+      .maybeSingle();
+
+    if (config?.value === false) {
+      console.log("[EPA] Ingestion disabled via feature flag");
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          scanned: 0, 
+          inserted: 0, 
+          skipped: 0, 
+          note: "EPA ingestion disabled" 
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // EPA ECHO API - get recent enforcement actions
     // Note: In production, map brand_id -> facility IDs via brand_facilities table
     // Get brand name for matching

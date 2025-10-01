@@ -45,6 +45,27 @@ Deno.serve(async (req) => {
 
   console.log(`[FEC] Fetching events for brand_id: ${brandId}`);
 
+  // Check feature flag
+  const { data: config } = await supabase
+    .from("app_config")
+    .select("value")
+    .eq("key", "ingest_fec_enabled")
+    .maybeSingle();
+
+  if (config?.value === false) {
+    console.log("[FEC] Ingestion disabled via feature flag");
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        scanned: 0, 
+        inserted: 0, 
+        skipped: 0, 
+        note: "FEC ingestion disabled" 
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
   // Fetch brand details
   const { data: brand, error: brandError } = await supabase
     .from("brands")
@@ -89,7 +110,7 @@ Deno.serve(async (req) => {
 
       // Handle rate limiting with backoff
       if (committeesRes.status === 429) {
-        console.log(`[FEC] Rate limited on committees page ${page}, retrying after 500ms`);
+        console.log(`[FEC] ⚠️ 429 rate limit hit on committees page ${page}, retrying after 500ms backoff`);
         await new Promise(resolve => setTimeout(resolve, 500));
         committeesRes = await fetch(committeesUrl);
       }
@@ -157,7 +178,7 @@ Deno.serve(async (req) => {
         
         // Handle rate limiting with backoff
         if (disbRes.status === 429) {
-          console.log(`[FEC] Rate limited on disbursements for ${cmteId} page ${disbPage}, retrying after 500ms`);
+          console.log(`[FEC] ⚠️ 429 rate limit hit on disbursements for ${cmteId} page ${disbPage}, retrying after 500ms backoff`);
           await new Promise(resolve => setTimeout(resolve, 500));
           disbRes = await fetch(disbUrl);
         }
