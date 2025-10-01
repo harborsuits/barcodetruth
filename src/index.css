@@ -8,144 +8,148 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Base colors - soft neutral for low eye fatigue */
+    /* Core brand - Teal-blue primary (trust/calm) + Warm orange accent (engagement) */
+    --primary: 190 60% 45%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 25 100% 63%;
+    --accent-foreground: 0 0% 10%;
+
+    /* Neutrals - Soft backgrounds to reduce eye fatigue */
     --background: 0 0% 98%;
     --foreground: 0 0% 12%;
 
-    /* Card surfaces - clean white with subtle depth */
+    /* Card surfaces - Clean with subtle depth */
     --card: 0 0% 100%;
     --card-foreground: 0 0% 12%;
+    --elev-1: 0 0% 100%;
+    --elev-2: 0 0% 99%;
+    --elev-3: 0 0% 98%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 12%;
-
-    /* Primary - Teal-blue for trust & calm (research-backed) */
-    --primary: 190 60% 45%;
-    --primary-foreground: 0 0% 100%;
 
     /* Secondary - Soft cool grey for subtle elements */
     --secondary: 200 15% 95%;
     --secondary-foreground: 0 0% 12%;
 
-    /* Muted - Mid-grey for supporting text */
-    --muted: 200 10% 95%;
+    /* Muted - Mid-grey for supporting content */
+    --muted: 0 0% 94%;
     --muted-foreground: 0 0% 45%;
 
-    /* Accent - Warm orange for calls to action (retention driver) */
-    --accent: 25 100% 63%;
-    --accent-foreground: 0 0% 100%;
-
-    /* Destructive - Warm red for alerts */
-    --destructive: 0 72% 51%;
+    /* Destructive */
+    --destructive: 0 75% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Borders & inputs - subtle cool grey */
-    --border: 200 15% 88%;
-    --input: 200 15% 88%;
+    /* Borders & inputs - Subtle cool grey */
+    --border: 0 0% 86%;
+    --input: 0 0% 86%;
     --ring: 190 60% 45%;
 
     --radius: 0.75rem;
 
-    /* Category colors - distinct but harmonious with base palette */
-    --labor: 210 80% 55%;
+    /* Category colors - Harmonized with base palette */
+    --labor: 221 70% 50%;
     --labor-foreground: 0 0% 100%;
-    --labor-light: 210 80% 96%;
+    --labor-light: 221 70% 96%;
     
-    --environment: 150 55% 42%;
+    --environment: 150 60% 40%;
     --environment-foreground: 0 0% 100%;
-    --environment-light: 150 55% 96%;
+    --environment-light: 150 60% 96%;
     
-    --politics: 280 45% 50%;
+    --politics: 279 55% 45%;
     --politics-foreground: 0 0% 100%;
-    --politics-light: 280 45% 96%;
+    --politics-light: 279 55% 96%;
     
-    --social: 20 85% 58%;
+    --social: 200 30% 45%;
     --social-foreground: 0 0% 100%;
-    --social-light: 20 85% 96%;
+    --social-light: 200 30% 96%;
     
-    --cultural-values: 330 50% 50%;
+    --cultural-values: 330 55% 45%;
     --cultural-values-foreground: 0 0% 100%;
-    --cultural-values-light: 330 50% 96%;
+    --cultural-values-light: 330 55% 96%;
 
-    /* Status colors - aligned with research (green=positive, orange=caution, red=negative) */
-    --success: 150 55% 42%;
+    /* Status colors - Research-backed (green=positive, orange=caution, red=negative) */
+    --success: 142 70% 38%;
     --success-foreground: 0 0% 100%;
-    --success-light: 150 55% 96%;
+    --success-light: 142 70% 96%;
     
-    --warning: 40 90% 55%;
-    --warning-foreground: 0 0% 12%;
-    --warning-light: 40 90% 96%;
+    --warning: 40 100% 45%;
+    --warning-foreground: 0 0% 10%;
+    --warning-light: 40 100% 96%;
     
-    --danger: 0 72% 51%;
+    --danger: 0 75% 50%;
     --danger-foreground: 0 0% 100%;
-    --danger-light: 0 72% 96%;
+    --danger-light: 0 75% 96%;
 
-    /* Animations */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Animations - Snappy, under 150ms for retention */
+    --transition-smooth: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .dark {
-    /* Dark mode - softer contrast for reduced eye strain */
-    --background: 200 15% 10%;
+    /* Dark mode - Softer contrast for reduced eye strain */
+    --background: 0 0% 8%;
     --foreground: 0 0% 95%;
 
-    /* Cards - elevated surfaces with subtle depth */
-    --card: 200 12% 14%;
+    /* Cards - Elevated surfaces with subtle depth */
+    --card: 0 0% 10%;
     --card-foreground: 0 0% 95%;
+    --elev-1: 0 0% 10%;
+    --elev-2: 0 0% 12%;
+    --elev-3: 0 0% 14%;
 
-    --popover: 200 12% 14%;
+    --popover: 0 0% 10%;
     --popover-foreground: 0 0% 95%;
 
-    /* Primary - brightened teal for dark mode visibility */
+    /* Primary - Brightened teal for dark mode visibility */
     --primary: 190 65% 55%;
-    --primary-foreground: 200 15% 10%;
+    --primary-foreground: 0 0% 8%;
 
-    /* Secondary - darker cool grey */
+    /* Secondary - Darker cool grey */
     --secondary: 200 10% 20%;
     --secondary-foreground: 0 0% 95%;
 
-    /* Muted - mid-tone grey for dark mode */
-    --muted: 200 10% 20%;
+    /* Muted - Mid-tone grey for dark mode */
+    --muted: 0 0% 14%;
     --muted-foreground: 0 0% 65%;
 
-    /* Accent - warm orange maintains energy in dark mode */
-    --accent: 25 95% 60%;
-    --accent-foreground: 200 15% 10%;
+    /* Accent - Warm orange maintains energy in dark mode */
+    --accent: 25 100% 66%;
+    --accent-foreground: 0 0% 8%;
 
     /* Destructive */
-    --destructive: 0 72% 55%;
+    --destructive: 0 75% 55%;
     --destructive-foreground: 0 0% 95%;
 
-    /* Borders - subtle in dark mode */
-    --border: 200 10% 22%;
-    --input: 200 10% 22%;
+    /* Borders - Subtle in dark mode */
+    --border: 0 0% 22%;
+    --input: 0 0% 22%;
     --ring: 190 65% 55%;
 
-    /* Category colors - adjusted for dark mode contrast */
-    --labor: 210 70% 60%;
-    --labor-light: 210 70% 20%;
+    /* Category colors - Adjusted for dark mode contrast */
+    --labor: 221 65% 60%;
+    --labor-light: 221 65% 20%;
     
-    --environment: 150 50% 50%;
-    --environment-light: 150 50% 20%;
+    --environment: 150 55% 50%;
+    --environment-light: 150 55% 20%;
     
-    --politics: 280 40% 60%;
-    --politics-light: 280 40% 20%;
+    --politics: 279 50% 55%;
+    --politics-light: 279 50% 20%;
     
-    --social: 20 80% 65%;
-    --social-light: 20 80% 20%;
+    --social: 200 25% 55%;
+    --social-light: 200 25% 20%;
     
-    --cultural-values: 330 45% 60%;
-    --cultural-values-light: 330 45% 20%;
+    --cultural-values: 330 50% 55%;
+    --cultural-values-light: 330 50% 20%;
 
     /* Status colors for dark mode */
-    --success: 150 50% 50%;
-    --success-light: 150 50% 20%;
+    --success: 142 65% 48%;
+    --success-light: 142 65% 20%;
     
-    --warning: 40 85% 60%;
-    --warning-light: 40 85% 20%;
+    --warning: 40 95% 55%;
+    --warning-light: 40 95% 20%;
     
-    --danger: 0 70% 58%;
-    --danger-light: 0 70% 20%;
+    --danger: 0 75% 58%;
+    --danger-light: 0 75% 20%;
   }
 }
 
@@ -156,5 +160,62 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Accessibility - Enhanced focus rings */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-background;
+  }
+
+  /* Reduced motion for accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Semantic color utilities */
+  .text-subtle {
+    color: hsl(var(--muted-foreground));
+  }
+
+  .bg-elevated-1 {
+    background-color: hsl(var(--elev-1));
+  }
+
+  .bg-elevated-2 {
+    background-color: hsl(var(--elev-2));
+  }
+
+  .bg-elevated-3 {
+    background-color: hsl(var(--elev-3));
+  }
+
+  .border-subtle {
+    border-color: hsl(var(--border));
+  }
+
+  /* Component-specific utilities */
+  .btn-base {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-cta {
+    @apply btn-base bg-accent text-accent-foreground hover:brightness-105 active:brightness-95;
+  }
+
+  .badge-base {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium;
+  }
+
+  /* Smooth transitions with retention-optimized timing */
+  .transition-retention {
+    transition: var(--transition-smooth);
   }
 }

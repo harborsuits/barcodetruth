@@ -47,6 +47,11 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        elevated: {
+          1: "hsl(var(--elev-1))",
+          2: "hsl(var(--elev-2))",
+          3: "hsl(var(--elev-3))",
+        },
         labor: {
           DEFAULT: "hsl(var(--labor))",
           foreground: "hsl(var(--labor-foreground))",
