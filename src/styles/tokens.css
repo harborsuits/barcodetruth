@@ -1,20 +1,31 @@
-:root{
+:root {
   /* surfaces */
-  --bg: #fafafa;            /* neutral-50 */
-  --card: #ffffff;          /* white */
-  --border: #e5e7eb;        /* neutral-200 */
-  --muted: #6b7280;         /* neutral-500 */
-  --text: #0a0a0a;          /* neutral-900 */
+  --bg: #fafafa;
+  --card: #ffffff;
+  --border: #e5e7eb;
+  --muted: #6b7280;
+  --text: #0a0a0a;
 
-  /* accents */
+  /* status colors */
   --success: #16a34a;
-  --warn:    #ca8a04;
-  --danger:  #dc2626;
+  --warn: #ca8a04;
+  --danger: #dc2626;
 
   /* elevation & motion */
-  --radius-xl: 1rem;        /* rounded-2xl */
+  --radius: 16px;
+  --radius-xl: 1rem;
   --shadow-sm: 0 1px 2px rgba(0,0,0,.06);
   --shadow-md: 0 8px 24px rgba(0,0,0,.08);
+  --ring: 0 0 0 1.5px rgba(0,0,0,.08);
   --ease: cubic-bezier(.22,.61,.36,1);
   --dur: 150ms;
+}
+
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+}
+
+.skeleton {
+  background: color-mix(in oklab, var(--text) 8%, transparent);
 }

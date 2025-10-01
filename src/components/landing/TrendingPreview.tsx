@@ -97,9 +97,9 @@ export function TrendingPreview() {
             <Skeleton className="h-6 w-48" />
           </CardHeader>
           <CardContent className="space-y-3">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
           </CardContent>
         </Card>
       </section>

@@ -171,7 +171,8 @@ All colors MUST be HSL.
 
   /* Accessibility - Enhanced focus rings */
   *:focus-visible {
-    @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-background;
+    @apply outline-none;
+    box-shadow: var(--ring);
   }
 
   /* Reduced motion for accessibility */
