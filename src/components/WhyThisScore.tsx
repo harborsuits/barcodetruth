@@ -33,7 +33,7 @@ export function WhyThisScore({ brandId, impacts }: WhyThisScoreProps) {
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium text-muted-foreground">Score Drivers</h3>
           <Badge variant="outline" className="text-xs">
-            EPA & public records
+            EPA, OSHA, FEC & public records
           </Badge>
         </div>
         <p className="text-sm text-muted-foreground">
@@ -60,7 +60,7 @@ export function WhyThisScore({ brandId, impacts }: WhyThisScoreProps) {
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-muted-foreground">Score Drivers</h3>
         <Badge variant="outline" className="text-xs">
-          EPA & public records
+          EPA, OSHA, FEC & public records
         </Badge>
       </div>
       
@@ -99,6 +99,15 @@ export function WhyThisScore({ brandId, impacts }: WhyThisScoreProps) {
               </CollapsibleTrigger>
               
               <CollapsibleContent className="mt-2 space-y-2">
+                {/* Politics summary from FEC data */}
+                {impact.category === 'politics' && impact.events.length > 0 && impact.events[0]?.raw_data?.tilt_pct && (
+                  <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800">
+                    <p className="text-sm text-purple-900 dark:text-purple-100">
+                      <span className="font-semibold">Tilt: {impact.events[0].raw_data.tilt_pct}% {impact.events[0].raw_data.lean}</span>
+                      {' '}(${Math.round(impact.events[0].raw_data.dem_total).toLocaleString()} Democratic vs ${Math.round(impact.events[0].raw_data.rep_total).toLocaleString()} Republican)
+                    </p>
+                  </div>
+                )}
                 {impact.events.map((event) => (
                   <EventCard
                     key={event.event_id}
@@ -113,7 +122,7 @@ export function WhyThisScore({ brandId, impacts }: WhyThisScoreProps) {
       </div>
       
       <p className="text-xs text-muted-foreground">
-        Based on verified events from the last 12 months. Data sources: EPA ECHO (official).
+        Based on verified events from the last 12 months. Data sources: EPA, OSHA, FEC (official).
       </p>
     </div>
   );

@@ -34,6 +34,7 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   const brandId = url.searchParams.get("brand_id");
   const queryOverride = url.searchParams.get("query");
+  const dryRun = url.searchParams.get("dryrun") === "1";
 
   if (!brandId) {
     return new Response(
@@ -84,7 +85,14 @@ Deno.serve(async (req) => {
     while (committees.length < maxScan) {
       const committeesUrl = `https://api.open.fec.gov/v1/committees/?q=${encodeURIComponent(searchQuery)}&per_page=${perPage}&page=${page}&sort=name&api_key=${fecApiKey}`;
       
-      const committeesRes = await fetch(committeesUrl);
+      let committeesRes = await fetch(committeesUrl);
+
+      // Handle rate limiting with backoff
+      if (committeesRes.status === 429) {
+        console.log(`[FEC] Rate limited on committees page ${page}, retrying after 500ms`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        committeesRes = await fetch(committeesUrl);
+      }
 
       if (!committeesRes.ok) {
         console.error(`[FEC] API request failed: ${committeesRes.status} ${committeesRes.statusText}`);
@@ -145,7 +153,15 @@ Deno.serve(async (req) => {
       while (allDisbursements.length < 200) {
         const disbUrl = `https://api.open.fec.gov/v1/schedules/schedule_b/?committee_id=${cmteId}&disbursement_description=contribution&min_date=${sinceStr}&per_page=${disbPerPage}&page=${disbPage}&api_key=${fecApiKey}`;
 
-        const disbRes = await fetch(disbUrl);
+        let disbRes = await fetch(disbUrl);
+        
+        // Handle rate limiting with backoff
+        if (disbRes.status === 429) {
+          console.log(`[FEC] Rate limited on disbursements for ${cmteId} page ${disbPage}, retrying after 500ms`);
+          await new Promise(resolve => setTimeout(resolve, 500));
+          disbRes = await fetch(disbUrl);
+        }
+        
         if (!disbRes.ok) {
           console.error(`[FEC] Failed to fetch disbursements for ${cmteId}: ${disbRes.status}`);
           break;
@@ -243,6 +259,14 @@ Deno.serve(async (req) => {
       if (existing) {
         console.log(`[FEC] Event already exists for ${sourceUrl}`);
         skipped++;
+        continue;
+      }
+
+      // Dry-run mode: skip inserts
+      if (dryRun) {
+        console.log(`[FEC] [DRY-RUN] Would insert event for ${cmteId} with impact ${impact}`);
+        inserted++;
+        eventsWithImpact.push({ id: `dry-run-${cmteId}`, impact });
         continue;
       }
 
@@ -345,7 +369,8 @@ Deno.serve(async (req) => {
         brand: brand.name,
         scanned,
         inserted,
-        skipped
+        skipped,
+        dry_run: dryRun
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

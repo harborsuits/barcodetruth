@@ -131,6 +131,20 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
   const verificationBadge = getVerificationBadge(event.verification, event.verified);
   const attributionLine = lineFromEvent(event);
   const showUnverifiedWarning = event.verification === "unverified" && !showFullDetails;
+  
+  // Enhanced tooltip for FEC sources
+  const sourceTooltip = useMemo(() => {
+    if (primarySource?.name === "FEC") {
+      return "Official: Federal Election Commission";
+    }
+    if (primarySource?.name === "EPA") {
+      return "Official: Environmental Protection Agency";
+    }
+    if (primarySource?.name === "OSHA") {
+      return "Official: Occupational Safety and Health Administration";
+    }
+    return primarySource?.url ?? attributionLine;
+  }, [primarySource, attributionLine]);
 
   return (
     <article 
@@ -215,7 +229,7 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
               <div className="flex items-center justify-between gap-2">
                 <div 
                   className="text-xs text-[var(--muted)] italic truncate" 
-                  title={primarySource.url ?? attributionLine}
+                  title={sourceTooltip}
                 >
                   {attributionLine}
                 </div>
