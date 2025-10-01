@@ -274,12 +274,19 @@ export const BrandDetail = () => {
                 onClick={() => toggleNotifications.mutate()}
                 disabled={toggleNotifications.isPending}
               >
-                {followData?.notifications_enabled ? (
-                  <Bell className="h-4 w-4 mr-2" />
+                {toggleNotifications.isPending ? (
+                  'Saving...'
+                ) : followData?.notifications_enabled ? (
+                  <>
+                    <Bell className="h-4 w-4 mr-2" />
+                    Following
+                  </>
                 ) : (
-                  <BellOff className="h-4 w-4 mr-2" />
+                  <>
+                    <BellOff className="h-4 w-4 mr-2" />
+                    Notify me
+                  </>
                 )}
-                {followData?.notifications_enabled ? 'Following' : 'Notify me'}
               </Button>
               <Button
                 variant="ghost"
