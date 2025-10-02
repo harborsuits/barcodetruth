@@ -23,6 +23,7 @@ import { topImpacts } from "@/lib/events";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import ScoreBreakdown from "@/components/ScoreBreakdown";
 
 export const BrandDetail = () => {
   const { brandId } = useParams();
@@ -161,6 +162,19 @@ export const BrandDetail = () => {
         .maybeSingle();
       
       return data ?? { sent_today: 0 };
+    },
+    enabled: !!brandId,
+  });
+
+  // Fetch proof/breakdown data for transparency
+  const { data: proofData } = useQuery({
+    queryKey: ['brand-proof', brandId],
+    queryFn: async () => {
+      if (!brandId) return null;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-brand-proof?brandId=${brandId}`;
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      return response.json();
     },
     enabled: !!brandId,
   });
@@ -401,6 +415,14 @@ export const BrandDetail = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Score Breakdown with transparency */}
+        {proofData?.breakdown && (
+          <ScoreBreakdown 
+            brandId={brandId!} 
+            blocks={proofData.breakdown} 
+          />
+        )}
 
         {/* Category Scores */}
         <Card>

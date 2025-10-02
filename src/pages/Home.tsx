@@ -46,7 +46,12 @@ export const Home = () => {
       <nav className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur border-t">
         <div className="container max-w-2xl mx-auto px-4">
           <div className="flex items-center justify-around py-3">
-            <Button variant="ghost" size="sm" className="flex-col gap-1 h-auto">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="flex-col gap-1 h-auto"
+              onClick={() => navigate("/search")}
+            >
               <Search className="h-5 w-5" />
               <span className="text-xs">Search</span>
             </Button>
