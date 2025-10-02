@@ -224,55 +224,64 @@ export const BrandDetail = () => {
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div className="flex-1">
-              <h1 className="text-xl font-bold">{brand.name}</h1>
-              <p className="text-sm text-muted-foreground">{brand.parent_company}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex flex-col items-end gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => toggleNotifications.mutate()}
-                  disabled={toggleNotifications.isPending}
-                >
-                  {toggleNotifications.isPending ? (
-                    'Saving...'
-                  ) : followData?.notifications_enabled ? (
-                    <>
-                      <Bell className="h-4 w-4 mr-2" />
-                      Following
-                    </>
-                  ) : (
-                    <>
-                      <BellOff className="h-4 w-4 mr-2" />
-                      Notify me
-                    </>
-                  )}
-                </Button>
-                {followData?.notifications_enabled && (
-                  <p className="text-xs text-muted-foreground">
-                    Alerts today: {usage?.sent_today ?? 0}/2
-                  </p>
-                )}
-                {isQuietHoursUTC() && (
-                  <div className="text-xs text-muted-foreground">
-                    Paused until {nextQuietLiftUTC().toUTCString().slice(17, 22)} UTC
-                  </div>
-                )}
+            {brandLoading || !brand ? (
+              <div className="flex-1">
+                <div className="h-6 w-32 bg-muted animate-pulse rounded" />
+                <div className="h-4 w-24 bg-muted animate-pulse rounded mt-1" />
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsFollowing(!isFollowing)}
-              >
-                {isFollowing ? (
-                  <Heart className="h-5 w-5 fill-current text-danger" />
-                ) : (
-                  <HeartOff className="h-5 w-5" />
-                )}
-              </Button>
-            </div>
+            ) : (
+              <>
+                <div className="flex-1">
+                  <h1 className="text-xl font-bold">{brand.name}</h1>
+                  <p className="text-sm text-muted-foreground">{brand.parent_company}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex flex-col items-end gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleNotifications.mutate()}
+                      disabled={toggleNotifications.isPending}
+                    >
+                      {toggleNotifications.isPending ? (
+                        'Saving...'
+                      ) : followData?.notifications_enabled ? (
+                        <>
+                          <Bell className="h-4 w-4 mr-2" />
+                          Following
+                        </>
+                      ) : (
+                        <>
+                          <BellOff className="h-4 w-4 mr-2" />
+                          Notify me
+                        </>
+                      )}
+                    </Button>
+                    {followData?.notifications_enabled && (
+                      <p className="text-xs text-muted-foreground">
+                        Alerts today: {usage?.sent_today ?? 0}/2
+                      </p>
+                    )}
+                    {isQuietHoursUTC() && (
+                      <div className="text-xs text-muted-foreground">
+                        Paused until {nextQuietLiftUTC().toUTCString().slice(17, 22)} UTC
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsFollowing(!isFollowing)}
+                  >
+                    {isFollowing ? (
+                      <Heart className="h-5 w-5 fill-current text-danger" />
+                    ) : (
+                      <HeartOff className="h-5 w-5" />
+                    )}
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </header>
