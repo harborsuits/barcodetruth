@@ -6,13 +6,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Helpers
-const normalizeUrl = (raw: string) => {
+// Helpers (exported for testing)
+export const normalizeUrl = (raw: string) => {
   try {
     const u = new URL(raw);
     // strip common tracking noise
     u.search = '';
     u.hash = '';
+    // normalize hostname to lowercase to avoid case duplicates
+    u.hostname = u.hostname.toLowerCase();
     // remove trailing slash
     return u.toString().replace(/\/$/, '');
   } catch {
@@ -20,7 +22,7 @@ const normalizeUrl = (raw: string) => {
   }
 };
 
-const fetchWithTimeout = (url: string, timeoutMs = 8000, init?: RequestInit) => {
+export const fetchWithTimeout = (url: string, timeoutMs = 8000, init?: RequestInit) => {
   return Promise.race([
     fetch(url, init),
     new Promise<Response>((_, reject) =>
@@ -257,14 +259,18 @@ serve(async (req) => {
     const incFail = (key: string) => failures.set(key, (failures.get(key) || 0) + 1);
     const shouldSkipSource = (key: string) => (failures.get(key) || 0) >= 3;
 
+    // Per-source caps to prevent quota overruns
+    const MAX_PER_SOURCE = 10;
+
     // Fetch from all available sources
     const allArticles: NewsArticle[] = [];
     
     if (guardianKey && !shouldSkipSource('guardian')) {
       try {
         const articles = await fetchGuardian(guardianKey, brand.name);
-        allArticles.push(...articles);
-        console.log(`[fetch-news-events] Fetched ${articles.length} from Guardian`);
+        const capped = articles.slice(0, MAX_PER_SOURCE);
+        allArticles.push(...capped);
+        console.log(`[fetch-news-events] Fetched ${capped.length} from Guardian${articles.length > MAX_PER_SOURCE ? ` (capped from ${articles.length})` : ''}`);
       } catch (err) {
         incFail('guardian');
         console.error(`[fetch-news-events] Guardian error (${failures.get('guardian')} fails):`, err);
@@ -274,8 +280,9 @@ serve(async (req) => {
     if (newsApiKey && !shouldSkipSource('newsapi')) {
       try {
         const articles = await fetchNewsAPI(newsApiKey, brand.name);
-        allArticles.push(...articles);
-        console.log(`[fetch-news-events] Fetched ${articles.length} from NewsAPI`);
+        const capped = articles.slice(0, MAX_PER_SOURCE);
+        allArticles.push(...capped);
+        console.log(`[fetch-news-events] Fetched ${capped.length} from NewsAPI${articles.length > MAX_PER_SOURCE ? ` (capped from ${articles.length})` : ''}`);
       } catch (err) {
         incFail('newsapi');
         console.error(`[fetch-news-events] NewsAPI error (${failures.get('newsapi')} fails):`, err);
@@ -285,8 +292,9 @@ serve(async (req) => {
     if (nytKey && !shouldSkipSource('nyt')) {
       try {
         const articles = await fetchNYTimes(nytKey, brand.name);
-        allArticles.push(...articles);
-        console.log(`[fetch-news-events] Fetched ${articles.length} from NYT`);
+        const capped = articles.slice(0, MAX_PER_SOURCE);
+        allArticles.push(...capped);
+        console.log(`[fetch-news-events] Fetched ${capped.length} from NYT${articles.length > MAX_PER_SOURCE ? ` (capped from ${articles.length})` : ''}`);
       } catch (err) {
         incFail('nyt');
         console.error(`[fetch-news-events] NYT error (${failures.get('nyt')} fails):`, err);
@@ -296,8 +304,9 @@ serve(async (req) => {
     if (gnewsKey && !shouldSkipSource('gnews')) {
       try {
         const articles = await fetchGNews(gnewsKey, brand.name);
-        allArticles.push(...articles);
-        console.log(`[fetch-news-events] Fetched ${articles.length} from GNews`);
+        const capped = articles.slice(0, MAX_PER_SOURCE);
+        allArticles.push(...capped);
+        console.log(`[fetch-news-events] Fetched ${capped.length} from GNews${articles.length > MAX_PER_SOURCE ? ` (capped from ${articles.length})` : ''}`);
       } catch (err) {
         incFail('gnews');
         console.error(`[fetch-news-events] GNews error (${failures.get('gnews')} fails):`, err);

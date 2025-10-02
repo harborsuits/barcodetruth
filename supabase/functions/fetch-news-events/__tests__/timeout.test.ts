@@ -1,31 +1,34 @@
-import { assertRejects } from "https://deno.land/std/testing/asserts.ts";
-
-// Inline if not exported
-const fetchWithTimeout = (url: string, timeoutMs = 100, init?: RequestInit) => {
-  return Promise.race([
-    fetch(url, init),
-    new Promise<Response>((_, reject) =>
-      setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs)
-    ),
-  ]) as Promise<Response>;
-};
+import { assertEquals, assertRejects } from "https://deno.land/std/testing/asserts.ts";
+import { fetchWithTimeout } from "../index.ts";
 
 Deno.test("fetchWithTimeout resolves quickly when fetch returns promptly", async () => {
-  // Test with a real fast endpoint (httpbin returns quickly)
-  const res = await fetchWithTimeout("https://httpbin.org/status/200", 5000);
-  if (res.status !== 200) {
-    throw new Error(`Expected 200, got ${res.status}`);
+  // Mock fetch to return immediately
+  const originalFetch = globalThis.fetch;
+  const mockResponse = new Response(JSON.stringify({ ok: true }), { status: 200 });
+  globalThis.fetch = () => Promise.resolve(mockResponse);
+
+  try {
+    const res = await fetchWithTimeout("https://example.com/fast", 5000);
+    assertEquals(res.status, 200);
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 });
 
 Deno.test("fetchWithTimeout rejects on timeout", async () => {
-  // Use a delayed endpoint that will timeout
-  await assertRejects(
-    async () => {
-      // httpbin delay endpoint - ask for 2 second delay but timeout at 100ms
-      await fetchWithTimeout("https://httpbin.org/delay/2", 100);
-    },
-    Error,
-    "Timeout after 100ms"
-  );
+  // Mock fetch to never resolve (simulates hanging connection)
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = () => new Promise(() => {}); // Never resolves
+
+  try {
+    await assertRejects(
+      async () => {
+        await fetchWithTimeout("https://example.com/hang", 50);
+      },
+      Error,
+      "Timeout after 50ms"
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

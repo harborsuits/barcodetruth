@@ -89,6 +89,7 @@ export type Database = {
           resolved: boolean | null
           severity: string | null
           source_url: string | null
+          source_url_sha256: string | null
           title: string | null
           updated_at: string
           verification: Database["public"]["Enums"]["verification_level"] | null
@@ -115,6 +116,7 @@ export type Database = {
           resolved?: boolean | null
           severity?: string | null
           source_url?: string | null
+          source_url_sha256?: string | null
           title?: string | null
           updated_at?: string
           verification?:
@@ -143,6 +145,7 @@ export type Database = {
           resolved?: boolean | null
           severity?: string | null
           source_url?: string | null
+          source_url_sha256?: string | null
           title?: string | null
           updated_at?: string
           verification?:

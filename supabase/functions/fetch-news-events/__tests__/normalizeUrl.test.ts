@@ -1,16 +1,5 @@
 import { assertEquals } from "https://deno.land/std/testing/asserts.ts";
-
-// Inline copy since normalizeUrl isn't exported yet
-const normalizeUrl = (raw: string) => {
-  try {
-    const u = new URL(raw);
-    u.search = "";
-    u.hash = "";
-    return u.toString().replace(/\/$/, "");
-  } catch { 
-    return raw; 
-  }
-};
+import { normalizeUrl } from "../index.ts";
 
 Deno.test("normalizeUrl strips utm params", () => {
   assertEquals(
@@ -48,5 +37,12 @@ Deno.test("normalizeUrl strips multiple query params and hash", () => {
   assertEquals(
     normalizeUrl("https://ex.com/article?utm_source=twitter&utm_campaign=spring#intro"),
     "https://ex.com/article"
+  );
+});
+
+Deno.test("normalizeUrl converts hostname to lowercase", () => {
+  assertEquals(
+    normalizeUrl("https://Example.COM/Article"),
+    "https://example.com/Article"
   );
 });
