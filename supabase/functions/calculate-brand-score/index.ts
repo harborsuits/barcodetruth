@@ -188,13 +188,95 @@ Deno.serve(async (req) => {
 
     if (evErr) throw evErr;
 
-    // Initialize per-category scores with base 50
-    const cats: Cat[] = ["labor", "environment", "politics", "social"];
+    // Calculate historical baselines (24-month lookback for established pattern)
+    const baselineStart = new Date();
+    baselineStart.setMonth(baselineStart.getMonth() - 24);
+
+    const { data: histEvents, error: histErr } = await supabase
+      .from("brand_events")
+      .select("category, orientation, verification, impact_labor, impact_environment, impact_politics, impact_social, raw_data, event_sources(source_name)")
+      .eq("brand_id", brandId)
+      .gte("event_date", baselineStart.toISOString())
+      .lte("event_date", windowStart.toISOString()); // events *before* current window
+
+    if (histErr) console.warn("[baseline] Could not fetch historical events:", histErr);
+
+    // Per-category baseline logic
+    const cats: Cat[] = ["labor","environment","politics","social"];
+    const baselines: Record<Cat, { value: number; reason: string }> = {
+      labor: { value: 50, reason: "No historical data" },
+      environment: { value: 50, reason: "No historical data" },
+      politics: { value: 50, reason: "No historical data" },
+      social: { value: 50, reason: "No historical data" }
+    };
+
+    if (histEvents && histEvents.length > 0) {
+      // Politics: FEC donation lean
+      const polEvents = histEvents.filter(e => e.category === "politics");
+      if (polEvents.length >= 3) {
+        const totalAmt = polEvents.reduce((sum, e) => sum + Math.abs(Number(e.impact_politics || 0)), 0);
+        const negAmt = polEvents
+          .filter(e => e.orientation === "negative")
+          .reduce((sum, e) => sum + Math.abs(Number(e.impact_politics || 0)), 0);
+        const tiltPct = totalAmt > 0 ? (negAmt / totalAmt) * 100 : 50;
+        
+        if (tiltPct >= 80) {
+          baselines.politics = { value: 35, reason: `${Math.round(tiltPct)}% historical tilt (conservative-leaning)` };
+        } else if (tiltPct <= 20) {
+          baselines.politics = { value: 65, reason: `${Math.round(100 - tiltPct)}% historical tilt (progressive-leaning)` };
+        } else {
+          baselines.politics = { value: 50, reason: "Balanced donation history" };
+        }
+      }
+
+      // Environment: EPA violation density
+      const envEvents = histEvents.filter(e => e.category === "environment");
+      if (envEvents.length >= 2) {
+        const severeCount = envEvents.filter(e => {
+          const qnc = Number(e.raw_data?.Qtrs_with_NC ?? e.raw_data?.qnc ?? 0);
+          return qnc >= 4 || Number(e.impact_environment || 0) <= -5;
+        }).length;
+        if (severeCount >= 2) {
+          baselines.environment = { value: 40, reason: "Chronic environmental offender (2+ severe violations)" };
+        } else if (envEvents.length >= 4) {
+          baselines.environment = { value: 45, reason: "Repeated environmental issues" };
+        }
+      }
+
+      // Labor: OSHA violation density
+      const labEvents = histEvents.filter(e => e.category === "labor");
+      if (labEvents.length >= 2) {
+        const seriousCount = labEvents.filter(e => {
+          const willful = Number(e.raw_data?.nr_willful ?? 0);
+          const serious = Number(e.raw_data?.nr_serious ?? 0);
+          return willful >= 1 || serious >= 3 || Number(e.impact_labor || 0) <= -5;
+        }).length;
+        if (seriousCount >= 2) {
+          baselines.labor = { value: 40, reason: "Chronic labor safety offender (2+ serious violations)" };
+        } else if (labEvents.length >= 4) {
+          baselines.labor = { value: 45, reason: "Repeated labor issues" };
+        }
+      }
+
+      // Social: News sentiment pattern
+      const socEvents = histEvents.filter(e => e.category === "social");
+      if (socEvents.length >= 3) {
+        const negCount = socEvents.filter(e => e.orientation === "negative").length;
+        const negPct = (negCount / socEvents.length) * 100;
+        if (negPct >= 75) {
+          baselines.social = { value: 40, reason: "Consistently negative press coverage" };
+        } else if (negPct >= 60) {
+          baselines.social = { value: 45, reason: "Predominantly negative press" };
+        }
+      }
+    }
+
+    // Initialize per-category scores from calculated baselines
     const totals: Record<Cat, number> = {
-      labor: 50,
-      environment: 50,
-      politics: 50,
-      social: 50
+      labor: baselines.labor.value,
+      environment: baselines.environment.value,
+      politics: baselines.politics.value,
+      social: baselines.social.value
     };
     const used: Record<Cat, any[]> = {
       labor: [],
@@ -265,12 +347,17 @@ Deno.serve(async (req) => {
         start: windowStart.toISOString(),
         end: windowEnd.toISOString()
       },
-      base: 50,
+      baselines: {
+        labor: baselines.labor,
+        environment: baselines.environment,
+        politics: baselines.politics,
+        social: baselines.social,
+      },
       per_category: {
-        labor: { score: totals.labor, events: used.labor },
-        environment: { score: totals.environment, events: used.environment },
-        politics: { score: totals.politics, events: used.politics },
-        social: { score: totals.social, events: used.social },
+        labor: { score: totals.labor, baseline: baselines.labor.value, events: used.labor },
+        environment: { score: totals.environment, baseline: baselines.environment.value, events: used.environment },
+        politics: { score: totals.politics, baseline: baselines.politics.value, events: used.politics },
+        social: { score: totals.social, baseline: baselines.social.value, events: used.social },
       }
     };
 
