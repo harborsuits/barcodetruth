@@ -69,6 +69,7 @@ export type Database = {
       }
       brand_events: {
         Row: {
+          article_text: string | null
           brand_id: string
           category: Database["public"]["Enums"]["event_category"]
           company_response_date: string | null
@@ -96,6 +97,7 @@ export type Database = {
           verified: boolean | null
         }
         Insert: {
+          article_text?: string | null
           brand_id: string
           category?: Database["public"]["Enums"]["event_category"]
           company_response_date?: string | null
@@ -125,6 +127,7 @@ export type Database = {
           verified?: boolean | null
         }
         Update: {
+          article_text?: string | null
           brand_id?: string
           category?: Database["public"]["Enums"]["event_category"]
           company_response_date?: string | null
@@ -220,6 +223,7 @@ export type Database = {
       brand_scores: {
         Row: {
           brand_id: string
+          breakdown: Json | null
           created_at: string
           id: string
           last_updated: string
@@ -227,9 +231,13 @@ export type Database = {
           score_labor: number
           score_politics: number
           score_social: number
+          updated_at: string | null
+          window_end: string | null
+          window_start: string | null
         }
         Insert: {
           brand_id: string
+          breakdown?: Json | null
           created_at?: string
           id?: string
           last_updated?: string
@@ -237,9 +245,13 @@ export type Database = {
           score_labor?: number
           score_politics?: number
           score_social?: number
+          updated_at?: string | null
+          window_end?: string | null
+          window_start?: string | null
         }
         Update: {
           brand_id?: string
+          breakdown?: Json | null
           created_at?: string
           id?: string
           last_updated?: string
@@ -247,6 +259,9 @@ export type Database = {
           score_labor?: number
           score_politics?: number
           score_social?: number
+          updated_at?: string | null
+          window_end?: string | null
+          window_start?: string | null
         }
         Relationships: [
           {

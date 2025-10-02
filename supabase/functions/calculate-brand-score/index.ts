@@ -1,247 +1,333 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { z } from 'https://deno.land/x/zod@v3.23.8/mod.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { corsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, idempotency-key',
+type Cat = "labor" | "environment" | "politics" | "social";
+type Severity = "minor" | "moderate" | "severe";
+type Orientation = "negative" | "positive";
+
+// Recency decay by age in months
+const DECAY = (months: number): number =>
+  months <= 3 ? 1.0 : months <= 6 ? 0.5 : months <= 12 ? 0.2 : 0;
+
+// Source credibility weighting
+const SRC_WEIGHT = (sourceName: string, verification: string | null): number => {
+  const name = (sourceName || "").toLowerCase();
+  // Government sources = highest credibility
+  if (["epa", "osha", "fec"].some(g => name.includes(g))) return 1.0;
+  // Major reputable news
+  if (["new york times","nyt","guardian","reuters","associated press","ap","bbc","npr"].some(m => name.includes(m)))
+    return 0.8;
+  // Unverified = lowest
+  if (verification === "unverified") return 0.5;
+  // Other sources
+  return 0.6;
 };
 
-const seen = new Map<string, { ts: number; resp: string }>();
-const TTL = 5 * 60 * 1000;
+// Event delta by severity and orientation
+const DELTA_FOR = (level: Severity, orientation: Orientation): number => {
+  const base = level === "severe" ? 15 : level === "moderate" ? 8 : 3;
+  // Positive events count for half weight
+  const signed = orientation === "negative" ? -base : +base * 0.5;
+  return signed;
+};
 
-function handleIdempotency(req: Request, scope: string) {
-  const key = req.headers.get('Idempotency-Key');
-  if (!key) return { replay: false, set: (_: string) => {} };
-  const k = `${scope}:${key}`;
-  const hit = seen.get(k);
-  const now = Date.now();
-  if (hit && (now - hit.ts) < TTL) return { replay: true, payload: hit.resp, set: (_: string) => {} };
-  return { replay: false, set: (resp: string) => seen.set(k, { ts: now, resp }) };
-}
+// Calculate months between two dates
+const MONTHS_BETWEEN = (a: Date, b: Date): number => {
+  const diff = (a.getTime() - b.getTime()) / (1000 * 60 * 60 * 24 * 30.4375);
+  return Math.max(0, diff);
+};
 
-const RequestBody = z.object({
-  brand_id: z.string().min(1),
-});
+// Inline severity computation (mirrors src/lib/severityConfig.ts logic)
+function computeSeverity(input: {
+  category: Cat;
+  source?: string;
+  impact_labor?: number | null;
+  impact_environment?: number | null;
+  impact_politics?: number | null;
+  impact_social?: number | null;
+  raw?: Record<string, any> | null;
+}): { level: Severity; reason: string } {
+  const source = (input.source || "").toUpperCase();
 
-interface Weights {
-  labor: number;
-  environment: number;
-  politics: number;
-  social: number;
-}
-
-// Apply event impact to slider scores with verification factor
-function applyEventImpact(
-  baseScores: Weights,
-  eventImpact: Partial<Weights>,
-  verification: 'unverified' | 'corroborated' | 'official',
-  sourceCount: number
-): Weights {
-  // Verification factors
-  const factor = 
-    verification === 'official' ? 1.0 :
-    verification === 'corroborated' ? 0.75 :
-    sourceCount === 1 ? 0.0 : // Single unverified source = no impact
-    0.25; // Multiple unverified sources = 25% impact
-
-  const next = { ...baseScores };
-  
-  for (const key of ['labor', 'environment', 'politics', 'social'] as const) {
-    const delta = (eventImpact[key] ?? 0) * factor;
-    // Cap per-event absolute impact to ±20 points
-    const cappedDelta = Math.max(-20, Math.min(20, delta));
-    next[key] = Math.max(0, Math.min(100, next[key] + cappedDelta));
+  // EPA (Environment)
+  if (source === "EPA" || input.category === "environment") {
+    const qnc = Number(input.raw?.Qtrs_with_NC ?? input.raw?.qnc ?? 0);
+    const impact = Number(input.impact_environment ?? 0);
+    
+    if (qnc >= 4) return { level: "severe", reason: "4+ quarters non-compliance" };
+    if (qnc >= 2) return { level: "moderate", reason: "2–3 quarters non-compliance" };
+    if (qnc >= 1) return { level: "minor", reason: "1 quarter non-compliance" };
+    
+    if (impact <= -5) return { level: "severe", reason: "Multiple violations" };
+    if (impact <= -3) return { level: "moderate", reason: "Notable violation(s)" };
+    if (impact < 0) return { level: "minor", reason: "Incident reported" };
+    return { level: "minor", reason: "Informational" };
   }
-  
-  return next;
+
+  // OSHA (Labor)
+  if (source === "OSHA" || input.category === "labor") {
+    const serious = Number(input.raw?.nr_serious ?? 0);
+    const willful = Number(input.raw?.nr_willful ?? 0);
+    const repeat = Number(input.raw?.nr_repeat ?? 0);
+    const penalty = Number(input.raw?.total_current_penalty ?? 0);
+    const impact = Number(input.impact_labor ?? 0);
+
+    if (willful >= 2 || penalty >= 100_000) return { level: "severe", reason: "High penalties / willful" };
+    if (repeat >= 1 || serious >= 3 || penalty >= 25_000) return { level: "moderate", reason: "Serious or repeat" };
+    if (serious >= 1) return { level: "minor", reason: "Serious violation" };
+
+    if (impact <= -5) return { level: "severe", reason: "Severe impact" };
+    if (impact <= -3) return { level: "moderate", reason: "Moderate impact" };
+    if (impact < 0) return { level: "minor", reason: "Minor impact" };
+    return { level: "minor", reason: "Informational" };
+  }
+
+  // FEC (Politics)
+  if (source === "FEC" || input.category === "politics") {
+    const tiltPct = Number(input.raw?.tilt_pct ?? 0);
+    const impact = Number(input.impact_politics ?? 0);
+
+    if (tiltPct >= 85) return { level: "severe", reason: `${tiltPct}% partisan tilt` };
+    if (tiltPct >= 70) return { level: "moderate", reason: `${tiltPct}% partisan tilt` };
+    if (tiltPct >= 55) return { level: "minor", reason: `${tiltPct}% partisan tilt` };
+
+    if (impact <= -5) return { level: "severe", reason: "Severe impact" };
+    if (impact <= -3) return { level: "moderate", reason: "Moderate impact" };
+    if (impact < 0) return { level: "minor", reason: "Minor impact" };
+    return { level: "minor", reason: "Informational" };
+  }
+
+  // News/Social
+  if (source === "THE GUARDIAN" || source === "NEWSAPI" || input.category === "social") {
+    const title = String(input.raw?.title || input.raw?.headline || "").toLowerCase();
+    const summary = String(input.raw?.summary || input.raw?.description || "").toLowerCase();
+    const text = `${title} ${summary}`;
+    const impact = Number(input.impact_social ?? 0);
+
+    if (/(class.action|criminal|felony|indictment|sentenced)/i.test(text)) {
+      return { level: "severe", reason: "Legal action" };
+    }
+    if (/(lawsuit|recall|boycott)/i.test(text)) {
+      return { level: "moderate", reason: "Significant issue" };
+    }
+    if (/(scandal|controversy|protest|discrimination)/i.test(text)) {
+      return { level: "minor", reason: "Controversy reported" };
+    }
+
+    if (impact <= -5) return { level: "severe", reason: "Severe impact" };
+    if (impact <= -3) return { level: "moderate", reason: "Moderate impact" };
+    if (impact < 0) return { level: "minor", reason: "Minor impact" };
+    return { level: "minor", reason: "Informational" };
+  }
+
+  // Generic fallback
+  const byCatImpact =
+    input.category === "environment" ? Number(input.impact_environment ?? 0) :
+    input.category === "labor" ? Number(input.impact_labor ?? 0) :
+    input.category === "politics" ? Number(input.impact_politics ?? 0) :
+    Number(input.impact_social ?? 0);
+
+  if (byCatImpact <= -5) return { level: "severe", reason: "Severe impact" };
+  if (byCatImpact <= -3) return { level: "moderate", reason: "Moderate impact" };
+  if (byCatImpact < 0) return { level: "minor", reason: "Minor impact" };
+  return { level: "minor", reason: "Informational" };
 }
 
 Deno.serve(async (req) => {
-  const requestId = req.headers.get('X-Request-Id') ?? crypto.randomUUID();
-  const baseHeaders = { 
-    ...corsHeaders, 
-    'Content-Type': 'application/json', 
-    'X-API-Version': '1',
-    'X-Request-Id': requestId 
-  };
-
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: baseHeaders });
-  }
-
-  const idemState = handleIdempotency(req, 'calculate-brand-score');
-  if (idemState.replay) {
-    return new Response(idemState.payload, { headers: baseHeaders });
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const body = RequestBody.parse(await req.json());
-    const { brand_id } = body;
-    
-    console.log(`[${requestId}] Calculating scores for brand:`, brand_id);
+    const url = new URL(req.url);
+    const brandId = url.searchParams.get("brand_id");
+    const windowMonths = Number(url.searchParams.get("window_months") ?? "12");
+    const dryrun = url.searchParams.get("dryrun") === "1";
 
-    // Start with base scores (50/50/50/50)
-    let scores: Weights = {
-      labor: 50,
-      environment: 50,
-      politics: 50,
-      social: 50,
-    };
+    if (!brandId) {
+      return new Response(
+        JSON.stringify({ error: "brand_id required" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
 
-    // Fetch recent events (last 90 days) with sources
-    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-    
-    const { data: events, error: eventsError } = await supabase
-      .from('brand_events')
+    const windowEnd = new Date();
+    const windowStart = new Date();
+    windowStart.setMonth(windowEnd.getMonth() - windowMonths);
+
+    console.log(`[calculate-brand-score] Calculating for brand ${brandId}, window ${windowMonths}mo, dryrun=${dryrun}`);
+
+    // Fetch brand events + sources
+    const { data: events, error: evErr } = await supabase
+      .from("brand_events")
       .select(`
         event_id,
+        category,
+        event_date,
+        orientation,
         verification,
         impact_labor,
         impact_environment,
         impact_politics,
         impact_social,
-        event_sources (*)
+        raw_data,
+        event_sources(source_name, source_url, source_date)
       `)
-      .eq('brand_id', brand_id)
-      .gte('event_date', ninetyDaysAgo)
-      .order('event_date', { ascending: true });
+      .eq("brand_id", brandId)
+      .gte("event_date", windowStart.toISOString())
+      .lte("event_date", windowEnd.toISOString())
+      .order("event_date", { ascending: false });
 
-    if (eventsError) throw eventsError;
+    if (evErr) throw evErr;
 
-    // Apply each event's impact
-    let totalAbsChange = 0;
-    
-    for (const event of events || []) {
-      const eventImpact: Partial<Weights> = {
-        labor: event.impact_labor ?? undefined,
-        environment: event.impact_environment ?? undefined,
-        politics: event.impact_politics ?? undefined,
-        social: event.impact_social ?? undefined,
-      };
-
-      const sourceCount = event.event_sources?.length || 0;
-      const oldScores = { ...scores };
-      
-      scores = applyEventImpact(
-        scores, 
-        eventImpact, 
-        event.verification || 'unverified',
-        sourceCount
-      );
-
-      // Track total absolute change (for 35-point cap)
-      totalAbsChange += Math.abs(scores.labor - oldScores.labor) +
-                       Math.abs(scores.environment - oldScores.environment) +
-                       Math.abs(scores.politics - oldScores.politics) +
-                       Math.abs(scores.social - oldScores.social);
-
-      // Cap total 90-day change at 35 points per slider
-      if (totalAbsChange > 140) { // 35 * 4 sliders
-        console.warn('90-day change cap reached for brand', brand_id);
-        break;
-      }
-    }
-
-    // Fetch previous scores for delta detection
-    const { data: prevScores } = await supabase
-      .from('brand_scores')
-      .select('score_labor, score_environment, score_politics, score_social')
-      .eq('brand_id', brand_id)
-      .single();
-
-    const { data: brandData } = await supabase
-      .from('brands')
-      .select('name')
-      .eq('id', brand_id)
-      .single();
-
-    const newScores = {
-      score_labor: Math.round(scores.labor),
-      score_environment: Math.round(scores.environment),
-      score_politics: Math.round(scores.politics),
-      score_social: Math.round(scores.social),
+    // Initialize per-category scores with base 50
+    const cats: Cat[] = ["labor", "environment", "politics", "social"];
+    const totals: Record<Cat, number> = {
+      labor: 50,
+      environment: 50,
+      politics: 50,
+      social: 50
+    };
+    const used: Record<Cat, any[]> = {
+      labor: [],
+      environment: [],
+      politics: [],
+      social: []
     };
 
-    // Upsert brand scores
-    const { error: upsertError } = await supabase
-      .from('brand_scores')
-      .upsert({
-        brand_id,
-        ...newScores,
-      }, { onConflict: 'brand_id' });
+    const now = new Date();
 
-    if (upsertError) throw upsertError;
-
-    // Detect deltas and queue push notifications for changes ≥5
-    if (prevScores) {
-      type Slider = 'labor' | 'environment' | 'politics' | 'social';
-      const sliders: Slider[] = ['labor', 'environment', 'politics', 'social'];
+    // Process each event
+    for (const ev of (events || [])) {
+      const category = (ev.category || "social") as Cat;
       
-      const delta = (a: number | null | undefined, b: number | null | undefined) => {
-        if (a == null || b == null) return 0;
-        return Math.round(b - a);
-      };
+      // Get primary source for credibility
+      const sources = Array.isArray(ev.event_sources) ? ev.event_sources : [];
+      const srcName = sources[0]?.source_name ?? "";
+      const credibility = SRC_WEIGHT(srcName, ev.verification);
 
-      const changes = sliders
-        .map((s) => ({ 
-          category: s, 
-          delta: delta(
-            prevScores[`score_${s}` as keyof typeof prevScores], 
-            newScores[`score_${s}` as keyof typeof newScores]
-          ) 
-        }))
-        .filter(({ delta }) => Math.abs(delta) >= 5);
+      // Compute severity using centralized logic
+      const sev = computeSeverity({
+        category,
+        source: srcName,
+        impact_labor: ev.impact_labor,
+        impact_environment: ev.impact_environment,
+        impact_politics: ev.impact_politics,
+        impact_social: ev.impact_social,
+        raw: ev.raw_data ?? null,
+      });
 
-      // Queue coalesced push notification job (5-minute bucket)
-      if (changes.length > 0) {
-        const bucketSec = Math.floor(Date.now() / (5 * 60 * 1000)) * 5 * 60;
-        const coalesceKey = `${brand_id}:${bucketSec}`;
+      const level = sev.level;
+      const orientation = (ev.orientation ?? "negative") as Orientation;
 
-        const payload = {
-          brand_id,
-          brand_name: brandData?.name ?? brand_id,
-          at: new Date().toISOString(),
-          events: changes.map(c => ({ category: c.category, delta: c.delta }))
-        };
+      // Calculate recency decay
+      const ageMonths = MONTHS_BETWEEN(now, new Date(ev.event_date));
+      const decay = DECAY(ageMonths);
+      if (decay === 0) continue; // Ignore events >12 months
 
-        const { error: upsertErr } = await supabase.rpc('upsert_coalesced_job', {
-          p_stage: 'send_push_for_score_change',
-          p_key: coalesceKey,
-          p_payload: payload,
-          p_not_before: new Date().toISOString()
-        });
+      // Calculate effective delta
+      let delta = DELTA_FOR(level, orientation) * decay * credibility;
 
-        if (upsertErr) {
-          console.error(`[${requestId}] Failed to queue coalesced job:`, upsertErr);
-        } else {
-          console.log(`[${requestId}] Queued coalesced push: ${brandData?.name ?? brand_id}, ${changes.length} events`);
-        }
-      }
+      // Cap single event impact at ±30
+      if (delta > 30) delta = 30;
+      if (delta < -30) delta = -30;
+
+      totals[category] += delta;
+
+      used[category].push({
+        event_id: ev.event_id,
+        date: ev.event_date,
+        source: srcName,
+        credibility: Math.round(credibility * 100) / 100,
+        severity: level,
+        orientation,
+        decay: Math.round(decay * 100) / 100,
+        effective_delta: Math.round(delta * 10) / 10,
+      });
     }
 
-    const response = JSON.stringify({ success: true, scores });
-    idemState.set(response);
-    
-    console.log(`[${requestId}] Calculated scores for brand ${brand_id}:`, scores);
-    return new Response(response, { headers: baseHeaders });
-    
-  } catch (error) {
-    console.error(`[${requestId}] Score calculation error:`, error);
-    
-    const errorType = error instanceof z.ZodError ? 'INVALID_REQUEST' : 'INTERNAL';
-    const status = errorType === 'INVALID_REQUEST' ? 422 : 500;
-    const message = error instanceof z.ZodError 
-      ? error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
-      : error instanceof Error ? error.message : 'Unknown error';
-    
+    // Clamp all scores to [0, 100]
+    for (const c of cats) {
+      totals[c] = Math.max(0, Math.min(100, Math.round(totals[c])));
+    }
+
+    // Build breakdown for UI transparency
+    const breakdown = {
+      window: {
+        start: windowStart.toISOString(),
+        end: windowEnd.toISOString()
+      },
+      base: 50,
+      per_category: {
+        labor: { score: totals.labor, events: used.labor },
+        environment: { score: totals.environment, events: used.environment },
+        politics: { score: totals.politics, events: used.politics },
+        social: { score: totals.social, events: used.social },
+      }
+    };
+
+    if (!dryrun) {
+      // Persist to brand_scores
+      const { error: upErr } = await supabase
+        .from("brand_scores")
+        .upsert(
+          {
+            brand_id: brandId,
+            score_labor: totals.labor,
+            score_environment: totals.environment,
+            score_politics: totals.politics,
+            score_social: totals.social,
+            window_start: windowStart.toISOString(),
+            window_end: windowEnd.toISOString(),
+            breakdown,
+            last_updated: new Date().toISOString(),
+          },
+          { onConflict: "brand_id" }
+        );
+
+      if (upErr) throw upErr;
+      console.log(`[calculate-brand-score] Updated scores for brand ${brandId}`);
+    } else {
+      console.log(`[calculate-brand-score] Dryrun - not persisting`);
+    }
+
     return new Response(
-      JSON.stringify({ error: errorType, message }),
-      { status, headers: baseHeaders }
+      JSON.stringify({
+        success: true,
+        dryrun,
+        scores: totals,
+        breakdown,
+        counts: {
+          labor: used.labor.length,
+          environment: used.environment.length,
+          politics: used.politics.length,
+          social: used.social.length,
+        }
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      }
+    );
+
+  } catch (e: any) {
+    console.error("[calculate-brand-score] error:", e);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: String(e?.message || e)
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      }
     );
   }
 });
