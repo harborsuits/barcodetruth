@@ -35,12 +35,7 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
     queryKey: ['ownership-trail', brandId],
     queryFn: async () => {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-ownership-trail?brand_id=${brandId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-        }
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-ownership-trail?brand_id=${brandId}`
       );
       if (!response.ok) throw new Error('Failed to fetch ownership data');
       return response.json();
@@ -81,13 +76,15 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
               {/* Ownership Chain */}
               {data?.upstream && data.upstream.length > 0 && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-medium">Parent Companies</h3>
+                  <h3 className="text-sm font-medium">
+                    {data.upstream.length === 1 ? 'Direct Owner' : 'Corporate Chain'}
+                  </h3>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm">
                       <span className="font-semibold">{brandName}</span>
                       <ArrowRight className="h-3 w-3 text-muted-foreground" />
                     </div>
-                    {data.upstream.map((parent) => (
+                    {data.upstream.map((parent, idx) => (
                       <div key={parent.brand.id} className="ml-4 space-y-2 border-l-2 pl-4">
                         <div className="flex items-start justify-between">
                           <div>
@@ -107,15 +104,23 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
                             </a>
                           )}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           {parent.sources.map((source, idx) => (
                             <Badge key={idx} variant="outline" className="text-xs">
                               {source.name}
                             </Badge>
                           ))}
-                          {parent.confidence && (
+                          {parent.confidence >= 90 ? (
+                            <Badge variant="default" className="text-xs">
+                              High confidence ({parent.confidence}%)
+                            </Badge>
+                          ) : parent.confidence >= 70 ? (
                             <Badge variant="secondary" className="text-xs">
                               {parent.confidence}% confidence
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">
+                              Low confidence ({parent.confidence}%)
                             </Badge>
                           )}
                         </div>

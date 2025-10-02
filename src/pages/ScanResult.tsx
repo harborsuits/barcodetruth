@@ -15,6 +15,8 @@ import { EventCard, type BrandEvent } from "@/components/EventCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { getUserWeights, calculateValueFit, getTopContributors } from "@/lib/valueFit";
+import { getAlternatives } from "@/lib/alternatives";
+import { getExcludeSameParent } from "@/lib/userPreferences";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -182,124 +184,36 @@ export default function ScanResult() {
     enabled: !!product?.brand_id,
   });
 
-  // Query alternatives (same category, sorted by Value Fit)
+  // Query alternatives (same category, sorted by Value Fit, excluding same parent if setting is on)
   const { data: alternatives } = useQuery({
-    queryKey: ['alternatives', product?.brand_id, product?.category, brandData?.brand_scores?.[0]],
+    queryKey: ['alternatives', product?.brand_id, product?.category],
     queryFn: async () => {
-      if (!brandData?.brand_scores?.[0]) return [];
+      if (!product?.brand_id) return [];
       
-      const weights = getUserWeights();
-      const currentScores = brandData.brand_scores[0];
-      const currentValueFit = calculateValueFit(currentScores, weights);
+      const excludeSameParent = await getExcludeSameParent();
+      const alts = await getAlternatives(
+        product.brand_id,
+        product.category,
+        excludeSameParent
+      );
       
-      // Filter by same product category
-      const categoryQuery = supabase
-        .from('products')
-        .select('brand_id, category')
-        .neq('brand_id', product!.brand_id);
-      
-      // Only filter by category if product has one
-      if (product?.category) {
-        categoryQuery.eq('category', product.category);
-      }
-      
-      const { data: products, error: prodError } = await categoryQuery;
-      if (prodError) throw prodError;
-      
-      // Extract unique brand IDs
-      const brandIds = [...new Set(products?.map((p) => p.brand_id) ?? [])];
-      
-      if (brandIds.length === 0) {
-        // Fallback: show generally better-aligned brands
-        const { data: fallbackBrands, error: fallbackError } = await supabase
-          .from('brands')
-          .select('id, name, brand_scores!inner(score_labor, score_environment, score_politics, score_social)')
-          .neq('id', product!.brand_id)
-          .limit(8);
-        
-        if (fallbackError) throw fallbackError;
-        if (!fallbackBrands) return [];
-        
-        return fallbackBrands
-          .map((brand) => {
-            const scores = Array.isArray(brand.brand_scores)
-              ? brand.brand_scores[0]
-              : brand.brand_scores;
-            if (!scores) return null;
-            
-            const valueFit = calculateValueFit(scores, weights);
-            const delta = valueFit - currentValueFit;
-            
-            // Build specific rationale based on weighted deltas
-            let why = delta > 0 
-              ? `+${delta} better: ${getTopContributors(currentScores, scores, weights)}`
-              : `${delta} points: ${getTopContributors(currentScores, scores, weights)}`;
-            
-            return {
-              brand_id: brand.id,
-              brand_name: brand.name,
-              valueFit,
-              overall_score: Math.round(
-                (scores.score_labor +
-                  scores.score_environment +
-                  scores.score_politics +
-                  scores.score_social) /
-                  4
-              ),
-              why,
-              price_context: undefined,
-              scores,
-            };
-          })
-          .filter(Boolean)
-          .sort((a, b) => b!.valueFit - a!.valueFit)
-          .slice(0, 5) as any[];
-      }
-      
-      // Fetch brand scores for those alternatives
-      const { data: brands, error: brandError } = await supabase
-        .from('brands')
-        .select('id, name, brand_scores!inner(score_labor, score_environment, score_politics, score_social)')
-        .in('id', brandIds);
-      
-      if (brandError) throw brandError;
-      
-      // Cast and normalize brand_scores to array, filter out brands without scores
-      const normalized = (brands as any[])
-        .map(brand => ({
-          ...brand,
-          brand_scores: Array.isArray(brand.brand_scores) ? brand.brand_scores : [brand.brand_scores]
-        }))
-        .filter((b) => b.brand_scores?.[0]) as BrandWithScores[]; // only brands with scores
-      
-      // Calculate Value Fit for each and sort
-      return normalized
-        .map((brand) => {
-          const scores = brand.brand_scores[0];
-          const valueFit = calculateValueFit(scores, weights);
-          const delta = valueFit - currentValueFit;
-          
-          // Build specific rationale
-          let why = delta > 0 
-            ? `+${delta} better: ${getTopContributors(currentScores, scores, weights)}`
-            : delta < 0
-            ? `${delta} points: ${getTopContributors(currentScores, scores, weights)}`
-            : `Similar values: ${getTopContributors(currentScores, scores, weights)}`;
-          
-          return {
-            brand_id: brand.id,
-            brand_name: brand.name,
-            valueFit,
-            overall_score: Math.round((scores.score_labor + scores.score_environment + scores.score_politics + scores.score_social) / 4),
-            why,
-            price_context: undefined,
-            scores,
-          };
-        })
-        .sort((a, b) => b.valueFit - a.valueFit)
-        .slice(0, 5);
+      // Map to the expected format for AlternativesDrawer
+      return alts.map(alt => ({
+        brand_id: alt.brandId,
+        brand_name: alt.brandName,
+        valueFit: alt.valueFit,
+        overall_score: Math.round(
+          (alt.scores.score_labor + 
+           alt.scores.score_environment + 
+           alt.scores.score_politics + 
+           alt.scores.score_social) / 4
+        ),
+        why: alt.reasons,
+        price_context: undefined,
+        scores: alt.scores,
+      }));
     },
-    enabled: !!product?.brand_id && !!brandData?.brand_scores?.[0],
+    enabled: !!product?.brand_id,
   });
 
   // Query compare brand data

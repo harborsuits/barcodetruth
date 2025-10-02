@@ -171,7 +171,7 @@ export type Database = {
           effective_date: string | null
           id: string
           parent_brand_id: string
-          relationship_type: string
+          relationship_type: Database["public"]["Enums"]["ownership_relation"]
           source: string
           source_url: string | null
           updated_at: string
@@ -183,7 +183,7 @@ export type Database = {
           effective_date?: string | null
           id?: string
           parent_brand_id: string
-          relationship_type: string
+          relationship_type: Database["public"]["Enums"]["ownership_relation"]
           source: string
           source_url?: string | null
           updated_at?: string
@@ -195,7 +195,7 @@ export type Database = {
           effective_date?: string | null
           id?: string
           parent_brand_id?: string
-          relationship_type?: string
+          relationship_type?: Database["public"]["Enums"]["ownership_relation"]
           source?: string
           source_url?: string | null
           updated_at?: string
@@ -547,6 +547,7 @@ export type Database = {
         Row: {
           created_at: string
           digest_time: string | null
+          exclude_same_parent: boolean
           id: string
           muted_categories: string[]
           notification_mode: string | null
@@ -558,6 +559,7 @@ export type Database = {
         Insert: {
           created_at?: string
           digest_time?: string | null
+          exclude_same_parent?: boolean
           id?: string
           muted_categories?: string[]
           notification_mode?: string | null
@@ -569,6 +571,7 @@ export type Database = {
         Update: {
           created_at?: string
           digest_time?: string | null
+          exclude_same_parent?: boolean
           id?: string
           muted_categories?: string[]
           notification_mode?: string | null
@@ -750,6 +753,11 @@ export type Database = {
         | "cultural-values"
         | "general"
       event_orientation: "positive" | "negative" | "mixed"
+      ownership_relation:
+        | "brand_of"
+        | "division_of"
+        | "subsidiary_of"
+        | "acquired_by"
       verification_level: "unverified" | "corroborated" | "official"
     }
     CompositeTypes: {
@@ -888,6 +896,12 @@ export const Constants = {
         "general",
       ],
       event_orientation: ["positive", "negative", "mixed"],
+      ownership_relation: [
+        "brand_of",
+        "division_of",
+        "subsidiary_of",
+        "acquired_by",
+      ],
       verification_level: ["unverified", "corroborated", "official"],
     },
   },

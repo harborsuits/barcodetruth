@@ -30,6 +30,7 @@ export const Settings = () => {
   const [notificationMode, setNotificationMode] = useState<"instant" | "digest">("instant");
   const [digestTime, setDigestTime] = useState("18:00");
   const [politicalAlignment, setPoliticalAlignment] = useState<string | null>(null);
+  const [excludeSameParent, setExcludeSameParent] = useState(true);
 
   useEffect(() => {
     const saved = localStorage.getItem("userValues");
@@ -49,7 +50,7 @@ export const Settings = () => {
       if (user) {
         const { data } = await supabase
           .from('user_preferences')
-          .select('muted_categories, notification_mode, political_alignment, value_weights, digest_time')
+          .select('muted_categories, notification_mode, political_alignment, value_weights, digest_time, exclude_same_parent')
           .eq('user_id', user.id)
           .maybeSingle();
         
@@ -71,6 +72,9 @@ export const Settings = () => {
           }
           if (data.digest_time) {
             setDigestTime(data.digest_time);
+          }
+          if (typeof data.exclude_same_parent === 'boolean') {
+            setExcludeSameParent(data.exclude_same_parent);
           }
         }
       }
@@ -116,6 +120,7 @@ export const Settings = () => {
           political_alignment: politicalAlignment,
           value_weights: values,
           digest_time: digestTime,
+          exclude_same_parent: excludeSameParent,
         });
     }
     
@@ -388,6 +393,27 @@ export const Settings = () => {
                 id="nuance-mode"
                 checked={nuanceMode}
                 onCheckedChange={setNuanceMode}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Alternatives</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label htmlFor="exclude-parent">Hide Same-Parent Alternatives</Label>
+                <p className="text-sm text-muted-foreground">
+                  Don't show alternatives owned by the same parent company
+                </p>
+              </div>
+              <Switch
+                id="exclude-parent"
+                checked={excludeSameParent}
+                onCheckedChange={setExcludeSameParent}
               />
             </div>
           </CardContent>
