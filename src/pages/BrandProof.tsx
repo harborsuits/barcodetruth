@@ -15,6 +15,7 @@ export default function BrandProof() {
   const [data, setData] = useState<BrandProofResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAllByComponent, setShowAllByComponent] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!id) return;
@@ -217,15 +218,34 @@ export default function BrandProof() {
                       </TooltipContent>
                     </Tooltip>
                   )}
+                  
+                  {block.syndicated_hidden_count > 0 && (
+                    <button
+                      className="text-xs underline ml-2 hover:opacity-70 transition-opacity"
+                      onClick={() => setShowAllByComponent(prev => ({
+                        ...prev,
+                        [block.component]: !prev[block.component]
+                      }))}
+                    >
+                      {showAllByComponent[block.component] 
+                        ? 'Hide syndicated copies' 
+                        : `Show syndicated copies (${block.syndicated_hidden_count} hidden)`}
+                    </button>
+                  )}
                 </div>
 
             <Separator />
 
                 <div className="space-y-3">
-                  {data.evidence[block.component]?.length > 0 ? (
-                    [...data.evidence[block.component]]
-                      .sort((a, b) => getVerificationOrder(a.verification) - getVerificationOrder(b.verification))
-                      .map((ev) => (
+                  {(() => {
+                    const evidenceList = showAllByComponent[block.component] 
+                      ? data.evidence_full[block.component] 
+                      : data.evidence[block.component];
+                    
+                    return evidenceList?.length > 0 ? (
+                      [...evidenceList]
+                        .sort((a, b) => getVerificationOrder(a.verification) - getVerificationOrder(b.verification))
+                        .map((ev) => (
                       <div key={ev.id} className="space-y-2">
                         <div className="text-sm flex items-center gap-2 flex-wrap">
                           <span className="font-medium text-foreground">{ev.source_name}</span>
@@ -279,11 +299,12 @@ export default function BrandProof() {
                       </blockquote>
                     )}
                   </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">No primary sources attached yet.</p>
-              )}
-            </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No primary sources attached yet.</p>
+                    );
+                  })()}
+                </div>
           </section>
         ))}
       </div>

@@ -26,6 +26,7 @@ export type CategoryProofSummary = {
   verified_count: number;
   independent_owners: number;
   proof_required: boolean;
+  syndicated_hidden_count: number;
 };
 
 export type BrandProofResponse = {
@@ -38,4 +39,5 @@ export type BrandProofResponse = {
   };
   breakdown: CategoryProofSummary[];
   evidence: Record<string, EvidenceItem[]>;
+  evidence_full: Record<string, EvidenceItem[]>;
 };

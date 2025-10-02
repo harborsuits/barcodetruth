@@ -60,57 +60,75 @@ Deno.serve(async (req) => {
       (scoreRow.score_labor + scoreRow.score_environment + scoreRow.score_politics + scoreRow.score_social) / 4
     );
 
-    // Fetch deduplicated evidence per component (one per owner per day)
-    const { data: rawEvidence } = await supabase
+    // Fetch BOTH full and deduplicated evidence
+    const { data: fullEvidence } = await supabase
+      .from('brand_evidence_view')
+      .select('*')
+      .eq('brand_id', brandId)
+      .in('score_component', components)
+      .limit(500);
+
+    const { data: dedupEvidence } = await supabase
       .from('brand_evidence_independent')
       .select('*')
       .eq('brand_id', brandId)
       .in('category', components)
-      .limit(100);
+      .limit(500);
 
-    const evidenceByCat: Record<string, any[]> = { 
+    // Helper to shape rows
+    const toItem = (row: any) => ({
+      id: row.evidence_id ?? row.id,
+      event_id: row.event_id,
+      brand_id: row.brand_id,
+      category: row.category ?? row.score_component,
+      source_name: row.source_name || 'Unknown Source',
+      source_url: row.source_url,
+      archive_url: row.archive_url,
+      source_date: row.source_date,
+      snippet: row.snippet,
+      verification: row.verification || 'unverified',
+      domain_owner: row.domain_owner || 'Unknown',
+      domain_kind: row.domain_kind || 'publisher',
+    });
+
+    const fullByCat: Record<string, any[]> = { 
       labor: [], 
       environment: [], 
       politics: [], 
       social: [] 
     };
+    (fullEvidence || []).forEach((row: any) => {
+      const comp = row.score_component;
+      if (fullByCat[comp]) fullByCat[comp].push(toItem(row));
+    });
 
-    (rawEvidence || []).forEach((row: any) => {
-      const item = {
-        id: row.id,
-        event_id: row.event_id,
-        brand_id: row.brand_id,
-        category: row.category,
-        source_name: row.source_name || 'Unknown Source',
-        source_url: row.source_url,
-        archive_url: row.archive_url,
-        source_date: row.source_date,
-        snippet: row.snippet,
-        verification: row.verification || 'unverified',
-        domain_owner: row.domain_owner || 'Unknown',
-        domain_kind: row.domain_kind || 'publisher',
-      };
-      if (evidenceByCat[row.category]) {
-        evidenceByCat[row.category].push(item);
+    const dedupByCat: Record<string, any[]> = { 
+      labor: [], 
+      environment: [], 
+      politics: [], 
+      social: [] 
+    };
+    (dedupEvidence || []).forEach((row: any) => {
+      if (dedupByCat[row.category]) {
+        dedupByCat[row.category].push(toItem(row));
       }
     });
 
     // Build breakdown summary for each component
     const breakdownSummary = components.map(comp => {
       const catData = breakdown[comp] || {};
-      const evidence = evidenceByCat[comp] || [];
-      const verifiedCount = evidence.filter((e: any) => 
-        e.verification === 'official' || e.verification === 'corroborated'
-      ).length;
-      
-      // Count independent owners among verified sources
-      const verifiedSources = evidence.filter((e: any) => 
+      const evidenceFull = fullByCat[comp] || [];
+      const evidenceDedup = dedupByCat[comp] || [];
+
+      // Verified/independence calculations use DEDUPED list
+      const verifiedDedup = evidenceDedup.filter((e: any) => 
         e.verification === 'official' || e.verification === 'corroborated'
       );
-      const independentOwners = new Set(verifiedSources.map((e: any) => e.domain_owner)).size;
+      const verifiedCount = verifiedDedup.length;
+      const independentOwners = new Set(verifiedDedup.map((e: any) => e.domain_owner)).size;
       
       const delta = catData.windowDelta || 0;
-      const hasOfficial = verifiedSources.some((e: any) => e.verification === 'official');
+      const hasOfficial = verifiedDedup.some((e: any) => e.verification === 'official');
       
       // Proof gate: large delta needs ≥2 independent owners (or 1 if official present)
       const needsIndependence = Math.abs(delta) > 5 && independentOwners < 2 && !hasOfficial;
@@ -123,10 +141,11 @@ Deno.serve(async (req) => {
         window_delta: delta,
         value: scoreRow[`score_${comp}` as keyof typeof scoreRow] as number,
         confidence: catData.confidence || 50,
-        evidence_count: evidence.length,
+        evidence_count: evidenceDedup.length,
         verified_count: verifiedCount,
         independent_owners: independentOwners,
         proof_required: proofRequired,
+        syndicated_hidden_count: Math.max(0, evidenceFull.length - evidenceDedup.length),
       };
     });
 
@@ -143,7 +162,8 @@ Deno.serve(async (req) => {
         confidence: avgConf,
       },
       breakdown: breakdownSummary,
-      evidence: evidenceByCat,
+      evidence: dedupByCat,
+      evidence_full: fullByCat,
     };
 
     console.info('[proof:view]', {
@@ -156,6 +176,9 @@ Deno.serve(async (req) => {
         ev: b.evidence_count,
         pr: b.proof_required,
       })),
+      hiddenByDedup: Object.fromEntries(
+        payload.breakdown.map(b => [b.component, b.syndicated_hidden_count])
+      ),
     });
 
     return new Response(
