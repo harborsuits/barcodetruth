@@ -103,7 +103,9 @@ function blendStable(opts: {
 // GDELT tone fetcher
 async function fetchGdeltTone(brandName: string): Promise<{ medianTone: number; docCount: number }> {
   try {
-    const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(brandName)}&timespan=24m&mode=ArtList&format=json&maxrecords=250`;
+    // Quote brand name and filter to English for better precision
+    const q = `"${brandName}" sourcelang:english`;
+    const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(q)}&timespan=24m&mode=ArtList&format=json&maxrecords=250`;
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
     if (!res.ok) {
       console.warn(`[GDELT] fetch failed: ${res.status}`);
@@ -117,10 +119,17 @@ async function fetchGdeltTone(brandName: string): Promise<{ medianTone: number; 
       .map((a: any) => Number(a.tone))
       .filter((t: number) => !isNaN(t) && isFinite(t));
     
-    if (tones.length === 0) return { medianTone: 0, docCount: 0 };
+    if (tones.length < 30) {
+      return { medianTone: 0, docCount: tones.length }; // Insufficient data for baseline
+    }
     
-    const sorted = tones.sort((a: number, b: number) => a - b);
-    const median = sorted[Math.floor(sorted.length / 2)] ?? 0;
+    // Winsorized median (trim extreme 5% outliers for robustness)
+    const sorted = [...tones].sort((a: number, b: number) => a - b);
+    const lo = Math.floor(0.05 * sorted.length);
+    const hi = Math.ceil(0.95 * sorted.length) - 1;
+    const clipped = sorted.slice(lo, hi + 1);
+    const median = clipped[Math.floor(clipped.length / 2)] ?? 0;
+    
     return { medianTone: median, docCount: tones.length };
   } catch (e) {
     console.error('[GDELT] error:', e);
