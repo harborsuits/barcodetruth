@@ -65,18 +65,18 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-2">
+        <Button variant="ghost" size="sm" className="gap-2" data-testid="ownership-drawer-trigger">
           <Building2 className="h-4 w-4" />
           {isLoading ? (
             'Loading...'
           ) : hasOwnership ? (
-            `Owned by ${data.upstream[0].brand.name}`
+            <span data-testid="parent-company-name">Owned by {data.upstream[0].brand.name}</span>
           ) : (
             'Ownership info'
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent>
+      <SheetContent data-testid="ownership-drawer">
         <SheetHeader>
           <SheetTitle>Corporate Ownership</SheetTitle>
           <SheetDescription>
@@ -203,7 +203,7 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 space-y-2">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <p className="font-medium">{parent.brand.name}</p>
+                                 <p className="font-medium">{parent.brand.name}</p>
                                 {!isSingleHop && (
                                   <Badge 
                                     variant={isTopParent ? "secondary" : "outline"} 
@@ -214,7 +214,7 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
                                   </Badge>
                                 )}
                                 {isTopParent && data.upstream.length > 1 && (
-                                  <Badge variant="secondary" className="text-xs ml-auto">
+                                  <Badge variant="secondary" className="text-xs ml-auto" data-testid="top-parent-badge">
                                     Top Parent
                                   </Badge>
                                 )}
@@ -223,6 +223,7 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
                                 variant="outline" 
                                 className="text-xs capitalize w-fit"
                                 aria-label={`Relationship: ${getRelationshipLabel(parent.relationship)}`}
+                                data-testid="relationship-chip"
                               >
                                 {getRelationshipLabel(parent.relationship)}
                               </Badge>
@@ -247,15 +248,15 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
                             ))}
                             {parent.confidence && parent.confidence < 95 && (
                               parent.confidence >= 90 ? (
-                                <Badge variant="default" className="text-xs">
+                                <Badge variant="default" className="text-xs" data-testid="confidence-indicator">
                                   High confidence ({parent.confidence}%)
                                 </Badge>
                               ) : parent.confidence >= 70 ? (
-                                <Badge variant="secondary" className="text-xs">
+                                <Badge variant="secondary" className="text-xs" data-testid="confidence-indicator">
                                   {parent.confidence}% confidence
                                 </Badge>
                               ) : (
-                                <Badge variant="outline" className="text-xs">
+                                <Badge variant="outline" className="text-xs" data-testid="confidence-indicator">
                                   Low confidence ({parent.confidence}%)
                                 </Badge>
                               )
@@ -292,7 +293,7 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
                 <div className="space-y-2 rounded-lg bg-muted p-3 text-xs">
                   <p className="font-medium">Data Sources</p>
                   <div className="space-y-1">
-                    {data.sources.map((source, idx) => (
+                     {data.sources.map((source, idx) => (
                       <div key={idx} className="flex items-center justify-between">
                         <span>{source.name}</span>
                         {source.url && (
@@ -301,6 +302,7 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-muted-foreground hover:text-foreground"
+                            data-testid="source-link"
                           >
                             <ExternalLink className="h-3 w-3" />
                           </a>
