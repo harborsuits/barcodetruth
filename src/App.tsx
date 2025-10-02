@@ -15,6 +15,7 @@ import { NotFound } from "./pages/NotFound";
 // Lazy load heavy routes
 const Home = lazyNamed(() => import("./pages/Home"), "Home");
 const BrandDetail = lazyNamed(() => import("./pages/BrandDetail"), "BrandDetail");
+const BrandProof = lazyNamed(() => import("./pages/BrandProof"), "default");
 const Scan = lazyNamed(() => import("./pages/Scan"), "Scan");
 const ScanResult = lazyNamed(() => import("./pages/ScanResult"), "default");
 const Trending = lazyNamed(() => import("./pages/Trending"), "Trending");
@@ -133,6 +134,18 @@ const App = () => (
                 <RouteErrorBoundary>
                   <Suspense fallback={<RouteFallback label="Loading admin review…" />}>
                     <AdminReview />
+                  </Suspense>
+                </RouteErrorBoundary>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/brands/:id/proof"
+            element={
+              <ProtectedRoute>
+                <RouteErrorBoundary>
+                  <Suspense fallback={<RouteFallback label="Loading proof…" />}>
+                    <BrandProof />
                   </Suspense>
                 </RouteErrorBoundary>
               </ProtectedRoute>

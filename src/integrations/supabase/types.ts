@@ -380,6 +380,20 @@ export type Database = {
             referencedRelation: "brand_events"
             referencedColumns: ["event_id"]
           },
+          {
+            foreignKeyName: "event_sources_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_evidence_view"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_sources_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_evidence_view"
+            referencedColumns: ["evidence_id"]
+          },
         ]
       }
       jobs: {
@@ -688,6 +702,30 @@ export type Database = {
       }
     }
     Views: {
+      brand_evidence_view: {
+        Row: {
+          archive_url: string | null
+          brand_id: string | null
+          category: Database["public"]["Enums"]["event_category"] | null
+          event_id: string | null
+          evidence_id: string | null
+          score_component: string | null
+          snippet: string | null
+          source_date: string | null
+          source_name: string | null
+          source_url: string | null
+          verification: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_coalescing_effectiveness: {
         Row: {
           coalesced: number | null

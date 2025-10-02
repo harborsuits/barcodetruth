@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { Link } from "react-router-dom";
 import { EventCard } from "./EventCard";
 import { Badge } from "./ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
@@ -57,11 +58,19 @@ export function WhyThisScore({ brandId, impacts }: WhyThisScoreProps) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="text-sm font-medium text-muted-foreground">Score Drivers</h3>
-        <Badge variant="outline" className="text-xs">
-          EPA, OSHA, FEC & public records
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs">
+            EPA, OSHA, FEC & public records
+          </Badge>
+          <Link 
+            to={`/brands/${brandId}/proof`}
+            className="text-xs text-primary hover:underline"
+          >
+            View evidence →
+          </Link>
+        </div>
       </div>
       
       <div className="space-y-2">

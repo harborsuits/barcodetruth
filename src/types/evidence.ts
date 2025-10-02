@@ -1,0 +1,39 @@
+export type VerificationLevel = 'official' | 'corroborated' | 'unverified';
+
+export type EvidenceItem = {
+  id: string;
+  event_id: string;
+  brand_id: string;
+  category: 'labor' | 'environment' | 'politics' | 'social';
+  score_component: string;
+  source_name: string;
+  source_url: string | null;
+  archive_url: string | null;
+  source_date: string | null;
+  snippet?: string | null;
+  verification: VerificationLevel;
+};
+
+export type CategoryProofSummary = {
+  component: string;
+  base: number;
+  base_reason: string;
+  window_delta: number;
+  value: number;
+  confidence: number;
+  evidence_count: number;
+  verified_count: number;
+  proof_required: boolean;
+};
+
+export type BrandProofResponse = {
+  brandId: string;
+  brandName: string;
+  updatedAt: string;
+  totals: {
+    totalScore: number;
+    confidence: number;
+  };
+  breakdown: CategoryProofSummary[];
+  evidence: Record<string, EvidenceItem[]>;
+};
