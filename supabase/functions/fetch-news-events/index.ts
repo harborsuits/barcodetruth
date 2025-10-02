@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { parse } from "https://esm.sh/tldts@6.1.9";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,6 +22,66 @@ export const normalizeUrl = (raw: string) => {
     return raw;
   }
 };
+
+// URL canonicalization for deduplication
+function canonicalizeUrl(u: string): string {
+  try {
+    const url = new URL(u);
+    const trackingParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'fbclid', 'mc_cid', 'mc_eid', 'msclkid', '_ga'];
+    trackingParams.forEach(p => url.searchParams.delete(p));
+    const sortedParams = [...url.searchParams.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join('&');
+    url.search = sortedParams ? `?${sortedParams}` : '';
+    url.pathname = url.pathname.replace(/^\/amp\/?/, '/').replace(/\/amp\/?$/, '/');
+    if (url.pathname !== '/' && url.pathname.endsWith('/')) url.pathname = url.pathname.slice(0, -1);
+    return url.toString();
+  } catch { return u; }
+}
+
+function registrableDomain(u: string): string | null {
+  try {
+    const parsed = parse(u);
+    return parsed.domain || null;
+  } catch { return null; }
+}
+
+function textFingerprint(title: string, snippet?: string): string {
+  const str = `${title} ${snippet || ''}`.toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
+  const tokens = str.split(/\s+/).filter(Boolean);
+  const top = tokens.slice(0, 30).join(' ');
+  let h = BigInt('14695981039346656037');
+  for (let i = 0; i < top.length; i++) {
+    h ^= BigInt(top.charCodeAt(i));
+    h *= BigInt('1099511628211');
+  }
+  return h.toString(16);
+}
+
+async function enrichSourceOwnership(supabase: any, sourceId: string, url: string, title?: string, snippet?: string, sourceDate?: string) {
+  const domain = registrableDomain(url);
+  const canonical = canonicalizeUrl(url);
+  const fp = textFingerprint(title || '', snippet);
+  const dayBucket = sourceDate ? new Date(sourceDate).toISOString().slice(0, 10) : null;
+
+  let owner = 'Unknown';
+  let kind = 'publisher';
+  
+  if (domain) {
+    const { data: org } = await supabase.from('news_orgs').select('owner, kind').eq('domain', domain).maybeSingle();
+    if (org) {
+      owner = org.owner;
+      kind = org.kind;
+    }
+  }
+
+  await supabase.from('event_sources').update({
+    canonical_url: canonical,
+    registrable_domain: domain,
+    domain_owner: owner,
+    domain_kind: kind,
+    title_fp: fp,
+    day_bucket: dayBucket
+  }).eq('id', sourceId);
+}
 
 export const fetchWithTimeout = (url: string, timeoutMs = 8000, init?: RequestInit) => {
   return Promise.race([
@@ -371,7 +432,7 @@ serve(async (req) => {
       }
 
       // Insert source for attribution
-      const { error: sourceError } = await supabase
+      const { data: sourceData, error: sourceError } = await supabase
         .from('event_sources')
         .insert({
           event_id: eventData.event_id,
@@ -379,12 +440,20 @@ serve(async (req) => {
           source_url: normalizedUrl,
           quote: article.summary?.slice(0, 200),
           source_date: article.published_at,
-        });
+        })
+        .select('id')
+        .single();
 
       if (sourceError) {
         console.error('[fetch-news-events] Error inserting source:', sourceError);
       } else {
         events.push(eventData.event_id);
+        
+        // Enrich source with ownership & normalization data (fire-and-forget)
+        if (sourceData?.id) {
+          enrichSourceOwnership(supabase, sourceData.id, normalizedUrl, article.title, article.summary, article.published_at)
+            .catch(err => console.error('[fetch-news-events] Enrichment error:', err));
+        }
       }
     }
 

@@ -344,33 +344,51 @@ export type Database = {
       event_sources: {
         Row: {
           archive_url: string | null
+          canonical_url: string | null
           created_at: string
+          day_bucket: string | null
+          domain_kind: string | null
+          domain_owner: string | null
           event_id: string
           id: string
           quote: string | null
+          registrable_domain: string | null
           source_date: string | null
           source_name: string
           source_url: string | null
+          title_fp: string | null
         }
         Insert: {
           archive_url?: string | null
+          canonical_url?: string | null
           created_at?: string
+          day_bucket?: string | null
+          domain_kind?: string | null
+          domain_owner?: string | null
           event_id: string
           id?: string
           quote?: string | null
+          registrable_domain?: string | null
           source_date?: string | null
           source_name: string
           source_url?: string | null
+          title_fp?: string | null
         }
         Update: {
           archive_url?: string | null
+          canonical_url?: string | null
           created_at?: string
+          day_bucket?: string | null
+          domain_kind?: string | null
+          domain_owner?: string | null
           event_id?: string
           id?: string
           quote?: string | null
+          registrable_domain?: string | null
           source_date?: string | null
           source_name?: string
           source_url?: string | null
+          title_fp?: string | null
         }
         Relationships: [
           {
@@ -462,6 +480,27 @@ export type Database = {
           original_created_at?: string | null
           payload?: Json
           stage?: string
+        }
+        Relationships: []
+      }
+      news_orgs: {
+        Row: {
+          domain: string
+          kind: string
+          owner: string
+          updated_at: string
+        }
+        Insert: {
+          domain: string
+          kind?: string
+          owner: string
+          updated_at?: string
+        }
+        Update: {
+          domain?: string
+          kind?: string
+          owner?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -702,6 +741,53 @@ export type Database = {
       }
     }
     Views: {
+      brand_evidence_independent: {
+        Row: {
+          archive_url: string | null
+          brand_id: string | null
+          category: Database["public"]["Enums"]["event_category"] | null
+          domain_kind: string | null
+          domain_owner: string | null
+          event_id: string | null
+          id: string | null
+          registrable_domain: string | null
+          snippet: string | null
+          source_date: string | null
+          source_name: string | null
+          source_url: string | null
+          verification: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_sources_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_events"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_sources_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_evidence_view"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_sources_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_evidence_view"
+            referencedColumns: ["evidence_id"]
+          },
+        ]
+      }
       brand_evidence_view: {
         Row: {
           archive_url: string | null
@@ -832,6 +918,10 @@ export type Database = {
           p_stage: string
         }
         Returns: undefined
+      }
+      verification_rank: {
+        Args: { v: string }
+        Returns: number
       }
     }
     Enums: {

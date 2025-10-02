@@ -194,6 +194,17 @@ export default function BrandProof() {
                     </TooltipContent>
                   </Tooltip>
                   
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge variant={block.independent_owners >= 2 ? "default" : "secondary"}>
+                        {block.independent_owners} independent {block.independent_owners === 1 ? 'outlet' : 'outlets'}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Distinct ownership groups; large deltas require ≥2 independent sources</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  
                   <Badge variant="outline">Confidence {block.confidence}/100</Badge>
                   
                   {block.proof_required && (
@@ -202,7 +213,7 @@ export default function BrandProof() {
                         <Badge variant="destructive">Proof required</Badge>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Change detected but not yet verified by a trusted source. Delta is muted until verification.</p>
+                        <p>Change detected but awaiting independent confirmation. Delta is muted until verified.</p>
                       </TooltipContent>
                     </Tooltip>
                   )}
@@ -218,14 +229,23 @@ export default function BrandProof() {
                       <div key={ev.id} className="space-y-2">
                         <div className="text-sm flex items-center gap-2 flex-wrap">
                           <span className="font-medium text-foreground">{ev.source_name}</span>
+                          {ev.domain_owner && ev.domain_owner !== 'Unknown' && (
+                            <span className="text-xs text-muted-foreground">({ev.domain_owner})</span>
+                          )}
                           {ev.source_date && (
                             <span className="text-muted-foreground">
                               · {formatDate(ev.source_date)}
                             </span>
                           )}
                           <span className="text-muted-foreground">·</span>
+                          <span 
+                            className={`text-xs font-medium px-1.5 py-0.5 rounded ${getVerificationColor(ev.verification)}`}
+                          >
+                            {ev.verification}
+                          </span>
                           {ev.source_url && (
                             <>
+                              <span className="text-muted-foreground">·</span>
                               <a
                                 className="underline hover:text-primary"
                                 href={ev.source_url}

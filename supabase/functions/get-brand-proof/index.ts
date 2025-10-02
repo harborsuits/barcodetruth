@@ -60,12 +60,12 @@ Deno.serve(async (req) => {
       (scoreRow.score_labor + scoreRow.score_environment + scoreRow.score_politics + scoreRow.score_social) / 4
     );
 
-    // Fetch evidence per component
+    // Fetch deduplicated evidence per component (one per owner per day)
     const { data: rawEvidence } = await supabase
-      .from('brand_evidence_view')
+      .from('brand_evidence_independent')
       .select('*')
       .eq('brand_id', brandId)
-      .in('score_component', components)
+      .in('category', components)
       .limit(100);
 
     const evidenceByCat: Record<string, any[]> = { 
@@ -77,20 +77,21 @@ Deno.serve(async (req) => {
 
     (rawEvidence || []).forEach((row: any) => {
       const item = {
-        id: row.evidence_id,
+        id: row.id,
         event_id: row.event_id,
         brand_id: row.brand_id,
         category: row.category,
-        score_component: row.score_component,
         source_name: row.source_name || 'Unknown Source',
         source_url: row.source_url,
         archive_url: row.archive_url,
         source_date: row.source_date,
         snippet: row.snippet,
         verification: row.verification || 'unverified',
+        domain_owner: row.domain_owner || 'Unknown',
+        domain_kind: row.domain_kind || 'publisher',
       };
-      if (evidenceByCat[row.score_component]) {
-        evidenceByCat[row.score_component].push(item);
+      if (evidenceByCat[row.category]) {
+        evidenceByCat[row.category].push(item);
       }
     });
 
@@ -102,8 +103,18 @@ Deno.serve(async (req) => {
         e.verification === 'official' || e.verification === 'corroborated'
       ).length;
       
+      // Count independent owners among verified sources
+      const verifiedSources = evidence.filter((e: any) => 
+        e.verification === 'official' || e.verification === 'corroborated'
+      );
+      const independentOwners = new Set(verifiedSources.map((e: any) => e.domain_owner)).size;
+      
       const delta = catData.windowDelta || 0;
-      const proofRequired = Math.abs(delta) > 5 && verifiedCount === 0;
+      const hasOfficial = verifiedSources.some((e: any) => e.verification === 'official');
+      
+      // Proof gate: large delta needs ≥2 independent owners (or 1 if official present)
+      const needsIndependence = Math.abs(delta) > 5 && independentOwners < 2 && !hasOfficial;
+      const proofRequired = Math.abs(delta) > 5 && (verifiedCount === 0 || needsIndependence);
 
       return {
         component: comp,
@@ -114,6 +125,7 @@ Deno.serve(async (req) => {
         confidence: catData.confidence || 50,
         evidence_count: evidence.length,
         verified_count: verifiedCount,
+        independent_owners: independentOwners,
         proof_required: proofRequired,
       };
     });

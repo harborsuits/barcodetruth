@@ -5,13 +5,14 @@ export type EvidenceItem = {
   event_id: string;
   brand_id: string;
   category: 'labor' | 'environment' | 'politics' | 'social';
-  score_component: string;
   source_name: string;
   source_url: string | null;
   archive_url: string | null;
   source_date: string | null;
   snippet?: string | null;
   verification: VerificationLevel;
+  domain_owner?: string;
+  domain_kind?: string;
 };
 
 export type CategoryProofSummary = {
@@ -23,6 +24,7 @@ export type CategoryProofSummary = {
   confidence: number;
   evidence_count: number;
   verified_count: number;
+  independent_owners: number;
   proof_required: boolean;
 };
 
