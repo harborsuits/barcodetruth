@@ -23,138 +23,6 @@ import { topImpacts } from "@/lib/events";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-// Updated events data matching unified structure
-const eventsData: Record<string, BrandEvent> = {
-  event1: {
-    event_id: "event1",
-    brand_id: "nike",
-    category: "labor",
-    description: "Workers at manufacturing facilities reported wage and safety concerns.",
-    date: "2024-11-20",
-    severity: "moderate",
-    verification: "corroborated",
-    orientation: "negative",
-    impact: { labor: -15, social: -5 },
-    sources: [
-      {
-        name: "The Guardian",
-        url: "https://theguardian.com/nike-factory-2024",
-        date: "2024-11-20",
-        quote: "Workers reported extended shifts without adequate breaks, raising concerns about workplace conditions."
-      },
-      {
-        name: "Reuters",
-        url: "https://reuters.com/nike-wages-2024",
-        date: "2024-11-22",
-        quote: "Independent audits confirmed discrepancies in wage calculations at multiple supplier facilities."
-      }
-    ],
-    jurisdiction: "Southeast Asia",
-  },
-  event2: {
-    event_id: "event2",
-    brand_id: "nike",
-    category: "politics",
-    description: "FEC filings show $2.5M in political donations across parties.",
-    date: "2025-01-15",
-    severity: "minor",
-    verification: "official",
-    orientation: "negative",
-    impact: { politics: -10 },
-    sources: [
-      {
-        name: "Federal Election Commission",
-        url: "https://fec.gov/nike-donations-2025",
-        date: "2025-01-15",
-        quote: "Nike PAC contributed $2.5M to federal candidates during the 2024 election cycle."
-      }
-    ],
-    jurisdiction: "US",
-  },
-  event3: {
-    event_id: "event3",
-    brand_id: "nike",
-    category: "environment",
-    description: "Company pledged to achieve carbon neutrality by 2030 with third-party verification.",
-    date: "2025-01-08",
-    severity: "minor",
-    verification: "official",
-    orientation: "positive",
-    impact: { environment: 12 },
-    sources: [
-      {
-        name: "Bloomberg",
-        url: "https://bloomberg.com/nike-carbon-2025",
-        date: "2025-01-08",
-        quote: "Nike announced a comprehensive plan to reduce emissions by 50% across its global supply chain within five years."
-      }
-    ],
-    jurisdiction: "Global",
-  }
-};
-
-// Mock data
-const brandData: Record<string, any> = {
-  nike: {
-    name: "Nike",
-    parent_company: "Nike, Inc.",
-    overall_score: 72,
-    last_updated: "2025-01-15",
-    signals: {
-      labor: { score: 65, risk_level: "medium", recent_events: ["event1"] },
-      environment: { score: 78, risk_level: "low", recent_events: ["event3"] },
-      politics: { score: 60, donations_total: 2500000, party_breakdown: { D: 60, R: 40, Other: 0 }, recent_events: ["event2"] },
-      social: { score: 85, risk_level: "low", recent_events: [] },
-    },
-    trending: { velocity: "stable", sentiment_shift: -5 },
-    community_insights: { percent_avoid: 23, trend_change: "+5%" },
-    alternatives: [
-      { 
-        brand_id: "allbirds", 
-        name: "Allbirds", 
-        score: 89, 
-        why: "Higher labor score (+15) and comprehensive environmental transparency", 
-        price_context: "~15% more",
-        sources: [
-          { 
-            name: "Bloomberg", 
-            date: "2025-08-10",
-            url: "https://bloomberg.com/allbirds-carbon-2025"
-          }
-        ]
-      },
-      { 
-        brand_id: "veja", 
-        name: "Veja", 
-        score: 87, 
-        why: "Transparent supply chain with fair trade certification", 
-        price_context: "Similar price",
-        sources: [
-          { 
-            name: "Fair Trade International", 
-            date: "2025-06-15"
-          }
-        ]
-      },
-    ],
-  },
-  patagonia: {
-    name: "Patagonia",
-    parent_company: "Patagonia, Inc.",
-    overall_score: 91,
-    last_updated: "2025-01-20",
-    signals: {
-      labor: { score: 92, risk_level: "low", recent_events: [] },
-      environment: { score: 95, risk_level: "low", recent_events: [] },
-      politics: { score: 85, donations_total: 1000000, party_breakdown: { D: 80, R: 10, Other: 10 }, recent_events: [] },
-      social: { score: 92, risk_level: "low", recent_events: [] },
-    },
-    trending: { velocity: "rising", sentiment_shift: 12 },
-    community_insights: { percent_avoid: 3, trend_change: "-2%" },
-    alternatives: [],
-  },
-};
-
 export const BrandDetail = () => {
   const { brandId } = useParams();
   const navigate = useNavigate();
@@ -163,7 +31,62 @@ export const BrandDetail = () => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<"all" | "labor" | "environment" | "politics" | "cultural-values">("all");
   
-  const brand = brandData[brandId || ""] || brandData.nike;
+  // Fetch brand data
+  const { data: brand, isLoading: brandLoading } = useQuery({
+    queryKey: ['brand', brandId],
+    queryFn: async () => {
+      if (!brandId) throw new Error("Brand ID required");
+      
+      // Get brand info
+      const { data: brandData, error: brandError } = await supabase
+        .from('brands')
+        .select('id, name, parent_company, updated_at')
+        .eq('id', brandId)
+        .single();
+      
+      if (brandError) throw brandError;
+      
+      // Get scores
+      const { data: scores } = await supabase
+        .from('brand_scores')
+        .select('score_labor, score_environment, score_politics, score_social, last_updated')
+        .eq('brand_id', brandId)
+        .maybeSingle();
+      
+      // Get recent events (last 12 months)
+      const twelveMonthsAgo = new Date();
+      twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+      
+      const { data: events } = await supabase
+        .from('brand_events')
+        .select('*')
+        .eq('brand_id', brandId)
+        .gte('event_date', twelveMonthsAgo.toISOString())
+        .order('event_date', { ascending: false });
+      
+      const overallScore = scores 
+        ? Math.round((scores.score_labor + scores.score_environment + scores.score_politics + scores.score_social) / 4)
+        : 50;
+      
+      return {
+        name: brandData.name,
+        parent_company: brandData.parent_company || brandData.name,
+        overall_score: overallScore,
+        last_updated: scores?.last_updated || brandData.updated_at,
+        signals: {
+          labor: { score: scores?.score_labor || 50, risk_level: "low", recent_events: [] },
+          environment: { score: scores?.score_environment || 50, risk_level: "low", recent_events: [] },
+          politics: { score: scores?.score_politics || 50, risk_level: "low", recent_events: [] },
+          social: { score: scores?.score_social || 50, risk_level: "low", recent_events: [] },
+        },
+        events: events || [],
+        trending: { velocity: "stable", sentiment_shift: 0 },
+        community_insights: { percent_avoid: 0, trend_change: "0%" },
+        alternatives: [],
+      };
+    },
+    enabled: !!brandId,
+  });
 
   // Query for notification follow status
   const { data: followData } = useQuery({
@@ -355,6 +278,23 @@ export const BrandDetail = () => {
       </header>
 
       <main className="container max-w-screen-md mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {brandLoading ? (
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <p>Loading brand details...</p>
+            </CardContent>
+          </Card>
+        ) : !brand ? (
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <p>Brand not found</p>
+              <Button onClick={() => navigate('/')} className="mt-4">
+                Go Home
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
         {/* Overall Score */}
         <Card>
           <CardContent className="pt-6">
@@ -382,26 +322,11 @@ export const BrandDetail = () => {
               </div>
               
               {/* Why this matters */}
-              {Object.keys(brand.signals).length > 0 && (
+              {brand && brand.events && brand.events.length > 0 && (
                 <div className="pt-4 mt-4 border-t">
                   <p className="text-sm text-muted-foreground">
-                    <strong>Why this matters:</strong> {
-                      (() => {
-                        const impacts = topImpacts(brand.signals);
-                        if (impacts.length === 0) return "No significant recent activity.";
-                        
-                        const descriptions: string[] = [];
-                        impacts.forEach(item => {
-                          const signal = brand.signals[item.key];
-                          if (item.key === 'labor') descriptions.push(`labor practices`);
-                          if (item.key === 'environment') descriptions.push(`environmental impact`);
-                          if (item.key === 'politics') descriptions.push(`political activity`);
-                          if (item.key === 'social') descriptions.push(`community impact`);
-                        });
-                        
-                        return `Recent activity in ${descriptions.join(' and ')}.`;
-                      })()
-                    }
+                    <strong>Why this matters:</strong> Recent events show activity in{' '}
+                    {brand.events.slice(0, 2).map((e: any) => e.category).join(', ')}.
                   </p>
                 </div>
               )}
@@ -494,21 +419,38 @@ export const BrandDetail = () => {
                           </div>
                         )}
 
-                        {data.recent_events && data.recent_events.length > 0 && (
+                        {brand && brand.events && brand.events.length > 0 ? (
                           <div className="space-y-3">
                             <h4 className="font-medium">Recent Events</h4>
-                            {data.recent_events.map((eventId: string) => {
-                              const event = eventsData[eventId];
-                              if (!event) return null;
-                              
-                              return (
-                                <EventCard key={eventId} event={event} showFullDetails={true} />
-                              );
-                            })}
+                            {brand.events
+                              .filter((e: any) => e.category === category)
+                              .slice(0, 5)
+                              .map((event: any) => (
+                                <EventCard 
+                                  key={event.event_id} 
+                                  event={{
+                                    event_id: event.event_id,
+                                    brand_id: event.brand_id,
+                                    category: event.category,
+                                    description: event.description,
+                                    date: event.event_date || event.created_at,
+                                    severity: event.severity,
+                                    verification: event.verification,
+                                    orientation: event.orientation,
+                                    impact: {
+                                      labor: event.impact_labor || 0,
+                                      environment: event.impact_environment || 0,
+                                      politics: event.impact_politics || 0,
+                                      social: event.impact_social || 0,
+                                    },
+                                    sources: [],
+                                    jurisdiction: event.jurisdiction,
+                                  }} 
+                                  showFullDetails={true} 
+                                />
+                              ))}
                           </div>
-                        )}
-
-                        {(!data.recent_events || data.recent_events.length === 0) && (
+                        ) : (
                           <div className="text-center py-8 space-y-2">
                             <CheckCircle2 className="h-12 w-12 mx-auto text-success opacity-50" />
                             <p className="text-sm text-muted-foreground">
@@ -602,6 +544,8 @@ export const BrandDetail = () => {
             contextUrl={window.location.href}
           />
         </div>
+          </>
+        )}
       </main>
     </div>
   );
