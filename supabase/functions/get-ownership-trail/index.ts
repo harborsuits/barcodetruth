@@ -137,6 +137,14 @@ serve(async (req) => {
       ? Math.round(upstream.reduce((sum, u) => sum + u.confidence, 0) / upstream.length)
       : 0;
 
+    // Log outcome for monitoring
+    const stoppedReason = upstream.length === 0 ? 'no_parent' 
+      : depth === MAX_DEPTH ? 'max_depth' 
+      : seenIds.size > upstream.length + 1 ? 'loop' 
+      : 'complete';
+    
+    console.log(`[Ownership Trail] brand=${brandId}, depth=${upstream.length}, stopped=${stoppedReason}`);
+
     const response = {
       brand,
       upstream,

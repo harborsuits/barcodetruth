@@ -129,9 +129,14 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
               {/* Ownership Chain */}
               {data?.upstream && data.upstream.length > 0 && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-medium">
-                    {data.upstream.length === 1 ? 'Direct Owner' : 'Corporate Chain'}
-                  </h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium">
+                      {data.upstream.length === 1 ? 'Direct Owner' : 'Corporate Chain'}
+                    </h3>
+                    {data.upstream.length === 3 && (
+                      <span className="text-xs text-muted-foreground">Showing top 3 levels</span>
+                    )}
+                  </div>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm">
                       <span className="font-semibold">{brandName}</span>
@@ -140,8 +145,15 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
                     {data.upstream.map((parent, idx) => (
                       <div key={parent.brand.id} className="ml-4 space-y-2 border-l-2 pl-4">
                         <div className="flex items-start justify-between">
-                          <div>
-                            <p className="font-medium">{parent.brand.name}</p>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">{parent.brand.name}</p>
+                              {data.upstream.length > 1 && (
+                                <Badge variant="outline" className="text-xs">
+                                  {idx + 1}/{data.upstream.length}
+                                </Badge>
+                              )}
+                            </div>
                             <p className="text-xs text-muted-foreground capitalize">
                               {parent.relationship.replace('_', ' ')}
                             </p>
@@ -152,6 +164,7 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-xs text-muted-foreground hover:text-foreground"
+                              aria-label={`Visit ${parent.brand.name} website`}
                             >
                               <ExternalLink className="h-3 w-3" />
                             </a>
@@ -163,18 +176,20 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
                               {source.name}
                             </Badge>
                           ))}
-                          {parent.confidence >= 90 ? (
-                            <Badge variant="default" className="text-xs">
-                              High confidence ({parent.confidence}%)
-                            </Badge>
-                          ) : parent.confidence >= 70 ? (
-                            <Badge variant="secondary" className="text-xs">
-                              {parent.confidence}% confidence
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-xs">
-                              Low confidence ({parent.confidence}%)
-                            </Badge>
+                          {parent.confidence < 95 && (
+                            parent.confidence >= 90 ? (
+                              <Badge variant="default" className="text-xs">
+                                High confidence ({parent.confidence}%)
+                              </Badge>
+                            ) : parent.confidence >= 70 ? (
+                              <Badge variant="secondary" className="text-xs">
+                                {parent.confidence}% confidence
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">
+                                Low confidence ({parent.confidence}%)
+                              </Badge>
+                            )
                           )}
                         </div>
                       </div>
