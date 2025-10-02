@@ -37,6 +37,69 @@ const MONTHS_BETWEEN = (a: Date, b: Date): number => {
   return Math.max(0, diff);
 };
 
+// FEC party tilt calculation
+type PartySum = { dem: number; rep: number; other: number };
+
+function sumFecParty(raw: any, acc: PartySum): PartySum {
+  const party = (raw?.recipient_party || raw?.party || raw?.recipient?.party || '').toUpperCase();
+  const amt = Math.abs(Number(raw?.amount ?? raw?.total ?? 0)) || 0;
+  if (!amt) return acc;
+  if (party?.startsWith('DEM')) acc.dem += amt;
+  else if (party?.startsWith('REP')) acc.rep += amt;
+  else acc.other += amt;
+  return acc;
+}
+
+function politicsBaselineFromFEC(histEvents: any[]): { value: number; reason: string } {
+  const fecRows = histEvents.filter(e => e.category === 'politics' && e.raw_data);
+  if (fecRows.length < 3) return { value: 50, reason: 'Insufficient FEC history' };
+
+  const sums = fecRows.reduce((acc, e) => sumFecParty(e.raw_data, acc), { dem: 0, rep: 0, other: 0 } as PartySum);
+  const totalMajor = sums.dem + sums.rep;
+  if (totalMajor <= 0) return { value: 50, reason: 'Balanced or non-major recipients' };
+
+  const repShare = sums.rep / totalMajor;
+  if (repShare >= 0.80) return { value: 35, reason: `${Math.round(repShare*100)}% Republican tilt (FEC receipts)` };
+  if (repShare <= 0.20) return { value: 65, reason: `${Math.round((1-repShare)*100)}% Democratic tilt (FEC receipts)` };
+  return { value: 50, reason: 'Mixed FEC donations (±20%)' };
+}
+
+// Provenance extraction
+function envProvenanceReason(envEvents: any[]): string | null {
+  const ids = envEvents
+    .map(e => e.raw_data?.echo_case_id || e.raw_data?.case_id || e.raw_data?.facility_id || e.raw_data?.echo_facility_id)
+    .filter(Boolean)
+    .slice(0, 5);
+  if (ids.length === 0) return null;
+  return `EPA/ECHO refs: ${ids.join(', ')}`;
+}
+
+function laborProvenanceReason(labEvents: any[]): string | null {
+  const ids = labEvents
+    .map(e => e.raw_data?.osha_activity_id || e.raw_data?.inspection || e.raw_data?.enforcement_id)
+    .filter(Boolean)
+    .slice(0, 5);
+  if (ids.length === 0) return null;
+  return `OSHA refs: ${ids.join(', ')}`;
+}
+
+// Stable blend to avoid whiplash
+function blendStable(opts: {
+  base: number;
+  windowDelta: number;
+  evidenceCount: number;
+  verifiedCount: number;
+  windowDays: number;
+  per30DayCap?: number;
+}): number {
+  const { base, windowDelta, evidenceCount, verifiedCount, windowDays, per30DayCap = 10 } = opts;
+  const λ = Math.max(0.05, Math.min(0.6, 0.10 + 0.02*evidenceCount + 0.05*verifiedCount - 0.001*windowDays));
+  const target = base + windowDelta;
+  const blended = (1 - λ) * base + λ * target;
+  const cap = Math.max(5, per30DayCap * Math.max(1, windowDays / 30));
+  return Math.max(base - cap, Math.min(base + cap, blended));
+}
+
 // Inline severity computation (mirrors src/lib/severityConfig.ts logic)
 function computeSeverity(input: {
   category: Cat;
@@ -204,46 +267,32 @@ Deno.serve(async (req) => {
     // Per-category baseline logic
     const cats: Cat[] = ["labor","environment","politics","social"];
     const baselines: Record<Cat, { value: number; reason: string }> = {
-      labor: { value: 50, reason: "No historical data" },
-      environment: { value: 50, reason: "No historical data" },
-      politics: { value: 50, reason: "No historical data" },
-      social: { value: 50, reason: "No historical data" }
+      labor: { value: 50, reason: "No historical labor data" },
+      environment: { value: 50, reason: "No historical environment data" },
+      politics: { value: 50, reason: "No historical politics data" },
+      social: { value: 50, reason: "No historical social data" }
     };
 
     if (histEvents && histEvents.length > 0) {
-      // Politics: FEC donation lean
-      const polEvents = histEvents.filter(e => e.category === "politics");
-      if (polEvents.length >= 3) {
-        const totalAmt = polEvents.reduce((sum, e) => sum + Math.abs(Number(e.impact_politics || 0)), 0);
-        const negAmt = polEvents
-          .filter(e => e.orientation === "negative")
-          .reduce((sum, e) => sum + Math.abs(Number(e.impact_politics || 0)), 0);
-        const tiltPct = totalAmt > 0 ? (negAmt / totalAmt) * 100 : 50;
-        
-        if (tiltPct >= 80) {
-          baselines.politics = { value: 35, reason: `${Math.round(tiltPct)}% historical tilt (conservative-leaning)` };
-        } else if (tiltPct <= 20) {
-          baselines.politics = { value: 65, reason: `${Math.round(100 - tiltPct)}% historical tilt (progressive-leaning)` };
-        } else {
-          baselines.politics = { value: 50, reason: "Balanced donation history" };
-        }
-      }
+      // Politics: FEC party tilt (actual donor breakdown)
+      baselines.politics = politicsBaselineFromFEC(histEvents);
 
-      // Environment: EPA violation density
+      // Environment: EPA violation density + provenance
       const envEvents = histEvents.filter(e => e.category === "environment");
       if (envEvents.length >= 2) {
         const severeCount = envEvents.filter(e => {
           const qnc = Number(e.raw_data?.Qtrs_with_NC ?? e.raw_data?.qnc ?? 0);
           return qnc >= 4 || Number(e.impact_environment || 0) <= -5;
         }).length;
+        const prov = envProvenanceReason(envEvents);
         if (severeCount >= 2) {
-          baselines.environment = { value: 40, reason: "Chronic environmental offender (2+ severe violations)" };
+          baselines.environment = { value: 40, reason: `Chronic environmental offender (2+ severe in 24m). ${prov ?? ''}`.trim() };
         } else if (envEvents.length >= 4) {
-          baselines.environment = { value: 45, reason: "Repeated environmental issues" };
+          baselines.environment = { value: 45, reason: `Repeated environmental issues. ${prov ?? ''}`.trim() };
         }
       }
 
-      // Labor: OSHA violation density
+      // Labor: OSHA violation density + provenance
       const labEvents = histEvents.filter(e => e.category === "labor");
       if (labEvents.length >= 2) {
         const seriousCount = labEvents.filter(e => {
@@ -251,24 +300,15 @@ Deno.serve(async (req) => {
           const serious = Number(e.raw_data?.nr_serious ?? 0);
           return willful >= 1 || serious >= 3 || Number(e.impact_labor || 0) <= -5;
         }).length;
+        const prov = laborProvenanceReason(labEvents);
         if (seriousCount >= 2) {
-          baselines.labor = { value: 40, reason: "Chronic labor safety offender (2+ serious violations)" };
+          baselines.labor = { value: 40, reason: `Chronic labor safety offender (2+ serious/willful in 24m). ${prov ?? ''}`.trim() };
         } else if (labEvents.length >= 4) {
-          baselines.labor = { value: 45, reason: "Repeated labor issues" };
+          baselines.labor = { value: 45, reason: `Repeated labor issues. ${prov ?? ''}`.trim() };
         }
       }
 
-      // Social: News sentiment pattern
-      const socEvents = histEvents.filter(e => e.category === "social");
-      if (socEvents.length >= 3) {
-        const negCount = socEvents.filter(e => e.orientation === "negative").length;
-        const negPct = (negCount / socEvents.length) * 100;
-        if (negPct >= 75) {
-          baselines.social = { value: 40, reason: "Consistently negative press coverage" };
-        } else if (negPct >= 60) {
-          baselines.social = { value: 45, reason: "Predominantly negative press" };
-        }
-      }
+      // Social: Keep neutral for Phase 1 (GDELT in Phase 2)
     }
 
     // Initialize per-category scores from calculated baselines
@@ -286,6 +326,12 @@ Deno.serve(async (req) => {
     };
 
     const now = new Date();
+    const windowDays = Math.max(1, MONTHS_BETWEEN(now, windowStart) * 30.4375);
+
+    // Track window deltas and evidence per category
+    const deltas: Record<Cat, number> = { labor: 0, environment: 0, politics: 0, social: 0 };
+    const evidenceCount: Record<Cat, number> = { labor: 0, environment: 0, politics: 0, social: 0 };
+    const verifiedCount: Record<Cat, number> = { labor: 0, environment: 0, politics: 0, social: 0 };
 
     // Process each event
     for (const ev of (events || [])) {
@@ -322,7 +368,13 @@ Deno.serve(async (req) => {
       if (delta > 30) delta = 30;
       if (delta < -30) delta = -30;
 
-      totals[category] += delta;
+      deltas[category] += delta;
+      evidenceCount[category]++;
+      
+      // Count verified sources (government or corroborated)
+      if (ev.verification === 'official' || ev.verification === 'corroborated') {
+        verifiedCount[category]++;
+      }
 
       used[category].push({
         event_id: ev.event_id,
@@ -336,16 +388,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Clamp all scores to [0, 100]
+    // Apply stable blend with caps (anti-whiplash)
     for (const c of cats) {
-      totals[c] = Math.max(0, Math.min(100, Math.round(totals[c])));
+      totals[c] = Math.round(
+        blendStable({
+          base: baselines[c].value,
+          windowDelta: deltas[c],
+          evidenceCount: evidenceCount[c],
+          verifiedCount: verifiedCount[c],
+          windowDays
+        })
+      );
+      totals[c] = Math.max(0, Math.min(100, totals[c]));
     }
 
     // Build breakdown for UI transparency
     const breakdown = {
       window: {
         start: windowStart.toISOString(),
-        end: windowEnd.toISOString()
+        end: windowEnd.toISOString(),
+        days: Math.round(windowDays)
       },
       baselines: {
         labor: baselines.labor,
@@ -354,10 +416,42 @@ Deno.serve(async (req) => {
         social: baselines.social,
       },
       per_category: {
-        labor: { score: totals.labor, baseline: baselines.labor.value, events: used.labor },
-        environment: { score: totals.environment, baseline: baselines.environment.value, events: used.environment },
-        politics: { score: totals.politics, baseline: baselines.politics.value, events: used.politics },
-        social: { score: totals.social, baseline: baselines.social.value, events: used.social },
+        labor: { 
+          score: totals.labor, 
+          baseline: baselines.labor.value,
+          baseline_reason: baselines.labor.reason,
+          window_delta: Math.round(deltas.labor),
+          evidence_count: evidenceCount.labor,
+          verified_count: verifiedCount.labor,
+          events: used.labor 
+        },
+        environment: { 
+          score: totals.environment, 
+          baseline: baselines.environment.value,
+          baseline_reason: baselines.environment.reason,
+          window_delta: Math.round(deltas.environment),
+          evidence_count: evidenceCount.environment,
+          verified_count: verifiedCount.environment,
+          events: used.environment 
+        },
+        politics: { 
+          score: totals.politics, 
+          baseline: baselines.politics.value,
+          baseline_reason: baselines.politics.reason,
+          window_delta: Math.round(deltas.politics),
+          evidence_count: evidenceCount.politics,
+          verified_count: verifiedCount.politics,
+          events: used.politics 
+        },
+        social: { 
+          score: totals.social, 
+          baseline: baselines.social.value,
+          baseline_reason: baselines.social.reason,
+          window_delta: Math.round(deltas.social),
+          evidence_count: evidenceCount.social,
+          verified_count: verifiedCount.social,
+          events: used.social 
+        },
       }
     };
 
