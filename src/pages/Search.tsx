@@ -140,7 +140,7 @@ export default function Search() {
         )}
 
         {!isSearching && results.length > 0 && (
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-[70vh] overflow-y-auto">
             {results.map((brand, idx) => (
               <Card 
                 key={brand.id} 
@@ -149,6 +149,8 @@ export default function Search() {
                 }`}
                 onClick={() => navigate(`/brands/${brand.id}`)}
                 tabIndex={0}
+                role="button"
+                aria-label={`${brand.name}${brand.parent_company ? `, parent company: ${brand.parent_company}` : ''}`}
               >
                 <CardContent className="pt-4 pb-3">
                   <div 
