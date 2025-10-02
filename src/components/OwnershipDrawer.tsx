@@ -1,11 +1,12 @@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, ExternalLink, ArrowRight, HelpCircle } from "lucide-react";
+import { Building2, ExternalLink, ArrowRight, HelpCircle, Info } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState } from "react";
 
 interface BrandNode {
@@ -131,9 +132,30 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
               {data?.upstream && data.upstream.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium">
-                      {data.upstream.length === 1 ? 'Direct Owner' : 'Corporate Chain'}
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-medium">
+                        {data.upstream.length === 1 ? 'Direct Owner' : 'Corporate Chain'}
+                      </h3>
+                      {data.upstream.length > 1 && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button 
+                              className="text-muted-foreground hover:text-foreground"
+                              aria-label="Learn about corporate chains"
+                            >
+                              <Info className="h-3.5 w-3.5" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-72 text-xs">
+                            <p className="font-medium mb-1">Corporate Chain Explained</p>
+                            <p className="text-muted-foreground">
+                              We trace ownership through multiple levels to show you the ultimate parent company. 
+                              This helps you make informed decisions about who profits from your purchase.
+                            </p>
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    </div>
                     {data.upstream.length === 3 && (
                       <TooltipProvider>
                         <Tooltip>
@@ -154,58 +176,69 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
                       <span className="font-semibold">{brandName}</span>
                       <ArrowRight className="h-3 w-3 text-muted-foreground" />
                     </div>
-                    {data.upstream.map((parent, idx) => (
-                      <div key={parent.brand.id} className="ml-4 space-y-2 border-l-2 pl-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium">{parent.brand.name}</p>
-                              {data.upstream.length > 1 && (
-                                <Badge variant="outline" className="text-xs">
-                                  {idx + 1}/{data.upstream.length}
-                                </Badge>
-                              )}
+                    {data.upstream.map((parent, idx) => {
+                      const isTopParent = idx === data.upstream.length - 1;
+                      return (
+                        <div key={parent.brand.id} className="ml-4 space-y-2 border-l-2 pl-4">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 space-y-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-medium">{parent.brand.name}</p>
+                                {data.upstream.length > 1 && (
+                                  <Badge 
+                                    variant={isTopParent ? "secondary" : "outline"} 
+                                    className="text-xs"
+                                  >
+                                    {idx + 1}/{data.upstream.length}
+                                  </Badge>
+                                )}
+                                {isTopParent && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    Top Parent
+                                  </Badge>
+                                )}
+                              </div>
+                              <Badge variant="outline" className="text-xs capitalize w-fit">
+                                {parent.relationship.replace('_', ' ')}
+                              </Badge>
                             </div>
-                            <p className="text-xs text-muted-foreground capitalize">
-                              {parent.relationship.replace('_', ' ')}
-                            </p>
+                            {parent.brand.website && (
+                              <a
+                                href={parent.brand.website}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-muted-foreground hover:text-foreground"
+                                aria-label={`Visit ${parent.brand.name} website`}
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
                           </div>
-                          {parent.brand.website && (
-                            <a
-                              href={parent.brand.website}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-muted-foreground hover:text-foreground"
-                              aria-label={`Visit ${parent.brand.name} website`}
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
-                          )}
+                          <div className="flex flex-wrap items-center gap-2">
+                            {parent.sources.map((source, idx) => (
+                              <Badge key={idx} variant="outline" className="text-xs">
+                                {source.name}
+                              </Badge>
+                            ))}
+                            {parent.confidence < 95 && (
+                              parent.confidence >= 90 ? (
+                                <Badge variant="default" className="text-xs">
+                                  High confidence ({parent.confidence}%)
+                                </Badge>
+                              ) : parent.confidence >= 70 ? (
+                                <Badge variant="secondary" className="text-xs">
+                                  {parent.confidence}% confidence
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs">
+                                  Low confidence ({parent.confidence}%)
+                                </Badge>
+                              )
+                            )}
+                          </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {parent.sources.map((source, idx) => (
-                            <Badge key={idx} variant="outline" className="text-xs">
-                              {source.name}
-                            </Badge>
-                          ))}
-                          {parent.confidence < 95 && (
-                            parent.confidence >= 90 ? (
-                              <Badge variant="default" className="text-xs">
-                                High confidence ({parent.confidence}%)
-                              </Badge>
-                            ) : parent.confidence >= 70 ? (
-                              <Badge variant="secondary" className="text-xs">
-                                {parent.confidence}% confidence
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-xs">
-                                Low confidence ({parent.confidence}%)
-                              </Badge>
-                            )
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
