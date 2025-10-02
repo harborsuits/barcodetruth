@@ -100,6 +100,45 @@ function blendStable(opts: {
   return Math.max(base - cap, Math.min(base + cap, blended));
 }
 
+// GDELT tone fetcher
+async function fetchGdeltTone(brandName: string): Promise<{ medianTone: number; docCount: number }> {
+  try {
+    const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(brandName)}&timespan=24m&mode=ArtList&format=json&maxrecords=250`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) {
+      console.warn(`[GDELT] fetch failed: ${res.status}`);
+      return { medianTone: 0, docCount: 0 };
+    }
+    const data = await res.json();
+    if (!data.articles || !Array.isArray(data.articles)) {
+      return { medianTone: 0, docCount: 0 };
+    }
+    const tones = data.articles
+      .map((a: any) => Number(a.tone))
+      .filter((t: number) => !isNaN(t) && isFinite(t));
+    
+    if (tones.length === 0) return { medianTone: 0, docCount: 0 };
+    
+    const sorted = tones.sort((a: number, b: number) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)] ?? 0;
+    return { medianTone: median, docCount: tones.length };
+  } catch (e) {
+    console.error('[GDELT] error:', e);
+    return { medianTone: 0, docCount: 0 };
+  }
+}
+
+// Social baseline from GDELT tone
+function socialBaselineFromGdelt(medianTone: number, docCount: number): { value: number; reason: string } {
+  if (docCount < 30) return { value: 50, reason: 'Insufficient GDELT data (<30 docs)' };
+  const clamped = Math.max(-10, Math.min(10, medianTone));
+  const score = 50 + (clamped / 10) * 20; // linear map: -10→30, 0→50, +10→70
+  return { 
+    value: Math.round(score), 
+    reason: `Median GDELT tone ${medianTone.toFixed(1)} across ${docCount} docs (24mo)` 
+  };
+}
+
 // Inline severity computation (mirrors src/lib/severityConfig.ts logic)
 function computeSeverity(input: {
   category: Cat;
@@ -228,6 +267,19 @@ Deno.serve(async (req) => {
 
     console.log(`[calculate-brand-score] Calculating for brand ${brandId}, window ${windowMonths}mo, dryrun=${dryrun}`);
 
+    // Fetch brand name for GDELT
+    const { data: brand, error: brandErr } = await supabase
+      .from("brands")
+      .select("name")
+      .eq("id", brandId)
+      .single();
+
+    if (brandErr || !brand) {
+      console.warn(`[calculate-brand-score] Could not fetch brand name: ${brandErr?.message}`);
+    }
+
+    const brandName = brand?.name ?? "Unknown";
+
     // Fetch brand events + sources
     const { data: events, error: evErr } = await supabase
       .from("brand_events")
@@ -308,7 +360,10 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Social: Keep neutral for Phase 1 (GDELT in Phase 2)
+      // Social: GDELT tone baseline
+      const { medianTone, docCount } = await fetchGdeltTone(brandName);
+      baselines.social = socialBaselineFromGdelt(medianTone, docCount);
+      console.info('[gdelt]', { brand: brandName, medianTone, docCount, mappedScore: baselines.social.value });
     }
 
     // Initialize per-category scores from calculated baselines
