@@ -82,7 +82,7 @@ export function WhyThisScore({ brandId, impacts }: WhyThisScoreProps) {
                       {config.label}
                     </span>
                     <span className="text-sm text-muted-foreground">
-                      {Math.round(impact.impact)} {/* Integer display for cleaner readability */}
+                      {Math.round(impact.impact)}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -99,6 +99,33 @@ export function WhyThisScore({ brandId, impacts }: WhyThisScoreProps) {
               </CollapsibleTrigger>
               
               <CollapsibleContent className="mt-2 space-y-2">
+                {/* Show baseline → delta → now if available */}
+                {(impact as any).baseline !== undefined && (
+                  <div className="p-3 rounded-lg bg-muted/50 border text-sm space-y-1">
+                    <div>
+                      <span className="font-medium">Base:</span> <strong>{(impact as any).baseline}</strong>
+                      {(impact as any).baseline_reason && (
+                        <span className="text-muted-foreground ml-1">({(impact as any).baseline_reason})</span>
+                      )}
+                    </div>
+                    {(impact as any).window_delta !== undefined && (
+                      <div>
+                        <span className="font-medium">Window Δ:</span> <strong>
+                          {(impact as any).window_delta >= 0 ? '+' : ''}{(impact as any).window_delta}
+                        </strong>
+                        {(impact as any).verified_count !== undefined && (impact as any).evidence_count !== undefined && (
+                          <span className="text-muted-foreground ml-1">
+                            · {(impact as any).verified_count}/{(impact as any).evidence_count} verified
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <div>
+                      <span className="font-medium">Now:</span> <strong>{Math.round(impact.impact)}</strong>
+                    </div>
+                  </div>
+                )}
+                
                 {/* Politics summary from FEC data */}
                 {impact.category === 'politics' && impact.events.length > 0 && impact.events[0]?.raw_data?.tilt_pct && (
                   <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800">

@@ -402,6 +402,16 @@ Deno.serve(async (req) => {
       totals[c] = Math.max(0, Math.min(100, totals[c]));
     }
 
+    // Telemetry for debugging
+    console.info('[score]', {
+      brandId,
+      baselines: Object.fromEntries(cats.map(c => [c, baselines[c]])),
+      deltas: Object.fromEntries(cats.map(c => [c, Math.round(deltas[c])])),
+      evidenceCount,
+      verifiedCount,
+      totalsAfterBlend: totals,
+    });
+
     // Build breakdown for UI transparency
     const breakdown = {
       window: {
