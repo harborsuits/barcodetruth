@@ -42,6 +42,7 @@ export default function BrandProof() {
   const handleExportCSV = () => {
     if (!data) return;
     
+    const esc = (s: any) => `"${String(s ?? '').replace(/"/g, '""')}"`;
     const rows = [['Brand', 'Component', 'Source', 'Date', 'Verification', 'URL', 'Archive']];
     data.breakdown.forEach((block) => {
       (data.evidence[block.component] || []).forEach((ev) => {
@@ -57,7 +58,7 @@ export default function BrandProof() {
       });
     });
     
-    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const csv = rows.map(r => r.map(esc).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -73,6 +74,19 @@ export default function BrandProof() {
       case 'corroborated': return 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200';
       default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
     }
+  };
+
+  const getVerificationOrder = (verification: string) => {
+    switch (verification) {
+      case 'official': return 0;
+      case 'corroborated': return 1;
+      default: return 2;
+    }
+  };
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleString(undefined, { timeZone: 'UTC', dateStyle: 'short' });
   };
 
   if (loading) {
@@ -121,7 +135,7 @@ export default function BrandProof() {
                 Export CSV
               </Button>
               <div className="text-sm text-muted-foreground">
-                Updated {new Date(data.updatedAt).toLocaleString()}
+                Updated {new Date(data.updatedAt).toLocaleString(undefined, { timeZone: 'UTC' })}
               </div>
             </div>
           </header>
@@ -139,12 +153,12 @@ export default function BrandProof() {
             {data.breakdown.map((block) => (
               <section 
                 key={block.component} 
-                id={block.component}
+                id={`proof-${block.component}`}
                 className="rounded-xl border bg-card p-6 space-y-4 scroll-mt-6"
               >
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <h2 className="font-semibold capitalize text-foreground">
-                    <a href={`#${block.component}`} className="hover:underline">
+                    <a href={`#proof-${block.component}`} className="hover:underline">
                       {block.component}
                     </a>
                   </h2>
@@ -185,10 +199,10 @@ export default function BrandProof() {
                   {block.proof_required && (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Badge variant="destructive">Proof required (Δ muted)</Badge>
+                        <Badge variant="destructive">Proof required</Badge>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Change detected but not yet verified by a trusted source</p>
+                        <p>Change detected but not yet verified by a trusted source. Delta is muted until verification.</p>
                       </TooltipContent>
                     </Tooltip>
                   )}
@@ -198,13 +212,15 @@ export default function BrandProof() {
 
                 <div className="space-y-3">
                   {data.evidence[block.component]?.length > 0 ? (
-                    data.evidence[block.component].map((ev) => (
+                    [...data.evidence[block.component]]
+                      .sort((a, b) => getVerificationOrder(a.verification) - getVerificationOrder(b.verification))
+                      .map((ev) => (
                       <div key={ev.id} className="space-y-2">
                         <div className="text-sm flex items-center gap-2 flex-wrap">
                           <span className="font-medium text-foreground">{ev.source_name}</span>
                           {ev.source_date && (
                             <span className="text-muted-foreground">
-                              · {new Date(ev.source_date).toLocaleDateString()}
+                              · {formatDate(ev.source_date)}
                             </span>
                           )}
                           <span className="text-muted-foreground">·</span>
