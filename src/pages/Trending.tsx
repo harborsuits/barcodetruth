@@ -1,290 +1,203 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, TrendingUp, TrendingDown, Heart, Ban, Bell } from "lucide-react";
+import { ArrowLeft, Heart, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EventCard, type BrandEvent } from "@/components/EventCard";
 import { topImpacts } from "@/lib/events";
 import { AttributionFooter } from "@/components/AttributionFooter";
+import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
 
-const trendingBrands: Array<{
+interface TrendingBrandData {
   id: string;
   name: string;
   score: number;
-  velocity: "rising" | "falling";
-  change: number;
   events: BrandEvent[];
-}> = [
-  {
-    id: "nike",
-    name: "Nike",
-    score: 72,
-    velocity: "falling",
-    change: -8,
-    events: [
-      {
-        event_id: "nike_labor_2025",
-        brand_id: "nike",
-        category: "labor",
-        description: "Workers at manufacturing facilities reported wage and safety concerns.",
-        date: "2025-09-15",
-        severity: "moderate",
-        verification: "corroborated",
-        orientation: "negative",
-        impact: { labor: -15, social: -5 },
-        sources: [
-          {
-            name: "Reuters",
-            date: "2025-09-15",
-            url: "https://reuters.com/nike-labor-2025",
-            quote: "Workers reported extended shifts without adequate breaks, raising concerns about workplace conditions."
-          },
-          {
-            name: "Bloomberg",
-            date: "2025-09-16",
-            url: "https://bloomberg.com/nike-audit-2025",
-            quote: "Independent audits confirmed discrepancies in wage calculations at supplier facilities."
-          }
-        ],
-        jurisdiction: "Southeast Asia",
-      },
-      {
-        event_id: "nike_labor_july",
-        brand_id: "nike",
-        category: "labor",
-        description: "Supplier audit disputes over working conditions.",
-        date: "2025-07-10",
-        severity: "minor",
-        verification: "corroborated",
-        orientation: "negative",
-        impact: { labor: -8 },
-        sources: [
-          { name: "Bloomberg", date: "2025-07-10" }
-        ],
-      },
-    ],
-  },
-  {
-    id: "patagonia",
-    name: "Patagonia",
-    score: 91,
-    velocity: "rising",
-    change: 12,
-    events: [
-      {
-        event_id: "patagonia_env_2025",
-        brand_id: "patagonia",
-        category: "environment",
-        description: "Launched comprehensive supply chain transparency initiative with third-party verification.",
-        date: "2025-08-20",
-        verification: "official",
-        orientation: "positive",
-        impact: { environment: 15, social: 8 },
-        sources: [
-          {
-            name: "The Guardian",
-            date: "2025-08-20",
-            url: "https://theguardian.com/patagonia-transparency-2025",
-            quote: "Patagonia's new initiative sets a new standard for supply chain transparency in the apparel industry."
-          },
-          {
-            name: "Environmental Working Group",
-            date: "2025-08-21",
-            url: "https://ewg.org/patagonia-certification",
-            quote: "Third-party auditors confirmed compliance with the highest environmental standards."
-          }
-        ],
-        jurisdiction: "Global",
-      },
-      {
-        event_id: "patagonia_labor_may",
-        brand_id: "patagonia",
-        category: "labor",
-        description: "Unionization disputes at distribution centers.",
-        date: "2025-05-15",
-        severity: "minor",
-        verification: "corroborated",
-        orientation: "negative",
-        impact: { labor: -5 },
-        sources: [
-          { name: "AP News", date: "2025-05-15" }
-        ],
-        company_response: {
-          date: "2025-05-20",
-          url: "https://patagonia.com/labor-response",
-          summary: "Company committed to ongoing dialogue with workers and third-party mediation."
-        },
-        resolved: true,
-      },
-    ],
-  },
-  {
-    id: "amazon",
-    name: "Amazon",
-    score: 45,
-    velocity: "falling",
-    change: -15,
-    events: [
-      {
-        event_id: "amazon_labor_sept",
-        brand_id: "amazon",
-        category: "labor",
-        description: "Multiple reports surfaced regarding warehouse working conditions.",
-        date: "2025-09-10",
-        severity: "severe",
-        verification: "corroborated",
-        orientation: "negative",
-        impact: { labor: -12, social: -8 },
-        sources: [
-          {
-            name: "New York Times",
-            date: "2025-09-10",
-            url: "https://nytimes.com/amazon-warehouse-2025",
-            quote: "Warehouse workers described grueling conditions with limited breaks and intense productivity monitoring."
-          },
-          {
-            name: "ProPublica",
-            date: "2025-09-11",
-            url: "https://propublica.org/amazon-investigation",
-            quote: "Investigation found injury rates at Amazon warehouses significantly exceed industry averages."
-          }
-        ],
-        jurisdiction: "US",
-      },
-      {
-        event_id: "amazon_politics_aug",
-        brand_id: "amazon",
-        category: "politics",
-        description: "Increased political spending disclosures raised concerns.",
-        date: "2025-08-05",
-        severity: "moderate",
-        verification: "official",
-        orientation: "negative",
-        impact: { politics: -10 },
-        sources: [
-          {
-            name: "Federal Election Commission",
-            date: "2025-08-05",
-            url: "https://fec.gov/amazon-pac-2025",
-            quote: "Amazon PAC increased lobbying expenditures by 45% compared to previous year."
-          }
-        ],
-        jurisdiction: "US",
-      },
-      {
-        event_id: "amazon_env_june",
-        brand_id: "amazon",
-        category: "environment",
-        description: "Carbon emissions reduction targets announced.",
-        date: "2025-06-15",
-        verification: "official",
-        orientation: "positive",
-        impact: { environment: 8 },
-        sources: [
-          {
-            name: "Bloomberg",
-            date: "2025-06-15",
-            url: "https://bloomberg.com/amazon-climate-2025",
-            quote: "Amazon pledged to achieve net-zero carbon by 2040 with significant investments in renewable energy."
-          }
-        ],
-        jurisdiction: "Global",
-      },
-    ],
-  },
-  {
-    id: "allbirds",
-    name: "Allbirds",
-    score: 89,
-    velocity: "rising",
-    change: 7,
-    events: [
-      {
-        event_id: "allbirds_env_aug",
-        brand_id: "allbirds",
-        category: "environment",
-        description: "Released detailed carbon footprint data for all products and expanded sustainable materials program.",
-        date: "2025-08-10",
-        verification: "official",
-        orientation: "positive",
-        impact: { environment: 12, social: 5 },
-        sources: [
-          {
-            name: "Bloomberg",
-            date: "2025-08-10",
-            url: "https://bloomberg.com/allbirds-carbon-2025",
-            quote: "Allbirds' transparency initiative includes detailed lifecycle analysis for every product in their catalog."
-          }
-        ],
-        jurisdiction: "Global",
-      },
-      {
-        event_id: "allbirds_cultural_june",
-        brand_id: "allbirds",
-        category: "cultural-values",
-        description: "CEO publicly supported Pride Month campaigns.",
-        date: "2025-06-01",
-        verification: "unverified",
-        orientation: "mixed",
-        impact: { social: 3 },
-        sources: [
-          { name: "CNN", date: "2025-06-01" }
-        ],
-      },
-    ],
-  },
-];
+  isFollowing?: boolean;
+  notificationsEnabled?: boolean;
+}
 
 export const Trending = () => {
   const navigate = useNavigate();
-  const [brandActions, setBrandActions] = useState<Record<string, { following: boolean; avoiding: boolean; notifying: boolean }>>({});
+  const queryClient = useQueryClient();
+
+  // Fetch trending brands with their data
+  const { data: trendingBrands, isLoading } = useQuery({
+    queryKey: ["trending-brands"],
+    queryFn: async () => {
+      // Get brands with recent events (last 3 months)
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+      const { data: brands, error: brandsError } = await supabase
+        .from("brands")
+        .select("id, name")
+        .limit(20);
+
+      if (brandsError) throw brandsError;
+      if (!brands || brands.length === 0) return [];
+
+      const brandIds = brands.map(b => b.id);
+
+      // Get scores
+      const { data: scores } = await supabase
+        .from("brand_scores")
+        .select("brand_id, score_labor, score_environment, score_politics, score_social")
+        .in("brand_id", brandIds);
+
+      // Get recent events
+      const { data: events } = await supabase
+        .from("brand_events")
+        .select("*")
+        .in("brand_id", brandIds)
+        .gte("event_date", threeMonthsAgo.toISOString())
+        .order("event_date", { ascending: false });
+
+      // Get user follows
+      const { data: { user } } = await supabase.auth.getUser();
+      let userFollows: any[] = [];
+      if (user) {
+        const { data } = await supabase
+          .from("user_follows")
+          .select("brand_id, notifications_enabled")
+          .eq("user_id", user.id);
+        userFollows = data || [];
+      }
+
+      // Combine data
+      return brands
+        .map(brand => {
+          const brandScore = scores?.find(s => s.brand_id === brand.id);
+          const overallScore = brandScore 
+            ? Math.round((brandScore.score_labor + brandScore.score_environment + 
+                         brandScore.score_politics + brandScore.score_social) / 4)
+            : 50;
+
+          const brandEvents = events?.filter(e => e.brand_id === brand.id).slice(0, 3) || [];
+          const userFollow = userFollows.find(f => f.brand_id === brand.id);
+
+          return {
+            id: brand.id,
+            name: brand.name,
+            score: overallScore,
+            events: brandEvents.map(e => ({
+              event_id: e.event_id,
+              brand_id: e.brand_id,
+              category: e.category,
+              description: e.description,
+              date: e.event_date || e.created_at,
+              severity: e.severity,
+              verification: e.verification,
+              orientation: e.orientation,
+              impact: {
+                labor: e.impact_labor || 0,
+                environment: e.impact_environment || 0,
+                politics: e.impact_politics || 0,
+                social: e.impact_social || 0,
+              },
+              sources: [],
+              jurisdiction: e.jurisdiction,
+            })) as BrandEvent[],
+            isFollowing: !!userFollow,
+            notificationsEnabled: userFollow?.notifications_enabled || false,
+          };
+        })
+        .filter(b => b.events.length > 0) // Only show brands with recent activity
+        .sort((a, b) => b.events.length - a.events.length) // Sort by activity
+        .slice(0, 10);
+    },
+  });
+
+  // Toggle follow
+  const followMutation = useMutation({
+    mutationFn: async ({ brandId, isFollowing }: { brandId: string; isFollowing: boolean }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Please sign in to follow brands");
+
+      if (isFollowing) {
+        await supabase
+          .from("user_follows")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("brand_id", brandId);
+      } else {
+        await supabase
+          .from("user_follows")
+          .insert({ user_id: user.id, brand_id: brandId });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["trending-brands"] });
+    },
+  });
+
+  // Toggle notifications
+  const notifyMutation = useMutation({
+    mutationFn: async ({ brandId, enabled }: { brandId: string; enabled: boolean }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Please sign in to enable notifications");
+
+      await supabase
+        .from("user_follows")
+        .update({ notifications_enabled: !enabled })
+        .eq("user_id", user.id)
+        .eq("brand_id", brandId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["trending-brands"] });
+    },
+  });
+
+  const handleFollow = (brand: TrendingBrandData, e: React.MouseEvent) => {
+    e.stopPropagation();
+    followMutation.mutate(
+      { brandId: brand.id, isFollowing: !!brand.isFollowing },
+      {
+        onSuccess: () => {
+          toast({
+            title: brand.isFollowing ? "Unfollowed" : "Following",
+            description: brand.isFollowing ? `Stopped following ${brand.name}` : `You're now following ${brand.name}`,
+          });
+        },
+        onError: (error: any) => {
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          });
+        },
+      }
+    );
+  };
+
+  const handleNotify = (brand: TrendingBrandData, e: React.MouseEvent) => {
+    e.stopPropagation();
+    notifyMutation.mutate(
+      { brandId: brand.id, enabled: !!brand.notificationsEnabled },
+      {
+        onSuccess: () => {
+          toast({
+            title: brand.notificationsEnabled ? "Notifications Off" : "Notifications On",
+            description: brand.notificationsEnabled ? `Stopped notifications for ${brand.name}` : `You'll be notified of changes to ${brand.name}`,
+          });
+        },
+        onError: (error: any) => {
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          });
+        },
+      }
+    );
+  };
 
   const getScoreColor = (score: number) => {
     if (score >= 70) return "bg-success/10 text-success border-success/20";
     if (score >= 40) return "bg-warning/10 text-warning border-warning/20";
     return "bg-danger/10 text-danger border-danger/20";
-  };
-
-  const getVelocityColor = (velocity: "rising" | "falling") => {
-    return velocity === "rising" ? "text-success" : "text-danger";
-  };
-
-  const handleFollow = (brandId: string, brandName: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setBrandActions(prev => ({
-      ...prev,
-      [brandId]: { ...prev[brandId], following: !prev[brandId]?.following }
-    }));
-    toast({ 
-      title: brandActions[brandId]?.following ? "Unfollowed" : "Following", 
-      description: brandActions[brandId]?.following ? `Stopped following ${brandName}` : `You're now following ${brandName}` 
-    });
-  };
-
-  const handleAvoid = (brandId: string, brandName: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setBrandActions(prev => ({
-      ...prev,
-      [brandId]: { ...prev[brandId], avoiding: !prev[brandId]?.avoiding }
-    }));
-    toast({ 
-      title: brandActions[brandId]?.avoiding ? "Removed from Avoid" : "Added to Avoid", 
-      description: brandActions[brandId]?.avoiding ? `${brandName} removed from avoid list` : `${brandName} added to your avoid list` 
-    });
-  };
-
-  const handleNotify = (brandId: string, brandName: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setBrandActions(prev => ({
-      ...prev,
-      [brandId]: { ...prev[brandId], notifying: !prev[brandId]?.notifying }
-    }));
-    toast({ 
-      title: brandActions[brandId]?.notifying ? "Notifications Off" : "Notifications On", 
-      description: brandActions[brandId]?.notifying ? `Stopped notifications for ${brandName}` : `You'll be notified of changes to ${brandName}` 
-    });
   };
 
   return (
@@ -301,8 +214,26 @@ export const Trending = () => {
       </header>
 
       <main className="container max-w-2xl mx-auto px-4 py-6">
-        <div className="space-y-4">
-          {trendingBrands.map((brand) => (
+        {isLoading ? (
+          <div className="space-y-4">
+            <Skeleton className="h-48 w-full" />
+            <Skeleton className="h-48 w-full" />
+            <Skeleton className="h-48 w-full" />
+          </div>
+        ) : !trendingBrands || trendingBrands.length === 0 ? (
+          <Card>
+            <CardContent className="pt-8 pb-8 text-center">
+              <p className="text-muted-foreground mb-4">
+                No trending brands with recent activity
+              </p>
+              <Button onClick={() => navigate("/")}>
+                Go Home
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {trendingBrands.map((brand) => (
             <Card
               key={brand.id}
               className="cursor-pointer hover:shadow-md transition-all"
@@ -321,22 +252,9 @@ export const Trending = () => {
                     {/* Header */}
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-bold text-lg">{brand.name}</h3>
-                      <div className={`flex items-center gap-1 font-semibold text-sm ${getVelocityColor(brand.velocity)}`}>
-                        {brand.velocity === "rising" ? (
-                          <>
-                            <TrendingUp className="h-4 w-4" />
-                            +{brand.change}
-                          </>
-                        ) : (
-                          <>
-                            <TrendingDown className="h-4 w-4" />
-                            {brand.change}
-                          </>
-                        )}
-                      </div>
-                      <Badge variant="outline" className="text-xs font-medium">
-                        {brand.velocity === "rising" ? "rising fast" : "falling"}
-                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {brand.events.length} recent {brand.events.length === 1 ? 'event' : 'events'}
+                      </span>
                     </div>
 
                     {/* Events */}
@@ -378,48 +296,35 @@ export const Trending = () => {
                     {/* Quick Actions */}
                     <div className="flex items-center gap-2 pt-2">
                       <Button
-                        variant={brandActions[brand.id]?.following ? "default" : "outline"}
+                        variant={brand.isFollowing ? "default" : "outline"}
                         size="sm"
-                        className={`h-8 text-xs rounded-full transition-all ${
-                          brandActions[brand.id]?.following ? "bg-success hover:bg-success/90" : ""
-                        }`}
-                        onClick={(e) => handleFollow(brand.id, brand.name, e)}
-                        aria-label={`${brandActions[brand.id]?.following ? "Unfollow" : "Follow"} ${brand.name}`}
+                        className="h-8 text-xs rounded-full transition-all"
+                        onClick={(e) => handleFollow(brand, e)}
+                        aria-label={`${brand.isFollowing ? "Unfollow" : "Follow"} ${brand.name}`}
                       >
-                        <Heart className={`h-3 w-3 ${brandActions[brand.id]?.following ? "fill-current" : ""}`} />
-                        Follow
+                        <Heart className={`h-3 w-3 ${brand.isFollowing ? "fill-current" : ""}`} />
+                        {brand.isFollowing ? "Following" : "Follow"}
                       </Button>
-                      <Button
-                        variant={brandActions[brand.id]?.avoiding ? "default" : "outline"}
-                        size="sm"
-                        className={`h-8 text-xs rounded-full transition-all ${
-                          brandActions[brand.id]?.avoiding ? "bg-danger hover:bg-danger/90" : ""
-                        }`}
-                        onClick={(e) => handleAvoid(brand.id, brand.name, e)}
-                        aria-label={`${brandActions[brand.id]?.avoiding ? "Remove from avoid list" : "Add to avoid list"} ${brand.name}`}
-                      >
-                        <Ban className={`h-3 w-3 ${brandActions[brand.id]?.avoiding ? "fill-current" : ""}`} />
-                        Avoid
-                      </Button>
-                      <Button
-                        variant={brandActions[brand.id]?.notifying ? "default" : "outline"}
-                        size="sm"
-                        className={`h-8 text-xs rounded-full transition-all ${
-                          brandActions[brand.id]?.notifying ? "bg-primary hover:bg-primary/90" : ""
-                        }`}
-                        onClick={(e) => handleNotify(brand.id, brand.name, e)}
-                        aria-label={`${brandActions[brand.id]?.notifying ? "Turn off notifications" : "Turn on notifications"} for ${brand.name}`}
-                      >
-                        <Bell className={`h-3 w-3 ${brandActions[brand.id]?.notifying ? "fill-current" : ""}`} />
-                        Notify
-                      </Button>
+                      {brand.isFollowing && (
+                        <Button
+                          variant={brand.notificationsEnabled ? "default" : "outline"}
+                          size="sm"
+                          className="h-8 text-xs rounded-full transition-all"
+                          onClick={(e) => handleNotify(brand, e)}
+                          aria-label={`${brand.notificationsEnabled ? "Turn off notifications" : "Turn on notifications"} for ${brand.name}`}
+                        >
+                          <Bell className={`h-3 w-3 ${brand.notificationsEnabled ? "fill-current" : ""}`} />
+                          {brand.notificationsEnabled ? "Notifying" : "Notify"}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
+              ))}
+          </div>
+        )}
         
         {/* Attribution Footer */}
         <AttributionFooter />
