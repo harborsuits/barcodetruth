@@ -144,9 +144,11 @@ serve(async (req) => {
       : 'complete';
     
     const topParent = upstream.length > 0 ? upstream[upstream.length - 1].brand : null;
+    const sanitizedBrandName = brand.name.replace(/[^\w\s-]/g, '').substring(0, 50);
+    
     console.log(
-      `[Ownership Trail] brand=${brandId}, depth=${upstream.length}, stopped=${stoppedReason}` +
-      (topParent ? `, top_parent=${topParent.id} (${topParent.name})` : '')
+      `[Ownership Trail] brand=${brandId} (${sanitizedBrandName}), chain_len=${upstream.length}, stopped=${stoppedReason}` +
+      (topParent ? `, top_parent=${topParent.id} (${topParent.name.replace(/[^\w\s-]/g, '').substring(0, 30)})` : '')
     );
 
     const response = {

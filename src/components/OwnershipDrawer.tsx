@@ -34,6 +34,17 @@ interface OwnershipDrawerProps {
   brandName: string;
 }
 
+const relationshipLabels: Record<string, string> = {
+  'brand_of': 'brand of',
+  'division_of': 'division of',
+  'subsidiary_of': 'subsidiary of',
+  'acquired_by': 'acquired by',
+};
+
+const getRelationshipLabel = (relationship: string): string => {
+  return relationshipLabels[relationship] || relationship.replace('_', ' ');
+};
+
 export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
   const [helpOpen, setHelpOpen] = useState(false);
   
@@ -164,8 +175,16 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
                               Showing top 3 levels
                             </span>
                           </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-xs">We cap at 3 for clarity; more detail coming soon</p>
+                          <TooltipContent className="space-y-2">
+                            <p className="text-xs">We cap at 3 for clarity</p>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              disabled 
+                              className="text-xs h-7"
+                            >
+                              See more levels (coming soon)
+                            </Button>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
@@ -178,28 +197,34 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
                     </div>
                     {data.upstream.map((parent, idx) => {
                       const isTopParent = idx === data.upstream.length - 1;
+                      const isSingleHop = data.upstream.length === 1;
                       return (
                         <div key={parent.brand.id} className="ml-4 space-y-2 border-l-2 pl-4">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 space-y-2">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <p className="font-medium">{parent.brand.name}</p>
-                                {data.upstream.length > 1 && (
+                                {!isSingleHop && (
                                   <Badge 
                                     variant={isTopParent ? "secondary" : "outline"} 
                                     className="text-xs"
+                                    aria-label={`Level ${idx + 1} of ${data.upstream.length}`}
                                   >
                                     {idx + 1}/{data.upstream.length}
                                   </Badge>
                                 )}
-                                {isTopParent && (
-                                  <Badge variant="secondary" className="text-xs">
+                                {isTopParent && data.upstream.length > 1 && (
+                                  <Badge variant="secondary" className="text-xs ml-auto">
                                     Top Parent
                                   </Badge>
                                 )}
                               </div>
-                              <Badge variant="outline" className="text-xs capitalize w-fit">
-                                {parent.relationship.replace('_', ' ')}
+                              <Badge 
+                                variant="outline" 
+                                className="text-xs capitalize w-fit"
+                                aria-label={`Relationship: ${getRelationshipLabel(parent.relationship)}`}
+                              >
+                                {getRelationshipLabel(parent.relationship)}
                               </Badge>
                             </div>
                             {parent.brand.website && (
@@ -220,7 +245,7 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
                                 {source.name}
                               </Badge>
                             ))}
-                            {parent.confidence < 95 && (
+                            {parent.confidence && parent.confidence < 95 && (
                               parent.confidence >= 90 ? (
                                 <Badge variant="default" className="text-xs">
                                   High confidence ({parent.confidence}%)
