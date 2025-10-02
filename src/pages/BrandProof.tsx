@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet';
+import { Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { BrandProofResponse } from '@/types/evidence';
 
 export default function BrandProof() {
@@ -35,6 +39,42 @@ export default function BrandProof() {
     fetchProof();
   }, [id]);
 
+  const handleExportCSV = () => {
+    if (!data) return;
+    
+    const rows = [['Brand', 'Component', 'Source', 'Date', 'Verification', 'URL', 'Archive']];
+    data.breakdown.forEach((block) => {
+      (data.evidence[block.component] || []).forEach((ev) => {
+        rows.push([
+          data.brandName,
+          block.component,
+          ev.source_name,
+          ev.source_date || '',
+          ev.verification,
+          ev.source_url || '',
+          ev.archive_url || '',
+        ]);
+      });
+    });
+    
+    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${data.brandName}-evidence.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const getVerificationColor = (verification: string) => {
+    switch (verification) {
+      case 'official': return 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200';
+      case 'corroborated': return 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200';
+      default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -56,13 +96,35 @@ export default function BrandProof() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <header className="flex items-baseline justify-between flex-wrap gap-4">
-        <h1 className="text-2xl font-semibold text-foreground">{data.brandName} · Evidence</h1>
-        <div className="text-sm text-muted-foreground">
-          Updated {new Date(data.updatedAt).toLocaleString()}
-        </div>
-      </header>
+    <>
+      <Helmet>
+        <title>{data.brandName} · Evidence & Sources</title>
+        <meta 
+          name="description" 
+          content={`See the articles and public records behind ${data.brandName}'s score — with archives and verification status.`} 
+        />
+        <link rel="canonical" href={`${window.location.origin}/brands/${data.brandId}/proof`} />
+      </Helmet>
+      
+      <TooltipProvider>
+        <div className="max-w-4xl mx-auto p-6 space-y-6">
+          <header className="flex items-baseline justify-between flex-wrap gap-4">
+            <h1 className="text-2xl font-semibold text-foreground">{data.brandName} · Evidence</h1>
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleExportCSV}
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Export CSV
+              </Button>
+              <div className="text-sm text-muted-foreground">
+                Updated {new Date(data.updatedAt).toLocaleString()}
+              </div>
+            </div>
+          </header>
 
       <section className="rounded-xl border bg-card p-6">
         <div className="text-lg">
@@ -73,11 +135,19 @@ export default function BrandProof() {
         </div>
       </section>
 
-      <div className="space-y-4">
-        {data.breakdown.map((block) => (
-          <section key={block.component} className="rounded-xl border bg-card p-6 space-y-4">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <h2 className="font-semibold capitalize text-foreground">{block.component}</h2>
+          <div className="space-y-4">
+            {data.breakdown.map((block) => (
+              <section 
+                key={block.component} 
+                id={block.component}
+                className="rounded-xl border bg-card p-6 space-y-4 scroll-mt-6"
+              >
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h2 className="font-semibold capitalize text-foreground">
+                    <a href={`#${block.component}`} className="hover:underline">
+                      {block.component}
+                    </a>
+                  </h2>
               <div className="text-sm text-muted-foreground">
                 <span className="mr-3">
                   Base <span className="font-medium text-foreground">{block.base}</span>
@@ -94,62 +164,79 @@ export default function BrandProof() {
               </div>
             </div>
 
-            <p className="text-sm text-muted-foreground">{block.base_reason}</p>
+                <p className="text-sm text-muted-foreground">
+                  {block.base_reason || 'Baseline from historical data'}
+                </p>
 
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant={block.verified_count > 0 ? 'default' : 'secondary'}>
-                {block.verified_count}/{block.evidence_count} verified
-              </Badge>
-              <Badge variant="outline">Confidence {block.confidence}/100</Badge>
-              {block.proof_required && (
-                <Badge variant="destructive">Proof required (Δ muted)</Badge>
-              )}
-            </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge variant={block.verified_count > 0 ? 'default' : 'secondary'}>
+                        {block.verified_count}/{block.evidence_count} verified
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Verified = official records or allow-listed outlets</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  
+                  <Badge variant="outline">Confidence {block.confidence}/100</Badge>
+                  
+                  {block.proof_required && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="destructive">Proof required (Δ muted)</Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Change detected but not yet verified by a trusted source</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
 
             <Separator />
 
-            <div className="space-y-3">
-              {data.evidence[block.component]?.length > 0 ? (
-                data.evidence[block.component].map((ev) => (
-                  <div key={ev.id} className="space-y-2">
-                    <div className="text-sm">
-                      <span className="font-medium text-foreground">{ev.source_name}</span>
-                      {ev.source_date && (
-                        <span className="text-muted-foreground">
-                          {' '}
-                          · {new Date(ev.source_date).toLocaleDateString()}
-                        </span>
-                      )}
-                      <span className="text-muted-foreground"> · </span>
-                      {ev.source_url && (
-                        <>
-                          <a
-                            className="underline hover:text-primary"
-                            href={ev.source_url}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Source
-                          </a>
-                        </>
-                      )}
-                      {ev.archive_url && (
-                        <>
-                          <span className="text-muted-foreground"> · </span>
-                          <a
-                            className="underline hover:text-primary"
-                            href={ev.archive_url}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Archive
-                          </a>
-                        </>
-                      )}
-                      <Badge variant="outline" className="ml-2">
-                        {ev.verification}
-                      </Badge>
-                    </div>
+                <div className="space-y-3">
+                  {data.evidence[block.component]?.length > 0 ? (
+                    data.evidence[block.component].map((ev) => (
+                      <div key={ev.id} className="space-y-2">
+                        <div className="text-sm flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-foreground">{ev.source_name}</span>
+                          {ev.source_date && (
+                            <span className="text-muted-foreground">
+                              · {new Date(ev.source_date).toLocaleDateString()}
+                            </span>
+                          )}
+                          <span className="text-muted-foreground">·</span>
+                          {ev.source_url && (
+                            <>
+                              <a
+                                className="underline hover:text-primary"
+                                href={ev.source_url}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Source
+                              </a>
+                            </>
+                          )}
+                          {ev.archive_url && (
+                            <>
+                              <span className="text-muted-foreground">·</span>
+                              <a
+                                className="underline hover:text-primary"
+                                href={ev.archive_url}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Archive
+                              </a>
+                            </>
+                          )}
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${getVerificationColor(ev.verification)}`}>
+                            {ev.verification}
+                          </span>
+                        </div>
                     {ev.snippet && (
                       <blockquote className="text-sm italic text-muted-foreground border-l-2 border-border pl-3">
                         "{ev.snippet}"
@@ -165,11 +252,13 @@ export default function BrandProof() {
         ))}
       </div>
 
-      <footer className="text-sm text-muted-foreground">
-        <Link to={`/brands/${data.brandId}`} className="hover:text-primary">
-          ← Back to brand
-        </Link>
-      </footer>
-    </div>
+          <footer className="text-sm text-muted-foreground">
+            <Link to={`/brands/${data.brandId}`} className="hover:text-primary">
+              ← Back to brand
+            </Link>
+          </footer>
+        </div>
+      </TooltipProvider>
+    </>
   );
 }
