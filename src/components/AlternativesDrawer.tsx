@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronRight, TrendingUp } from "lucide-react";
 import {
   Sheet,
@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDelta, getScoreDelta, getValueFitLabel, getTopContributors, type BrandScores, getUserWeights } from "@/lib/valueFit";
+import { getExcludeSameParent } from "@/lib/userPreferences";
 
 interface Alternative {
   brand_id: string;
@@ -32,7 +33,12 @@ interface AlternativesDrawerProps {
 
 export function AlternativesDrawer({ alternatives, currentScore, currentScores, onCompare, productCategory }: AlternativesDrawerProps) {
   const [open, setOpen] = useState(false);
+  const [excludingSameParent, setExcludingSameParent] = useState(false);
   const weights = getUserWeights();
+
+  useEffect(() => {
+    getExcludeSameParent().then(setExcludingSameParent);
+  }, []);
 
   if (!alternatives.length) {
     return (
@@ -57,6 +63,11 @@ export function AlternativesDrawer({ alternatives, currentScore, currentScores, 
             {productCategory
               ? "Brands in the same product category, ranked by your values and priorities"
               : "No same-category options yet — showing generally better-aligned brands"}
+            {excludingSameParent && (
+              <span className="block mt-1 text-xs">
+                Excluding alternatives owned by the same parent company
+              </span>
+            )}
           </SheetDescription>
         </SheetHeader>
         

@@ -57,7 +57,7 @@ serve(async (req) => {
       });
     }
 
-    // Get upstream ownership (parents)
+    // Get upstream ownership (parents) with loop detection
     const { data: upstreamEdges } = await supabase
       .from('brand_ownerships')
       .select('brand_id, parent_brand_id, relationship_type, source, source_url, confidence')
@@ -66,23 +66,37 @@ serve(async (req) => {
 
     const upstream: Array<{ brand: BrandNode; relationship: string; confidence: number; sources: Array<{name: string; url: string | null}> }> = [];
     let parentIds: string[] = [];
+    const seenIds = new Set<string>([brandId]); // Loop detection
 
     if (upstreamEdges && upstreamEdges.length > 0) {
-      parentIds = upstreamEdges.map(e => e.parent_brand_id);
-      const { data: parentBrands } = await supabase
-        .from('brands')
-        .select('id, name, wikidata_qid, website')
-        .in('id', parentIds);
+      parentIds = upstreamEdges.map(e => e.parent_brand_id).filter(id => {
+        if (seenIds.has(id)) {
+          console.warn('Loop detected in ownership chain:', id);
+          return false;
+        }
+        seenIds.add(id);
+        return true;
+      });
+      
+      if (parentIds.length === 0) {
+        console.warn('All parent edges would create loops');
+      } else {
+        const { data: parentBrands } = await supabase
+          .from('brands')
+          .select('id, name, wikidata_qid, website')
+          .in('id', parentIds);
 
-      for (const edge of upstreamEdges) {
-        const parentBrand = parentBrands?.find(b => b.id === edge.parent_brand_id);
-        if (parentBrand) {
-          upstream.push({
-            brand: parentBrand,
-            relationship: edge.relationship_type,
-            confidence: edge.confidence || 75,
-            sources: [{ name: edge.source, url: edge.source_url }]
-          });
+        for (const edge of upstreamEdges) {
+          if (!parentIds.includes(edge.parent_brand_id)) continue;
+          const parentBrand = parentBrands?.find(b => b.id === edge.parent_brand_id);
+          if (parentBrand) {
+            upstream.push({
+              brand: parentBrand,
+              relationship: edge.relationship_type,
+              confidence: edge.confidence || 75,
+              sources: [{ name: edge.source, url: edge.source_url }]
+            });
+          }
         }
       }
     }

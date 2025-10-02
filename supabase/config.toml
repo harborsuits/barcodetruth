@@ -39,3 +39,6 @@ verify_jwt = false
 
 [functions.get-ownership-trail]
 verify_jwt = false
+
+[functions.enrich-ownership]
+verify_jwt = false

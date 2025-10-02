@@ -45,23 +45,28 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
 
   const hasOwnership = data?.upstream && data.upstream.length > 0;
 
-  if (!hasOwnership && !isLoading) {
-    return null;
-  }
-
   return (
     <Sheet>
       <SheetTrigger asChild>
         <Button variant="ghost" size="sm" className="gap-2">
           <Building2 className="h-4 w-4" />
-          {isLoading ? 'Loading...' : `Owned by ${data?.upstream[0]?.brand.name}`}
+          {isLoading ? (
+            'Loading...'
+          ) : hasOwnership ? (
+            `Owned by ${data.upstream[0].brand.name}`
+          ) : (
+            'Ownership info'
+          )}
         </Button>
       </SheetTrigger>
       <SheetContent>
         <SheetHeader>
           <SheetTitle>Corporate Ownership</SheetTitle>
           <SheetDescription>
-            How {brandName} fits into larger corporate structures
+            {hasOwnership 
+              ? `How ${brandName} fits into larger corporate structures`
+              : `Checking corporate records for ${brandName}`
+            }
           </SheetDescription>
         </SheetHeader>
 
@@ -71,6 +76,19 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
               <Skeleton className="h-20 w-full" />
               <Skeleton className="h-20 w-full" />
             </>
+          ) : !hasOwnership ? (
+            <div className="text-center py-8 space-y-3">
+              <Building2 className="h-12 w-12 mx-auto text-muted-foreground" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium">No ownership data yet</p>
+                <p className="text-xs text-muted-foreground">
+                  We're checking corporate records. This usually appears within 24 hours.
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground pt-2">
+                You can still view alternatives now.
+              </p>
+            </div>
           ) : (
             <>
               {/* Ownership Chain */}
