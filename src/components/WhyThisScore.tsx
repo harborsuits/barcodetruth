@@ -102,17 +102,29 @@ export function WhyThisScore({ brandId, impacts }: WhyThisScoreProps) {
                 {/* Show baseline → delta → now if available */}
                 {(impact as any).baseline !== undefined && (
                   <div className="p-3 rounded-lg bg-muted/50 border text-sm space-y-1">
-                    <div>
-                      <span className="font-medium">Base:</span> <strong>{(impact as any).baseline}</strong>
-                      {(impact as any).baseline_reason && (
-                        <span className="text-muted-foreground ml-1">({(impact as any).baseline_reason})</span>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-medium">Base:</span> <strong>{(impact as any).baseline}</strong>
+                        {(impact as any).baseline_reason && (
+                          <span className="text-muted-foreground ml-1">({(impact as any).baseline_reason})</span>
+                        )}
+                      </div>
+                      {(impact as any).confidence !== undefined && (
+                        <Badge variant="outline" className="text-xs">
+                          Confidence: {(impact as any).confidence}/100
+                        </Badge>
                       )}
                     </div>
                     {(impact as any).window_delta !== undefined && (
-                      <div>
+                      <div className="flex items-center gap-2">
                         <span className="font-medium">Window Δ:</span> <strong>
                           {(impact as any).window_delta >= 0 ? '+' : ''}{(impact as any).window_delta}
                         </strong>
+                        {(impact as any).proof_required && (
+                          <Badge variant="secondary" className="text-xs bg-muted">
+                            Proof required
+                          </Badge>
+                        )}
                         {(impact as any).verified_count !== undefined && (impact as any).evidence_count !== undefined && (
                           <span className="text-muted-foreground ml-1">
                             · {(impact as any).verified_count}/{(impact as any).evidence_count} verified

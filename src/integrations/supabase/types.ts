@@ -273,6 +273,41 @@ export type Database = {
           },
         ]
       }
+      brand_social_baseline: {
+        Row: {
+          brand_id: string
+          brand_name: string
+          doc_count: number
+          fetched_at: string
+          id: string
+          median_tone: number
+        }
+        Insert: {
+          brand_id: string
+          brand_name: string
+          doc_count: number
+          fetched_at?: string
+          id?: string
+          median_tone: number
+        }
+        Update: {
+          brand_id?: string
+          brand_name?: string
+          doc_count?: number
+          fetched_at?: string
+          id?: string
+          median_tone?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_social_baseline_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brands: {
         Row: {
           created_at: string

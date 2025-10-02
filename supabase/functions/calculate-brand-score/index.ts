@@ -368,12 +368,14 @@ Deno.serve(async (req) => {
           baselines.labor = { value: 45, reason: `Repeated labor issues. ${prov ?? ''}`.trim() };
         }
       }
-
-      // Social: GDELT tone baseline
-      const { medianTone, docCount } = await fetchGdeltTone(brandName);
-      baselines.social = socialBaselineFromGdelt(medianTone, docCount);
-      console.info('[gdelt]', { brand: brandName, medianTone, docCount, mappedScore: baselines.social.value });
     }
+    
+    // Social: GDELT tone baseline (fetch once, reuse for monitoring)
+    let gdeltDocCount = 0;
+    const gdeltData = await fetchGdeltTone(brandName);
+    gdeltDocCount = gdeltData.docCount;
+    baselines.social = socialBaselineFromGdelt(gdeltData.medianTone, gdeltData.docCount);
+    console.info('[gdelt]', { brand: brandName, medianTone: gdeltData.medianTone, docCount: gdeltData.docCount, mappedScore: baselines.social.value });
 
     // Initialize per-category scores from calculated baselines
     const totals: Record<Cat, number> = {
@@ -396,6 +398,7 @@ Deno.serve(async (req) => {
     const deltas: Record<Cat, number> = { labor: 0, environment: 0, politics: 0, social: 0 };
     const evidenceCount: Record<Cat, number> = { labor: 0, environment: 0, politics: 0, social: 0 };
     const verifiedCount: Record<Cat, number> = { labor: 0, environment: 0, politics: 0, social: 0 };
+    const mutedDeltas: Record<Cat, boolean> = { labor: false, environment: false, politics: false, social: false };
 
     // Process each event
     for (const ev of (events || [])) {
@@ -452,6 +455,15 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Proof gate: mute large deltas (>|5|) without verified sources
+    for (const c of cats) {
+      const needsProof = Math.abs(deltas[c]) > 5 && verifiedCount[c] === 0;
+      if (needsProof) {
+        mutedDeltas[c] = true;
+        deltas[c] = 0;
+      }
+    }
+
     // Apply stable blend with caps (anti-whiplash)
     for (const c of cats) {
       totals[c] = Math.round(
@@ -466,15 +478,40 @@ Deno.serve(async (req) => {
       totals[c] = Math.max(0, Math.min(100, totals[c]));
     }
 
+    // Calculate confidence per category
+    const confidence: Record<Cat, number> = {} as Record<Cat, number>;
+    for (const c of cats) {
+      const conf = Math.min(100,
+        40 + 8*verifiedCount[c] + 3*evidenceCount[c] - Math.max(0, 0.2*(30 - windowDays))
+      );
+      confidence[c] = Math.max(0, Math.round(conf));
+    }
+
     // Telemetry for debugging
+    const emptyBaseReasons = cats.filter(c => !baselines[c].reason || baselines[c].reason.trim() === '');
+    const mutedCount = cats.filter(c => mutedDeltas[c]).length;
+    
     console.info('[score]', {
       brandId,
       baselines: Object.fromEntries(cats.map(c => [c, baselines[c]])),
       deltas: Object.fromEntries(cats.map(c => [c, Math.round(deltas[c])])),
+      mutedDeltas: Object.fromEntries(cats.map(c => [c, mutedDeltas[c]])),
       evidenceCount,
       verifiedCount,
+      confidence,
       totalsAfterBlend: totals,
     });
+    
+    // Monitoring alerts
+    if (emptyBaseReasons.length > 0) {
+      console.warn('[monitoring] Empty base_reason for categories:', emptyBaseReasons);
+    }
+    if (mutedCount > 0) {
+      console.warn('[monitoring] Muted deltas (proof gate) for', mutedCount, 'categories');
+    }
+    if (baselines.social.value !== 50 && gdeltDocCount < 30) {
+      console.warn('[monitoring] Low GDELT coverage for high-traffic brand:', { brand: brandName, docCount: gdeltDocCount });
+    }
 
     // Build breakdown for UI transparency
     const breakdown = {
@@ -497,6 +534,8 @@ Deno.serve(async (req) => {
           window_delta: Math.round(deltas.labor),
           evidence_count: evidenceCount.labor,
           verified_count: verifiedCount.labor,
+          confidence: confidence.labor,
+          proof_required: mutedDeltas.labor,
           events: used.labor 
         },
         environment: { 
@@ -506,6 +545,8 @@ Deno.serve(async (req) => {
           window_delta: Math.round(deltas.environment),
           evidence_count: evidenceCount.environment,
           verified_count: verifiedCount.environment,
+          confidence: confidence.environment,
+          proof_required: mutedDeltas.environment,
           events: used.environment 
         },
         politics: { 
@@ -515,6 +556,8 @@ Deno.serve(async (req) => {
           window_delta: Math.round(deltas.politics),
           evidence_count: evidenceCount.politics,
           verified_count: verifiedCount.politics,
+          confidence: confidence.politics,
+          proof_required: mutedDeltas.politics,
           events: used.politics 
         },
         social: { 
@@ -524,6 +567,8 @@ Deno.serve(async (req) => {
           window_delta: Math.round(deltas.social),
           evidence_count: evidenceCount.social,
           verified_count: verifiedCount.social,
+          confidence: confidence.social,
+          proof_required: mutedDeltas.social,
           events: used.social 
         },
       }
