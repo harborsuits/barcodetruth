@@ -70,12 +70,12 @@ export function TrendingPreview() {
       setTrending(data.map((b: any) => ({
         brand_id: b.id,
         brand_name: b.name,
-        overall_score: b.brand_scores?.[0] 
+        overall_score: b.brand_scores 
           ? Math.round((
-              b.brand_scores[0].score_labor +
-              b.brand_scores[0].score_environment +
-              b.brand_scores[0].score_politics +
-              b.brand_scores[0].score_social
+              b.brand_scores.score_labor +
+              b.brand_scores.score_environment +
+              b.brand_scores.score_politics +
+              b.brand_scores.score_social
             ) / 4)
           : 50
       })));
