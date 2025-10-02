@@ -64,6 +64,44 @@ export const BrandDetail = () => {
         .gte('event_date', twelveMonthsAgo.toISOString())
         .order('event_date', { ascending: false });
       
+      // Fetch sources for these events
+      const eventIds = (events || []).map((e: any) => e.event_id);
+      let sourcesByEvent: Record<string, any[]> = {};
+      if (eventIds.length) {
+        const { data: srcs } = await supabase
+          .from('event_sources')
+          .select('event_id, source_name, source_url, source_date, quote')
+          .in('event_id', eventIds);
+        if (srcs) {
+          sourcesByEvent = srcs.reduce((acc: Record<string, any[]>, s: any) => {
+            const list = acc[s.event_id] || [];
+            list.push({ name: s.source_name, url: s.source_url || undefined, date: s.source_date || undefined, quote: s.quote || undefined });
+            acc[s.event_id] = list;
+            return acc;
+          }, {});
+        }
+      }
+      
+      const normalizedEvents = (events || []).map((e: any) => ({
+        event_id: e.event_id,
+        brand_id: e.brand_id,
+        category: e.category,
+        description: e.description,
+        date: e.event_date || e.created_at,
+        severity: e.severity,
+        verification: e.verification,
+        orientation: e.orientation,
+        impact: {
+          labor: e.impact_labor || 0,
+          environment: e.impact_environment || 0,
+          politics: e.impact_politics || 0,
+          social: e.impact_social || 0,
+        },
+        sources: sourcesByEvent[e.event_id] || [],
+        jurisdiction: e.jurisdiction,
+        raw_data: e.raw_data,
+      }));
+      
       const overallScore = scores 
         ? Math.round((scores.score_labor + scores.score_environment + scores.score_politics + scores.score_social) / 4)
         : 50;
@@ -79,7 +117,7 @@ export const BrandDetail = () => {
           politics: { score: scores?.score_politics || 50, risk_level: "low", recent_events: [] },
           social: { score: scores?.score_social || 50, risk_level: "low", recent_events: [] },
         },
-        events: events || [],
+        events: normalizedEvents,
         trending: { velocity: "stable", sentiment_shift: 0 },
         community_insights: { percent_avoid: 0, trend_change: "0%" },
         alternatives: [],
@@ -403,11 +441,11 @@ export const BrandDetail = () => {
                           </div>
                         </div>
                         
-                        {category === "politics" && (
+                        {category === "politics" && data?.donations_total != null && data?.party_breakdown ? (
                           <div className="space-y-3 p-4 bg-muted rounded-lg">
                             <h4 className="font-medium text-sm">Political Contributions</h4>
                             <p className="text-sm text-muted-foreground">
-                              Total: ${(data.donations_total / 1000000).toFixed(1)}M
+                              Total: ${((data.donations_total as number) / 1000000).toFixed(1)}M
                             </p>
                             <div className="space-y-2">
                               <div className="space-y-1">
@@ -426,7 +464,7 @@ export const BrandDetail = () => {
                               </div>
                             </div>
                           </div>
-                        )}
+                        ) : null}
 
                         {brand && brand.events && brand.events.length > 0 ? (
                           <div className="space-y-3">
