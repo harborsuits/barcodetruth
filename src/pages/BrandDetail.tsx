@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle, Heart, HeartOff, Clock, CheckCircle2, Filter, Bell, BellOff } from "lucide-react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle, Heart, HeartOff, Clock, CheckCircle2, Filter, Bell, BellOff, Home } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,7 @@ import { ReportIssue } from "@/components/ReportIssue";
 import { topImpacts } from "@/lib/events";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 export const BrandDetail = () => {
   const { brandId } = useParams();
@@ -253,15 +254,14 @@ export const BrandDetail = () => {
   return (
     <div className="min-h-screen bg-[var(--bg)] pb-20">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-card border-b">
-        <div className="container max-w-screen-md mx-auto px-4 sm:px-6 py-4">
-          <div 
-            className={`flex items-center gap-3 ${toggleNotifications.isPending ? 'opacity-70 pointer-events-none' : ''}`}
-            aria-busy={toggleNotifications.isPending}
-          >
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
+      <header className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b">
+        <div className="container max-w-screen-md mx-auto px-4 sm:px-6 py-3">
+          <div className="space-y-2">
+            <Breadcrumbs brandName={brand?.name} />
+            <div 
+              className={`flex items-center gap-3 ${toggleNotifications.isPending ? 'opacity-70 pointer-events-none' : ''}`}
+              aria-busy={toggleNotifications.isPending}
+            >
             {brandLoading || !brand ? (
               <div className="flex-1">
                 <div className="h-6 w-32 bg-muted animate-pulse rounded" />
@@ -320,9 +320,19 @@ export const BrandDetail = () => {
                 </div>
               </>
             )}
+            </div>
           </div>
         </div>
       </header>
+      
+      {/* Mobile floating home button */}
+      <Link 
+        to="/" 
+        className="fixed bottom-20 left-4 z-20 rounded-full border bg-card/90 backdrop-blur px-3 py-2 shadow-lg hover:shadow-xl transition-all text-sm font-medium flex items-center gap-1.5 md:hidden"
+      >
+        <Home className="h-4 w-4" />
+        Home
+      </Link>
 
       <main className="container max-w-screen-md mx-auto px-4 sm:px-6 py-6 space-y-6">
         {brandLoading ? (

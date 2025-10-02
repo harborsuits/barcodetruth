@@ -5,6 +5,7 @@ import { HeroSection } from "@/components/landing/HeroSection";
 import { TrendingPreview } from "@/components/landing/TrendingPreview";
 import { TrustedSources } from "@/components/landing/TrustedSources";
 import { HowItWorks } from "@/components/landing/HowItWorks";
+import { LatestVerifications } from "@/components/landing/LatestVerifications";
 import { AttributionFooter } from "@/components/AttributionFooter";
 import { useSnapshotPrewarm } from "@/hooks/useSnapshotPrewarm";
 
@@ -34,6 +35,7 @@ export const Home = () => {
 
       <main className="max-w-screen-md mx-auto px-4 sm:px-6 space-y-8 pb-24">
         <HeroSection />
+        <LatestVerifications />
         <TrendingPreview />
         <HowItWorks />
         <TrustedSources />

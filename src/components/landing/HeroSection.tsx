@@ -23,7 +23,7 @@ export function HeroSection() {
             Know your brands. Instantly.
           </h1>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-            Scan, search, or browse trending brand signals — all sourced from trusted outlets.
+            Evidence-backed brand scores from EPA, OSHA, FEC, and archived articles. Every change is cited.
           </p>
         </div>
 

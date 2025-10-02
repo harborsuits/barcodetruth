@@ -1,58 +1,46 @@
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Database, ShieldCheck, User } from "lucide-react";
+import { FileSearch, TrendingUp, Archive, ShieldCheck } from "lucide-react";
 
 export function HowItWorks() {
   return (
-    <section className="py-12 px-4 bg-muted/30">
+    <section className="py-12 px-4 bg-muted/30 rounded-2xl">
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="text-center space-y-2">
           <h2 className="text-2xl font-bold">How This Works</h2>
-          <p className="text-muted-foreground">
-            Three simple steps to informed decisions
+          <p className="text-sm text-muted-foreground">
+            Transparent scoring. Every change is cited.
           </p>
         </div>
 
-        <Accordion type="single" collapsible className="w-full">
-          <AccordionItem value="ingest">
-            <AccordionTrigger className="text-left">
-              <div className="flex items-center gap-3">
-                <Database className="h-5 w-5 text-primary" />
-                <span className="font-semibold">1. We Ingest</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="text-muted-foreground">
-              We continuously monitor trusted news sources, government filings, and regulatory agencies
-              to capture brand-related events across labor, environment, politics, and social impact.
-            </AccordionContent>
-          </AccordionItem>
-
-          <AccordionItem value="verify">
-            <AccordionTrigger className="text-left">
-              <div className="flex items-center gap-3">
-                <ShieldCheck className="h-5 w-5 text-primary" />
-                <span className="font-semibold">2. We Verify</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="text-muted-foreground">
-              Events are classified by verification level: <strong>Official</strong> (government sources),
-              <strong>Corroborated</strong> (multiple credible sources), or <strong>Unverified</strong> (single source).
-              We cite all sources and never make independent claims.
-            </AccordionContent>
-          </AccordionItem>
-
-          <AccordionItem value="decide">
-            <AccordionTrigger className="text-left">
-              <div className="flex items-center gap-3">
-                <User className="h-5 w-5 text-primary" />
-                <span className="font-semibold">3. You Decide</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="text-muted-foreground">
-              Adjust the importance of each category to match your values. Scores update in real-time
-              based on your preferences, helping you make decisions aligned with what matters to you.
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+        <ul className="grid md:grid-cols-4 gap-4 text-sm">
+          <li className="flex flex-col items-center text-center gap-2 p-4 bg-card rounded-xl border">
+            <FileSearch className="h-8 w-8 text-primary" />
+            <div>
+              <div className="font-semibold mb-1">Intake</div>
+              <div className="text-xs text-muted-foreground">EPA · OSHA · FEC · GDELT</div>
+            </div>
+          </li>
+          <li className="flex flex-col items-center text-center gap-2 p-4 bg-card rounded-xl border">
+            <TrendingUp className="h-8 w-8 text-primary" />
+            <div>
+              <div className="font-semibold mb-1">Baselines</div>
+              <div className="text-xs text-muted-foreground">24-month history</div>
+            </div>
+          </li>
+          <li className="flex flex-col items-center text-center gap-2 p-4 bg-card rounded-xl border">
+            <Archive className="h-8 w-8 text-primary" />
+            <div>
+              <div className="font-semibold mb-1">Evidence</div>
+              <div className="text-xs text-muted-foreground">Sources archived on Wayback</div>
+            </div>
+          </li>
+          <li className="flex flex-col items-center text-center gap-2 p-4 bg-card rounded-xl border">
+            <ShieldCheck className="h-8 w-8 text-primary" />
+            <div>
+              <div className="font-semibold mb-1">Proof Gate</div>
+              <div className="text-xs text-muted-foreground">Big moves need verified, independent outlets</div>
+            </div>
+          </li>
+        </ul>
       </div>
     </section>
   );

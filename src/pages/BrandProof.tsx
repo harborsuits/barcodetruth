@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
-import { Download } from 'lucide-react';
+import { Download, Home, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -123,6 +123,20 @@ export default function BrandProof() {
       
       <TooltipProvider>
         <div className="max-w-4xl mx-auto p-6 space-y-6">
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-2 text-sm text-muted-foreground" aria-label="Breadcrumb">
+            <Link to="/" className="flex items-center gap-1 hover:text-foreground transition-colors">
+              <Home className="h-3.5 w-3.5" />
+              Home
+            </Link>
+            <ChevronRight className="h-3.5 w-3.5" />
+            <Link to={`/brands/${data.brandId}`} className="hover:text-foreground transition-colors">
+              {data.brandName}
+            </Link>
+            <ChevronRight className="h-3.5 w-3.5" />
+            <span className="text-foreground font-medium">Evidence</span>
+          </nav>
+          
           <header className="flex items-baseline justify-between flex-wrap gap-4">
             <h1 className="text-2xl font-semibold text-foreground">{data.brandName} · Evidence</h1>
             <div className="flex items-center gap-3">
@@ -309,10 +323,13 @@ export default function BrandProof() {
         ))}
       </div>
 
-          <footer className="text-sm text-muted-foreground">
-            <Link to={`/brands/${data.brandId}`} className="hover:text-primary">
-              ← Back to brand
+          <footer className="text-sm text-muted-foreground border-t pt-4">
+            <Link to={`/brands/${data.brandId}`} className="hover:text-primary inline-flex items-center gap-1">
+              ← Back to {data.brandName}
             </Link>
+            <p className="text-xs mt-2">
+              We deduplicate syndicated articles and require independent owners for big moves. Wires alone don't count unless paired with official records.
+            </p>
           </footer>
         </div>
       </TooltipProvider>
