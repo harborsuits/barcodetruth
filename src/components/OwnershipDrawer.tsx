@@ -1,9 +1,11 @@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, ExternalLink, ArrowRight } from "lucide-react";
+import { Building2, ExternalLink, ArrowRight, HelpCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useState } from "react";
 
 interface BrandNode {
   id: string;
@@ -31,6 +33,8 @@ interface OwnershipDrawerProps {
 }
 
 export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
+  const [helpOpen, setHelpOpen] = useState(false);
+  
   const { data, isLoading } = useQuery<OwnershipData>({
     queryKey: ['ownership-trail', brandId],
     queryFn: async () => {
@@ -88,6 +92,37 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
               <p className="text-xs text-muted-foreground pt-2">
                 You can still view alternatives now.
               </p>
+              <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2 mt-2">
+                    <HelpCircle className="h-4 w-4" />
+                    Why we sometimes can't find ownership
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>How We Determine Corporate Ownership</DialogTitle>
+                    <DialogDescription className="space-y-3 pt-2">
+                      <p>
+                        We automatically pull ownership data from public sources like Wikidata, Wikipedia, and regulatory filings. 
+                        This covers most major brands and parent companies.
+                      </p>
+                      <p>
+                        However, some brands may not have ownership information immediately available because:
+                      </p>
+                      <ul className="list-disc list-inside space-y-1 text-sm">
+                        <li>They're privately held companies with limited public disclosure</li>
+                        <li>They're new brands we haven't indexed yet</li>
+                        <li>The ownership structure is complex or in transition</li>
+                        <li>They're local or regional brands with less public documentation</li>
+                      </ul>
+                      <p>
+                        We continuously enrich our database, so ownership information typically appears within 24 hours of the first scan.
+                      </p>
+                    </DialogDescription>
+                  </DialogHeader>
+                </DialogContent>
+              </Dialog>
             </div>
           ) : (
             <>

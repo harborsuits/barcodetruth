@@ -57,48 +57,56 @@ serve(async (req) => {
       });
     }
 
-    // Get upstream ownership (parents) with loop detection
-    const { data: upstreamEdges } = await supabase
-      .from('brand_ownerships')
-      .select('brand_id, parent_brand_id, relationship_type, source, source_url, confidence')
-      .eq('brand_id', brandId)
-      .order('confidence', { ascending: false });
-
+    // Get upstream ownership (parents) with loop detection and depth limit
     const upstream: Array<{ brand: BrandNode; relationship: string; confidence: number; sources: Array<{name: string; url: string | null}> }> = [];
-    let parentIds: string[] = [];
     const seenIds = new Set<string>([brandId]); // Loop detection
-
-    if (upstreamEdges && upstreamEdges.length > 0) {
-      parentIds = upstreamEdges.map(e => e.parent_brand_id).filter(id => {
-        if (seenIds.has(id)) {
-          console.warn('Loop detected in ownership chain:', id);
-          return false;
-        }
-        seenIds.add(id);
-        return true;
-      });
+    const MAX_DEPTH = 3;
+    let parentIds: string[] = [];
+    
+    let currentBrandId = brandId;
+    let depth = 0;
+    
+    // Walk up the ownership chain
+    while (currentBrandId && depth < MAX_DEPTH) {
+      const { data: edges } = await supabase
+        .from('brand_ownerships')
+        .select('brand_id, parent_brand_id, relationship_type, source, source_url, confidence')
+        .eq('brand_id', currentBrandId)
+        .order('confidence', { ascending: false })
+        .limit(1); // Take highest confidence parent
       
-      if (parentIds.length === 0) {
-        console.warn('All parent edges would create loops');
-      } else {
-        const { data: parentBrands } = await supabase
-          .from('brands')
-          .select('id, name, wikidata_qid, website')
-          .in('id', parentIds);
-
-        for (const edge of upstreamEdges) {
-          if (!parentIds.includes(edge.parent_brand_id)) continue;
-          const parentBrand = parentBrands?.find(b => b.id === edge.parent_brand_id);
-          if (parentBrand) {
-            upstream.push({
-              brand: parentBrand,
-              relationship: edge.relationship_type,
-              confidence: edge.confidence || 75,
-              sources: [{ name: edge.source, url: edge.source_url }]
-            });
-          }
-        }
+      if (!edges || edges.length === 0) break;
+      
+      const edge = edges[0];
+      
+      // Loop detection
+      if (seenIds.has(edge.parent_brand_id)) {
+        console.warn('Loop detected in ownership chain:', edge.parent_brand_id);
+        break;
       }
+      seenIds.add(edge.parent_brand_id);
+      
+      // Get parent brand details
+      const { data: parentBrand } = await supabase
+        .from('brands')
+        .select('id, name, wikidata_qid, website')
+        .eq('id', edge.parent_brand_id)
+        .single();
+      
+      if (parentBrand) {
+        upstream.push({
+          brand: parentBrand,
+          relationship: edge.relationship_type,
+          confidence: edge.confidence || 75,
+          sources: [{ name: edge.source, url: edge.source_url }]
+        });
+        parentIds.push(parentBrand.id);
+        currentBrandId = parentBrand.id; // Move up the chain
+      } else {
+        break;
+      }
+      
+      depth++;
     }
 
     // Get downstream siblings (brands with same parent)
