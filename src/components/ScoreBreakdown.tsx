@@ -32,8 +32,8 @@ export default function ScoreBreakdown({
       {blocks.map((b) => {
         const now = b.value;
         const delta = Math.round(b.window_delta);
-        const sign = delta >= 0 ? '+' : '';
-        const why = buildWhyLine(b);
+        const deltaStr = delta === 0 ? '—' : `${delta > 0 ? '+' : ''}${delta}`;
+        const why = buildWhyLine(b, delta);
         return (
           <div key={b.component} className="rounded-xl border p-3">
             <div className="flex items-center justify-between">
@@ -46,36 +46,38 @@ export default function ScoreBreakdown({
             {/* base → delta → now */}
             <div className="mt-2 grid grid-cols-3 gap-3 text-sm">
               <div>
-                <div className="text-muted-foreground">Base</div>
+                <div className="text-muted-foreground" title="24-month baseline from EPA, OSHA, FEC, and news sentiment (deduped)">Base</div>
                 <div className="font-medium">{b.base}</div>
                 <div className="text-xs text-muted-foreground line-clamp-1" title={b.base_reason}>
                   {b.base_reason}
                 </div>
               </div>
               <div>
-                <div className="text-muted-foreground">Δ window</div>
-                <div className={`font-medium ${delta < 0 ? 'text-destructive' : 'text-foreground'}`}>
-                  {sign}{delta}
+                <div className="text-muted-foreground" title="Net impact from recent verified events; large moves need independent confirmation">Δ window</div>
+                <div className={`font-medium ${delta < 0 ? 'text-destructive' : delta === 0 ? 'text-muted-foreground' : 'text-foreground'}`}>
+                  {deltaStr}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {b.verified_count}/{b.independent_owners ? '2+' : '2+'} verified · {b.independent_owners} owners
+                  {b.verified_count} verified · {b.independent_owners} owners
                 </div>
               </div>
               <div>
                 <div className="text-muted-foreground">Now</div>
                 <div className="font-semibold">{now}</div>
-                {b.proof_required && (
-                  <div className="text-xs text-amber-700">Proof required (delta muted)</div>
+                {b.proof_required && delta !== 0 && (
+                  <div className="text-xs text-amber-700" title="Change detected, awaiting independent confirmation (≥2 owners or 1 official record). Delta is muted until verified.">
+                    Proof required
+                  </div>
                 )}
               </div>
             </div>
 
             {/* confidence bar */}
-            <div className="mt-3 h-2 rounded-full bg-muted">
+            <div className="mt-3 h-1.5 rounded bg-muted">
               <div
-                className="h-2 rounded-full bg-primary transition-all"
+                className={`h-1.5 rounded transition-all ${b.confidence < 30 ? 'bg-amber-500' : 'bg-primary'}`}
                 style={{ width: `${Math.max(4, Math.min(100, b.confidence))}%` }}
-                aria-label={`Confidence ${b.confidence}/100`}
+                aria-label={`Confidence ${b.confidence} of 100`}
               />
             </div>
 
@@ -88,13 +90,14 @@ export default function ScoreBreakdown({
   );
 }
 
-function buildWhyLine(b: Breakdown) {
-  const dir = b.window_delta === 0 ? 'unchanged' : (b.window_delta > 0 ? 'above' : 'below');
-  const absΔ = Math.abs(Math.round(b.window_delta));
-  const proof = b.proof_required ? ' Change detected but muted until independently verified.' : '';
-  return `${capitalize(b.component)} ${b.value}: ${dir} baseline by ${absΔ}${
-    absΔ ? ' pts' : ''
-  } over the recent window, based on ${b.verified_count} verified source${
+function buildWhyLine(b: Breakdown, delta: number) {
+  if (delta === 0) {
+    return 'No material change in the current window.';
+  }
+  const dir = delta > 0 ? 'above' : 'below';
+  const pts = Math.abs(delta);
+  const proof = b.proof_required ? ' Change muted until independently verified.' : '';
+  return `${capitalize(b.component)} ${b.value}: ${dir} baseline by ${pts}${pts ? ' pts' : ''} in the recent window based on ${b.verified_count} verified source${
     b.verified_count === 1 ? '' : 's'
   } across ${b.independent_owners} independent owner${
     b.independent_owners === 1 ? '' : 's'
