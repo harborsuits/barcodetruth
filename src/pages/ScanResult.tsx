@@ -10,6 +10,7 @@ import { ValueFitBar } from "@/components/ValueFitBar";
 import { WhyThisScore } from "@/components/WhyThisScore";
 import { AlternativesDrawer } from "@/components/AlternativesDrawer";
 import { CompareSheet } from "@/components/CompareSheet";
+import { OwnershipDrawer } from "@/components/OwnershipDrawer";
 import { EventCard, type BrandEvent } from "@/components/EventCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -499,9 +500,15 @@ export default function ScanResult() {
             <Card>
               <CardContent className="pt-6 space-y-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1">
+                  <div className="flex-1 space-y-1">
                     <h2 className="text-lg font-semibold">{product.name}</h2>
-                    <p className="text-sm text-[var(--muted)]">{brandData.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-[var(--muted)]">{brandData.name}</p>
+                      <OwnershipDrawer 
+                        brandId={product.brand_id} 
+                        brandName={brandData.name} 
+                      />
+                    </div>
                   </div>
                   <Badge variant="outline" className="text-xs">
                     {product.category ?? 'General'}

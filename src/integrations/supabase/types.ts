@@ -163,6 +163,60 @@ export type Database = {
           },
         ]
       }
+      brand_ownerships: {
+        Row: {
+          brand_id: string
+          confidence: number | null
+          created_at: string
+          effective_date: string | null
+          id: string
+          parent_brand_id: string
+          relationship_type: string
+          source: string
+          source_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          confidence?: number | null
+          created_at?: string
+          effective_date?: string | null
+          id?: string
+          parent_brand_id: string
+          relationship_type: string
+          source: string
+          source_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          confidence?: number | null
+          created_at?: string
+          effective_date?: string | null
+          id?: string
+          parent_brand_id?: string
+          relationship_type?: string
+          source?: string
+          source_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_ownerships_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_ownerships_parent_brand_id_fkey"
+            columns: ["parent_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brand_scores: {
         Row: {
           brand_id: string
@@ -212,6 +266,8 @@ export type Database = {
           parent_company: string | null
           push_paused: boolean
           updated_at: string
+          website: string | null
+          wikidata_qid: string | null
         }
         Insert: {
           created_at?: string
@@ -220,6 +276,8 @@ export type Database = {
           parent_company?: string | null
           push_paused?: boolean
           updated_at?: string
+          website?: string | null
+          wikidata_qid?: string | null
         }
         Update: {
           created_at?: string
@@ -228,6 +286,8 @@ export type Database = {
           parent_company?: string | null
           push_paused?: boolean
           updated_at?: string
+          website?: string | null
+          wikidata_qid?: string | null
         }
         Relationships: []
       }

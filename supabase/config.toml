@@ -36,3 +36,6 @@ verify_jwt = false
 
 [functions.send-daily-digest]
 verify_jwt = false
+
+[functions.get-ownership-trail]
+verify_jwt = false
