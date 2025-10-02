@@ -156,7 +156,7 @@ serve(async (req) => {
         }
 
         // Insert source (for attribution, quotes, etc.)
-        const { error: sourceError } = await supabase
+        const { data: sourceData, error: sourceError } = await supabase
           .from('event_sources')
           .insert({
             event_id: eventData.event_id,
@@ -164,13 +164,20 @@ serve(async (req) => {
             source_url: sourceUrl,
             quote: `Facility: ${facility.FacName}, Registry ID: ${facility.RegistryID}`,
             source_date: new Date().toISOString(),
-          });
+          })
+          .select('id')
+          .single();
 
         if (sourceError) {
           console.error('[fetch-epa-events] Error inserting source:', sourceError);
-        } else {
-          events.push(eventData.event_id);
+        } else if (sourceData?.id) {
+          // Archive in background (fire-and-forget)
+          void supabase.functions.invoke('archive-url', {
+            body: { source_id: sourceData.id, source_url: sourceUrl }
+          });
         }
+
+        events.push(eventData.event_id);
       }
     }
 

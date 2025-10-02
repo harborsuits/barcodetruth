@@ -308,6 +308,7 @@ export type Database = {
       }
       event_sources: {
         Row: {
+          archive_url: string | null
           created_at: string
           event_id: string
           id: string
@@ -317,6 +318,7 @@ export type Database = {
           source_url: string | null
         }
         Insert: {
+          archive_url?: string | null
           created_at?: string
           event_id: string
           id?: string
@@ -326,6 +328,7 @@ export type Database = {
           source_url?: string | null
         }
         Update: {
+          archive_url?: string | null
           created_at?: string
           event_id?: string
           id?: string

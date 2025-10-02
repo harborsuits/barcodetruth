@@ -16,6 +16,7 @@ interface EventSource {
   url?: string;
   date?: string;
   quote?: string;
+  archive_url?: string;
 }
 
 export interface BrandEvent {
@@ -363,18 +364,36 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                 >
                   {attributionLine}
                 </div>
-                {primarySource.url && (
-                  <a
-                    href={primarySource.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-blue-700 underline underline-offset-2 hover:no-underline shrink-0"
-                    aria-label={`Open source: ${primarySource.name ?? 'external link'}`}
-                  >
-                    Source
-                    <ExternalLink className="h-3 w-3 opacity-70 group-hover:opacity-100" />
-                  </a>
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                  {primarySource.url && (
+                    <a
+                      href={primarySource.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-blue-700 underline underline-offset-2 hover:no-underline"
+                      aria-label={`Open source: ${primarySource.name ?? 'external link'}`}
+                    >
+                      Source
+                      <ExternalLink className="h-3 w-3 opacity-70 group-hover:opacity-100" />
+                    </a>
+                  )}
+                  {primarySource.archive_url && (
+                    <>
+                      <span className="text-xs text-muted-foreground">·</span>
+                      <a
+                        href={primarySource.archive_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 hover:no-underline"
+                        aria-label="View archived version"
+                        title="Wayback Machine archive"
+                      >
+                        Archive
+                        <ExternalLink className="h-3 w-3 opacity-70" />
+                      </a>
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* Unverified warning */}
@@ -411,25 +430,43 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                               "{source.quote}"
                             </blockquote>
                           )}
-                          <div className="flex items-center justify-between gap-2">
+                           <div className="flex items-center justify-between gap-2">
                             <div 
                               className="text-xs text-[var(--muted)] italic truncate"
                               title={source.url ?? source.name}
                             >
                               {source.name}{source.date && `, ${relTime(source.date)}`}
                             </div>
-                            {source.url && (
-                              <a
-                                href={source.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-xs text-blue-700 underline underline-offset-2 hover:no-underline shrink-0"
-                                aria-label={`Open source: ${source.name ?? 'external link'}`}
-                              >
-                                Source
-                                <ExternalLink className="h-3 w-3" />
-                              </a>
-                            )}
+                            <div className="flex items-center gap-2 shrink-0">
+                              {source.url && (
+                                <a
+                                  href={source.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs text-blue-700 underline underline-offset-2 hover:no-underline"
+                                  aria-label={`Open source: ${source.name ?? 'external link'}`}
+                                >
+                                  Source
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                              )}
+                              {source.archive_url && (
+                                <>
+                                  <span className="text-xs text-muted-foreground">·</span>
+                                  <a
+                                    href={source.archive_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 hover:no-underline"
+                                    aria-label="View archived version"
+                                    title="Wayback Machine archive"
+                                  >
+                                    Archive
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}
