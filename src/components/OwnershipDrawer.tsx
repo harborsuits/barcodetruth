@@ -5,6 +5,7 @@ import { Building2, ExternalLink, ArrowRight, HelpCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState } from "react";
 
 interface BrandNode {
@@ -134,7 +135,18 @@ export function OwnershipDrawer({ brandId, brandName }: OwnershipDrawerProps) {
                       {data.upstream.length === 1 ? 'Direct Owner' : 'Corporate Chain'}
                     </h3>
                     {data.upstream.length === 3 && (
-                      <span className="text-xs text-muted-foreground">Showing top 3 levels</span>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-xs text-muted-foreground cursor-help">
+                              Showing top 3 levels
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">We cap at 3 for clarity; more detail coming soon</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     )}
                   </div>
                   <div className="space-y-2">

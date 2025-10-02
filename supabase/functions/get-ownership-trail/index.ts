@@ -143,7 +143,11 @@ serve(async (req) => {
       : seenIds.size > upstream.length + 1 ? 'loop' 
       : 'complete';
     
-    console.log(`[Ownership Trail] brand=${brandId}, depth=${upstream.length}, stopped=${stoppedReason}`);
+    const topParent = upstream.length > 0 ? upstream[upstream.length - 1].brand : null;
+    console.log(
+      `[Ownership Trail] brand=${brandId}, depth=${upstream.length}, stopped=${stoppedReason}` +
+      (topParent ? `, top_parent=${topParent.id} (${topParent.name})` : '')
+    );
 
     const response = {
       brand,
