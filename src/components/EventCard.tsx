@@ -266,6 +266,20 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
               {cfg.label}
             </span>
             
+            {/* Impact Direction Badge - PROMINENT */}
+            {event.severity && (
+              <span
+                className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md ${
+                  event.orientation === 'positive' 
+                    ? 'bg-green-600 text-white' 
+                    : 'bg-red-600 text-white'
+                }`}
+                title={event.orientation === 'positive' ? 'Positive for brand score' : 'Negative for brand score'}
+              >
+                {event.orientation === 'positive' ? '↑ Positive' : '↓ Negative'}
+              </span>
+            )}
+            
             {verificationBadge && (
               <span 
                 role="status"

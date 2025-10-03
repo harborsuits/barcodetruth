@@ -654,30 +654,44 @@ export const BrandDetail = () => {
                             {brand.events
                               .filter((e: any) => e.category === category)
                               .slice(0, 5)
-                              .map((event: any) => (
-                                <EventCard 
-                                  key={event.event_id} 
-                                  event={{
-                                    event_id: event.event_id,
-                                    brand_id: event.brand_id,
-                                    category: event.category,
-                                    description: event.description,
-                                    date: event.event_date || event.created_at,
-                                    severity: event.severity,
-                                    verification: event.verification,
-                                    orientation: event.orientation,
-                                    impact: {
-                                      labor: event.impact_labor || 0,
-                                      environment: event.impact_environment || 0,
-                                      politics: event.impact_politics || 0,
-                                      social: event.impact_social || 0,
-                                    },
-                                    sources: [],
-                                    jurisdiction: event.jurisdiction,
-                                  }} 
-                                  showFullDetails={true} 
-                                />
-                              ))}
+                              .map((event: any) => {
+                                // Map event_sources to EventCard sources format
+                                const sources = (event.event_sources || []).map((es: any) => ({
+                                  name: es.source_name,
+                                  url: es.source_url,
+                                  date: es.source_date,
+                                  quote: es.quote,
+                                  archive_url: es.archive_url,
+                                }));
+                                
+                                return (
+                                  <EventCard 
+                                    key={event.event_id} 
+                                    event={{
+                                      event_id: event.event_id,
+                                      brand_id: event.brand_id,
+                                      category: event.category,
+                                      title: event.title,
+                                      description: event.description,
+                                      date: event.event_date || event.created_at,
+                                      occurred_at: event.occurred_at,
+                                      severity: event.severity,
+                                      verification: event.verification,
+                                      orientation: event.orientation,
+                                      impact: {
+                                        labor: event.impact_labor || 0,
+                                        environment: event.impact_environment || 0,
+                                        politics: event.impact_politics || 0,
+                                        social: event.impact_social || 0,
+                                      },
+                                      sources,
+                                      jurisdiction: event.jurisdiction,
+                                      raw_data: event.raw_data,
+                                    }} 
+                                    showFullDetails={true} 
+                                  />
+                                );
+                              })}
                           </div>
                         ) : (
                           <div className="text-center py-8 space-y-2">
