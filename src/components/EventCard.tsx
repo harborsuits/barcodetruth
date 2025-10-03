@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { User, Sprout, Building2, Users, ExternalLink, CheckCircle2, Info, ChevronDown, ChevronUp, AlertCircle, Clock, Flame, Shield, Newspaper, Sparkles } from "lucide-react";
+import { User, Sprout, Building2, Users, ExternalLink, CheckCircle2, Info, ChevronDown, ChevronUp, AlertCircle, Clock, Flame, Shield, Newspaper, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { lineFromEvent } from "@/lib/events";
@@ -157,7 +157,13 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
   const [showAllSources, setShowAllSources] = useState(false);
   const [politicalAlignment, setPoliticalAlignment] = useState<PoliticalAlignment>(null);
   const [showSimplified, setShowSimplified] = useState(false);
-  const [simplified, setSimplified] = useState<string | null>(null);
+  const [simplified, setSimplified] = useState<{
+    tldr: string;
+    whatHappened: string[];
+    whyItMatters: string[];
+    keyFacts: string[];
+    quote: string;
+  } | null>(null);
   const [isSimplifying, setIsSimplifying] = useState(false);
   const { toast } = useToast();
   
@@ -288,18 +294,37 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
 
     setIsSimplifying(true);
     try {
+      const sourceUrl = primarySource?.url || event.raw_data?.source_url || '';
+      const sourceDomain = sourceUrl ? new URL(sourceUrl).hostname : 'unknown';
+      
       const { data, error } = await supabase.functions.invoke('simplify-description', {
         body: {
           description: event.description,
           category: event.category,
-          title: event.title
+          title: event.title,
+          severity: event.severity,
+          occurredAt: timestamp,
+          verification: event.verification,
+          sourceName: primarySource?.name || 'Unknown',
+          sourceDomain
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('Rate limit')) {
+          toast({
+            title: 'Rate limit exceeded',
+            description: 'Please wait a moment before trying again',
+            variant: 'destructive'
+          });
+        } else {
+          throw error;
+        }
+        return;
+      }
 
-      if (data?.simplified) {
-        setSimplified(data.simplified);
+      if (data) {
+        setSimplified(data);
         setShowSimplified(true);
       }
     } catch (error: any) {
@@ -414,16 +439,55 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                 
                 {/* Simplified explanation */}
                 {showSimplified && simplified && (
-                  <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
-                    <div className="flex items-start gap-2">
-                      <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-                      <div className="space-y-1">
-                        <p className="text-xs font-medium text-blue-900 dark:text-blue-100">In simple terms:</p>
-                        <p className="text-sm text-blue-900 dark:text-blue-100 leading-relaxed">
-                          {simplified}
-                        </p>
-                      </div>
+                  <div className="mt-4 p-4 bg-muted/50 rounded-lg border space-y-3">
+                    <div className="flex items-start gap-2 text-xs text-muted-foreground pb-2 border-b">
+                      <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                      <p>AI summary from cited source. Check the original for full details.</p>
                     </div>
+                    
+                    <div>
+                      <h4 className="text-sm font-semibold mb-1">TL;DR</h4>
+                      <p className="text-sm leading-relaxed">{simplified.tldr}</p>
+                    </div>
+
+                    {simplified.whatHappened?.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold mb-1">What Happened</h4>
+                        <ul className="text-sm space-y-1 list-disc list-inside">
+                          {simplified.whatHappened.map((item, i) => (
+                            <li key={i}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {simplified.whyItMatters?.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold mb-1">Why It Matters</h4>
+                        <ul className="text-sm space-y-1 list-disc list-inside">
+                          {simplified.whyItMatters.map((item, i) => (
+                            <li key={i}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {simplified.keyFacts?.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold mb-1">Key Facts</h4>
+                        <ul className="text-sm space-y-1 list-disc list-inside">
+                          {simplified.keyFacts.map((item, i) => (
+                            <li key={i}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {simplified.quote && simplified.quote !== 'No direct quote available.' && (
+                      <div className="pt-2 border-t">
+                        <p className="text-sm italic text-muted-foreground">"{simplified.quote}"</p>
+                      </div>
+                    )}
                   </div>
                 )}
                 
@@ -432,10 +496,10 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                   size="sm"
                   onClick={handleSimplify}
                   disabled={isSimplifying}
-                  className="text-xs h-7"
+                  className="text-xs h-7 gap-1"
                 >
-                  <Sparkles className="h-3 w-3 mr-1" />
-                  {isSimplifying ? 'Simplifying...' : showSimplified ? 'Hide explanation' : 'Explain in simple terms'}
+                  <FileText className="h-3 w-3" />
+                  {isSimplifying ? 'Loading...' : showSimplified ? 'Hide explanation' : 'Explain this event'}
                 </Button>
               </div>
               

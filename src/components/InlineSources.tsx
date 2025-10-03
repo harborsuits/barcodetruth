@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronDown, ChevronUp, ExternalLink, FileText } from "lucide-react";
+import { ChevronDown, ChevronUp, ExternalLink, FileText, Info } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "./ui/badge";
@@ -222,57 +222,72 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 pt-4">
-            {selectedSource?.severity && (
-              <div>
-                <p className="text-sm font-medium mb-1">Severity</p>
-                <Badge variant="outline">{selectedSource.severity}</Badge>
+            <div className="space-y-4 pt-4">
+              <div className="flex items-start gap-2 text-xs text-muted-foreground pb-3 border-b">
+                <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium">From: {selectedSource?.source}</p>
+                  {selectedSource?.url && (
+                    <p className="text-xs">{new URL(selectedSource.url).hostname}</p>
+                  )}
+                </div>
               </div>
-            )}
 
-            {selectedSource?.amount && (
-              <div>
-                <p className="text-sm font-medium mb-1">Amount</p>
-                <p className="text-lg font-semibold">${selectedSource.amount.toLocaleString()}</p>
+              <div className="grid grid-cols-2 gap-4">
+                {selectedSource?.severity && (
+                  <div>
+                    <p className="text-xs font-medium mb-1 text-muted-foreground">Severity</p>
+                    <Badge variant="outline">{selectedSource.severity}</Badge>
+                  </div>
+                )}
+
+                {selectedSource?.amount && (
+                  <div>
+                    <p className="text-xs font-medium mb-1 text-muted-foreground">Amount</p>
+                    <p className="text-base font-semibold">${selectedSource.amount.toLocaleString()}</p>
+                  </div>
+                )}
               </div>
-            )}
 
-            <div>
-              <p className="text-sm font-medium mb-2">What Happened</p>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                This {selectedSource?.badge.toLowerCase()} event was reported by {selectedSource?.source}. 
-                {selectedSource?.severity && ` It was classified as ${selectedSource.severity} severity.`}
-                {selectedSource?.amount && ` The total amount involved was $${selectedSource.amount.toLocaleString()}.`}
-              </p>
-            </div>
-
-            {selectedSource?.verification && selectedSource.verification !== 'unverified' && (
-              <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
-                <p className="text-sm text-green-900 dark:text-green-100">
-                  <strong>Verification:</strong> This event is {selectedSource.verification === 'official' ? 'officially documented' : 'corroborated by multiple sources'}.
+              <div>
+                <p className="text-sm font-medium mb-2">Event Summary</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  This {selectedSource?.badge.toLowerCase()} event was reported by {selectedSource?.source}. 
+                  {selectedSource?.severity && ` It was classified as ${selectedSource.severity} severity.`}
+                  {selectedSource?.amount && ` The total amount involved was $${selectedSource.amount.toLocaleString()}.`}
                 </p>
               </div>
-            )}
 
-            <div className="pt-4 border-t flex gap-2">
-              {selectedSource?.url && (
-                <Button variant="outline" size="sm" asChild>
-                  <a
-                    href={selectedSource.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    View on {selectedSource.source}
-                  </a>
-                </Button>
+              {selectedSource?.verification && selectedSource.verification !== 'unverified' && (
+                <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800">
+                  <p className="text-xs font-medium text-emerald-900 dark:text-emerald-100 mb-1">
+                    ✓ Verification Status
+                  </p>
+                  <p className="text-sm text-emerald-900 dark:text-emerald-100">
+                    This event is {selectedSource.verification === 'official' ? 'officially documented' : 'corroborated by multiple sources'}.
+                  </p>
+                </div>
               )}
-              <Button variant="ghost" size="sm" onClick={() => setSelectedSource(null)}>
-                Close
-              </Button>
+
+              <div className="pt-4 border-t flex gap-2">
+                {selectedSource?.url && (
+                  <Button variant="outline" size="sm" asChild className="flex-1">
+                    <a
+                      href={selectedSource.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 justify-center"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      View Original
+                    </a>
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={() => setSelectedSource(null)}>
+                  Close
+                </Button>
+              </div>
             </div>
-          </div>
         </DialogContent>
       </Dialog>
     </Collapsible>
