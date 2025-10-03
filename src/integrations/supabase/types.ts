@@ -525,6 +525,107 @@ export type Database = {
         }
         Relationships: []
       }
+      job_anomalies: {
+        Row: {
+          brand_id: string
+          category: string
+          created_at: string
+          delta: number
+          id: string
+          job_run_id: string
+        }
+        Insert: {
+          brand_id: string
+          category: string
+          created_at?: string
+          delta: number
+          id?: string
+          job_run_id: string
+        }
+        Update: {
+          brand_id?: string
+          category?: string
+          created_at?: string
+          delta?: number
+          id?: string
+          job_run_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_anomalies_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_anomalies_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "job_anomalies_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "job_anomalies_job_run_id_fkey"
+            columns: ["job_run_id"]
+            isOneToOne: false
+            referencedRelation: "job_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_runs: {
+        Row: {
+          anomalies_count: number
+          details: Json | null
+          duration_ms: number | null
+          error_count: number
+          finished_at: string | null
+          id: string
+          job_name: string
+          mode: string
+          started_at: string
+          status: string
+          success_count: number
+          user_id: string | null
+        }
+        Insert: {
+          anomalies_count?: number
+          details?: Json | null
+          duration_ms?: number | null
+          error_count?: number
+          finished_at?: string | null
+          id?: string
+          job_name: string
+          mode: string
+          started_at?: string
+          status?: string
+          success_count?: number
+          user_id?: string | null
+        }
+        Update: {
+          anomalies_count?: number
+          details?: Json | null
+          duration_ms?: number | null
+          error_count?: number
+          finished_at?: string | null
+          id?: string
+          job_name?: string
+          mode?: string
+          started_at?: string
+          status?: string
+          success_count?: number
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       jobs: {
         Row: {
           attempts: number

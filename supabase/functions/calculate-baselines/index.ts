@@ -514,13 +514,40 @@ serve(async (req) => {
         status: 'started',
       }));
       
+      // Create job run record
+      const { data: jobRun } = await supabase
+        .from('job_runs')
+        .insert({
+          job_name: 'calculate-baselines',
+          mode: 'batch',
+          user_id: userId,
+          status: 'started',
+        })
+        .select('id')
+        .single();
+      
+      const runId = jobRun?.id;
+      
       const { data: brands, error: brandsError } = await supabase
         .from('brands')
         .select('id, name')
         .eq('is_test', false) // Filter out test brands
         .limit(1000); // Process in chunks
 
-      if (brandsError) throw brandsError;
+      if (brandsError) {
+        if (runId) {
+          await supabase
+            .from('job_runs')
+            .update({
+              finished_at: new Date().toISOString(),
+              duration_ms: Math.round(performance.now() - startTime),
+              status: 'error',
+              details: { error: brandsError.message },
+            })
+            .eq('id', runId);
+        }
+        throw brandsError;
+      }
 
       let successCount = 0;
       let errorCount = 0;
@@ -559,8 +586,17 @@ serve(async (req) => {
 
       const duration = Math.round(performance.now() - startTime);
       
-      // Log anomalies if found
-      if (anomalies.length > 0) {
+      // Store anomalies in database
+      if (runId && anomalies.length > 0) {
+        const anomalyRows = anomalies.slice(0, 100).map(a => ({
+          job_run_id: runId,
+          brand_id: a.brand_id,
+          category: a.category,
+          delta: a.delta,
+        }));
+        
+        await supabase.from('job_anomalies').insert(anomalyRows);
+        
         console.warn(JSON.stringify({
           level: 'warn',
           fn: 'calculate-baselines',
@@ -568,6 +604,22 @@ serve(async (req) => {
           anomalies_detected: anomalies.length,
           anomalies: anomalies.slice(0, 5),
         }));
+      }
+      
+      // Update job run with final status
+      if (runId) {
+        await supabase
+          .from('job_runs')
+          .update({
+            finished_at: new Date().toISOString(),
+            duration_ms: duration,
+            status: 'completed',
+            success_count: successCount,
+            error_count: errorCount,
+            anomalies_count: anomalies.length,
+            details: { errors: errors.slice(0, 50) },
+          })
+          .eq('id', runId);
       }
       
       console.log(JSON.stringify({

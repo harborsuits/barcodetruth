@@ -1,0 +1,296 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { Activity, AlertTriangle, Clock, XCircle } from "lucide-react";
+import { Helmet } from "react-helmet";
+
+interface JobRun {
+  id: string;
+  job_name: string;
+  mode: string;
+  started_at: string;
+  finished_at?: string;
+  duration_ms?: number;
+  status: string;
+  success_count: number;
+  error_count: number;
+  anomalies_count: number;
+}
+
+interface Anomaly {
+  id: string;
+  brand_id: string;
+  category: string;
+  delta: number;
+  created_at: string;
+  brands?: { name: string };
+}
+
+interface HealthData {
+  runs: JobRun[];
+  anomalies: Anomaly[];
+  totals: {
+    last24h_runs: number;
+    last24h_anomalies: number;
+    total_errors_24h: number;
+  };
+}
+
+export default function AdminHealth() {
+  const [loading, setLoading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [data, setData] = useState<HealthData | null>(null);
+
+  useEffect(() => {
+    checkAdminAndFetch();
+  }, []);
+
+  async function checkAdminAndFetch() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: role } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .maybeSingle();
+
+    setIsAdmin(!!role);
+    if (role) await fetchHealth();
+  }
+
+  async function fetchHealth() {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-health", {
+        body: {},
+      });
+
+      if (error) throw error;
+      setData(data);
+    } catch (e: any) {
+      console.error("Health fetch error:", e);
+      toast.error(e.message || "Failed to load health data");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!isAdmin) {
+    return null;
+  }
+
+  const formatDuration = (ms?: number) => {
+    if (!ms) return "—";
+    if (ms < 1000) return `${ms}ms`;
+    return `${(ms / 1000).toFixed(1)}s`;
+  };
+
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleString();
+  };
+
+  return (
+    <>
+      <Helmet>
+        <title>System Health - Admin</title>
+      </Helmet>
+
+      <div className="max-w-7xl mx-auto p-4 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">System Health</h1>
+            <p className="text-muted-foreground mt-1">
+              Monitor baseline calculation jobs and anomalies
+            </p>
+          </div>
+          <Button onClick={fetchHealth} disabled={loading} variant="outline">
+            {loading ? "Refreshing..." : "Refresh"}
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Activity className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Runs (24h)</div>
+                <div className="text-2xl font-bold">{data?.totals?.last24h_runs ?? 0}</div>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-yellow-500/10 rounded-lg">
+                <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-500" />
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Anomalies (24h)</div>
+                <div className="text-2xl font-bold">{data?.totals?.last24h_anomalies ?? 0}</div>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-destructive/10 rounded-lg">
+                <XCircle className="w-5 h-5 text-destructive" />
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Errors (24h)</div>
+                <div className="text-2xl font-bold">{data?.totals?.total_errors_24h ?? 0}</div>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-500/10 rounded-lg">
+                <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Last Duration</div>
+                <div className="text-2xl font-bold">
+                  {formatDuration(data?.runs?.[0]?.duration_ms)}
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        <Card className="p-6">
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold">Recent Job Runs</h2>
+            <p className="text-sm text-muted-foreground">
+              Last 20 baseline calculation jobs
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-muted-foreground">
+                  <th className="text-left p-3">Started</th>
+                  <th className="text-left p-3">Mode</th>
+                  <th className="text-left p-3">Status</th>
+                  <th className="text-right p-3">Success</th>
+                  <th className="text-right p-3">Errors</th>
+                  <th className="text-right p-3">Anomalies</th>
+                  <th className="text-right p-3">Duration</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.runs ?? []).map((r) => (
+                  <tr key={r.id} className="border-b hover:bg-muted/50">
+                    <td className="p-3 font-mono text-xs">{formatDate(r.started_at)}</td>
+                    <td className="p-3">
+                      <span className="px-2 py-1 bg-muted rounded text-xs font-medium">
+                        {r.mode}
+                      </span>
+                    </td>
+                    <td className="p-3">
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-medium ${
+                          r.status === 'completed'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                            : r.status === 'error'
+                            ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        }`}
+                      >
+                        {r.status}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right">{r.success_count}</td>
+                    <td className="p-3 text-right">
+                      {r.error_count > 0 ? (
+                        <span className="text-destructive font-medium">{r.error_count}</span>
+                      ) : (
+                        r.error_count
+                      )}
+                    </td>
+                    <td className="p-3 text-right">
+                      {r.anomalies_count > 0 ? (
+                        <span className="text-yellow-600 dark:text-yellow-500 font-medium">
+                          {r.anomalies_count}
+                        </span>
+                      ) : (
+                        r.anomalies_count
+                      )}
+                    </td>
+                    <td className="p-3 text-right font-mono text-xs">
+                      {formatDuration(r.duration_ms)}
+                    </td>
+                  </tr>
+                ))}
+                {!data?.runs?.length && (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                      No job runs recorded yet
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold">Recent Anomalies</h2>
+            <p className="text-sm text-muted-foreground">
+              Brands with score deltas ≥15 in the last 50 calculations
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-muted-foreground">
+                  <th className="text-left p-3">Detected</th>
+                  <th className="text-left p-3">Brand</th>
+                  <th className="text-left p-3">Category</th>
+                  <th className="text-right p-3">Delta (90d vs 24m)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.anomalies ?? []).map((a) => (
+                  <tr key={a.id} className="border-b hover:bg-muted/50">
+                    <td className="p-3 font-mono text-xs">{formatDate(a.created_at)}</td>
+                    <td className="p-3 font-medium">{a.brands?.name ?? a.brand_id}</td>
+                    <td className="p-3">
+                      <span className="px-2 py-1 bg-muted rounded text-xs font-medium capitalize">
+                        {a.category}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right">
+                      <span
+                        className={`font-mono font-medium ${
+                          Math.abs(a.delta) >= 15 ? 'text-yellow-600 dark:text-yellow-500' : ''
+                        }`}
+                      >
+                        {a.delta > 0 ? '+' : ''}
+                        {a.delta}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {!data?.anomalies?.length && (
+                  <tr>
+                    <td colSpan={4} className="p-8 text-center text-muted-foreground">
+                      No anomalies detected
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
+    </>
+  );
+}
