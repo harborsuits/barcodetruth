@@ -72,7 +72,11 @@ Deno.serve(async (req) => {
     if (Date.now() - lastRun < 30_000) {
       return new Response(JSON.stringify({ error: 'Please wait 30s between QA runs' }), {
         status: 429,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+          'Retry-After': '30'
+        },
       });
     }
     lastRunMap.set(user.id, Date.now());
@@ -204,6 +208,16 @@ Deno.serve(async (req) => {
     }
 
     result.duration_ms = Date.now() - startTime;
+
+    // Compact log for monitoring
+    console.log(JSON.stringify({
+      level: 'info',
+      fn: 'qa-mixed-flags',
+      brands_tested: result.brands_tested,
+      mixed_found: result.mixed_found,
+      caps_ok: result.caps_ok,
+      duration_ms: result.duration_ms
+    }));
 
     console.log(JSON.stringify(result));
 
