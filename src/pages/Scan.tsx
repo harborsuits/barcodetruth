@@ -153,26 +153,49 @@ export const Scan = () => {
   };
 
   const startScanner = async () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current) {
+      console.error('Video element not ready');
+      return;
+    }
     
     setError('');
     setScanResult('scanning');
     console.log('[Analytics] scan_start', { ts: Date.now() });
+    console.log('Initializing scanner...');
+    
+    // Check if in iframe (preview environment)
+    const inIframe = window.self !== window.top;
+    if (inIframe) {
+      console.warn('Running in iframe - camera access may be restricted');
+      setError('Camera not available in preview. Use manual entry below or test on published site.');
+      setScanResult('idle');
+      toast({
+        title: "Camera not available",
+        description: "Preview environment doesn't support camera. Use manual barcode entry or test on your published site.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     try {
       if (!scannerRef.current) {
+        console.log('Creating scanner instance...');
         scannerRef.current = createScanner();
       }
       
+      console.log('Starting camera...');
       await scannerRef.current.startScanning(
         videoRef.current,
         handleBarcodeDetected,
         (err) => {
+          console.error('Scanner error callback:', err);
           setError(err.message);
           setScanResult('idle');
         }
       );
 
+      console.log('Camera started successfully');
+      
       // Check torch support after camera starts
       setTimeout(() => {
         if (scannerRef.current) {
@@ -182,8 +205,14 @@ export const Scan = () => {
       
     } catch (err: any) {
       console.error('Scanner start error:', err);
-      setError(err?.message || 'Failed to access camera');
+      const errorMsg = err?.message || 'Failed to access camera';
+      setError(errorMsg);
       setScanResult('idle');
+      toast({
+        title: "Camera error",
+        description: errorMsg,
+        variant: "destructive"
+      });
     }
   };
 
