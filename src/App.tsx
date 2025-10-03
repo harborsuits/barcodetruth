@@ -23,6 +23,7 @@ const Trending = lazyNamed(() => import("./pages/Trending"), "Trending");
 const Lists = lazyNamed(() => import("./pages/Lists"), "Lists");
 const Settings = lazyNamed(() => import("./pages/Settings"), "Settings");
 const AdminReview = lazyNamed(() => import("./pages/AdminReview"), "AdminReview");
+const AdminClaims = lazyNamed(() => import("./pages/AdminClaims"), "default");
 
 const queryClient = new QueryClient();
 
@@ -145,6 +146,18 @@ const App = () => (
                 <RouteErrorBoundary>
                   <Suspense fallback={<RouteFallback label="Loading admin review…" />}>
                     <AdminReview />
+                  </Suspense>
+                </RouteErrorBoundary>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/claims"
+            element={
+              <ProtectedRoute>
+                <RouteErrorBoundary>
+                  <Suspense fallback={<RouteFallback label="Loading claims moderation…" />}>
+                    <AdminClaims />
                   </Suspense>
                 </RouteErrorBoundary>
               </ProtectedRoute>
