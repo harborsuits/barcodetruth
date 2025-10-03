@@ -20,7 +20,7 @@ export const Home = () => {
       <header className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b">
         <div className="container max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <img src={logo} alt="Barcode Truth" className="h-8 w-auto" />
+            <img src={logo} alt="Barcode Truth" className="h-12 w-auto" />
             <Button
               variant="ghost"
               size="icon"
