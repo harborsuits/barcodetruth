@@ -414,6 +414,30 @@ export type Database = {
           },
         ]
       }
+      gs1_prefix_registry: {
+        Row: {
+          company_name: string
+          country: string | null
+          created_at: string
+          prefix: string
+          source: string | null
+        }
+        Insert: {
+          company_name: string
+          country?: string | null
+          created_at?: string
+          prefix: string
+          source?: string | null
+        }
+        Update: {
+          company_name?: string
+          country?: string | null
+          created_at?: string
+          prefix?: string
+          source?: string | null
+        }
+        Relationships: []
+      }
       jobs: {
         Row: {
           attempts: number
@@ -555,6 +579,88 @@ export type Database = {
             foreignKeyName: "pilot_brands_brand_id_fkey"
             columns: ["brand_id"]
             isOneToOne: true
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_claim_votes: {
+        Row: {
+          claim_id: string
+          created_at: string
+          user_id: string
+          vote: number
+        }
+        Insert: {
+          claim_id: string
+          created_at?: string
+          user_id: string
+          vote: number
+        }
+        Update: {
+          claim_id?: string
+          created_at?: string
+          user_id?: string
+          vote?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_claim_votes_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "product_claims"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_claims: {
+        Row: {
+          barcode_ean13: string
+          claimed_brand_id: string
+          confidence: number
+          created_at: string
+          created_by: string | null
+          id: string
+          moderated_at: string | null
+          moderated_by: string | null
+          product_name: string | null
+          rejection_reason: string | null
+          source_hint: string | null
+          status: Database["public"]["Enums"]["submission_status"]
+        }
+        Insert: {
+          barcode_ean13: string
+          claimed_brand_id: string
+          confidence?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          moderated_at?: string | null
+          moderated_by?: string | null
+          product_name?: string | null
+          rejection_reason?: string | null
+          source_hint?: string | null
+          status?: Database["public"]["Enums"]["submission_status"]
+        }
+        Update: {
+          barcode_ean13?: string
+          claimed_brand_id?: string
+          confidence?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          moderated_at?: string | null
+          moderated_by?: string | null
+          product_name?: string | null
+          rejection_reason?: string | null
+          source_hint?: string | null
+          status?: Database["public"]["Enums"]["submission_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_claims_claimed_brand_id_fkey"
+            columns: ["claimed_brand_id"]
+            isOneToOne: false
             referencedRelation: "brands"
             referencedColumns: ["id"]
           },
@@ -948,6 +1054,7 @@ export type Database = {
         | "division_of"
         | "subsidiary_of"
         | "acquired_by"
+      submission_status: "pending" | "verified" | "rejected"
       verification_level: "unverified" | "corroborated" | "official"
     }
     CompositeTypes: {
@@ -1092,6 +1199,7 @@ export const Constants = {
         "subsidiary_of",
         "acquired_by",
       ],
+      submission_status: ["pending", "verified", "rejected"],
       verification_level: ["unverified", "corroborated", "official"],
     },
   },
