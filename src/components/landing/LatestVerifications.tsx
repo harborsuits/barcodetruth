@@ -55,17 +55,36 @@ export function LatestVerifications() {
       <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
         <Clock className="h-4 w-4 text-primary" />
         Latest Verifications
+        <span className="ml-auto text-xs text-muted-foreground font-normal">Swipe to see more →</span>
       </h3>
-      <div className="flex gap-4 overflow-x-auto pb-2">
-        {recentSources.map((item) => (
-          <div key={item.id} className="text-xs shrink-0 flex items-center gap-1.5">
-            <span className="font-medium text-foreground">
-              {item.domain_owner || item.source_name}
-            </span>
-            <span className="text-muted-foreground">·</span>
-            <span className="text-muted-foreground">{timeAgo(item.source_date!)}</span>
-          </div>
-        ))}
+      <div className="relative -mx-4 px-4">
+        {/* Scroll container with smooth scrolling and visible scrollbar */}
+        <div 
+          className="flex gap-4 overflow-x-auto pb-3 scroll-smooth snap-x snap-mandatory
+                     [&::-webkit-scrollbar]:h-1.5
+                     [&::-webkit-scrollbar-track]:bg-muted/30 [&::-webkit-scrollbar-track]:rounded-full
+                     [&::-webkit-scrollbar-thumb]:bg-primary/40 [&::-webkit-scrollbar-thumb]:rounded-full
+                     [&::-webkit-scrollbar-thumb]:hover:bg-primary/60"
+          style={{ scrollbarWidth: 'thin', scrollbarColor: 'hsl(var(--primary) / 0.4) hsl(var(--muted) / 0.3)' }}
+        >
+          {recentSources.map((item) => (
+            <div 
+              key={item.id} 
+              className="text-xs shrink-0 flex items-center gap-1.5 snap-start
+                         bg-muted/30 px-3 py-1.5 rounded-full
+                         hover:bg-muted/50 transition-colors cursor-default"
+            >
+              <span className="font-medium text-foreground">
+                {item.domain_owner || item.source_name}
+              </span>
+              <span className="text-muted-foreground">·</span>
+              <span className="text-muted-foreground">{timeAgo(item.source_date!)}</span>
+            </div>
+          ))}
+        </div>
+        
+        {/* Fade gradient on right to indicate more content */}
+        <div className="absolute right-0 top-0 bottom-3 w-12 bg-gradient-to-l from-card to-transparent pointer-events-none" />
       </div>
     </section>
   );
