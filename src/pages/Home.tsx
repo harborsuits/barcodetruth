@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, List, Settings, Search } from "lucide-react";
+import { TrendingUp, List, Settings, Search, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { TrendingPreview } from "@/components/landing/TrendingPreview";
@@ -8,11 +8,30 @@ import { HowItWorks } from "@/components/landing/HowItWorks";
 import { LatestVerifications } from "@/components/landing/LatestVerifications";
 import { AttributionFooter } from "@/components/AttributionFooter";
 import { useSnapshotPrewarm } from "@/hooks/useSnapshotPrewarm";
+import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
 import logo from "@/assets/logo.png";
 
 export const Home = () => {
   const navigate = useNavigate();
+  const [isAdmin, setIsAdmin] = useState(false);
   useSnapshotPrewarm(); // Prewarm snapshot cache for offline use
+
+  useEffect(() => {
+    const checkAdminRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: role } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('role', 'admin')
+          .maybeSingle();
+        setIsAdmin(!!role);
+      }
+    };
+    checkAdminRole();
+  }, []);
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
@@ -81,6 +100,17 @@ export const Home = () => {
               <Settings className="h-5 w-5" />
               <span className="text-xs">Settings</span>
             </Button>
+            {isAdmin && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex-col gap-1 h-auto"
+                onClick={() => navigate("/admin/health")}
+              >
+                <Shield className="h-5 w-5" />
+                <span className="text-xs">Admin</span>
+              </Button>
+            )}
           </div>
         </div>
       </nav>
