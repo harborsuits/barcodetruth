@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,22 +34,38 @@ const badgeColors: Record<string, string> = {
 
 export function InlineSources({ brandId, category, categoryLabel }: InlineSourcesProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [limit, setLimit] = useState(8);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [allSources, setAllSources] = useState<Source[]>([]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['brand-sources', brandId, category, limit],
+    queryKey: ['brand-sources', brandId, category, cursor],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('get-brand-sources', {
-        body: { brandId, category, limit }
+        body: { brandId, category, limit: 8, cursor }
       });
       if (error) throw error;
-      return data as { items: Source[] };
+      return data as { items: Source[]; nextCursor?: string | null };
     },
     enabled: isOpen && !!brandId,
+    staleTime: 120000, // 2 minutes
   });
 
-  const sources = data?.items || [];
-  const hasMore = sources.length >= limit;
+  // Accumulate sources as we paginate, or reset when opening/changing category
+  useEffect(() => {
+    if (!isOpen) {
+      setAllSources([]);
+      setCursor(null);
+    } else if (data?.items) {
+      if (cursor) {
+        setAllSources(prev => [...prev, ...data.items]);
+      } else {
+        setAllSources(data.items);
+      }
+    }
+  }, [isOpen, data, cursor]);
+
+  const sources = allSources;
+  const hasMore = !!data?.nextCursor;
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -107,9 +123,13 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                           {source.badge}
                         </Badge>
                         {source.verification && source.verification !== 'unverified' && (
-                          <Badge variant="secondary" className="text-xs">
-                            {source.verification}
-                          </Badge>
+                          <span className={`px-2 py-0.5 rounded text-xs ${
+                            source.verification === 'official'
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+                              : 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
+                          }`}>
+                            {source.verification === 'official' ? 'Official' : 'Reported'}
+                          </span>
                         )}
                       </div>
                       <p className="text-sm font-medium">{source.title}</p>
@@ -150,9 +170,10 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                 variant="outline"
                 size="sm"
                 className="w-full text-xs"
-                onClick={() => setLimit(prev => prev + 8)}
+                onClick={() => setCursor(data?.nextCursor!)}
+                disabled={isLoading}
               >
-                Show more
+                {isLoading ? 'Loading...' : 'Show more'}
               </Button>
             )}
           </>

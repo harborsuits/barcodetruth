@@ -35,6 +35,7 @@ Deno.serve(async (req) => {
     );
   }
 
+  const t0 = performance.now();
   try {
     const { brandId } = await req.json();
 
@@ -107,6 +108,15 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const duration = Math.round(performance.now() - t0);
+    console.log(JSON.stringify({
+      level: "info",
+      fn: "get-parent-rollup",
+      brand_id: brandId,
+      child_count: rollup.child_count,
+      duration_ms: duration,
+    }));
 
     return new Response(
       JSON.stringify({

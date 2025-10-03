@@ -231,7 +231,7 @@ export const BrandDetail = () => {
       return data;
     },
     enabled: !!brandId && showParent,
-    staleTime: 300000,
+    staleTime: 600000, // 10 minutes
   });
 
   // Mutation to toggle notifications
@@ -497,7 +497,15 @@ export const BrandDetail = () => {
               <Card className="border-primary/50">
                 <CardHeader>
                   <CardTitle className="text-base flex items-center justify-between">
-                    <span>Parent Company: {parentRollup.parent.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span>Parent Company: {parentRollup.parent.name}</span>
+                      <span 
+                        className="text-sm text-muted-foreground cursor-help" 
+                        title="Mean across subsidiaries in the last baseline window. This will evolve to event-weighted & revenue-weighted aggregation."
+                      >
+                        ℹ️
+                      </span>
+                    </div>
                     <Badge variant="secondary" className="text-xs">
                       {parentRollup.parent.child_count} {parentRollup.parent.child_count === 1 ? 'brand' : 'brands'}
                     </Badge>

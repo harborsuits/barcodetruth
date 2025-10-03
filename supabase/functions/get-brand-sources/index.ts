@@ -35,8 +35,9 @@ Deno.serve(async (req) => {
     );
   }
 
+  const t0 = performance.now();
   try {
-    const { brandId, category, limit = 8 } = await req.json();
+    const { brandId, category, limit = 8, cursor } = await req.json();
 
     if (!brandId) {
       return new Response(
@@ -55,11 +56,18 @@ Deno.serve(async (req) => {
       .select('*')
       .eq('brand_id', brandId)
       .order('occurred_at', { ascending: false })
-      .limit(limit);
+      .order('event_id', { ascending: false });
 
     if (category && category !== 'all') {
       query = query.eq('category', category);
     }
+
+    if (cursor) {
+      const [ts, id] = cursor.split('|');
+      query = query.or(`occurred_at.lt.${ts},and(occurred_at.eq.${ts},event_id.lt.${id})`);
+    }
+
+    query = query.limit(limit + 1);
 
     const { data, error } = await query;
 
@@ -71,7 +79,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const items = (data || []).map((row: any) => {
+    const items = (data || []).slice(0, limit).map((row: any) => {
       const badge = getBadge(row.source);
       return {
         id: row.event_id,
@@ -86,8 +94,22 @@ Deno.serve(async (req) => {
       };
     });
 
+    const nextCursor = (data || []).length > limit && items.length > 0
+      ? `${items[items.length - 1].occurred_at}|${items[items.length - 1].id}`
+      : null;
+
+    const duration = Math.round(performance.now() - t0);
+    console.log(JSON.stringify({
+      level: "info",
+      fn: "get-brand-sources",
+      brand_id: brandId,
+      category: category || 'all',
+      count: items.length,
+      duration_ms: duration,
+    }));
+
     return new Response(
-      JSON.stringify({ items }),
+      JSON.stringify({ items, nextCursor }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (e: any) {
