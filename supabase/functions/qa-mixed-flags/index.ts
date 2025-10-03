@@ -26,6 +26,21 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Origin validation
+  const allowedOrigins = [
+    'https://midmvcwtywnexzdwbekp.supabase.co',
+    'http://localhost:5173', // dev
+    'http://localhost:8081', // dev alternative
+  ];
+
+  const origin = req.headers.get('Origin') || '';
+  if (origin && !allowedOrigins.includes(origin)) {
+    return new Response(
+      JSON.stringify({ error: 'Origin not allowed' }),
+      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   const startTime = Date.now();
 
   try {
