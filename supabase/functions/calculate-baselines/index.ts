@@ -379,10 +379,37 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Only accept POST with JSON
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  const contentType = req.headers.get('Content-Type') || '';
+  if (!contentType.includes('application/json')) {
+    return new Response(
+      JSON.stringify({ error: 'Content-Type must be application/json' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  let body: any;
+  let userId: string | null = null;
+  
   try {
-    const body = await req.json();
-    const { brandId, mode } = body;
-    
+    body = await req.json();
+  } catch (e) {
+    return new Response(
+      JSON.stringify({ error: 'Invalid JSON body' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+  
+  const { brandId, mode } = body;
+  
+  try {
     // Admin authentication check (skip for cron-triggered batch mode)
     const authHeader = req.headers.get('Authorization') ?? '';
     
@@ -398,11 +425,20 @@ serve(async (req) => {
 
       const { data: { user }, error: userError } = await authedClient.auth.getUser();
       if (userError || !user) {
+        console.error(JSON.stringify({
+          level: 'warn',
+          fn: 'calculate-baselines',
+          status: 'unauthorized',
+          error_code: 'INVALID_TOKEN',
+          duration_ms: Math.round(performance.now() - startTime),
+        }));
         return new Response(
           JSON.stringify({ error: 'Unauthorized - invalid token' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+
+      userId = user.id;
 
       // Check admin role
       const { data: roleData } = await authedClient
@@ -413,6 +449,14 @@ serve(async (req) => {
         .maybeSingle();
 
       if (!roleData) {
+        console.error(JSON.stringify({
+          level: 'warn',
+          fn: 'calculate-baselines',
+          user_id: user.id,
+          status: 'forbidden',
+          error_code: 'NOT_ADMIN',
+          duration_ms: Math.round(performance.now() - startTime),
+        }));
         return new Response(
           JSON.stringify({ error: 'Forbidden - admin access required' }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -421,9 +465,27 @@ serve(async (req) => {
 
       // Rate limiting (5 requests per minute per admin)
       if (!allowRequest(user.id, 5, 60_000)) {
+        console.error(JSON.stringify({
+          level: 'warn',
+          fn: 'calculate-baselines',
+          user_id: user.id,
+          status: 'rate_limited',
+          error_code: 'RATE_LIMIT_EXCEEDED',
+          duration_ms: Math.round(performance.now() - startTime),
+        }));
         return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded - max 5 requests per minute' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ 
+            error: 'Rate limit exceeded - max 5 requests per minute',
+            retry_after: 60 
+          }),
+          { 
+            status: 429, 
+            headers: { 
+              ...corsHeaders, 
+              'Content-Type': 'application/json',
+              'Retry-After': '60'
+            } 
+          }
         );
       }
     }
@@ -444,7 +506,13 @@ serve(async (req) => {
 
     // Support batch mode for cron jobs
     if (mode === 'batch') {
-      console.log('🔄 Starting batch baseline calculation for all brands...');
+      console.log(JSON.stringify({
+        level: 'info',
+        fn: 'calculate-baselines',
+        user_id: userId,
+        mode: 'batch',
+        status: 'started',
+      }));
       
       const { data: brands, error: brandsError } = await supabase
         .from('brands')
@@ -457,26 +525,61 @@ serve(async (req) => {
       let successCount = 0;
       let errorCount = 0;
       const errors: string[] = [];
+      const anomalies: any[] = [];
 
       for (const brand of brands || []) {
         try {
-          await calculateAndStoreBrand(supabase, brand.id, weights, caps);
+          const result = await calculateAndStoreBrand(supabase, brand.id, weights, caps);
           successCount++;
+          
+          // Detect anomalies (deltas hitting clamps)
+          Object.entries(result.breakdown).forEach(([category, data]: [string, any]) => {
+            if (Math.abs(data.window_delta) >= 15) {
+              anomalies.push({
+                brand_id: brand.id,
+                brand_name: brand.name,
+                category,
+                delta: data.window_delta,
+              });
+            }
+          });
         } catch (err) {
           errorCount++;
           const errMsg = err instanceof Error ? err.message : String(err);
           errors.push(`${brand.name}: ${errMsg}`);
-          console.error(`❌ Failed for ${brand.name}:`, errMsg);
+          console.error(JSON.stringify({
+            level: 'error',
+            fn: 'calculate-baselines',
+            brand_id: brand.id,
+            brand_name: brand.name,
+            error: errMsg,
+          }));
         }
       }
 
       const duration = Math.round(performance.now() - startTime);
+      
+      // Log anomalies if found
+      if (anomalies.length > 0) {
+        console.warn(JSON.stringify({
+          level: 'warn',
+          fn: 'calculate-baselines',
+          mode: 'batch',
+          anomalies_detected: anomalies.length,
+          anomalies: anomalies.slice(0, 5),
+        }));
+      }
+      
       console.log(JSON.stringify({
         level: 'info',
-        fn: 'calculate-baselines-batch',
+        fn: 'calculate-baselines',
+        user_id: userId,
+        mode: 'batch',
+        status: 'completed',
         success: successCount,
         errors: errorCount,
         total: brands?.length || 0,
+        anomalies: anomalies.length,
         duration_ms: duration,
       }));
 
@@ -485,27 +588,115 @@ serve(async (req) => {
           success: true, 
           processed: successCount,
           errors: errorCount,
+          anomalies: anomalies.length,
           error_details: errors.slice(0, 10),
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Single brand mode
+    // Single brand mode - validate input
     if (!brandId) {
+      console.error(JSON.stringify({
+        level: 'warn',
+        fn: 'calculate-baselines',
+        user_id: userId,
+        mode: 'single',
+        status: 'invalid_input',
+        error_code: 'MISSING_BRAND_ID',
+      }));
       return new Response(
         JSON.stringify({ error: 'brandId required for single brand mode' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(brandId)) {
+      console.error(JSON.stringify({
+        level: 'warn',
+        fn: 'calculate-baselines',
+        user_id: userId,
+        mode: 'single',
+        brand_id: brandId,
+        status: 'invalid_input',
+        error_code: 'INVALID_UUID',
+      }));
+      return new Response(
+        JSON.stringify({ error: 'brandId must be a valid UUID' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify brand exists and is not a test brand
+    const { data: brand, error: brandError } = await supabase
+      .from('brands')
+      .select('id, name, is_test')
+      .eq('id', brandId)
+      .maybeSingle();
+
+    if (brandError || !brand) {
+      console.error(JSON.stringify({
+        level: 'warn',
+        fn: 'calculate-baselines',
+        user_id: userId,
+        mode: 'single',
+        brand_id: brandId,
+        status: 'not_found',
+        error_code: 'BRAND_NOT_FOUND',
+      }));
+      return new Response(
+        JSON.stringify({ error: 'Brand not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (brand.is_test) {
+      console.error(JSON.stringify({
+        level: 'warn',
+        fn: 'calculate-baselines',
+        user_id: userId,
+        mode: 'single',
+        brand_id: brandId,
+        status: 'forbidden',
+        error_code: 'TEST_BRAND',
+      }));
+      return new Response(
+        JSON.stringify({ error: 'Cannot recalculate test brands' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const result = await calculateAndStoreBrand(supabase, brandId, weights, caps);
     
     const duration = Math.round(performance.now() - startTime);
+    
+    // Check for anomalies in deltas
+    const anomalies: any[] = [];
+    Object.entries(result.breakdown).forEach(([category, data]: [string, any]) => {
+      if (Math.abs(data.window_delta) >= 15) {
+        anomalies.push({ category, delta: data.window_delta });
+      }
+    });
+    
+    if (anomalies.length > 0) {
+      console.warn(JSON.stringify({
+        level: 'warn',
+        fn: 'calculate-baselines',
+        user_id: userId,
+        brand_id: brandId,
+        anomalies,
+      }));
+    }
+    
     console.log(JSON.stringify({
       level: 'info',
       fn: 'calculate-baselines',
-      brandId,
+      user_id: userId,
+      mode: 'single',
+      brand_id: brandId,
+      status: 'success',
       scores: {
         labor: result.breakdown.labor.value,
         environment: result.breakdown.environment.value,
@@ -525,11 +716,18 @@ serve(async (req) => {
     console.error(JSON.stringify({
       level: 'error',
       fn: 'calculate-baselines',
+      user_id: userId,
+      status: 'error',
+      error_code: 'INTERNAL_ERROR',
       error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
       duration_ms: duration,
     }));
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        success: false 
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
