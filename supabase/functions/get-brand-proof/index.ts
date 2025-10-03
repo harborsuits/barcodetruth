@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
       const verifiedCount = verifiedDedup.length;
       const independentOwners = new Set(verifiedDedup.map((e: any) => e.domain_owner)).size;
       
-      const delta = catData.windowDelta || 0;
+      const delta = catData.window_delta || 0;
       const hasOfficial = verifiedDedup.some((e: any) => e.verification === 'official');
       
       // Proof gate: large delta needs ≥2 independent owners (or 1 if official present)
@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
       return {
         component: comp,
         base: catData.base || 50,
-        base_reason: catData.baseReason || 'Default baseline',
+        base_reason: catData.base_reason || 'Default baseline',
         window_delta: delta,
         value: scoreRow[`score_${comp}` as keyof typeof scoreRow] as number,
         confidence: catData.confidence || 50,
