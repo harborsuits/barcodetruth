@@ -20,7 +20,7 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-2">
-          {isAdmin && (
+          {isAdmin === true && (
             <Button 
               variant="ghost" 
               size="sm" 
@@ -29,6 +29,9 @@ export function Header() {
               <Shield className="mr-2 h-4 w-4" />
               Admin
             </Button>
+          )}
+          {isAdmin === null && (
+            <div className="w-20 h-9" /> 
           )}
         </div>
       </div>
