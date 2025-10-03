@@ -29,16 +29,31 @@ Deno.serve(async (req) => {
 
     console.log('🔄 Starting auto-accept job...');
 
-    // Fetch pending claims that meet auto-accept criteria:
-    // - score ≥ 3
-    // - ≥2 distinct upvoters (upvotes - downvotes ≥ 2)
-    // - status = 'pending'
+    // Fetch config-driven thresholds
+    const { data: configData, error: configError } = await supabase
+      .from('moderation_config')
+      .select('value')
+      .eq('key', 'auto_accept_rule')
+      .maybeSingle();
+
+    if (configError) {
+      console.error('Error fetching config:', configError);
+      throw configError;
+    }
+
+    const config = configData?.value || { min_score: 3, min_upvotes: 2 };
+    const minScore = config.min_score || 3;
+    const minUpvotes = config.min_upvotes || 2;
+
+    console.log(`📊 Auto-accept criteria: score ≥ ${minScore}, upvotes ≥ ${minUpvotes}`);
+
+    // Fetch pending claims that meet auto-accept criteria
     const { data: claims, error: fetchError } = await supabase
       .from('product_claims_moderator')
       .select('*')
       .eq('status', 'pending')
-      .gte('score', 3)
-      .gte('upvotes', 2) as { data: ClaimWithScore[] | null; error: any };
+      .gte('score', minScore)
+      .gte('upvotes', minUpvotes) as { data: ClaimWithScore[] | null; error: any };
 
     if (fetchError) {
       console.error('Error fetching claims:', fetchError);

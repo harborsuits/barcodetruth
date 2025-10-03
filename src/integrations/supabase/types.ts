@@ -507,6 +507,24 @@ export type Database = {
         }
         Relationships: []
       }
+      moderation_config: {
+        Row: {
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       news_orgs: {
         Row: {
           domain: string
