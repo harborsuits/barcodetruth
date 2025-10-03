@@ -50,14 +50,20 @@ Deno.serve(async (req) => {
     const rawLimit = Number(limit ?? 8);
     const safeLimit = Math.min(Math.max(rawLimit, 1), 50); // 1..50
 
-    // Validate cursor
+    // Validate cursor with guardrails
     let occurredCut: string | null = null;
     let idCut: string | null = null;
     if (cursor) {
       const parts = String(cursor).split('|');
       if (parts.length === 2 && parts[0] && parts[1]) {
-        occurredCut = parts[0];
-        idCut = parts[1];
+        // Basic timestamp format check (ISO 8601-ish)
+        const tsValid = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(parts[0]);
+        // Basic UUID format check
+        const uuidValid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(parts[1]);
+        if (tsValid && uuidValid) {
+          occurredCut = parts[0];
+          idCut = parts[1];
+        }
       }
     }
 
@@ -95,13 +101,15 @@ Deno.serve(async (req) => {
 
     const items = (data || []).slice(0, safeLimit).map((row: any) => {
       const badge = getBadge(row.source);
+      // URL safety: only allow HTTP/HTTPS
+      const safeUrl = /^https?:\/\//i.test((row.url || '').trim()) ? row.url : null;
       return {
         id: row.event_id,
         occurred_at: row.occurred_at,
         title: row.title,
         badge,
         source: row.source,
-        url: row.url,
+        url: safeUrl,
         severity: row.severity,
         amount: row.amount,
         verification: row.verification,
@@ -119,6 +127,7 @@ Deno.serve(async (req) => {
       brand_id: brandId,
       category: category || 'all',
       count: items.length,
+      has_next: !!nextCursor,
       duration_ms: duration,
     }));
 

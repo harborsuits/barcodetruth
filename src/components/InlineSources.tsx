@@ -107,7 +107,7 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
 
         {!isLoading && !error && sources.length === 0 && (
           <div className="text-sm text-muted-foreground text-center py-4">
-            No recent, verified sources in this window. Baseline explains why.
+            No recent, verified sources in this window. Try widening the time window or checking other categories.
           </div>
         )}
 
