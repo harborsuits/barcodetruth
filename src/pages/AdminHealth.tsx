@@ -5,6 +5,13 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Activity, AlertTriangle, Clock, XCircle, CheckCircle } from "lucide-react";
 import { Helmet } from "react-helmet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface JobRun {
   id: string;
@@ -38,10 +45,27 @@ interface HealthData {
   };
 }
 
+interface QACheck {
+  name: string;
+  status: 'PASS' | 'FAIL' | 'WARNING';
+  message: string;
+}
+
+interface QAResult {
+  fn: string;
+  brands_tested: number;
+  mixed_found: number;
+  caps_ok: boolean;
+  duration_ms: number;
+  checks: QACheck[];
+}
+
 export default function AdminHealth() {
   const [loading, setLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [data, setData] = useState<HealthData | null>(null);
+  const [qaResult, setQaResult] = useState<QAResult | null>(null);
+  const [showQaModal, setShowQaModal] = useState(false);
 
   useEffect(() => {
     checkAdminAndFetch();
@@ -91,13 +115,16 @@ export default function AdminHealth() {
 
       if (error) throw error;
 
-      const result = data as any;
-      const failedChecks = result.checks?.filter((c: any) => c.status === 'FAIL') || [];
-      const warningChecks = result.checks?.filter((c: any) => c.status === 'WARNING') || [];
+      const result = data as QAResult;
+      setQaResult(result);
+      setShowQaModal(true);
+
+      const failedChecks = result.checks?.filter((c) => c.status === 'FAIL') || [];
+      const warningChecks = result.checks?.filter((c) => c.status === 'WARNING') || [];
 
       if (failedChecks.length > 0) {
         toast.error("QA Validation Failed", {
-          description: failedChecks.map((c: any) => c.message).join('; '),
+          description: `${failedChecks.length} check(s) failed. Click "View Details" for more info.`,
         });
       } else if (warningChecks.length > 0) {
         toast.warning("QA Validation Complete (Warnings)", {
@@ -112,9 +139,16 @@ export default function AdminHealth() {
       console.log('QA Validation Results:', result);
     } catch (e: any) {
       console.error("QA validation error:", e);
-      toast.error("QA validation failed", {
-        description: e.message || "Unknown error",
-      });
+      
+      if (e.message?.includes('429') || e.message?.includes('30s')) {
+        toast.error("Rate limit exceeded", {
+          description: "Please wait 30 seconds between QA runs",
+        });
+      } else {
+        toast.error("QA validation failed", {
+          description: e.message || "Unknown error",
+        });
+      }
     }
   }
 
@@ -149,7 +183,7 @@ export default function AdminHealth() {
           <div className="flex gap-2">
             <Button onClick={runQAValidation} variant="outline" size="sm">
               <CheckCircle className="w-4 h-4 mr-2" />
-              Run Mixed/Flags QA
+              Run Mixed/Flags QA (read-only)
             </Button>
             <Button onClick={fetchHealth} disabled={loading} variant="outline" size="sm">
               {loading ? "Refreshing..." : "Refresh"}
@@ -335,6 +369,74 @@ export default function AdminHealth() {
             </table>
           </div>
         </Card>
+
+        <Dialog open={showQaModal} onOpenChange={setShowQaModal}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>QA Validation Results</DialogTitle>
+              <DialogDescription>
+                Mixed events and feature flags validation · {qaResult?.duration_ms}ms
+              </DialogDescription>
+            </DialogHeader>
+            
+            {qaResult && (
+              <div className="space-y-4 mt-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <Card className="p-4">
+                    <div className="text-sm text-muted-foreground">Brands Tested</div>
+                    <div className="text-2xl font-bold">{qaResult.brands_tested}</div>
+                  </Card>
+                  <Card className="p-4">
+                    <div className="text-sm text-muted-foreground">Mixed Found</div>
+                    <div className="text-2xl font-bold">{qaResult.mixed_found}</div>
+                  </Card>
+                  <Card className="p-4">
+                    <div className="text-sm text-muted-foreground">Caps OK</div>
+                    <div className="text-2xl font-bold">
+                      {qaResult.caps_ok ? '✓' : '✗'}
+                    </div>
+                  </Card>
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="font-semibold">Checks ({qaResult.checks.length})</h3>
+                  {qaResult.checks.map((check, i) => (
+                    <Card key={i} className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className={`mt-0.5 ${
+                          check.status === 'PASS' 
+                            ? 'text-green-600 dark:text-green-400'
+                            : check.status === 'FAIL'
+                            ? 'text-red-600 dark:text-red-400'
+                            : 'text-yellow-600 dark:text-yellow-400'
+                        }`}>
+                          {check.status === 'PASS' && <CheckCircle className="w-5 h-5" />}
+                          {check.status === 'FAIL' && <XCircle className="w-5 h-5" />}
+                          {check.status === 'WARNING' && <AlertTriangle className="w-5 h-5" />}
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium">{check.name}</div>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {check.message}
+                          </div>
+                        </div>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          check.status === 'PASS'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                            : check.status === 'FAIL'
+                            ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        }`}>
+                          {check.status}
+                        </span>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </>
   );

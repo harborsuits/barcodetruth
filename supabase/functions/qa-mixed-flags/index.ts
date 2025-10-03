@@ -5,6 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Rate limiting: 30s between runs per user
+const lastRunMap = new Map<string, number>();
+
 interface QAResult {
   fn: string;
   brands_tested: number;
@@ -63,6 +66,16 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // Rate limiting: 30s between runs
+    const lastRun = lastRunMap.get(user.id) || 0;
+    if (Date.now() - lastRun < 30_000) {
+      return new Response(JSON.stringify({ error: 'Please wait 30s between QA runs' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    lastRunMap.set(user.id, Date.now());
 
     const result: QAResult = {
       fn: 'qa-mixed-flags',
