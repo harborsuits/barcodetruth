@@ -11,6 +11,9 @@ import { ServiceWorkerUpdate } from "@/components/ServiceWorkerUpdate";
 import { lazyNamed } from "@/lib/lazyNamed";
 import { Onboarding } from "./pages/Onboarding";
 import { NotFound } from "./pages/NotFound";
+import { AdminRoute } from "@/components/routes/AdminRoute";
+
+const Forbidden = lazyNamed(() => import("./pages/Forbidden"), "default");
 
 // Lazy load heavy routes
 const Home = lazyNamed(() => import("./pages/Home"), "Home");
@@ -168,12 +171,22 @@ const App = () => (
             path="/admin/health"
             element={
               <ProtectedRoute>
-                <RouteErrorBoundary>
-                  <Suspense fallback={<RouteFallback label="Loading system health…" />}>
-                    <AdminHealth />
-                  </Suspense>
-                </RouteErrorBoundary>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading system health…" />}>
+                      <AdminHealth />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
               </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/forbidden"
+            element={
+              <Suspense fallback={<RouteFallback label="Loading…" />}>
+                <Forbidden />
+              </Suspense>
             }
           />
           <Route

@@ -8,30 +8,13 @@ import { HowItWorks } from "@/components/landing/HowItWorks";
 import { LatestVerifications } from "@/components/landing/LatestVerifications";
 import { AttributionFooter } from "@/components/AttributionFooter";
 import { useSnapshotPrewarm } from "@/hooks/useSnapshotPrewarm";
-import { supabase } from "@/integrations/supabase/client";
-import { useEffect, useState } from "react";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import logo from "@/assets/logo.png";
 
 export const Home = () => {
   const navigate = useNavigate();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const isAdmin = useIsAdmin();
   useSnapshotPrewarm(); // Prewarm snapshot cache for offline use
-
-  useEffect(() => {
-    const checkAdminRole = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: role } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .eq('role', 'admin')
-          .maybeSingle();
-        setIsAdmin(!!role);
-      }
-    };
-    checkAdminRole();
-  }, []);
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
