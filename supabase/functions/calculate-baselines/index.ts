@@ -39,14 +39,18 @@ interface BaselineInputs90d {
   labor_violations_90d: number;
   labor_fines_90d: number;
   labor_fatalities_90d: number;
+  labor_mixed_90d: number;
   env_actions_90d: number;
+  env_mixed_90d: number;
   pol_donations_90d: number;
   pol_dem_donations_90d: number;
   pol_rep_donations_90d: number;
+  pol_mixed_90d: number;
   social_recalls_class1_90d: number;
   social_recalls_class2_90d: number;
   social_recalls_class3_90d: number;
   social_lawsuits_90d: number;
+  social_mixed_90d: number;
   total_events_90d: number;
 }
 
@@ -73,6 +77,7 @@ function calculateLaborScore(
   const fines = (inputs as any)[`labor_fines${suffix}`] || 0;
   const sentiment = (inputs as any)[`labor_sentiment${suffix}`] || 3; // default neutral
   const fatalities = (inputs as any)[`labor_fatalities${suffix}`] || 0;
+  const mixed = (inputs as any)[`labor_mixed${suffix}`] || 0;
 
   const start = getCap(caps, 'labor.start', 70);
   
@@ -99,8 +104,13 @@ function calculateLaborScore(
   const severeCap = getWeight(weights, 'labor.severe.cap', -30);
   const laborSevere = Math.max(severeMult * fatalities, severeCap);
   
+  // Mixed events (90d only)
+  const mixedPt = getWeight(weights, 'window.mixed.pt', -0.5);
+  const mixedCap = getWeight(weights, 'window.mixed.cap', -3);
+  const laborMixed = is90d ? Math.max(mixedPt * mixed, mixedCap) : 0;
+  
   const score = clamp(
-    start + laborViol + laborFines + laborSent + laborSevere,
+    start + laborViol + laborFines + laborSent + laborSevere + laborMixed,
     getCap(caps, 'labor.min', 0),
     getCap(caps, 'labor.max', 100)
   );
@@ -110,6 +120,7 @@ function calculateLaborScore(
   if (fines > 0) reasonParts.push(`$${Math.round(fines).toLocaleString()} in fines`);
   if (sentiment !== 3) reasonParts.push(`worker rating ${sentiment.toFixed(1)}/5`);
   if (fatalities > 0) reasonParts.push(`${fatalities} severe incident${fatalities > 1 ? 's' : ''}`);
+  if (is90d && mixed > 0) reasonParts.push(`${mixed} mixed event${mixed > 1 ? 's' : ''}`);
   
   const reason = reasonParts.length > 0 
     ? reasonParts.join(', ')
@@ -118,7 +129,7 @@ function calculateLaborScore(
   return {
     score: Math.round(score),
     reason,
-    inputs: { violations, fines, sentiment, fatalities }
+    inputs: { violations, fines, sentiment, fatalities, mixed }
   };
 }
 
@@ -133,6 +144,7 @@ function calculateEnvironmentScore(
   const superfund = (inputs as BaselineInputs24m).env_superfund_active || 0;
   const emissions = (inputs as BaselineInputs24m).env_emissions_percentile || 50;
   const certs = (inputs as BaselineInputs24m).env_certifications || 0;
+  const mixed = (inputs as any)[`env_mixed${suffix}`] || 0;
 
   const start = getCap(caps, 'environment.start', 70);
   
@@ -157,8 +169,13 @@ function calculateEnvironmentScore(
   const certCap = getWeight(weights, 'env.cert.cap', 15);
   const envPos = is90d ? 0 : Math.min(certPt * certs, certCap);
   
+  // Mixed events (90d only)
+  const mixedPt = getWeight(weights, 'window.mixed.pt', -0.5);
+  const mixedCap = getWeight(weights, 'window.mixed.cap', -3);
+  const envMixed = is90d ? Math.max(mixedPt * mixed, mixedCap) : 0;
+  
   const score = clamp(
-    start + envEpa + envNpl + envEmit + envPos,
+    start + envEpa + envNpl + envEmit + envPos + envMixed,
     getCap(caps, 'environment.min', 0),
     getCap(caps, 'environment.max', 100)
   );
@@ -168,6 +185,7 @@ function calculateEnvironmentScore(
   if (superfund > 0) reasonParts.push(`${superfund} Superfund site${superfund > 1 ? 's' : ''}`);
   if (!is90d && emissions !== 50) reasonParts.push(`emissions ${emissions}th percentile`);
   if (!is90d && certs > 0) reasonParts.push(`${certs} certification${certs > 1 ? 's' : ''}`);
+  if (is90d && mixed > 0) reasonParts.push(`${mixed} mixed event${mixed > 1 ? 's' : ''}`);
   
   const reason = reasonParts.length > 0
     ? reasonParts.join(', ')
@@ -176,7 +194,7 @@ function calculateEnvironmentScore(
   return {
     score: Math.round(score),
     reason,
-    inputs: { actions, superfund, emissions, certs }
+    inputs: { actions, superfund, emissions, certs, mixed }
   };
 }
 
@@ -184,21 +202,24 @@ function calculatePoliticsScore(
   inputs: BaselineInputs24m | BaselineInputs90d,
   weights: ScoringWeights,
   caps: ScoringCaps,
-  is90d = false
+  is90d = false,
+  featureFlags: { politicsAlignmentPenalty: boolean } = { politicsAlignmentPenalty: false }
 ): { score: number; reason: string; inputs: Record<string, number> } {
   const suffix = is90d ? '_90d' : '_24m';
   const donations = (inputs as any)[`pol_donations${suffix}`] || 0;
   const demDonations = (inputs as any)[`pol_dem_donations${suffix}`] || 0;
   const repDonations = (inputs as any)[`pol_rep_donations${suffix}`] || 0;
   const lobbying = (inputs as BaselineInputs24m).pol_lobbying_24m || 0;
+  const mixed = (inputs as any)[`pol_mixed${suffix}`] || 0;
 
   const start = getCap(caps, 'politics.start', 70);
   
-  // Partisan tilt
+  // Partisan tilt (apply 0.25x multiplier if flag enabled)
   const totalPolitical = demDonations + repDonations;
   const demPct = totalPolitical > 0 ? (demDonations / totalPolitical) * 100 : 50;
   const tilt = Math.abs(demPct - 50);
-  const tiltMult = getWeight(weights, 'pol.tilt.multiplier', -0.5);
+  const tiltMultBase = getWeight(weights, 'pol.tilt.multiplier', -0.5);
+  const tiltMult = featureFlags.politicsAlignmentPenalty ? tiltMultBase * 0.25 : tiltMultBase;
   const tiltCap = getWeight(weights, 'pol.tilt.cap', -25);
   const polTilt = Math.max(tiltMult * tilt, tiltCap);
   
@@ -216,8 +237,13 @@ function calculatePoliticsScore(
   const L = Math.max(lobbying, 1);
   const polLobby = is90d || lobbying < lobbyBase ? 0 : Math.max(lobbyMult * Math.log10(L / lobbyBase), lobbyCap);
   
+  // Mixed events (90d only)
+  const mixedPt = getWeight(weights, 'window.mixed.pt', -0.5);
+  const mixedCap = getWeight(weights, 'window.mixed.cap', -3);
+  const polMixed = is90d ? Math.max(mixedPt * mixed, mixedCap) : 0;
+  
   const score = clamp(
-    start + polTilt + polAmt + polLobby,
+    start + polTilt + polAmt + polLobby + polMixed,
     getCap(caps, 'politics.min', 0),
     getCap(caps, 'politics.max', 100)
   );
@@ -225,9 +251,10 @@ function calculatePoliticsScore(
   const reasonParts = [];
   if (totalPolitical > 0) {
     reasonParts.push(`$${Math.round(donations).toLocaleString()} donations`);
-    reasonParts.push(`${Math.round(demPct)}% Dem / ${Math.round(100-demPct)}% Rep`);
+    reasonParts.push(`${Math.round(demPct)}% Dem / ${Math.round(100-demPct)}% Rep${featureFlags.politicsAlignmentPenalty ? ' (0.25× tilt)' : ''}`);
   }
   if (!is90d && lobbying > 0) reasonParts.push(`$${Math.round(lobbying).toLocaleString()} lobbying`);
+  if (is90d && mixed > 0) reasonParts.push(`${mixed} mixed event${mixed > 1 ? 's' : ''}`);
   
   const reason = reasonParts.length > 0
     ? reasonParts.join(', ')
@@ -236,7 +263,7 @@ function calculatePoliticsScore(
   return {
     score: Math.round(score),
     reason,
-    inputs: { donations, demDonations, repDonations, lobbying }
+    inputs: { donations, demDonations, repDonations, lobbying, mixed }
   };
 }
 
@@ -244,7 +271,8 @@ function calculateSocialScore(
   inputs: BaselineInputs24m | BaselineInputs90d,
   weights: ScoringWeights,
   caps: ScoringCaps,
-  is90d = false
+  is90d = false,
+  featureFlags: { newsToneEnabled: boolean } = { newsToneEnabled: false }
 ): { score: number; reason: string; inputs: Record<string, number> } {
   const suffix = is90d ? '_90d' : '_24m';
   const class1 = (inputs as any)[`social_recalls_class1${suffix}`] || 0;
@@ -252,6 +280,7 @@ function calculateSocialScore(
   const class3 = (inputs as any)[`social_recalls_class3${suffix}`] || 0;
   const lawsuits = (inputs as any)[`social_lawsuits${suffix}`] || 0;
   const sentiment = (inputs as BaselineInputs24m).social_sentiment_avg || 0;
+  const mixed = (inputs as any)[`social_mixed${suffix}`] || 0;
 
   const start = getCap(caps, 'social.start', 70);
   
@@ -267,14 +296,21 @@ function calculateSocialScore(
   const caseCap = getWeight(weights, 'social.lawsuits.cap', -30);
   const socLaw = Math.max(casePt * lawsuits, caseCap);
   
-  // Sentiment (news tone, -1 to +1)
+  // Sentiment (news tone, -1 to +1) - only apply if flag is enabled and in 24m window
   const sentMult = getWeight(weights, 'social.sentiment.multiplier', 15);
   const sentCapPos = getWeight(weights, 'social.sentiment.cap_pos', 15);
   const sentCapNeg = getWeight(weights, 'social.sentiment.cap_neg', -15);
-  const socSent = is90d ? 0 : clamp(sentiment * sentMult, sentCapNeg, sentCapPos);
+  const socSent = (!is90d && featureFlags.newsToneEnabled) 
+    ? clamp(sentiment * sentMult, sentCapNeg, sentCapPos) 
+    : 0;
+  
+  // Mixed events (90d only)
+  const mixedPt = getWeight(weights, 'window.mixed.pt', -0.5);
+  const mixedCap = getWeight(weights, 'window.mixed.cap', -3);
+  const socMixed = is90d ? Math.max(mixedPt * mixed, mixedCap) : 0;
   
   const score = clamp(
-    start + socRecalls + socLaw + socSent,
+    start + socRecalls + socLaw + socSent + socMixed,
     getCap(caps, 'social.min', 0),
     getCap(caps, 'social.max', 100)
   );
@@ -283,7 +319,10 @@ function calculateSocialScore(
   const totalRecalls = class1 + class2 + class3;
   if (totalRecalls > 0) reasonParts.push(`${totalRecalls} recall${totalRecalls > 1 ? 's' : ''}`);
   if (lawsuits > 0) reasonParts.push(`${lawsuits} lawsuit${lawsuits > 1 ? 's' : ''}`);
-  if (!is90d && sentiment !== 0) reasonParts.push(`news tone ${sentiment > 0 ? '+' : ''}${sentiment.toFixed(2)}`);
+  if (!is90d && sentiment !== 0 && featureFlags.newsToneEnabled) {
+    reasonParts.push(`news tone ${sentiment > 0 ? '+' : ''}${sentiment.toFixed(2)}`);
+  }
+  if (is90d && mixed > 0) reasonParts.push(`${mixed} mixed event${mixed > 1 ? 's' : ''}`);
   
   const reason = reasonParts.length > 0
     ? reasonParts.join(', ')
@@ -292,7 +331,7 @@ function calculateSocialScore(
   return {
     score: Math.round(score),
     reason,
-    inputs: { class1, class2, class3, lawsuits, sentiment }
+    inputs: { class1, class2, class3, lawsuits, sentiment, mixed }
   };
 }
 
@@ -793,6 +832,28 @@ async function calculateAndStoreBrand(
   caps: ScoringCaps
 ) {
 
+  // Load feature flags
+  const { data: switches } = await supabase
+    .from('scoring_switches')
+    .select('key, enabled');
+  
+  const flag = (k: string, fallback = false) =>
+    (switches?.find((s: any) => s.key === k)?.enabled ?? fallback);
+  
+  const FF_POL_ALIGN_025 = flag('politics_alignment_penalty', true);
+  const FF_NEWS_TONE = flag('news_tone_enabled', false);
+  
+  // Load brand-specific feature flags
+  const { data: brandFlags } = await supabase
+    .from('brand_feature_flags')
+    .select('key, enabled')
+    .eq('brand_id', brandId);
+  
+  const brandFlag = (k: string) =>
+    (brandFlags?.find((f: any) => f.key === k)?.enabled ?? false);
+  
+  const APPLY_NEWS_TONE = FF_NEWS_TONE && brandFlag('news_tone_enabled');
+
   // Fetch baseline inputs
   const { data: inputs24m, error: err24m } = await supabase
     .from('v_baseline_inputs_24m')
@@ -827,16 +888,16 @@ async function calculateAndStoreBrand(
     getWeight(weights, 'window.delta.cap_pos', 15)
   );
 
-  const pol24m = calculatePoliticsScore(inputs24m, weights, caps);
-  const pol90d = inputs90d ? calculatePoliticsScore(inputs90d, weights, caps, true) : pol24m;
+  const pol24m = calculatePoliticsScore(inputs24m, weights, caps, false, { politicsAlignmentPenalty: FF_POL_ALIGN_025 });
+  const pol90d = inputs90d ? calculatePoliticsScore(inputs90d, weights, caps, true, { politicsAlignmentPenalty: FF_POL_ALIGN_025 }) : pol24m;
   const polDelta = clamp(
     pol90d.score - pol24m.score,
     getWeight(weights, 'window.delta.cap_neg', -15),
     getWeight(weights, 'window.delta.cap_pos', 15)
   );
 
-  const soc24m = calculateSocialScore(inputs24m, weights, caps);
-  const soc90d = inputs90d ? calculateSocialScore(inputs90d, weights, caps, true) : soc24m;
+  const soc24m = calculateSocialScore(inputs24m, weights, caps, false, { newsToneEnabled: APPLY_NEWS_TONE });
+  const soc90d = inputs90d ? calculateSocialScore(inputs90d, weights, caps, true, { newsToneEnabled: APPLY_NEWS_TONE }) : soc24m;
   const socDelta = clamp(
     soc90d.score - soc24m.score,
     getWeight(weights, 'window.delta.cap_neg', -15),

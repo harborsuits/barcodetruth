@@ -194,6 +194,46 @@ export type Database = {
           },
         ]
       }
+      brand_feature_flags: {
+        Row: {
+          brand_id: string
+          enabled: boolean
+          key: string
+        }
+        Insert: {
+          brand_id: string
+          enabled?: boolean
+          key: string
+        }
+        Update: {
+          brand_id?: string
+          enabled?: boolean
+          key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_feature_flags_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_feature_flags_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_feature_flags_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+        ]
+      }
       brand_ownerships: {
         Row: {
           brand_id: string
@@ -1354,14 +1394,18 @@ export type Database = {
           brand_name: string | null
           calculated_at: string | null
           env_actions_90d: number | null
+          env_mixed_90d: number | null
           labor_fatalities_90d: number | null
           labor_fines_90d: number | null
+          labor_mixed_90d: number | null
           labor_sentiment_90d: number | null
           labor_violations_90d: number | null
           pol_dem_donations_90d: number | null
           pol_donations_90d: number | null
+          pol_mixed_90d: number | null
           pol_rep_donations_90d: number | null
           social_lawsuits_90d: number | null
+          social_mixed_90d: number | null
           social_recalls_class1_90d: number | null
           social_recalls_class2_90d: number | null
           social_recalls_class3_90d: number | null
