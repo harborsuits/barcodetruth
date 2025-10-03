@@ -50,6 +50,12 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
     staleTime: 120000, // 2 minutes
   });
 
+  // Reset pagination when category changes
+  useEffect(() => {
+    setCursor(null);
+    setAllSources([]);
+  }, [category]);
+
   // Accumulate sources as we paginate, or reset when opening/changing category
   useEffect(() => {
     if (!isOpen) {

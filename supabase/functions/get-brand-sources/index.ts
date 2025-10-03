@@ -46,6 +46,21 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Validate and cap limit
+    const rawLimit = Number(limit ?? 8);
+    const safeLimit = Math.min(Math.max(rawLimit, 1), 50); // 1..50
+
+    // Validate cursor
+    let occurredCut: string | null = null;
+    let idCut: string | null = null;
+    if (cursor) {
+      const parts = String(cursor).split('|');
+      if (parts.length === 2 && parts[0] && parts[1]) {
+        occurredCut = parts[0];
+        idCut = parts[1];
+      }
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!
@@ -62,12 +77,11 @@ Deno.serve(async (req) => {
       query = query.eq('category', category);
     }
 
-    if (cursor) {
-      const [ts, id] = cursor.split('|');
-      query = query.or(`occurred_at.lt.${ts},and(occurred_at.eq.${ts},event_id.lt.${id})`);
+    if (occurredCut && idCut) {
+      query = query.or(`occurred_at.lt.${occurredCut},and(occurred_at.eq.${occurredCut},event_id.lt.${idCut})`);
     }
 
-    query = query.limit(limit + 1);
+    query = query.limit(safeLimit + 1);
 
     const { data, error } = await query;
 
@@ -79,7 +93,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const items = (data || []).slice(0, limit).map((row: any) => {
+    const items = (data || []).slice(0, safeLimit).map((row: any) => {
       const badge = getBadge(row.source);
       return {
         id: row.event_id,
@@ -94,7 +108,7 @@ Deno.serve(async (req) => {
       };
     });
 
-    const nextCursor = (data || []).length > limit && items.length > 0
+    const nextCursor = (data || []).length > safeLimit && items.length > 0
       ? `${items[items.length - 1].occurred_at}|${items[items.length - 1].id}`
       : null;
 
