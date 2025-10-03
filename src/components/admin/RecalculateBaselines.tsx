@@ -15,6 +15,13 @@ export function RecalculateBaselines({ brandId, mode = "single" }: RecalculateBa
   const handleRecalculate = async () => {
     setLoading(true);
     try {
+      // Verify user is authenticated
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Please sign in to recalculate baselines");
+        return;
+      }
+
       const payload = mode === "batch" ? { mode: "batch" } : { brandId };
       
       const { data, error } = await supabase.functions.invoke("calculate-baselines", {

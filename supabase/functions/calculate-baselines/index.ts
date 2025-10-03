@@ -353,6 +353,25 @@ function calculateConfidence(
   return Math.round(confidence);
 }
 
+// Rate limiting (in-memory per instance)
+const rateLimitBucket = new Map<string, { timestamp: number; count: number }>();
+
+function allowRequest(identifier: string, maxRequests = 5, windowMs = 60_000): boolean {
+  const now = Date.now();
+  const bucket = rateLimitBucket.get(identifier) ?? { timestamp: now, count: 0 };
+  
+  if (now - bucket.timestamp > windowMs) {
+    bucket.timestamp = now;
+    bucket.count = 0;
+  }
+  
+  if (bucket.count >= maxRequests) return false;
+  
+  bucket.count++;
+  rateLimitBucket.set(identifier, bucket);
+  return true;
+}
+
 serve(async (req) => {
   const startTime = performance.now();
   
@@ -361,12 +380,57 @@ serve(async (req) => {
   }
 
   try {
+    const body = await req.json();
+    const { brandId, mode } = body;
+    
+    // Admin authentication check (skip for cron-triggered batch mode)
+    const authHeader = req.headers.get('Authorization') ?? '';
+    
+    // Only check auth if it's not a cron job (cron jobs won't have auth header)
+    const isCronJob = !authHeader || authHeader.includes('service_role');
+    
+    if (!isCronJob) {
+      const authedClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+
+      const { data: { user }, error: userError } = await authedClient.auth.getUser();
+      if (userError || !user) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized - invalid token' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Check admin role
+      const { data: roleData } = await authedClient
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      if (!roleData) {
+        return new Response(
+          JSON.stringify({ error: 'Forbidden - admin access required' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Rate limiting (5 requests per minute per admin)
+      if (!allowRequest(user.id, 5, 60_000)) {
+        return new Response(
+          JSON.stringify({ error: 'Rate limit exceeded - max 5 requests per minute' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const body = await req.json();
-    const { brandId, mode } = body;
 
     // Load config once (needed for both modes)
     const { data: weightsData } = await supabase.from('scoring_weights').select('key, value');
@@ -385,6 +449,7 @@ serve(async (req) => {
       const { data: brands, error: brandsError } = await supabase
         .from('brands')
         .select('id, name')
+        .eq('is_test', false) // Filter out test brands
         .limit(1000); // Process in chunks
 
       if (brandsError) throw brandsError;
