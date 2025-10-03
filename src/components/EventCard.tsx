@@ -1,11 +1,12 @@
 import { useMemo, useState, useEffect } from "react";
-import { User, Sprout, Building2, Users, ExternalLink, CheckCircle2, Info, ChevronDown, ChevronUp, AlertCircle, Clock, Flame, Shield, Newspaper } from "lucide-react";
+import { User, Sprout, Building2, Users, ExternalLink, CheckCircle2, Info, ChevronDown, ChevronUp, AlertCircle, Clock, Flame, Shield, Newspaper, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { lineFromEvent } from "@/lib/events";
 import { computeSeverity, type Severity } from "@/lib/severityConfig";
 import { getPoliticalContext, getAlignmentBadgeColor, type PoliticalAlignment } from "@/lib/politicsContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 type CategoryKey = "labor" | "environment" | "politics" | "social" | "cultural-values" | "general";
 type EventOrientation = "positive" | "negative" | "mixed";
@@ -155,6 +156,10 @@ interface EventCardProps {
 export const EventCard = ({ event, showFullDetails = false, compact = false }: EventCardProps) => {
   const [showAllSources, setShowAllSources] = useState(false);
   const [politicalAlignment, setPoliticalAlignment] = useState<PoliticalAlignment>(null);
+  const [showSimplified, setShowSimplified] = useState(false);
+  const [simplified, setSimplified] = useState<string | null>(null);
+  const [isSimplifying, setIsSimplifying] = useState(false);
+  const { toast } = useToast();
   
   // Single source of truth for timestamp
   const timestamp = event.occurred_at ?? event.date;
@@ -275,6 +280,40 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
     return primarySource?.url ?? attributionLine;
   }, [primarySource, attributionLine]);
 
+  const handleSimplify = async () => {
+    if (simplified) {
+      setShowSimplified(!showSimplified);
+      return;
+    }
+
+    setIsSimplifying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('simplify-description', {
+        body: {
+          description: event.description,
+          category: event.category,
+          title: event.title
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.simplified) {
+        setSimplified(data.simplified);
+        setShowSimplified(true);
+      }
+    } catch (error: any) {
+      console.error('Error simplifying:', error);
+      toast({
+        title: 'Unable to simplify',
+        description: error.message || 'Please try again later',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsSimplifying(false);
+    }
+  };
+
   return (
     <article 
       className="group rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 transition-all duration-150 ease-[var(--ease)] hover:shadow-[var(--shadow-md)]"
@@ -368,9 +407,37 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
           {/* Description */}
           {!compact && (
             <div className="space-y-2">
-              <p className="text-sm leading-relaxed text-foreground">
-                {event.description}
-              </p>
+              <div className="space-y-2">
+                <p className="text-sm leading-relaxed text-foreground">
+                  {event.description}
+                </p>
+                
+                {/* Simplified explanation */}
+                {showSimplified && simplified && (
+                  <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-start gap-2">
+                      <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-blue-900 dark:text-blue-100">In simple terms:</p>
+                        <p className="text-sm text-blue-900 dark:text-blue-100 leading-relaxed">
+                          {simplified}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleSimplify}
+                  disabled={isSimplifying}
+                  className="text-xs h-7"
+                >
+                  <Sparkles className="h-3 w-3 mr-1" />
+                  {isSimplifying ? 'Simplifying...' : showSimplified ? 'Hide explanation' : 'Explain in simple terms'}
+                </Button>
+              </div>
               
               {/* Political Context */}
               {politicalContext && (

@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import { ChevronDown, ChevronUp, ExternalLink, FileText } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 
 interface InlineSourcesProps {
   brandId: string;
@@ -36,6 +37,7 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
   const [isOpen, setIsOpen] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
   const [allSources, setAllSources] = useState<Source[]>([]);
+  const [selectedSource, setSelectedSource] = useState<Source | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['brand-sources', brandId, category, cursor],
@@ -154,17 +156,28 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
                         {new Date(source.occurred_at).toLocaleDateString()}
                       </span>
-                      {source.url && (
-                        <a
-                          href={source.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-primary hover:underline flex items-center gap-1"
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedSource(source)}
+                          className="h-6 text-xs px-2"
                         >
-                          Open
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
+                          <FileText className="h-3 w-3 mr-1" />
+                          Details
+                        </Button>
+                        {source.url && (
+                          <a
+                            href={source.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-muted-foreground hover:text-foreground hover:underline flex items-center gap-1"
+                          >
+                            Source
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -185,6 +198,83 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
           </>
         )}
       </CollapsibleContent>
+
+      {/* Source Detail Modal */}
+      <Dialog open={!!selectedSource} onOpenChange={() => setSelectedSource(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Badge variant="outline" className={`text-xs ${badgeColors[selectedSource?.badge || 'News'] || badgeColors.News}`}>
+                {selectedSource?.badge}
+              </Badge>
+              {selectedSource?.title}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedSource?.occurred_at && (
+                <span className="text-sm">
+                  {new Date(selectedSource.occurred_at).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-4">
+            {selectedSource?.severity && (
+              <div>
+                <p className="text-sm font-medium mb-1">Severity</p>
+                <Badge variant="outline">{selectedSource.severity}</Badge>
+              </div>
+            )}
+
+            {selectedSource?.amount && (
+              <div>
+                <p className="text-sm font-medium mb-1">Amount</p>
+                <p className="text-lg font-semibold">${selectedSource.amount.toLocaleString()}</p>
+              </div>
+            )}
+
+            <div>
+              <p className="text-sm font-medium mb-2">What Happened</p>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                This {selectedSource?.badge.toLowerCase()} event was reported by {selectedSource?.source}. 
+                {selectedSource?.severity && ` It was classified as ${selectedSource.severity} severity.`}
+                {selectedSource?.amount && ` The total amount involved was $${selectedSource.amount.toLocaleString()}.`}
+              </p>
+            </div>
+
+            {selectedSource?.verification && selectedSource.verification !== 'unverified' && (
+              <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
+                <p className="text-sm text-green-900 dark:text-green-100">
+                  <strong>Verification:</strong> This event is {selectedSource.verification === 'official' ? 'officially documented' : 'corroborated by multiple sources'}.
+                </p>
+              </div>
+            )}
+
+            <div className="pt-4 border-t flex gap-2">
+              {selectedSource?.url && (
+                <Button variant="outline" size="sm" asChild>
+                  <a
+                    href={selectedSource.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    View on {selectedSource.source}
+                  </a>
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => setSelectedSource(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Collapsible>
   );
 }

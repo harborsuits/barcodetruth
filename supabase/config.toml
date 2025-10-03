@@ -45,3 +45,6 @@ verify_jwt = false
 
 [functions.calculate-baselines]
 verify_jwt = false
+
+[functions.simplify-description]
+verify_jwt = false
