@@ -407,10 +407,25 @@ export default function ScanResult() {
       });
       
       // Auto-navigate after 10s if not undone
-      undoTimeoutRef.current = setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['product', barcode] });
+      undoTimeoutRef.current = setTimeout(async () => {
+        // Safety check: verify brand still exists before navigating
         if (ownerGuess?.brand_id) {
-          navigate(`/brands/${ownerGuess.brand_id}`);
+          const { data: brandExists } = await supabase
+            .from('brands')
+            .select('id')
+            .eq('id', ownerGuess.brand_id)
+            .maybeSingle();
+          
+          if (brandExists) {
+            queryClient.invalidateQueries({ queryKey: ['product', barcode] });
+            navigate(`/brands/${ownerGuess.brand_id}`, { replace: true });
+          } else {
+            toast({
+              title: 'Brand unavailable',
+              description: 'The brand page is not currently available.',
+              variant: 'destructive',
+            });
+          }
         }
         setPendingClaimId(null);
       }, 10000);
