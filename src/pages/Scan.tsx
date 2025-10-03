@@ -1,18 +1,23 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, AlertCircle, Download, Wifi, WifiOff } from "lucide-react";
+import { ArrowLeft, Camera, AlertCircle, Download, Wifi, WifiOff, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ReportIssue } from "@/components/ReportIssue";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { initA2HS, triggerA2HS, isA2HSAvailable, dismissA2HS, isA2HSDismissed } from "@/lib/a2hs";
 import { toast } from "@/hooks/use-toast";
+import { createScanner } from "@/lib/barcodeScanner";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Scan = () => {
   const navigate = useNavigate();
-  const [scanResult, setScanResult] = useState<'pending' | 'success' | 'not_found'>('pending');
+  const [scanResult, setScanResult] = useState<'idle' | 'scanning' | 'processing' | 'success' | 'not_found'>('idle');
   const [scannedBarcode, setScannedBarcode] = useState<string>('');
   const [showA2HSPrompt, setShowA2HSPrompt] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [error, setError] = useState<string>('');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const scannerRef = useRef<ReturnType<typeof createScanner> | null>(null);
 
   // Initialize A2HS
   useEffect(() => { 
@@ -64,6 +69,102 @@ export const Scan = () => {
       setShowA2HSPrompt(false);
     }
   };
+
+  const handleBarcodeDetected = async (barcode: string) => {
+    if (scanResult === 'processing') return; // Debounce multiple detections
+    
+    setScannedBarcode(barcode);
+    setScanResult('processing');
+    
+    // Stop scanner temporarily while processing
+    if (scannerRef.current) {
+      scannerRef.current.stopScanning();
+    }
+
+    try {
+      console.log('Resolving barcode:', barcode);
+      
+      const { data, error } = await supabase.functions.invoke('resolve-barcode', {
+        body: { barcode }
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data?.brand?.id) {
+        setScanResult('success');
+        toast({ 
+          title: "Product found!", 
+          description: `${data.product.name} by ${data.brand.name}` 
+        });
+        setTimeout(() => navigate(`/brands/${data.brand.id}`), 1000);
+      } else {
+        setScanResult('not_found');
+        toast({ 
+          title: "Product not found", 
+          description: "Help us add it to the database",
+          variant: "destructive" 
+        });
+      }
+    } catch (error: any) {
+      console.error('Barcode resolution error:', error);
+      setScanResult('not_found');
+      toast({ 
+        title: "Scan failed", 
+        description: error?.message || "Please try again",
+        variant: "destructive" 
+      });
+    }
+  };
+
+  const startScanner = async () => {
+    if (!videoRef.current) return;
+    
+    setError('');
+    setScanResult('scanning');
+    
+    try {
+      if (!scannerRef.current) {
+        scannerRef.current = createScanner();
+      }
+      
+      await scannerRef.current.startScanning(
+        videoRef.current,
+        handleBarcodeDetected,
+        (err) => {
+          setError(err.message);
+          setScanResult('idle');
+        }
+      );
+    } catch (err: any) {
+      console.error('Scanner start error:', err);
+      setError(err?.message || 'Failed to access camera');
+      setScanResult('idle');
+      
+      if (err?.message?.includes('Permission denied')) {
+        toast({
+          title: "Camera permission denied",
+          description: "Please allow camera access in your browser settings",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  const stopScanner = () => {
+    if (scannerRef.current) {
+      scannerRef.current.stopScanning();
+    }
+    setScanResult('idle');
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.stopScanning();
+      }
+    };
+  }, []);
 
   const handleMockScan = () => {
     // Simulate scanning a barcode
@@ -137,18 +238,81 @@ export const Scan = () => {
         <Card>
           <CardContent className="pt-6">
             <div className="aspect-[4/3] bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-64 h-48 border-4 border-primary/50 rounded-lg relative">
-                  <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg" />
-                  <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg" />
-                  <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg" />
-                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg" />
-                </div>
-              </div>
-              <Camera className="h-16 w-16 text-muted-foreground" />
+              {scanResult === 'scanning' || scanResult === 'processing' ? (
+                <>
+                  <video 
+                    ref={videoRef} 
+                    className="absolute inset-0 w-full h-full object-cover"
+                    playsInline
+                    muted
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-64 h-48 border-4 border-primary rounded-lg relative">
+                      <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg" />
+                      <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg" />
+                      <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg" />
+                      <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg" />
+                      {scanResult === 'processing' && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
+                          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {scanResult === 'scanning' && (
+                    <Button
+                      onClick={stopScanner}
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-4 right-4 z-10"
+                      aria-label="Stop scanning"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-64 h-48 border-4 border-primary/50 rounded-lg relative">
+                      <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg" />
+                      <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg" />
+                      <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg" />
+                      <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg" />
+                    </div>
+                  </div>
+                  <Camera className="h-16 w-16 text-muted-foreground" />
+                </>
+              )}
             </div>
             
-            {scanResult === 'pending' && (
+            {scanResult === 'idle' && (
+              <div className="mt-6 space-y-4 text-center">
+                <div className="space-y-2">
+                  <h3 className="font-semibold">Ready to scan</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Tap the button below to start scanning product barcodes
+                  </p>
+                </div>
+                
+                {error && (
+                  <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                    <p className="text-sm text-destructive">{error}</p>
+                  </div>
+                )}
+                
+                <Button onClick={startScanner} className="w-full">
+                  <Camera className="mr-2 h-4 w-4" />
+                  Start Camera
+                </Button>
+                
+                <p className="text-xs text-muted-foreground">
+                  Camera access required to scan barcodes
+                </p>
+              </div>
+            )}
+
+            {scanResult === 'scanning' && (
               <div className="mt-6 space-y-4 text-center">
                 <div className="space-y-2">
                   <h3 className="font-semibold">Position barcode in frame</h3>
@@ -157,13 +321,20 @@ export const Scan = () => {
                   </p>
                 </div>
                 
-                <Button onClick={handleMockScan} className="w-full">
-                  Simulate Scan (Demo)
-                </Button>
-                
                 <p className="text-xs text-muted-foreground">
-                  Camera access required. This is a demo - real scanning will be available soon.
+                  Supported: EAN-13, UPC-A, Code 128, and more
                 </p>
+              </div>
+            )}
+
+            {scanResult === 'processing' && (
+              <div className="mt-6 space-y-4 text-center">
+                <div className="space-y-2">
+                  <h3 className="font-semibold">Looking up product...</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Barcode: {scannedBarcode}
+                  </p>
+                </div>
               </div>
             )}
             
@@ -184,7 +355,10 @@ export const Scan = () => {
                   <Button 
                     variant="outline" 
                     className="flex-1"
-                    onClick={() => setScanResult('pending')}
+                    onClick={() => {
+                      setScannedBarcode('');
+                      startScanner();
+                    }}
                   >
                     Scan Again
                   </Button>
