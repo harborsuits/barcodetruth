@@ -178,3 +178,76 @@ LIMIT 10;
 --   -H "Authorization: Bearer <ADMIN_JWT>" \
 --   -H "Content-Type: application/json" \
 --   -d '{"brandId":"<BRAND_ID_FROM_QUERY_9>"}'
+
+-- ================================================================
+-- AUTOMATED ASSERTIONS (run after recalc)
+-- ================================================================
+
+-- 11. FORCE RECALC FOR TEST BRAND (uncomment and replace TEST_BRAND_ID)
+-- UPDATE brand_events SET updated_at = now()
+-- WHERE brand_id = '<TEST_BRAND_ID>' AND occurred_at >= now() - interval '90 days';
+
+-- 12. ASSERT: At least one brand has mixed events in breakdown
+DO $$
+DECLARE n int;
+BEGIN
+  SELECT COUNT(*) INTO n FROM public.brand_scores bs
+  WHERE (bs.breakdown->'labor'->'window_inputs'->>'labor_mixed_90d')::int > 0
+     OR (bs.breakdown->'environment'->'window_inputs'->>'env_mixed_90d')::int > 0
+     OR (bs.breakdown->'politics'->'window_inputs'->>'pol_mixed_90d')::int > 0
+     OR (bs.breakdown->'social'->'window_inputs'->>'social_mixed_90d')::int > 0;
+  IF n = 0 THEN
+    RAISE NOTICE 'WARNING: No mixed events reflected in breakdown.window_inputs (may be expected if no mixed events exist)';
+  ELSE
+    RAISE NOTICE 'PASS: % brand(s) have mixed events in breakdown', n;
+  END IF;
+END $$;
+
+-- 13. ASSERT: Mixed penalty cap is respected (≤-3)
+DO $$
+DECLARE n int;
+BEGIN
+  SELECT COUNT(*) INTO n FROM public.brand_scores bs
+  WHERE (bs.breakdown->'labor'->'window_inputs'->>'labor_mixed_90d')::int >= 6
+    AND (bs.breakdown->'labor'->>'window_delta')::numeric < -3;
+  IF n > 0 THEN
+    RAISE EXCEPTION 'ASSERTION FAILED: % brand(s) have labor mixed delta exceeding cap (-3)', n;
+  ELSE
+    RAISE NOTICE 'PASS: Mixed penalty cap (-3) is respected';
+  END IF;
+END $$;
+
+-- ================================================================
+-- FEATURE FLAG TOGGLE HARNESS (for testing)
+-- ================================================================
+
+-- Toggle global flags (uncomment to test)
+-- UPDATE public.scoring_switches SET enabled = true  WHERE key = 'news_tone_enabled';
+-- UPDATE public.scoring_switches SET enabled = false WHERE key = 'politics_alignment_penalty';
+
+-- Per-brand allowlist for news tone (uncomment and replace TEST_BRAND_ID)
+-- INSERT INTO public.brand_feature_flags (brand_id, key, enabled)
+-- VALUES ('<TEST_BRAND_ID>', 'news_tone_enabled', true)
+-- ON CONFLICT (brand_id, key) DO UPDATE SET enabled = EXCLUDED.enabled;
+
+-- Snapshot current scores before flag changes (for comparison)
+-- CREATE TEMP TABLE IF NOT EXISTS scores_before_toggle AS
+-- SELECT brand_id, score_labor, score_environment, score_politics, score_social, breakdown
+-- FROM public.brand_scores;
+
+-- After recalc with new flags, compare:
+-- SELECT 
+--   b.name,
+--   before.score_politics AS old_pol,
+--   after.score_politics AS new_pol,
+--   after.score_politics - before.score_politics AS pol_delta,
+--   before.score_social AS old_soc,
+--   after.score_social AS new_soc,
+--   after.score_social - before.score_social AS soc_delta
+-- FROM scores_before_toggle before
+-- JOIN public.brand_scores after ON after.brand_id = before.brand_id
+-- JOIN public.brands b ON b.id = before.brand_id
+-- WHERE after.score_politics != before.score_politics 
+--    OR after.score_social != before.score_social
+-- ORDER BY ABS(after.score_politics - before.score_politics) DESC
+-- LIMIT 20;
