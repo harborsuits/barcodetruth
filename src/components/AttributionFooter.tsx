@@ -11,7 +11,7 @@ export function AttributionFooter() {
           <div className="flex-1 space-y-2">
             <p className="text-sm font-medium">About This Information</p>
             <p className="text-sm text-muted-foreground">
-              ShopSignals aggregates information from public sources and news outlets. 
+              Barcode Truth aggregates information from public sources and news outlets. 
               We cite all sources and do not make independent factual claims. 
               Event verification levels indicate source reliability, not editorial judgment.
             </p>

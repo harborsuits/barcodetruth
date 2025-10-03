@@ -76,7 +76,7 @@ export const Scan = () => {
   const handleInstallApp = async () => {
     const accepted = await triggerA2HS();
     if (accepted) {
-      toast({ title: "App installed!", description: "ShopSignals is now on your home screen" });
+      toast({ title: "App installed!", description: "Barcode Truth is now on your home screen" });
       setShowA2HSPrompt(false);
     } else {
       dismissA2HS();
@@ -358,7 +358,7 @@ export const Scan = () => {
                   <Download className="h-8 w-8 text-primary" />
                 </div>
                 <div className="flex-1 space-y-2">
-                  <h3 className="font-semibold">Install ShopSignals</h3>
+                  <h3 className="font-semibold">Install Barcode Truth</h3>
                   <p className="text-sm text-muted-foreground">
                     Add to your home screen for quick access and offline scanning
                   </p>
