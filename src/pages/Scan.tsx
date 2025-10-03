@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, AlertCircle, Download, Wifi, WifiOff, X } from "lucide-react";
+import { ArrowLeft, Camera, AlertCircle, Download, WifiOff, X, Flashlight, FlashlightOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ReportIssue } from "@/components/ReportIssue";
@@ -16,6 +16,8 @@ export const Scan = () => {
   const [showA2HSPrompt, setShowA2HSPrompt] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [error, setError] = useState<string>('');
+  const [torchSupported, setTorchSupported] = useState(false);
+  const [torchEnabled, setTorchEnabled] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<ReturnType<typeof createScanner> | null>(null);
 
@@ -135,18 +137,18 @@ export const Scan = () => {
           setScanResult('idle');
         }
       );
+
+      // Check torch support after camera starts
+      setTimeout(() => {
+        if (scannerRef.current) {
+          setTorchSupported(scannerRef.current.isTorchSupported());
+        }
+      }, 500);
+      
     } catch (err: any) {
       console.error('Scanner start error:', err);
       setError(err?.message || 'Failed to access camera');
       setScanResult('idle');
-      
-      if (err?.message?.includes('Permission denied')) {
-        toast({
-          title: "Camera permission denied",
-          description: "Please allow camera access in your browser settings",
-          variant: "destructive"
-        });
-      }
     }
   };
 
@@ -155,7 +157,37 @@ export const Scan = () => {
       scannerRef.current.stopScanning();
     }
     setScanResult('idle');
+    setTorchEnabled(false);
+    setTorchSupported(false);
   };
+
+  const toggleTorch = async () => {
+    if (!scannerRef.current) return;
+    
+    const success = await scannerRef.current.toggleTorch();
+    if (success) {
+      setTorchEnabled(scannerRef.current.isTorchEnabled());
+    } else {
+      toast({
+        title: "Torch not available",
+        description: "This device doesn't support flashlight control",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Stop scanner on visibility change
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && scanResult === 'scanning') {
+        console.log('Page hidden, pausing scanner');
+        stopScanner();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [scanResult]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -260,15 +292,32 @@ export const Scan = () => {
                     </div>
                   </div>
                   {scanResult === 'scanning' && (
-                    <Button
-                      onClick={stopScanner}
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-4 right-4 z-10"
-                      aria-label="Stop scanning"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                    <>
+                      <Button
+                        onClick={stopScanner}
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-4 right-4 z-10"
+                        aria-label="Stop scanning"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                      {torchSupported && (
+                        <Button
+                          onClick={toggleTorch}
+                          variant={torchEnabled ? "default" : "outline"}
+                          size="icon"
+                          className="absolute top-4 left-4 z-10 bg-card/80 backdrop-blur"
+                          aria-label={torchEnabled ? "Turn off flashlight" : "Turn on flashlight"}
+                        >
+                          {torchEnabled ? (
+                            <Flashlight className="h-4 w-4" />
+                          ) : (
+                            <FlashlightOff className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
+                    </>
                   )}
                 </>
               ) : (
@@ -291,7 +340,7 @@ export const Scan = () => {
                 <div className="space-y-2">
                   <h3 className="font-semibold">Ready to scan</h3>
                   <p className="text-sm text-muted-foreground">
-                    Tap the button below to start scanning product barcodes
+                    Position a product barcode in front of your camera for instant brand analysis
                   </p>
                 </div>
                 
@@ -301,28 +350,30 @@ export const Scan = () => {
                   </div>
                 )}
                 
-                <Button onClick={startScanner} className="w-full">
+                <Button onClick={startScanner} className="w-full" aria-label="Start barcode scanner">
                   <Camera className="mr-2 h-4 w-4" />
                   Start Camera
                 </Button>
                 
-                <p className="text-xs text-muted-foreground">
-                  Camera access required to scan barcodes
-                </p>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p>📷 Camera access required • Video never leaves your device</p>
+                  <p>Supports EAN-13, UPC-A, Code 128, and more</p>
+                </div>
               </div>
             )}
 
             {scanResult === 'scanning' && (
               <div className="mt-6 space-y-4 text-center">
                 <div className="space-y-2">
-                  <h3 className="font-semibold">Position barcode in frame</h3>
+                  <h3 className="font-semibold">Fill the frame with the barcode</h3>
                   <p className="text-sm text-muted-foreground">
-                    We'll automatically scan when the barcode is detected
+                    We'll automatically scan when detected • Works best in good lighting
                   </p>
                 </div>
                 
                 <p className="text-xs text-muted-foreground">
-                  Supported: EAN-13, UPC-A, Code 128, and more
+                  {torchSupported && "💡 Tap flashlight icon for low light • "}
+                  Scanning continuously...
                 </p>
               </div>
             )}

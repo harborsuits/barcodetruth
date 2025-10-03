@@ -17,13 +17,19 @@ const corsHeaders = {
 
 // Simple rate limiter
 const rateLimitBuckets = new Map<string, { tokens: number; ts: number }>();
-function checkRateLimit(ip: string, maxTokens = 30, perMs = 60_000): boolean {
+function checkRateLimit(ip: string, maxTokens = 10, perMs = 60_000): boolean {
   const now = Date.now();
   const bucket = rateLimitBuckets.get(ip) ?? { tokens: maxTokens, ts: now };
-  const refill = Math.floor((now - bucket.ts) / perMs) * maxTokens;
+  const elapsed = now - bucket.ts;
+  const refill = Math.floor(elapsed / perMs) * maxTokens;
   bucket.tokens = Math.min(maxTokens, bucket.tokens + refill);
   bucket.ts = now;
-  if (bucket.tokens <= 0) return false;
+  
+  if (bucket.tokens <= 0) {
+    rateLimitBuckets.set(ip, bucket);
+    return false;
+  }
+  
   bucket.tokens--;
   rateLimitBuckets.set(ip, bucket);
   return true;
@@ -38,17 +44,20 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Rate limiting
+  // Rate limiting (10 per minute)
   const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown';
-  if (!checkRateLimit(clientIp)) {
+  if (!checkRateLimit(clientIp, 10, 60_000)) {
+    console.log(JSON.stringify({ level: "warn", fn: "resolve-barcode", ip: clientIp, msg: "rate_limited" }));
     return new Response(
-      JSON.stringify({ error: 'RATE_LIMITED', message: 'Too many requests' }),
+      JSON.stringify({ error: 'RATE_LIMITED', message: 'Too many barcode scans. Please wait a minute.' }),
       { 
         status: 429, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': '60' }
       }
     );
   }
+
+  const t0 = performance.now();
 
   try {
     const supabase = createClient(
@@ -58,14 +67,19 @@ Deno.serve(async (req) => {
 
     const { barcode } = await req.json() as BarcodeRequest;
 
-    if (!barcode) {
+    if (!barcode || typeof barcode !== 'string' || barcode.length < 8 || barcode.length > 14) {
       return new Response(
-        JSON.stringify({ error: 'Barcode is required' }),
+        JSON.stringify({ error: 'Invalid barcode format' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // 1. Check local cache (products table)
+    // Normalize barcode (UPC-A → EAN-13)
+    const normalizedBarcode = barcode.length === 12 && /^\d+$/.test(barcode) ? '0' + barcode : barcode;
+
+    console.log(JSON.stringify({ level: "info", fn: "resolve-barcode", barcode: normalizedBarcode, ip: clientIp }));
+
+    // 1. Check local cache (products table) - use normalized barcode
     const { data: product, error: productError } = await supabase
       .from('products')
       .select(`
@@ -76,18 +90,28 @@ Deno.serve(async (req) => {
           parent_company
         )
       `)
-      .eq('barcode', barcode)
+      .or(`barcode.eq.${normalizedBarcode},barcode.eq.${barcode}`)
       .maybeSingle();
 
     if (product && product.brands) {
-      console.log('Barcode resolved from cache:', barcode);
+      const dur = Math.round(performance.now() - t0);
+      console.log(JSON.stringify({ 
+        level: "info", 
+        fn: "resolve-barcode", 
+        barcode: normalizedBarcode, 
+        source: "cache",
+        brand_id: product.brands.id,
+        dur_ms: dur,
+        ok: true
+      }));
+      
       return new Response(
         JSON.stringify({
           success: true,
           product: {
             id: product.id,
             name: product.name,
-            barcode: product.barcode,
+            barcode: normalizedBarcode,
           },
           brand: product.brands,
           source: 'cache',
@@ -97,9 +121,9 @@ Deno.serve(async (req) => {
     }
 
     // 2. Fallback: OpenFoodFacts API
-    console.log(`[${barcode}] Checking OpenFoodFacts...`);
+    console.log(`[${normalizedBarcode}] Checking OpenFoodFacts...`);
     
-    const offUrl = `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`;
+    const offUrl = `https://world.openfoodfacts.org/api/v0/product/${normalizedBarcode}.json`;
     const offRes = await fetch(offUrl, {
       headers: {
         'User-Agent': 'ShopSignals/1.0 (contact@shopsignals.app)',
@@ -117,7 +141,7 @@ Deno.serve(async (req) => {
         // Apply brand overrides
         const mappedBrand = BRAND_OVERRIDES[normalized] || normalized;
         
-        console.log(`[${barcode}] Found on OpenFoodFacts: ${productName} -> ${mappedBrand}`);
+        console.log(`[${normalizedBarcode}] Found on OpenFoodFacts: ${productName} -> ${mappedBrand}`);
         
         // Try to find the brand in our database
         const { data: brandMatch } = await supabase
@@ -132,15 +156,26 @@ Deno.serve(async (req) => {
             .from('products')
             .insert({
               name: productName,
-              barcode,
+              barcode: normalizedBarcode,
               brand_id: brandMatch.id,
             });
           
           if (!insertError) {
+            const dur = Math.round(performance.now() - t0);
+            console.log(JSON.stringify({ 
+              level: "info", 
+              fn: "resolve-barcode", 
+              barcode: normalizedBarcode,
+              source: "openfoodfacts",
+              brand_id: brandMatch.id,
+              dur_ms: dur,
+              ok: true
+            }));
+            
             return new Response(
               JSON.stringify({
                 success: true,
-                product: { name: productName, barcode },
+                product: { name: productName, barcode: normalizedBarcode },
                 brand: brandMatch,
                 source: 'openfoodfacts',
               }),
@@ -150,10 +185,21 @@ Deno.serve(async (req) => {
         }
         
         // Brand found but not in our DB - suggest mapping
+        const dur = Math.round(performance.now() - t0);
+        console.log(JSON.stringify({ 
+          level: "info", 
+          fn: "resolve-barcode", 
+          barcode: normalizedBarcode,
+          source: "openfoodfacts",
+          brand_guess: mappedBrand,
+          dur_ms: dur,
+          ok: false
+        }));
+        
         return new Response(
           JSON.stringify({
             success: false,
-            product: { name: productName, barcode },
+            product: { name: productName, barcode: normalizedBarcode },
             brand_guess: mappedBrand,
             error: 'Brand not in database',
             message: 'Product found but brand needs to be added to our database.',
@@ -164,7 +210,17 @@ Deno.serve(async (req) => {
       }
     }
     
-    console.log(`[${barcode}] Not found on OpenFoodFacts`);
+    console.log(`[${normalizedBarcode}] Not found on OpenFoodFacts`);
+    
+    const dur = Math.round(performance.now() - t0);
+    console.log(JSON.stringify({ 
+      level: "info", 
+      fn: "resolve-barcode", 
+      barcode: normalizedBarcode,
+      source: "none",
+      dur_ms: dur,
+      ok: false
+    }));
     
     // Cache 404s (1h TTL - future optimization)
     return new Response(
@@ -178,7 +234,14 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Barcode resolution error:', error);
+    const dur = Math.round(performance.now() - t0);
+    console.error(JSON.stringify({ 
+      level: "error", 
+      fn: "resolve-barcode", 
+      msg: String(error instanceof Error ? error.message : error),
+      dur_ms: dur
+    }));
+    
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
