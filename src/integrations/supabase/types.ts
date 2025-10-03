@@ -396,6 +396,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_test: boolean
           name: string
           parent_company: string | null
           push_paused: boolean
@@ -406,6 +407,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_test?: boolean
           name: string
           parent_company?: string | null
           push_paused?: boolean
@@ -416,6 +418,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_test?: boolean
           name?: string
           parent_company?: string | null
           push_paused?: boolean
