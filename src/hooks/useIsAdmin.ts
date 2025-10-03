@@ -4,18 +4,25 @@ import { supabase } from "@/integrations/supabase/client";
 export function useIsAdmin() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   
+  let inflight = false;
   const checkAdminRole = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return setIsAdmin(false);
-    
-    const { data: role } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin")
-      .maybeSingle();
-    
-    setIsAdmin(!!role);
+    if (inflight) return;
+    inflight = true;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return setIsAdmin(false);
+      
+      const { data: role } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      
+      setIsAdmin(!!role);
+    } finally {
+      inflight = false;
+    }
   };
   
   useEffect(() => {
