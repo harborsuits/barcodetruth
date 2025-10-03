@@ -21,8 +21,10 @@ export const Scan = () => {
   const [torchEnabled, setTorchEnabled] = useState(false);
   const [manualBarcode, setManualBarcode] = useState('');
   const [isSecure, setIsSecure] = useState(true);
+  const [showManual, setShowManual] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<ReturnType<typeof createScanner> | null>(null);
+  const manualInputRef = useRef<HTMLInputElement | null>(null);
 
   // Check HTTPS (except localhost)
   useEffect(() => {
@@ -275,6 +277,16 @@ export const Scan = () => {
     };
   }, []);
 
+  const onManualFallbackClick = () => {
+    console.log('[Analytics] manual_fallback_click', { ts: Date.now(), scanResult });
+    if (scannerRef.current?.isScanning()) {
+      scannerRef.current.stopScanning();
+    }
+    setScanResult('idle');
+    setShowManual(true);
+    setTimeout(() => manualInputRef.current?.focus(), 50);
+  };
+
   const handleManualSubmit = () => {
     const trimmed = manualBarcode.trim();
     if (trimmed.length >= 8 && trimmed.length <= 14 && /^\d+$/.test(trimmed)) {
@@ -470,41 +482,57 @@ export const Scan = () => {
                   </div>
                 )}
                 
-                <Button 
-                  onClick={startScanner} 
-                  className="w-full" 
-                  aria-label="Start barcode scanner"
-                  disabled={!isSecure}
-                >
-                  <Camera className="mr-2 h-4 w-4" />
-                  Start Camera
-                </Button>
+                <div className="flex items-center gap-3 justify-center">
+                  <Button 
+                    onClick={startScanner} 
+                    aria-label="Start barcode scanner"
+                    disabled={!isSecure}
+                  >
+                    <Camera className="mr-2 h-4 w-4" />
+                    Start Camera
+                  </Button>
+                  <Button 
+                    variant="secondary" 
+                    onClick={onManualFallbackClick} 
+                    aria-label="Enter barcode manually"
+                  >
+                    Enter barcode instead
+                  </Button>
+                </div>
                 
                 <div className="text-xs text-muted-foreground space-y-1">
-                  <p>📷 Camera stays on-device. We only read the barcode number.</p>
+                  <p>📷 Privacy: Video stays on your device. We only read the barcode number.</p>
                   <p>Supports EAN-13, UPC-A, Code 128, and more</p>
                 </div>
 
-                {/* Manual barcode entry fallback */}
-                <div className="pt-4 border-t">
-                  <p className="text-sm text-muted-foreground mb-2">No camera? Enter barcode:</p>
-                  <div className="flex gap-2">
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      placeholder="8-14 digits"
-                      value={manualBarcode}
-                      onChange={(e) => setManualBarcode(e.target.value.replace(/\D/g, ''))}
-                      onKeyDown={(e) => e.key === 'Enter' && handleManualSubmit()}
-                      maxLength={14}
-                      className="flex-1"
-                    />
-                    <Button onClick={handleManualSubmit} disabled={manualBarcode.length < 8}>
-                      Lookup
-                    </Button>
+                {/* Manual barcode entry (when showManual is true) */}
+                {showManual && (
+                  <div className="pt-4 border-t">
+                    <label htmlFor="manual-barcode" className="text-sm font-medium">No camera? Enter barcode:</label>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Input
+                        id="manual-barcode"
+                        ref={manualInputRef}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        placeholder="e.g., 0123456789012"
+                        value={manualBarcode}
+                        onChange={(e) => setManualBarcode(e.target.value.replace(/\D/g, ''))}
+                        onKeyDown={(e) => e.key === 'Enter' && handleManualSubmit()}
+                        maxLength={14}
+                        className="flex-1"
+                        aria-label="Enter barcode digits manually"
+                      />
+                      <Button onClick={handleManualSubmit} disabled={manualBarcode.length < 8} aria-label="Look up barcode">
+                        Lookup
+                      </Button>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Supports 8–14 digit EAN/UPC/ITF/Code 128 formats.
+                    </p>
                   </div>
-                </div>
+                )}
               </div>
             )}
 
@@ -518,12 +546,14 @@ export const Scan = () => {
                       : "We'll automatically scan when detected • Works best in good lighting"
                     }
                   </p>
-                  <button 
-                    onClick={stopScanner}
-                    className="text-xs text-primary hover:underline mt-2"
-                  >
-                    Use manual input instead
-                  </button>
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    📷 Privacy: Video stays on your device. We only read the barcode number.
+                  </p>
+                  <div className="mt-4 flex items-center justify-center">
+                    <Button variant="secondary" onClick={onManualFallbackClick} aria-label="Enter barcode manually">
+                      Enter barcode instead
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
@@ -579,6 +609,36 @@ export const Scan = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* FAQ Drawer */}
+        <details className="rounded-lg border p-4 bg-card">
+          <summary className="cursor-pointer select-none text-sm font-medium">
+            Having trouble? (FAQ)
+          </summary>
+          <div className="mt-3 space-y-3 text-sm text-muted-foreground">
+            <div>
+              <div className="font-medium text-foreground">Why won't my camera start?</div>
+              <ul className="list-disc pl-5 mt-1">
+                <li>Use HTTPS (or localhost)—browsers block cameras on insecure pages.</li>
+                <li>Allow camera permission in your browser settings.</li>
+                <li>Close other apps using the camera (Zoom/Teams/etc.).</li>
+                <li>Your browser/device may not support camera access—use "Enter barcode instead".</li>
+              </ul>
+            </div>
+            <div>
+              <div className="font-medium text-foreground">It's too dark / won't detect.</div>
+              <ul className="list-disc pl-5 mt-1">
+                <li>Move to brighter light or use the flashlight if available.</li>
+                <li>Fill ~60% of the reticle with the barcode; avoid glare and curve.</li>
+                <li>If the code is damaged, type the digits manually.</li>
+              </ul>
+            </div>
+            <div>
+              <div className="font-medium text-foreground">Which codes are supported?</div>
+              <p className="mt-1">EAN-13, EAN-8, UPC-A, UPC-E, ITF, Code 128, Code 39 (QR/Data Matrix not yet).</p>
+            </div>
+          </div>
+        </details>
       </main>
     </div>
   );
