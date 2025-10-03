@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { ShoppingBag, Heart, Leaf, Users, Megaphone, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import logo from "@/assets/logo.png";
 
 export const Onboarding = () => {
   const navigate = useNavigate();
@@ -27,10 +28,7 @@ export const Onboarding = () => {
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-md space-y-8 text-center">
           <div className="space-y-4">
-            <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-primary">
-              <ShoppingBag className="h-8 w-8 text-primary-foreground" />
-            </div>
-            <h1 className="text-4xl font-bold tracking-tight">ShopSignals</h1>
+            <img src={logo} alt="Barcode Truth" className="h-24 w-auto mx-auto" />
             <p className="text-lg text-muted-foreground">
               Shop according to your values. Discover brands that align with what matters to you.
             </p>
