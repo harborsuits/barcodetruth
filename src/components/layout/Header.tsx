@@ -31,7 +31,7 @@ export function Header() {
             </Button>
           )}
           {isAdmin === null && (
-            <div className="w-20 h-9" aria-hidden="true" />
+            <span aria-busy="true" aria-live="polite" className="inline-block w-20 h-9" />
           )}
         </div>
       </div>

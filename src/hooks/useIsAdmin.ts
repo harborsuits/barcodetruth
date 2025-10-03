@@ -1,31 +1,35 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export function useIsAdmin() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  
-  let inflight = false;
-  const checkAdminRole = async () => {
-    if (inflight) return;
-    inflight = true;
+  const inflightRef = useRef(false);
+  const mountedRef = useRef(true);
+
+  const checkAdminRole = useCallback(async () => {
+    if (inflightRef.current) return;
+    inflightRef.current = true;
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!mountedRef.current) return;
       if (!user) return setIsAdmin(false);
-      
+
       const { data: role } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
         .eq("role", "admin")
         .maybeSingle();
-      
+
+      if (!mountedRef.current) return;
       setIsAdmin(!!role);
     } finally {
-      inflight = false;
+      inflightRef.current = false;
     }
-  };
+  }, []);
   
   useEffect(() => {
+    mountedRef.current = true;
     checkAdminRole();
     
     // React to auth changes (account switching, logout, etc.)
@@ -33,8 +37,11 @@ export function useIsAdmin() {
       checkAdminRole();
     });
     
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      mountedRef.current = false;
+      subscription.unsubscribe();
+    };
+  }, [checkAdminRole]);
   
   return isAdmin; // null = loading, false = not admin, true = admin
 }
