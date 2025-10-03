@@ -292,16 +292,24 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
             </span>
             
             {/* Impact Direction Badge - PROMINENT */}
-            {event.severity && (
+            {event.severity && event.orientation && (
               <span
                 className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md ${
                   event.orientation === 'positive' 
                     ? 'bg-green-600 text-white' 
-                    : 'bg-red-600 text-white'
+                    : event.orientation === 'negative'
+                    ? 'bg-red-600 text-white'
+                    : 'bg-muted/80 text-foreground border border-border'
                 }`}
-                title={event.orientation === 'positive' ? 'Positive for brand score' : 'Negative for brand score'}
+                title={
+                  event.orientation === 'positive' 
+                    ? 'Positive impact on brand score' 
+                    : event.orientation === 'negative'
+                    ? 'Negative impact on brand score'
+                    : 'Mixed or contextual impact'
+                }
               >
-                {event.orientation === 'positive' ? '↑ Positive' : '↓ Negative'}
+                {event.orientation === 'positive' ? '↑ Positive' : event.orientation === 'negative' ? '↓ Negative' : '↔︎ Mixed'}
               </span>
             )}
             
