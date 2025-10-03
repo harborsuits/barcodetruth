@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Activity, AlertTriangle, Clock, XCircle } from "lucide-react";
+import { Activity, AlertTriangle, Clock, XCircle, CheckCircle } from "lucide-react";
 import { Helmet } from "react-helmet";
 
 interface JobRun {
@@ -79,6 +79,45 @@ export default function AdminHealth() {
     }
   }
 
+  async function runQAValidation() {
+    try {
+      toast.info("Running QA validation...", {
+        description: "Checking mixed events and feature flags",
+      });
+
+      const { data, error } = await supabase.functions.invoke("qa-mixed-flags", {
+        body: {},
+      });
+
+      if (error) throw error;
+
+      const result = data as any;
+      const failedChecks = result.checks?.filter((c: any) => c.status === 'FAIL') || [];
+      const warningChecks = result.checks?.filter((c: any) => c.status === 'WARNING') || [];
+
+      if (failedChecks.length > 0) {
+        toast.error("QA Validation Failed", {
+          description: failedChecks.map((c: any) => c.message).join('; '),
+        });
+      } else if (warningChecks.length > 0) {
+        toast.warning("QA Validation Complete (Warnings)", {
+          description: `${result.checks?.length - warningChecks.length} checks passed, ${warningChecks.length} warnings. Duration: ${result.duration_ms}ms`,
+        });
+      } else {
+        toast.success("QA Validation Passed", {
+          description: `All ${result.checks?.length} checks passed in ${result.duration_ms}ms. Found ${result.mixed_found} brands with mixed events.`,
+        });
+      }
+
+      console.log('QA Validation Results:', result);
+    } catch (e: any) {
+      console.error("QA validation error:", e);
+      toast.error("QA validation failed", {
+        description: e.message || "Unknown error",
+      });
+    }
+  }
+
   if (!isAdmin) {
     return null;
   }
@@ -107,9 +146,15 @@ export default function AdminHealth() {
               Monitor baseline calculation jobs and anomalies
             </p>
           </div>
-          <Button onClick={fetchHealth} disabled={loading} variant="outline">
-            {loading ? "Refreshing..." : "Refresh"}
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={runQAValidation} variant="outline" size="sm">
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Run Mixed/Flags QA
+            </Button>
+            <Button onClick={fetchHealth} disabled={loading} variant="outline" size="sm">
+              {loading ? "Refreshing..." : "Refresh"}
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
