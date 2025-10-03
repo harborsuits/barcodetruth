@@ -24,6 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import ScoreBreakdown from "@/components/ScoreBreakdown";
+import { EventTimeline } from "@/components/EventTimeline";
 
 export const BrandDetail = () => {
   const { brandId } = useParams();
@@ -177,6 +178,44 @@ export const BrandDetail = () => {
       return response.json();
     },
     enabled: !!brandId,
+    staleTime: 60000,
+  });
+
+  // Fetch recent events for timeline
+  const { data: recentEvents } = useQuery({
+    queryKey: ['brand-events', brandId],
+    queryFn: async () => {
+      if (!brandId) return [];
+      const { data: events } = await supabase
+        .from('brand_events')
+        .select('event_id, category, event_date, verification, impact_labor, impact_environment, impact_politics, impact_social, event_sources(source_name, source_date)')
+        .eq('brand_id', brandId)
+        .order('event_date', { ascending: false })
+        .limit(30);
+      
+      if (!events) return [];
+      
+      return events.map((r: any) => {
+        const eff =
+          r.category === 'labor' ? r.impact_labor :
+          r.category === 'environment' ? r.impact_environment :
+          r.category === 'politics' ? r.impact_politics :
+          r.impact_social;
+        
+        const src = Array.isArray(r.event_sources) && r.event_sources[0]?.source_name;
+        
+        return {
+          date: r.event_date,
+          category: r.category,
+          effective_delta: typeof eff === 'number' ? Math.round(eff) : undefined,
+          title: src || undefined,
+          source_name: src || 'Source',
+          verification: r.verification || 'unverified',
+        };
+      });
+    },
+    enabled: !!brandId,
+    staleTime: 60000,
   });
 
   // Mutation to toggle notifications
@@ -422,6 +461,28 @@ export const BrandDetail = () => {
             brandId={brandId!} 
             blocks={proofData.breakdown} 
           />
+        )}
+
+        {/* Recent events timeline */}
+        {recentEvents && recentEvents.length > 0 && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Recent Events</CardTitle>
+                <Link
+                  to={`/brands/${brandId}/proof`}
+                  className="text-sm underline underline-offset-2 text-muted-foreground hover:text-foreground"
+                >
+                  View all evidence →
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="max-h-96 overflow-auto">
+                <EventTimeline items={recentEvents} />
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Category Scores */}

@@ -3,11 +3,11 @@ import { CheckCircle2, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const LIVE_SOURCES = [
-  { name: "EPA", description: "Environmental enforcement", type: "government" },
-  { name: "OSHA", description: "Workplace safety violations", type: "government" },
+  { name: "EPA", description: "Facility/violation data (ECHO)", type: "government" },
+  { name: "OSHA", description: "Inspections/violations", type: "government" },
   { name: "FEC", description: "Campaign finance data", type: "government" },
-  { name: "GDELT", description: "Social sentiment baseline", type: "data" },
-  { name: "Wayback Machine", description: "Archival proof", type: "archive" },
+  { name: "GDELT", description: "24-month sentiment baseline", type: "data" },
+  { name: "Wayback", description: "Link preservation for citations", type: "archive" },
 ];
 
 const PLANNED_SOURCES = [
