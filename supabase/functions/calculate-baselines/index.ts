@@ -354,6 +354,8 @@ function calculateConfidence(
 }
 
 serve(async (req) => {
+  const startTime = performance.now();
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -363,9 +365,10 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { brandId } = await req.json();
+    const body = await req.json();
+    const { brandId, mode } = body;
 
-    // Load config
+    // Load config once (needed for both modes)
     const { data: weightsData } = await supabase.from('scoring_weights').select('key, value');
     const { data: capsData } = await supabase.from('scoring_caps').select('key, value');
     
@@ -375,150 +378,255 @@ serve(async (req) => {
     weightsData?.forEach(w => weights[w.key] = w.value);
     capsData?.forEach(c => caps[c.key] = c.value);
 
-    // Fetch baseline inputs
-    const { data: inputs24m, error: err24m } = await supabase
-      .from('v_baseline_inputs_24m')
-      .select('*')
-      .eq('brand_id', brandId)
-      .single();
+    // Support batch mode for cron jobs
+    if (mode === 'batch') {
+      console.log('🔄 Starting batch baseline calculation for all brands...');
+      
+      const { data: brands, error: brandsError } = await supabase
+        .from('brands')
+        .select('id, name')
+        .limit(1000); // Process in chunks
 
-    if (err24m || !inputs24m) {
+      if (brandsError) throw brandsError;
+
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      for (const brand of brands || []) {
+        try {
+          await calculateAndStoreBrand(supabase, brand.id, weights, caps);
+          successCount++;
+        } catch (err) {
+          errorCount++;
+          const errMsg = err instanceof Error ? err.message : String(err);
+          errors.push(`${brand.name}: ${errMsg}`);
+          console.error(`❌ Failed for ${brand.name}:`, errMsg);
+        }
+      }
+
+      const duration = Math.round(performance.now() - startTime);
+      console.log(JSON.stringify({
+        level: 'info',
+        fn: 'calculate-baselines-batch',
+        success: successCount,
+        errors: errorCount,
+        total: brands?.length || 0,
+        duration_ms: duration,
+      }));
+
       return new Response(
-        JSON.stringify({ error: 'Brand not found or no baseline data', details: err24m }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          success: true, 
+          processed: successCount,
+          errors: errorCount,
+          error_details: errors.slice(0, 10),
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const { data: inputs90d } = await supabase
-      .from('v_baseline_inputs_90d')
-      .select('*')
-      .eq('brand_id', brandId)
-      .single();
+    // Single brand mode
+    if (!brandId) {
+      return new Response(
+        JSON.stringify({ error: 'brandId required for single brand mode' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    // Calculate category scores
-    const labor24m = calculateLaborScore(inputs24m, weights, caps);
-    const labor90d = inputs90d ? calculateLaborScore(inputs90d, weights, caps, true) : labor24m;
-    const laborDelta = clamp(
-      labor90d.score - labor24m.score,
-      getWeight(weights, 'window.delta.cap_neg', -15),
-      getWeight(weights, 'window.delta.cap_pos', 15)
-    );
-
-    const env24m = calculateEnvironmentScore(inputs24m, weights, caps);
-    const env90d = inputs90d ? calculateEnvironmentScore(inputs90d, weights, caps, true) : env24m;
-    const envDelta = clamp(
-      env90d.score - env24m.score,
-      getWeight(weights, 'window.delta.cap_neg', -15),
-      getWeight(weights, 'window.delta.cap_pos', 15)
-    );
-
-    const pol24m = calculatePoliticsScore(inputs24m, weights, caps);
-    const pol90d = inputs90d ? calculatePoliticsScore(inputs90d, weights, caps, true) : pol24m;
-    const polDelta = clamp(
-      pol90d.score - pol24m.score,
-      getWeight(weights, 'window.delta.cap_neg', -15),
-      getWeight(weights, 'window.delta.cap_pos', 15)
-    );
-
-    const soc24m = calculateSocialScore(inputs24m, weights, caps);
-    const soc90d = inputs90d ? calculateSocialScore(inputs90d, weights, caps, true) : soc24m;
-    const socDelta = clamp(
-      soc90d.score - soc24m.score,
-      getWeight(weights, 'window.delta.cap_neg', -15),
-      getWeight(weights, 'window.delta.cap_pos', 15)
-    );
-
-    // Calculate confidence scores
-    const laborConf = calculateConfidence(inputs24m, 'labor', weights);
-    const envConf = calculateConfidence(inputs24m, 'environment', weights);
-    const polConf = calculateConfidence(inputs24m, 'politics', weights);
-    const socConf = calculateConfidence(inputs24m, 'social', weights);
-
-    // Build breakdown
-    const breakdown = {
-      labor: {
-        component: 'labor',
-        base: labor24m.score,
-        base_reason: labor24m.reason,
-        window_delta: laborDelta,
-        value: labor24m.score + laborDelta,
-        confidence: laborConf,
-        evidence_count: inputs24m.total_events_24m || 0,
-        verified_count: 0, // TODO: count verified sources
-        independent_owners: 0, // TODO: count distinct owners
-        proof_required: false, // TODO: implement proof gate logic
-        inputs: labor24m.inputs,
-        last_updated: new Date().toISOString()
+    const result = await calculateAndStoreBrand(supabase, brandId, weights, caps);
+    
+    const duration = Math.round(performance.now() - startTime);
+    console.log(JSON.stringify({
+      level: 'info',
+      fn: 'calculate-baselines',
+      brandId,
+      scores: {
+        labor: result.breakdown.labor.value,
+        environment: result.breakdown.environment.value,
+        politics: result.breakdown.politics.value,
+        social: result.breakdown.social.value,
       },
-      environment: {
-        component: 'environment',
-        base: env24m.score,
-        base_reason: env24m.reason,
-        window_delta: envDelta,
-        value: env24m.score + envDelta,
-        confidence: envConf,
-        evidence_count: inputs24m.total_events_24m || 0,
-        verified_count: 0,
-        independent_owners: 0,
-        proof_required: false,
-        inputs: env24m.inputs,
-        last_updated: new Date().toISOString()
-      },
-      politics: {
-        component: 'politics',
-        base: pol24m.score,
-        base_reason: pol24m.reason,
-        window_delta: polDelta,
-        value: pol24m.score + polDelta,
-        confidence: polConf,
-        evidence_count: inputs24m.total_events_24m || 0,
-        verified_count: 0,
-        independent_owners: 0,
-        proof_required: false,
-        inputs: pol24m.inputs,
-        last_updated: new Date().toISOString()
-      },
-      social: {
-        component: 'social',
-        base: soc24m.score,
-        base_reason: soc24m.reason,
-        window_delta: socDelta,
-        value: soc24m.score + socDelta,
-        confidence: socConf,
-        evidence_count: inputs24m.total_events_24m || 0,
-        verified_count: 0,
-        independent_owners: 0,
-        proof_required: false,
-        inputs: soc24m.inputs,
-        last_updated: new Date().toISOString()
-      }
-    };
-
-    // Update brand_scores
-    await supabase
-      .from('brand_scores')
-      .upsert({
-        brand_id: brandId,
-        score_labor: breakdown.labor.value,
-        score_environment: breakdown.environment.value,
-        score_politics: breakdown.politics.value,
-        score_social: breakdown.social.value,
-        breakdown: breakdown,
-        last_updated: new Date().toISOString(),
-        window_start: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
-        window_end: new Date().toISOString()
-      }, { onConflict: 'brand_id' });
+      duration_ms: duration,
+    }));
 
     return new Response(
-      JSON.stringify({ success: true, breakdown }),
+      JSON.stringify({ success: true, breakdown: result.breakdown }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Error calculating baselines:', error);
+    const duration = Math.round(performance.now() - startTime);
+    console.error(JSON.stringify({
+      level: 'error',
+      fn: 'calculate-baselines',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      duration_ms: duration,
+    }));
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
+
+// Extract calculation logic into reusable function
+async function calculateAndStoreBrand(
+  supabase: any,
+  brandId: string,
+  weights: ScoringWeights,
+  caps: ScoringCaps
+) {
+
+  // Fetch baseline inputs
+  const { data: inputs24m, error: err24m } = await supabase
+    .from('v_baseline_inputs_24m')
+    .select('*')
+    .eq('brand_id', brandId)
+    .single();
+
+  if (err24m || !inputs24m) {
+    throw new Error(`Brand not found or no baseline data: ${err24m?.message || 'unknown'}`);
+  }
+
+  const { data: inputs90d } = await supabase
+    .from('v_baseline_inputs_90d')
+    .select('*')
+    .eq('brand_id', brandId)
+    .single();
+
+  // Calculate category scores
+  const labor24m = calculateLaborScore(inputs24m, weights, caps);
+  const labor90d = inputs90d ? calculateLaborScore(inputs90d, weights, caps, true) : labor24m;
+  const laborDelta = clamp(
+    labor90d.score - labor24m.score,
+    getWeight(weights, 'window.delta.cap_neg', -15),
+    getWeight(weights, 'window.delta.cap_pos', 15)
+  );
+
+  const env24m = calculateEnvironmentScore(inputs24m, weights, caps);
+  const env90d = inputs90d ? calculateEnvironmentScore(inputs90d, weights, caps, true) : env24m;
+  const envDelta = clamp(
+    env90d.score - env24m.score,
+    getWeight(weights, 'window.delta.cap_neg', -15),
+    getWeight(weights, 'window.delta.cap_pos', 15)
+  );
+
+  const pol24m = calculatePoliticsScore(inputs24m, weights, caps);
+  const pol90d = inputs90d ? calculatePoliticsScore(inputs90d, weights, caps, true) : pol24m;
+  const polDelta = clamp(
+    pol90d.score - pol24m.score,
+    getWeight(weights, 'window.delta.cap_neg', -15),
+    getWeight(weights, 'window.delta.cap_pos', 15)
+  );
+
+  const soc24m = calculateSocialScore(inputs24m, weights, caps);
+  const soc90d = inputs90d ? calculateSocialScore(inputs90d, weights, caps, true) : soc24m;
+  const socDelta = clamp(
+    soc90d.score - soc24m.score,
+    getWeight(weights, 'window.delta.cap_neg', -15),
+    getWeight(weights, 'window.delta.cap_pos', 15)
+  );
+
+  // Calculate confidence scores
+  const laborConf = calculateConfidence(inputs24m, 'labor', weights);
+  const envConf = calculateConfidence(inputs24m, 'environment', weights);
+  const polConf = calculateConfidence(inputs24m, 'politics', weights);
+  const socConf = calculateConfidence(inputs24m, 'social', weights);
+
+  // Check for suspicious jumps
+  const maxJump = Math.max(
+    Math.abs(laborDelta),
+    Math.abs(envDelta),
+    Math.abs(polDelta),
+    Math.abs(socDelta)
+  );
+  
+  if (maxJump > 12) {
+    console.warn(JSON.stringify({
+      level: 'warn',
+      fn: 'calculate-baselines',
+      brandId,
+      msg: 'Large score jump detected',
+      maxJump,
+      deltas: { laborDelta, envDelta, polDelta, socDelta },
+    }));
+  }
+
+  // Build breakdown (using snake_case to match ScoreBreakdown component)
+  const breakdown = {
+    labor: {
+      component: 'labor',
+      base: labor24m.score,
+      base_reason: labor24m.reason,
+      window_delta: laborDelta,
+      value: labor24m.score + laborDelta,
+      confidence: laborConf,
+      evidence_count: inputs24m.total_events_24m || 0,
+      verified_count: 0, // TODO: count verified sources
+      independent_owners: 0, // TODO: count distinct owners
+      proof_required: false, // TODO: implement proof gate logic
+      inputs: labor24m.inputs,
+      last_updated: new Date().toISOString()
+    },
+    environment: {
+      component: 'environment',
+      base: env24m.score,
+      base_reason: env24m.reason,
+      window_delta: envDelta,
+      value: env24m.score + envDelta,
+      confidence: envConf,
+      evidence_count: inputs24m.total_events_24m || 0,
+      verified_count: 0,
+      independent_owners: 0,
+      proof_required: false,
+      inputs: env24m.inputs,
+      last_updated: new Date().toISOString()
+    },
+    politics: {
+      component: 'politics',
+      base: pol24m.score,
+      base_reason: pol24m.reason,
+      window_delta: polDelta,
+      value: pol24m.score + polDelta,
+      confidence: polConf,
+      evidence_count: inputs24m.total_events_24m || 0,
+      verified_count: 0,
+      independent_owners: 0,
+      proof_required: false,
+      inputs: pol24m.inputs,
+      last_updated: new Date().toISOString()
+    },
+    social: {
+      component: 'social',
+      base: soc24m.score,
+      base_reason: soc24m.reason,
+      window_delta: socDelta,
+      value: soc24m.score + socDelta,
+      confidence: socConf,
+      evidence_count: inputs24m.total_events_24m || 0,
+      verified_count: 0,
+      independent_owners: 0,
+      proof_required: false,
+      inputs: soc24m.inputs,
+      last_updated: new Date().toISOString()
+    }
+  };
+
+  // Update brand_scores
+  await supabase
+    .from('brand_scores')
+    .upsert({
+      brand_id: brandId,
+      score_labor: breakdown.labor.value,
+      score_environment: breakdown.environment.value,
+      score_politics: breakdown.politics.value,
+      score_social: breakdown.social.value,
+      breakdown: breakdown,
+      last_updated: new Date().toISOString(),
+      window_start: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+      window_end: new Date().toISOString()
+    }, { onConflict: 'brand_id' });
+
+  return { breakdown };
+}
