@@ -751,7 +751,7 @@ export type Database = {
           sent_at: string | null
           sent_day: string | null
           success: boolean | null
-          user_id: string | null
+          user_id: string
         }
         Insert: {
           brand_id: string
@@ -762,7 +762,7 @@ export type Database = {
           sent_at?: string | null
           sent_day?: string | null
           success?: boolean | null
-          user_id?: string | null
+          user_id: string
         }
         Update: {
           brand_id?: string
@@ -773,7 +773,7 @@ export type Database = {
           sent_at?: string | null
           sent_day?: string | null
           success?: boolean | null
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -1438,6 +1438,36 @@ export type Database = {
         }
         Relationships: []
       }
+      v_user_preferences_safe: {
+        Row: {
+          created_at: string | null
+          digest_time: string | null
+          exclude_same_parent: boolean | null
+          muted_categories: string[] | null
+          notification_mode: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          digest_time?: string | null
+          exclude_same_parent?: boolean | null
+          muted_categories?: string[] | null
+          notification_mode?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          digest_time?: string | null
+          exclude_same_parent?: boolean | null
+          muted_categories?: string[] | null
+          notification_mode?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       allow_push_send: {
@@ -1462,6 +1492,17 @@ export type Database = {
       is_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      log_notification: {
+        Args: {
+          p_brand_id: string
+          p_category: string
+          p_delta?: number
+          p_error?: string
+          p_success?: boolean
+          p_user_id: string
+        }
+        Returns: undefined
       }
       search_brands_fuzzy: {
         Args: { min_similarity?: number; search_term: string }
