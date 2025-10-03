@@ -49,7 +49,7 @@ export default function Search() {
         setSelectedIndex(prev => Math.max(prev - 1, -1));
       } else if (e.key === 'Enter' && selectedIndex >= 0) {
         e.preventDefault();
-        navigate(`/brands/${results[selectedIndex].id}`);
+        navigate(`/brand/${results[selectedIndex].id}`);
       } else if (e.key === 'Escape') {
         setQuery('');
         setResults([]);
@@ -208,7 +208,7 @@ export default function Search() {
                 className={`cursor-pointer hover:bg-muted/50 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${
                   selectedIndex === idx ? 'bg-muted/50 ring-2 ring-primary' : ''
                 }`}
-                onClick={() => navigate(`/brands/${brand.id}`)}
+                onClick={() => navigate(`/brand/${brand.id}`)}
                 tabIndex={0}
                 role="button"
                 aria-label={`${brand.name}${brand.parent_company ? `, parent company: ${brand.parent_company}` : ''}`}
