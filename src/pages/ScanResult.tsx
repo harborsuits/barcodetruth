@@ -381,6 +381,9 @@ export default function ScanResult() {
   });
 
   // Submit product claim mutation
+  const [pendingClaimId, setPendingClaimId] = useState<string | null>(null);
+  const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const submitClaim = useMutation({
     mutationFn: async ({ brandId, productName }: { brandId: string; productName?: string }) => {
       const { data, error } = await supabase.functions.invoke('submit-product-claim', {
@@ -396,16 +399,21 @@ export default function ScanResult() {
       return data;
     },
     onSuccess: (data) => {
+      setPendingClaimId(data.claim_id);
+      
       toast({
         title: 'Product added!',
-        description: 'Thank you for helping improve our database.',
+        description: 'Navigating in 10 seconds... (or undo below)',
       });
       
-      // Navigate to brand page
-      queryClient.invalidateQueries({ queryKey: ['product', barcode] });
-      if (ownerGuess?.brand_id) {
-        navigate(`/brands/${ownerGuess.brand_id}`);
-      }
+      // Auto-navigate after 10s if not undone
+      undoTimeoutRef.current = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['product', barcode] });
+        if (ownerGuess?.brand_id) {
+          navigate(`/brands/${ownerGuess.brand_id}`);
+        }
+        setPendingClaimId(null);
+      }, 10000);
     },
     onError: (error: Error) => {
       toast({
@@ -415,6 +423,43 @@ export default function ScanResult() {
       });
     }
   });
+
+  const handleUndo = async () => {
+    if (!pendingClaimId) return;
+    
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current);
+    }
+    
+    // Delete the claim using service role (or mark as cancelled)
+    const { error } = await supabase
+      .from('product_claims' as any)
+      .delete()
+      .eq('id', pendingClaimId);
+    
+    if (!error) {
+      toast({
+        title: 'Claim removed',
+        description: 'Your submission has been cancelled.',
+      });
+      setPendingClaimId(null);
+    } else {
+      toast({
+        title: 'Undo failed',
+        description: 'Could not remove claim. Please contact support.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (productError) {
     return (
@@ -462,22 +507,43 @@ export default function ScanResult() {
                       <div className="text-sm text-muted-foreground">
                         This guess is based on the barcode prefix. Is this correct?
                       </div>
-                      <div className="space-y-2">
-                        <Button 
-                          className="w-full"
-                          onClick={() => submitClaim.mutate({ brandId: ownerGuess.brand_id! })}
-                          disabled={submitClaim.isPending}
-                        >
-                          {submitClaim.isPending ? 'Confirming...' : '✓ Yes, confirm'}
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          className="w-full"
-                          onClick={() => navigate('/search')}
-                        >
-                          Pick another brand
-                        </Button>
-                      </div>
+                      
+                      {pendingClaimId ? (
+                        <div className="space-y-2">
+                          <div className="p-3 bg-background rounded-lg border border-primary/50">
+                            <div className="flex items-center justify-between">
+                              <div className="text-sm font-medium">Claim submitted</div>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={handleUndo}
+                              >
+                                Undo
+                              </Button>
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Navigating in 10 seconds...
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Button 
+                            className="w-full"
+                            onClick={() => submitClaim.mutate({ brandId: ownerGuess.brand_id! })}
+                            disabled={submitClaim.isPending}
+                          >
+                            {submitClaim.isPending ? 'Confirming...' : '✓ Yes, confirm'}
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            className="w-full"
+                            onClick={() => navigate('/search')}
+                          >
+                            Pick another brand
+                          </Button>
+                        </div>
+                      )}
                     </>
                   )}
 
