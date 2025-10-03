@@ -337,11 +337,27 @@ export const Scan = () => {
                     muted
                   />
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-64 h-48 border-4 border-primary rounded-lg relative">
-                      <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg" />
-                      <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg" />
-                      <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg" />
-                      <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg" />
+                    {/* Scanning reticle with animated corners */}
+                    <div className="w-64 h-48 relative">
+                      {/* Corner brackets */}
+                      <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                        {/* Top-left */}
+                        <path d="M 0 24 L 0 0 L 24 0" stroke="hsl(var(--primary))" strokeWidth="4" fill="none" strokeLinecap="round"/>
+                        {/* Top-right */}
+                        <path d="M 232 0 L 256 0 L 256 24" stroke="hsl(var(--primary))" strokeWidth="4" fill="none" strokeLinecap="round"/>
+                        {/* Bottom-left */}
+                        <path d="M 0 168 L 0 192 L 24 192" stroke="hsl(var(--primary))" strokeWidth="4" fill="none" strokeLinecap="round"/>
+                        {/* Bottom-right */}
+                        <path d="M 232 192 L 256 192 L 256 168" stroke="hsl(var(--primary))" strokeWidth="4" fill="none" strokeLinecap="round"/>
+                        {/* Scanning line animation */}
+                        {scanResult === 'scanning' && (
+                          <line x1="0" y1="96" x2="256" y2="96" stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.6">
+                            <animate attributeName="y1" values="20;172;20" dur="2s" repeatCount="indefinite"/>
+                            <animate attributeName="y2" values="20;172;20" dur="2s" repeatCount="indefinite"/>
+                          </line>
+                        )}
+                      </svg>
+                      
                       {scanResult === 'processing' && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
                           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" />
@@ -382,11 +398,13 @@ export const Scan = () => {
               ) : (
                 <>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-64 h-48 border-4 border-primary/50 rounded-lg relative">
-                      <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg" />
-                      <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg" />
-                      <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg" />
-                      <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg" />
+                    <div className="w-64 h-48 relative">
+                      <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M 0 24 L 0 0 L 24 0" stroke="hsl(var(--primary) / 0.5)" strokeWidth="4" fill="none" strokeLinecap="round"/>
+                        <path d="M 232 0 L 256 0 L 256 24" stroke="hsl(var(--primary) / 0.5)" strokeWidth="4" fill="none" strokeLinecap="round"/>
+                        <path d="M 0 168 L 0 192 L 24 192" stroke="hsl(var(--primary) / 0.5)" strokeWidth="4" fill="none" strokeLinecap="round"/>
+                        <path d="M 232 192 L 256 192 L 256 168" stroke="hsl(var(--primary) / 0.5)" strokeWidth="4" fill="none" strokeLinecap="round"/>
+                      </svg>
                     </div>
                   </div>
                   <Camera className="h-16 w-16 text-muted-foreground" />

@@ -108,6 +108,12 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // CRITICAL: Don't cache /scan page (camera/MediaStream must be fresh)
+  if (request.mode === 'navigate' && url.pathname.startsWith('/scan')) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   // App navigation: Network-first with fallback to shell
   if (request.mode === 'navigate') {
     event.respondWith((async () => {
