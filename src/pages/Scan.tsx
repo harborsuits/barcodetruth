@@ -163,6 +163,19 @@ export const Scan = () => {
     console.log('[Analytics] scan_start', { ts: Date.now() });
     console.log('Initializing scanner...');
     
+    // Feature detection
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.error('getUserMedia not supported');
+      setError('Camera not supported in this browser. Use manual entry below.');
+      setScanResult('idle');
+      toast({
+        title: "Camera not supported",
+        description: "Your browser doesn't support camera access. Use manual barcode entry below.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     // Check if in iframe (preview environment)
     const inIframe = window.self !== window.top;
     if (inIframe) {
@@ -505,6 +518,12 @@ export const Scan = () => {
                       : "We'll automatically scan when detected • Works best in good lighting"
                     }
                   </p>
+                  <button 
+                    onClick={stopScanner}
+                    className="text-xs text-primary hover:underline mt-2"
+                  >
+                    Use manual input instead
+                  </button>
                 </div>
               </div>
             )}
