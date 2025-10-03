@@ -464,26 +464,37 @@ export const BrandDetail = () => {
         )}
 
         {/* Recent events timeline */}
-        {recentEvents && recentEvents.length > 0 && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Recent Events</CardTitle>
-                <Link
-                  to={`/brands/${brandId}/proof`}
-                  className="text-sm underline underline-offset-2 text-muted-foreground hover:text-foreground"
-                >
-                  View all evidence →
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="max-h-96 overflow-auto">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Recent Events</CardTitle>
+              <Link
+                to={`/brands/${brandId}/proof`}
+                className="text-sm underline underline-offset-2 text-muted-foreground hover:text-foreground"
+                aria-label="View all evidence for this brand"
+              >
+                View all evidence →
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {recentEvents && recentEvents.length > 0 ? (
+              <div className="max-h-96 overflow-auto" role="list" aria-label="Recent events timeline">
                 <EventTimeline items={recentEvents} />
               </div>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p className="mb-3">No recent events</p>
+                <Link
+                  to={`/brands/${brandId}/proof`}
+                  className="text-sm underline underline-offset-2 hover:text-foreground"
+                >
+                  View all evidence anyway →
+                </Link>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Category Scores */}
         <Card>
