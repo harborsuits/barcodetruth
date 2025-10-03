@@ -6,6 +6,8 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const t0 = performance.now();
+  
   try {
     const url = new URL(req.url);
     const brandId = url.searchParams.get('brandId');
@@ -166,20 +168,25 @@ Deno.serve(async (req) => {
       evidence_full: fullByCat,
     };
 
-    console.info('[proof:view]', {
+    const dur = Math.round(performance.now() - t0);
+    
+    console.log(JSON.stringify({
+      level: "info",
+      fn: "get-brand-proof",
       brandId: payload.brandId,
       totalScore: payload.totals.totalScore,
-      avgConfidence: payload.totals.confidence,
+      avgConf: payload.totals.confidence,
       cats: payload.breakdown.map(b => ({
         c: b.component,
         ver: b.verified_count,
         ev: b.evidence_count,
+        owners: b.independent_owners,
         pr: b.proof_required,
+        hid: b.syndicated_hidden_count
       })),
-      hiddenByDedup: Object.fromEntries(
-        payload.breakdown.map(b => [b.component, b.syndicated_hidden_count])
-      ),
-    });
+      dur_ms: dur,
+      ok: true
+    }));
 
     return new Response(
       JSON.stringify(payload),
@@ -193,7 +200,14 @@ Deno.serve(async (req) => {
     );
 
   } catch (e: any) {
-    console.error('[get-brand-proof] error:', e);
+    const dur = Math.round(performance.now() - t0);
+    console.error(JSON.stringify({
+      level: "error",
+      fn: "get-brand-proof",
+      brandId: new URL(req.url).searchParams.get('brandId') || "none",
+      msg: String(e?.message || e),
+      dur_ms: dur
+    }));
     return new Response(
       JSON.stringify({ error: String(e?.message || e) }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -249,6 +249,8 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const t0 = performance.now();
+
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -599,6 +601,38 @@ Deno.serve(async (req) => {
       console.log(`[calculate-brand-score] Dryrun - not persisting`);
     }
 
+    const dur = Math.round(performance.now() - t0);
+    
+    console.log(JSON.stringify({
+      level: "info",
+      fn: "calculate-brand-score",
+      brandId,
+      baselines: {
+        labor: baselines.labor.value,
+        environment: baselines.environment.value,
+        politics: baselines.politics.value,
+        social: baselines.social.value
+      },
+      deltas,
+      verifiedCount: {
+        labor: verifiedCount.labor,
+        environment: verifiedCount.environment,
+        politics: verifiedCount.politics,
+        social: verifiedCount.social
+      },
+      evidenceCount: {
+        labor: evidenceCount.labor,
+        environment: evidenceCount.environment,
+        politics: evidenceCount.politics,
+        social: evidenceCount.social
+      },
+      mutedDeltas,
+      totalsAfterBlend: totals,
+      dryrun,
+      dur_ms: dur,
+      ok: true
+    }));
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -618,7 +652,14 @@ Deno.serve(async (req) => {
     );
 
   } catch (e: any) {
-    console.error("[calculate-brand-score] error:", e);
+    const dur = Math.round(performance.now() - t0);
+    console.error(JSON.stringify({
+      level: "error",
+      fn: "calculate-brand-score",
+      brandId: new URL(req.url).searchParams.get("brand_id") || "none",
+      msg: String(e?.message || e),
+      dur_ms: dur
+    }));
     return new Response(
       JSON.stringify({
         success: false,
