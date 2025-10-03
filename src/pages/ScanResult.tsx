@@ -12,6 +12,7 @@ import { AlternativesDrawer } from "@/components/AlternativesDrawer";
 import { CompareSheet } from "@/components/CompareSheet";
 import { OwnershipDrawer } from "@/components/OwnershipDrawer";
 import { EventCard, type BrandEvent } from "@/components/EventCard";
+import { ReportIssue } from "@/components/ReportIssue";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { getUserWeights, calculateValueFit, getTopContributors } from "@/lib/valueFit";
@@ -365,19 +366,101 @@ export default function ScanResult() {
     events: events ?? [],
   };
 
+  // Query fuzzy brand matches when product not found
+  const { data: fuzzyMatches, isLoading: fuzzyLoading } = useQuery({
+    queryKey: ['fuzzy-brands', barcode],
+    queryFn: async () => {
+      // Try to extract a brand name from common barcode patterns
+      // or use a generic search term
+      const searchTerm = 'unknown'; // In production, could parse barcode prefix
+      
+      const { data, error } = await supabase.functions.invoke('search-brands', {
+        body: { q: searchTerm }
+      });
+      
+      if (error) return [];
+      return data?.data?.slice(0, 3) || [];
+    },
+    enabled: !!productError && !!barcode,
+  });
+
   if (productError) {
     return (
       <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
-          <CardContent className="pt-6 text-center space-y-4">
-            <Package className="h-12 w-12 mx-auto text-[var(--muted)]" />
-            <h2 className="text-lg font-semibold">Product not found</h2>
-            <p className="text-sm text-muted-foreground">
-              We couldn't find this product. Try scanning again or tell us the brand.
-            </p>
-            <Button onClick={() => navigate('/scan')}>
-              Scan Again
-            </Button>
+          <CardContent className="pt-6 space-y-6">
+            <div className="text-center space-y-2">
+              <Package className="h-12 w-12 mx-auto text-[var(--muted)]" />
+              <h2 className="text-lg font-semibold">Product not found</h2>
+              <p className="text-sm text-muted-foreground">
+                Couldn't find barcode <span className="font-mono">{barcode}</span> in our database.
+              </p>
+            </div>
+
+            {fuzzyLoading && (
+              <div className="space-y-3">
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+              </div>
+            )}
+
+            {!fuzzyLoading && fuzzyMatches && fuzzyMatches.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-center">Is this the brand?</p>
+                {fuzzyMatches.map((match: any) => (
+                  <button
+                    key={match.id}
+                    onClick={() => navigate(`/brands/${match.id}`)}
+                    className="w-full text-left group hover:bg-muted/50 p-3 rounded-lg border transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium group-hover:text-primary transition-colors">
+                        {match.name}
+                      </span>
+                      {match.confidence && (
+                        <Badge variant="secondary" className="text-xs">
+                          {Math.round(match.confidence * 100)}%
+                        </Badge>
+                      )}
+                    </div>
+                    {match.confidence && (
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-primary transition-all"
+                          style={{ width: `${match.confidence * 100}%` }}
+                        />
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Button 
+                className="w-full" 
+                onClick={() => navigate('/search')}
+              >
+                Search Manually
+              </Button>
+              <ReportIssue
+                subjectType="product"
+                subjectId={barcode || 'unknown'}
+                trigger={
+                  <Button variant="outline" className="w-full">
+                    Add This Product
+                  </Button>
+                }
+              />
+              <Button 
+                variant="ghost" 
+                className="w-full"
+                onClick={() => navigate('/scan')}
+              >
+                Scan Again
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

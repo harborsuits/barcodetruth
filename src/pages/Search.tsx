@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ReportIssue } from "@/components/ReportIssue";
 import { searchBrands, type BrandSearchResult } from "@/lib/searchBrands";
 import { toast } from "sonner";
 
@@ -153,27 +154,46 @@ export default function Search() {
             <CardContent className="pt-4 pb-3">
               <div className="flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                <div>
-                  <div className="font-medium text-sm mb-2">Did you mean:</div>
-                  <div className="flex flex-wrap gap-2">
-                    {suggestions.map(sug => (
-                      <Button
+                <div className="flex-1">
+                  <div className="font-medium text-sm mb-3">
+                    Couldn't find exact match for "{query}". Did you mean:
+                  </div>
+                  <div className="space-y-3">
+                    {suggestions.slice(0, 3).map(sug => (
+                      <button
                         key={sug.id}
-                        variant="outline"
-                        size="sm"
                         onClick={() => {
                           setQuery(sug.name);
                           handleSearch(sug.name);
                         }}
-                        className="h-auto py-1"
+                        className="w-full text-left group hover:bg-background/50 p-3 rounded-lg border transition-colors"
                       >
-                        {sug.name}
-                        <Badge variant="secondary" className="ml-2 text-xs">
-                          {Math.round(sug.confidence * 100)}%
-                        </Badge>
-                      </Button>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium group-hover:text-primary transition-colors">
+                            {sug.name}
+                          </span>
+                          <Badge variant="secondary" className="text-xs">
+                            {Math.round(sug.confidence * 100)}% match
+                          </Badge>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-primary transition-all"
+                            style={{ width: `${sug.confidence * 100}%` }}
+                          />
+                        </div>
+                      </button>
                     ))}
                   </div>
+                  <ReportIssue
+                    subjectType="product"
+                    subjectId={query}
+                    trigger={
+                      <Button variant="outline" size="sm" className="w-full mt-3">
+                        None of these? Add this brand
+                      </Button>
+                    }
+                  />
                 </div>
               </div>
             </CardContent>

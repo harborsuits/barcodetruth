@@ -94,6 +94,7 @@ export function ReportIssue({ subjectType, subjectId, contextUrl, trigger }: Rep
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="incorrect_mapping">Incorrect Brand Mapping</SelectItem>
+                <SelectItem value="missing_product">Missing Product/Brand</SelectItem>
                 <SelectItem value="incorrect_event">Incorrect Event Information</SelectItem>
                 <SelectItem value="missing_source">Missing or Incorrect Source</SelectItem>
                 <SelectItem value="other">Other Issue</SelectItem>
