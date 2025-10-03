@@ -8,6 +8,7 @@ import { HowItWorks } from "@/components/landing/HowItWorks";
 import { LatestVerifications } from "@/components/landing/LatestVerifications";
 import { AttributionFooter } from "@/components/AttributionFooter";
 import { useSnapshotPrewarm } from "@/hooks/useSnapshotPrewarm";
+import logo from "@/assets/logo.png";
 
 export const Home = () => {
   const navigate = useNavigate();
@@ -19,9 +20,7 @@ export const Home = () => {
       <header className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b">
         <div className="container max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-              Barcode Truth
-            </h1>
+            <img src={logo} alt="Barcode Truth" className="h-8 w-auto" />
             <Button
               variant="ghost"
               size="icon"

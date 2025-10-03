@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import logo from "@/assets/logo.png";
 
 export function HeroSection() {
   const navigate = useNavigate();
@@ -19,9 +20,7 @@ export function HeroSection() {
     <section className="py-12 px-4">
       <div className="max-w-2xl mx-auto text-center space-y-6">
         <div className="space-y-3">
-          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            Barcode Truth
-          </h1>
+          <img src={logo} alt="Barcode Truth" className="h-16 w-auto mx-auto" />
           <p className="text-lg text-muted-foreground max-w-xl mx-auto">
             Evidence-backed brand scores from EPA, OSHA, FEC, and archived articles. Every change is cited.
           </p>
