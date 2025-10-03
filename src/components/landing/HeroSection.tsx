@@ -12,7 +12,7 @@ export function HeroSection() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/brand/${searchQuery.toLowerCase()}`);
+      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
     }
   };
 
