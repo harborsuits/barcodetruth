@@ -35,6 +35,19 @@ function checkRateLimit(ip: string, maxTokens = 10, perMs = 60_000): boolean {
   return true;
 }
 
+// Extract GS1 company prefix (6-10 digits for longest match)
+function extractGS1Prefix(ean13: string): string | null {
+  if (!/^\d{13}$/.test(ean13)) return null;
+  
+  // Try 7-digit prefix first (most common for US companies)
+  const prefix7 = ean13.slice(0, 7);
+  // Also support 6-digit for fallback
+  const prefix6 = ean13.slice(0, 6);
+  
+  // Return longest available (we'll query both in order)
+  return prefix7;
+}
+
 // Cooldown cache for recent "not found" barcodes (60s TTL)
 const notFoundCache = new Map<string, number>();
 function isRecentNotFound(barcode: string): boolean {
@@ -254,7 +267,76 @@ Deno.serve(async (req) => {
       }
     }
     
-    console.log(`[${normalizedBarcode}] Not found on OpenFoodFacts`);
+    console.log(`[${normalizedBarcode}] Not found on OpenFoodFacts, trying GS1 fallback...`);
+    
+    // 3. GS1 prefix fallback (Phase 1)
+    const gs1Prefix = extractGS1Prefix(normalizedBarcode);
+    if (gs1Prefix) {
+      console.log(`[${normalizedBarcode}] Trying GS1 prefix: ${gs1Prefix}`);
+      
+      const { data: prefixMatch } = await supabase
+        .from('gs1_prefix_registry')
+        .select('company_name, country')
+        .eq('prefix', gs1Prefix)
+        .maybeSingle();
+      
+      if (prefixMatch) {
+        console.log(`[${normalizedBarcode}] GS1 match: ${prefixMatch.company_name}`);
+        
+        // Try to map company name to brand via aliases
+        const { data: aliasMatches } = await supabase
+          .from('brand_aliases')
+          .select(`
+            confidence,
+            canonical_brand_id,
+            brands!brand_aliases_canonical_brand_id_fkey (
+              id,
+              name,
+              parent_company
+            )
+          `)
+          .ilike('external_name', prefixMatch.company_name)
+          .order('confidence', { ascending: false })
+          .limit(1);
+        
+        const aliasMatch = aliasMatches?.[0];
+        const brandInfo = Array.isArray(aliasMatch?.brands) 
+          ? aliasMatch.brands[0] 
+          : aliasMatch?.brands;
+        
+        const ownerGuess = {
+          company_name: prefixMatch.company_name,
+          brand_id: (brandInfo as any)?.id || null,
+          brand_name: (brandInfo as any)?.name || null,
+          confidence: aliasMatch ? Math.min(aliasMatch.confidence, 75) : 50,
+          method: 'gs1_prefix',
+          country: prefixMatch.country
+        };
+        
+        const dur = Math.round(performance.now() - t0);
+        console.log(JSON.stringify({ 
+          level: "info", 
+          fn: "resolve-barcode", 
+          barcode: normalizedBarcode,
+          source: "gs1_fallback",
+          company: prefixMatch.company_name,
+          brand_id: ownerGuess.brand_id,
+          confidence: ownerGuess.confidence,
+          dur_ms: dur,
+          ok: false
+        }));
+        
+        return new Response(
+          JSON.stringify({
+            success: false,
+            owner_guess: ownerGuess,
+            barcode: normalizedBarcode,
+            action: 'confirm_or_submit',
+          }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
     
     const dur = Math.round(performance.now() - t0);
     console.log(JSON.stringify({ 

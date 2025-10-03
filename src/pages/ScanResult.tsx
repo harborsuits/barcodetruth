@@ -366,22 +366,54 @@ export default function ScanResult() {
     events: events ?? [],
   };
 
-  // Query fuzzy brand matches when product not found
-  const { data: fuzzyMatches, isLoading: fuzzyLoading } = useQuery({
-    queryKey: ['fuzzy-brands', barcode],
+  // Query owner guess from resolve-barcode (GS1 fallback)
+  const { data: ownerGuess, isLoading: ownerGuessLoading } = useQuery({
+    queryKey: ['owner-guess', barcode],
     queryFn: async () => {
-      // Try to extract a brand name from common barcode patterns
-      // or use a generic search term
-      const searchTerm = 'unknown'; // In production, could parse barcode prefix
-      
-      const { data, error } = await supabase.functions.invoke('search-brands', {
-        body: { q: searchTerm }
+      const { data, error } = await supabase.functions.invoke('resolve-barcode', {
+        body: { barcode }
       });
       
-      if (error) return [];
-      return data?.data?.slice(0, 3) || [];
+      if (error || data?.success) return null;
+      return data?.owner_guess || null;
     },
     enabled: !!productError && !!barcode,
+  });
+
+  // Submit product claim mutation
+  const submitClaim = useMutation({
+    mutationFn: async ({ brandId, productName }: { brandId: string; productName?: string }) => {
+      const { data, error } = await supabase.functions.invoke('submit-product-claim', {
+        body: {
+          barcode,
+          brand_id: brandId,
+          product_name: productName,
+          source_hint: 'gs1_confirm'
+        }
+      });
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Product added!',
+        description: 'Thank you for helping improve our database.',
+      });
+      
+      // Navigate to brand page
+      queryClient.invalidateQueries({ queryKey: ['product', barcode] });
+      if (ownerGuess?.brand_id) {
+        navigate(`/brands/${ownerGuess.brand_id}`);
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Submission failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
   });
 
   if (productError) {
@@ -397,44 +429,66 @@ export default function ScanResult() {
               </p>
             </div>
 
-            {fuzzyLoading && (
+            {ownerGuessLoading && (
               <div className="space-y-3">
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-32 w-full" />
               </div>
             )}
 
-            {!fuzzyLoading && fuzzyMatches && fuzzyMatches.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-sm font-medium text-center">Is this the brand?</p>
-                {fuzzyMatches.map((match: any) => (
-                  <button
-                    key={match.id}
-                    onClick={() => navigate(`/brands/${match.id}`)}
-                    className="w-full text-left group hover:bg-muted/50 p-3 rounded-lg border transition-colors"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium group-hover:text-primary transition-colors">
-                        {match.name}
-                      </span>
-                      {match.confidence && (
-                        <Badge variant="secondary" className="text-xs">
-                          {Math.round(match.confidence * 100)}%
-                        </Badge>
-                      )}
+            {!ownerGuessLoading && ownerGuess && (
+              <Card className="border-primary/50 bg-primary/5">
+                <CardContent className="pt-4 pb-4 space-y-4">
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-1">Likely owned by:</div>
+                    <div className="text-lg font-semibold">{ownerGuess.brand_name || ownerGuess.company_name}</div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge variant="outline" className="text-xs">
+                        {Math.round(ownerGuess.confidence)}% confidence
+                      </Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        via {ownerGuess.method}
+                      </Badge>
                     </div>
-                    {match.confidence && (
-                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-primary transition-all"
-                          style={{ width: `${match.confidence * 100}%` }}
-                        />
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-3">
+                      <div 
+                        className="h-full bg-primary transition-all"
+                        style={{ width: `${ownerGuess.confidence}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {ownerGuess.brand_id && (
+                    <>
+                      <div className="text-sm text-muted-foreground">
+                        This guess is based on the barcode prefix. Is this correct?
                       </div>
-                    )}
-                  </button>
-                ))}
-              </div>
+                      <div className="space-y-2">
+                        <Button 
+                          className="w-full"
+                          onClick={() => submitClaim.mutate({ brandId: ownerGuess.brand_id! })}
+                          disabled={submitClaim.isPending}
+                        >
+                          {submitClaim.isPending ? 'Confirming...' : '✓ Yes, confirm'}
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          className="w-full"
+                          onClick={() => navigate('/search')}
+                        >
+                          Pick another brand
+                        </Button>
+                      </div>
+                    </>
+                  )}
+
+                  {!ownerGuess.brand_id && (
+                    <div className="text-sm text-muted-foreground">
+                      We found the manufacturer ({ownerGuess.company_name}) but don't have alignment data yet. 
+                      Search for the brand manually.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             )}
 
             <div className="space-y-2">
