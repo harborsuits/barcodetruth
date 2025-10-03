@@ -499,6 +499,13 @@ export type Database = {
             referencedRelation: "brand_evidence_view"
             referencedColumns: ["evidence_id"]
           },
+          {
+            foreignKeyName: "event_sources_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "v_brand_sources_inline"
+            referencedColumns: ["event_id"]
+          },
         ]
       }
       gs1_prefix_registry: {
@@ -1203,6 +1210,13 @@ export type Database = {
             referencedRelation: "brand_evidence_view"
             referencedColumns: ["evidence_id"]
           },
+          {
+            foreignKeyName: "event_sources_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "v_brand_sources_inline"
+            referencedColumns: ["event_id"]
+          },
         ]
       }
       brand_evidence_view: {
@@ -1334,6 +1348,43 @@ export type Database = {
         }
         Relationships: []
       }
+      v_brand_sources_inline: {
+        Row: {
+          amount: number | null
+          brand_id: string | null
+          category: Database["public"]["Enums"]["event_category"] | null
+          event_id: string | null
+          occurred_at: string | null
+          severity: string | null
+          source: string | null
+          title: string | null
+          url: string | null
+          verification: Database["public"]["Enums"]["verification_level"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+        ]
+      }
       v_coalescing_effectiveness: {
         Row: {
           coalesced: number | null
@@ -1359,6 +1410,22 @@ export type Database = {
           brand_id: string | null
           sent_today: number | null
           user_id: string | null
+        }
+        Relationships: []
+      }
+      v_parent_rollups: {
+        Row: {
+          child_brands: string[] | null
+          child_count: number | null
+          parent_conf_env: number | null
+          parent_conf_labor: number | null
+          parent_conf_pol: number | null
+          parent_conf_soc: number | null
+          parent_environment: number | null
+          parent_id: string | null
+          parent_labor: number | null
+          parent_politics: number | null
+          parent_social: number | null
         }
         Relationships: []
       }

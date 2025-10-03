@@ -33,6 +33,7 @@ export const BrandDetail = () => {
   const queryClient = useQueryClient();
   const [isFollowing, setIsFollowing] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<"all" | "labor" | "environment" | "politics" | "cultural-values">("all");
+  const [showParent, setShowParent] = useState(false);
   
   // Fetch brand data
   const { data: brand, isLoading: brandLoading } = useQuery({
@@ -218,6 +219,21 @@ export const BrandDetail = () => {
     staleTime: 60000,
   });
 
+  // Fetch parent rollup data
+  const { data: parentRollup } = useQuery({
+    queryKey: ['parent-rollup', brandId],
+    queryFn: async () => {
+      if (!brandId) return null;
+      const { data, error } = await supabase.functions.invoke('get-parent-rollup', {
+        body: { brandId }
+      });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!brandId && showParent,
+    staleTime: 300000,
+  });
+
   // Mutation to toggle notifications
   const toggleNotifications = useMutation({
     mutationFn: async () => {
@@ -323,8 +339,27 @@ export const BrandDetail = () => {
             ) : (
               <>
                 <div className="flex-1">
-                  <h1 className="text-xl font-bold">{brand.name}</h1>
-                  <p className="text-sm text-muted-foreground">{brand.parent_company}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h1 className="text-xl font-bold">{brand.name}</h1>
+                    {showParent && parentRollup?.parent?.child_count > 1 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{parentRollup.parent.child_count - 1} brands
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-muted-foreground">{brand.parent_company}</p>
+                    {brand.parent_company !== brand.name && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-xs"
+                        onClick={() => setShowParent(!showParent)}
+                      >
+                        {showParent ? 'Hide parent' : 'Include parent'}
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex flex-col items-end gap-1">
@@ -457,10 +492,45 @@ export const BrandDetail = () => {
 
         {/* Score Breakdown with transparency */}
         {proofData?.breakdown && (
-          <ScoreBreakdown 
-            brandId={brandId!} 
-            blocks={proofData.breakdown} 
-          />
+          <>
+            {showParent && parentRollup?.parent && (
+              <Card className="border-primary/50">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center justify-between">
+                    <span>Parent Company: {parentRollup.parent.name}</span>
+                    <Badge variant="secondary" className="text-xs">
+                      {parentRollup.parent.child_count} {parentRollup.parent.child_count === 1 ? 'brand' : 'brands'}
+                    </Badge>
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    Aggregated scores across: {parentRollup.parent.child_brands.join(', ')}
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {(['labor', 'environment', 'politics', 'social'] as const).map((cat) => {
+                    const score = parentRollup.parent.scores[cat];
+                    const confidence = parentRollup.parent.confidences[cat];
+                    return (
+                      <div key={cat} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="capitalize font-medium">{cat}</span>
+                          <span className={getScoreColor(score)}>{score}</span>
+                        </div>
+                        <Progress value={score} className="h-2" />
+                        <p className="text-xs text-muted-foreground">
+                          Confidence: {confidence}% · Mean across subsidiaries
+                        </p>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
+            <ScoreBreakdown 
+              brandId={brandId!} 
+              blocks={proofData.breakdown} 
+            />
+          </>
         )}
 
         {/* Recent events timeline */}

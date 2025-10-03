@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { EventCard } from "./EventCard";
 import { Badge } from "./ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
+import { InlineSources } from "./InlineSources";
 
 interface EventImpact {
   category: string;
@@ -173,6 +174,13 @@ export function WhyThisScore({ brandId, impacts }: WhyThisScoreProps) {
                     compact
                   />
                 ))}
+                
+                {/* Inline Sources */}
+                <InlineSources
+                  brandId={brandId}
+                  category={impact.category}
+                  categoryLabel={config.label}
+                />
               </CollapsibleContent>
             </Collapsible>
           );
