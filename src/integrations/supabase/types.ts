@@ -611,6 +611,13 @@ export type Database = {
             referencedRelation: "product_claims"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "product_claim_votes_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "product_claims_moderator"
+            referencedColumns: ["id"]
+          },
         ]
       }
       product_claims: {
@@ -912,6 +919,34 @@ export type Database = {
           {
             foreignKeyName: "brand_events_brand_id_fkey"
             columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_claims_moderator: {
+        Row: {
+          barcode_ean13: string | null
+          claimed_brand_id: string | null
+          confidence: number | null
+          created_at: string | null
+          created_by: string | null
+          downvotes: number | null
+          id: string | null
+          moderated_at: string | null
+          moderated_by: string | null
+          product_name: string | null
+          rejection_reason: string | null
+          score: number | null
+          source_hint: string | null
+          status: Database["public"]["Enums"]["submission_status"] | null
+          upvotes: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_claims_claimed_brand_id_fkey"
+            columns: ["claimed_brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
             referencedColumns: ["id"]
