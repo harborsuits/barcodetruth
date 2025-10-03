@@ -118,21 +118,21 @@ function getVerificationBadge(v?: Verification, verified?: boolean) {
     return {
       label: "Official",
       className: "bg-green-600 text-white",
-      tooltip: "Government or regulatory source"
+      tooltip: "Official: Sourced from a government or official database (e.g., EPA, OSHA, FDA, FEC)"
     };
   }
   if (v === "corroborated") {
     return {
       label: "Corroborated",
       className: "bg-blue-600/10 text-blue-700 border border-blue-600/20",
-      tooltip: "≥2 credible sources"
+      tooltip: "Corroborated: Reported by ≥2 credible, independent sources"
     };
   }
   if (v === "unverified") {
     return {
-      label: "Unverified",
+      label: "Reported",
       className: "bg-neutral-600/10 text-neutral-700 border border-neutral-600/20",
-      tooltip: "Single source"
+      tooltip: "Reported: Sourced from a reputable news outlet; awaiting agency confirmation or corroboration"
     };
   }
   return null;
@@ -383,9 +383,10 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                     <a
                       href={primarySource.url}
                       target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-blue-700 underline underline-offset-2 hover:no-underline"
+                      rel="noopener noreferrer nofollow"
+                      className="inline-flex items-center gap-1 text-xs text-blue-700 underline underline-offset-2 hover:no-underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
                       aria-label={`Open source: ${primarySource.name ?? 'external link'}`}
+                      title={`View official source at ${primarySource.name}`}
                     >
                       Source
                       <ExternalLink className="h-3 w-3 opacity-70 group-hover:opacity-100" />
@@ -393,14 +394,14 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                   )}
                   {primarySource.archive_url && (
                     <>
-                      <span className="text-xs text-muted-foreground">·</span>
+                      <span className="text-xs text-muted-foreground" aria-hidden="true">·</span>
                       <a
                         href={primarySource.archive_url}
                         target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 hover:no-underline"
-                        aria-label="View archived version"
-                        title="Wayback Machine archive"
+                        rel="noopener noreferrer nofollow"
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 hover:no-underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                        aria-label="View archived version on Wayback Machine"
+                        title="Wayback Machine archive - permanent snapshot"
                       >
                         Archive
                         <ExternalLink className="h-3 w-3 opacity-70" />
@@ -456,9 +457,10 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                                 <a
                                   href={source.url}
                                   target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-xs text-blue-700 underline underline-offset-2 hover:no-underline"
+                                  rel="noopener noreferrer nofollow"
+                                  className="inline-flex items-center gap-1 text-xs text-blue-700 underline underline-offset-2 hover:no-underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
                                   aria-label={`Open source: ${source.name ?? 'external link'}`}
+                                  title={`View source at ${source.name}`}
                                 >
                                   Source
                                   <ExternalLink className="h-3 w-3" />
@@ -466,12 +468,12 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                               )}
                               {source.archive_url && (
                                 <>
-                                  <span className="text-xs text-muted-foreground">·</span>
+                                  <span className="text-xs text-muted-foreground" aria-hidden="true">·</span>
                                   <a
                                     href={source.archive_url}
                                     target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 hover:no-underline"
+                                    rel="noopener noreferrer nofollow"
+                                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 hover:no-underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
                                     aria-label="View archived version"
                                     title="Wayback Machine archive"
                                   >
