@@ -299,6 +299,7 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
       
       const { data, error } = await supabase.functions.invoke('simplify-description', {
         body: {
+          eventId: event.event_id,
           description: event.description,
           category: event.category,
           title: event.title,
