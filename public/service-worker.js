@@ -1,10 +1,10 @@
-/* ShopSignals SW v1: App shell + snapshot cache + API fallback + scan queue */
+/* ShopSignals SW v2: App shell + snapshot cache + API fallback + scan queue */
 const APP_SHELL = [
   '/', '/index.html',
 ];
-const CACHE_APP = 'ss-app-v1';
-const CACHE_SNAPSHOTS = 'ss-snapshots-v1';
-const CACHE_FONTS = 'ss-fonts-v1';
+const CACHE_APP = 'ss-app-v2';
+const CACHE_SNAPSHOTS = 'ss-snapshots-v2';
+const CACHE_FONTS = 'ss-fonts-v2';
 const SNAPSHOT_PREFIX = '/storage/v1/object/public/snapshots/';
 const API_PREFIX = '/functions/v1/';
 const OFFLINE_FALLBACK_HTML = '/index.html';
@@ -109,7 +109,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
 
   // CRITICAL: Don't cache /scan page (camera/MediaStream must be fresh)
-  if (request.mode === 'navigate' && url.pathname.startsWith('/scan')) {
+  if (url.pathname === '/scan' || url.pathname.startsWith('/scan/')) {
     event.respondWith(fetch(request));
     return;
   }

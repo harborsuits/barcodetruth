@@ -336,7 +336,7 @@ export const Scan = () => {
                     playsInline
                     muted
                   />
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
                     {/* Scanning reticle with animated corners */}
                     <div className="w-64 h-48 relative">
                       {/* Corner brackets */}
@@ -351,7 +351,7 @@ export const Scan = () => {
                         <path d="M 232 192 L 256 192 L 256 168" stroke="hsl(var(--primary))" strokeWidth="4" fill="none" strokeLinecap="round"/>
                         {/* Scanning line animation */}
                         {scanResult === 'scanning' && (
-                          <line x1="0" y1="96" x2="256" y2="96" stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.6">
+                          <line x1="0" y1="96" x2="256" y2="96" stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.6" className="motion-reduce:hidden">
                             <animate attributeName="y1" values="20;172;20" dur="2s" repeatCount="indefinite"/>
                             <animate attributeName="y2" values="20;172;20" dur="2s" repeatCount="indefinite"/>
                           </line>
@@ -382,8 +382,9 @@ export const Scan = () => {
                           variant={torchEnabled ? "default" : "outline"}
                           size="icon"
                           className="absolute top-4 left-4 z-10 bg-card/80 backdrop-blur"
-                          aria-label={torchEnabled ? "Turn off flashlight" : "Turn on flashlight"}
+                          aria-label={torchEnabled ? "Turn flashlight off" : "Turn flashlight on"}
                           aria-pressed={torchEnabled}
+                          title={torchEnabled ? "Turn flashlight off" : "Turn flashlight on"}
                         >
                           {torchEnabled ? (
                             <Flashlight className="h-4 w-4" />
