@@ -987,6 +987,27 @@ export type Database = {
         }
         Relationships: []
       }
+      scoring_switches: {
+        Row: {
+          description: string | null
+          enabled: boolean
+          key: string
+          updated_at: string
+        }
+        Insert: {
+          description?: string | null
+          enabled?: boolean
+          key: string
+          updated_at?: string
+        }
+        Update: {
+          description?: string | null
+          enabled?: boolean
+          key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       scoring_weights: {
         Row: {
           description: string | null

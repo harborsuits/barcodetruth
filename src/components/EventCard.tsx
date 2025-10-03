@@ -71,6 +71,14 @@ function relTime(iso?: string): string {
   return `${months}mo ago`;
 }
 
+function formatDateWithRelative(iso?: string): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  const formatted = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const relative = relTime(iso);
+  return `${formatted} (${relative})`;
+}
+
 function isNewEvent(iso?: string): boolean {
   if (!iso) return false;
   const ms = Date.now() - new Date(iso).getTime();
@@ -187,8 +195,25 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
   
   const cfg = categoryConfig[event.category] ?? categoryConfig.general;
   const allSources = event.sources ?? (event.source ? [event.source] : []);
-  const primarySource = allSources[0];
-  const additionalSources = allSources.slice(1);
+  
+  // Order sources: official first, then others
+  const sortedSources = [...allSources].sort((a, b) => {
+    const isOfficialA = ['EPA', 'OSHA', 'FEC', 'FDA'].includes(a.name);
+    const isOfficialB = ['EPA', 'OSHA', 'FEC', 'FDA'].includes(b.name);
+    if (isOfficialA && !isOfficialB) return -1;
+    if (!isOfficialA && isOfficialB) return 1;
+    return 0;
+  });
+  
+  const primarySource = sortedSources[0];
+  const additionalSources = sortedSources.slice(1);
+  
+  // Dev logging breadcrumbs (only in dev builds)
+  if (process.env.NODE_ENV === 'development' && event.event_id) {
+    const sourceCount = allSources.length;
+    const hasOfficial = event.verification === 'official' || event.verification === 'corroborated';
+    console.debug(`[EventCard] ${event.event_id}: ${sourceCount} sources, verified=${hasOfficial}`);
+  }
 
   const impactChips = useMemo(() => {
     if (!event.impact) return [];
@@ -316,7 +341,9 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
             )}
             
             {timestamp && (
-              <span className="ml-auto text-xs text-[var(--muted)]">{relTime(timestamp)}</span>
+              <span className="ml-auto text-xs text-[var(--muted)]" title={new Date(timestamp).toLocaleString()}>
+                {formatDateWithRelative(timestamp)}
+              </span>
             )}
           </div>
 
