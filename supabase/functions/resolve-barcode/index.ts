@@ -35,6 +35,28 @@ function checkRateLimit(ip: string, maxTokens = 10, perMs = 60_000): boolean {
   return true;
 }
 
+// Cooldown cache for recent "not found" barcodes (60s TTL)
+const notFoundCache = new Map<string, number>();
+function isRecentNotFound(barcode: string): boolean {
+  const cached = notFoundCache.get(barcode);
+  if (!cached) return false;
+  if (Date.now() - cached > 60_000) {
+    notFoundCache.delete(barcode);
+    return false;
+  }
+  return true;
+}
+function cacheNotFound(barcode: string): void {
+  notFoundCache.set(barcode, Date.now());
+  // Cleanup old entries periodically
+  if (notFoundCache.size > 1000) {
+    const now = Date.now();
+    for (const [k, v] of notFoundCache.entries()) {
+      if (now - v > 60_000) notFoundCache.delete(k);
+    }
+  }
+}
+
 interface BarcodeRequest {
   barcode: string;
 }
@@ -78,6 +100,28 @@ Deno.serve(async (req) => {
     const normalizedBarcode = barcode.length === 12 && /^\d+$/.test(barcode) ? '0' + barcode : barcode;
 
     console.log(JSON.stringify({ level: "info", fn: "resolve-barcode", barcode: normalizedBarcode, ip: clientIp }));
+
+    // Check cooldown cache for recent "not found"
+    if (isRecentNotFound(normalizedBarcode)) {
+      const dur = Math.round(performance.now() - t0);
+      console.log(JSON.stringify({ 
+        level: "info", 
+        fn: "resolve-barcode", 
+        barcode: normalizedBarcode, 
+        source: "cooldown_cache",
+        dur_ms: dur,
+        ok: false
+      }));
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Product not found',
+          message: 'Barcode not found in any database.',
+          action: 'report_mapping',
+        }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // 1. Check local cache (products table) - use normalized barcode
     const { data: product, error: productError } = await supabase
@@ -222,7 +266,9 @@ Deno.serve(async (req) => {
       ok: false
     }));
     
-    // Cache 404s (1h TTL - future optimization)
+    // Cache recent "not found" to avoid hammering APIs
+    cacheNotFound(normalizedBarcode);
+    
     return new Response(
       JSON.stringify({
         success: false,
