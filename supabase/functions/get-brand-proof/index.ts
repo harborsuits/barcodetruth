@@ -10,7 +10,17 @@ Deno.serve(async (req) => {
   
   try {
     const url = new URL(req.url);
-    const brandId = url.searchParams.get('brandId');
+    let brandId = url.searchParams.get('brandId');
+    
+    // If not in query params, check POST body
+    if (!brandId && req.method === 'POST') {
+      try {
+        const body = await req.json();
+        brandId = body.brandId;
+      } catch {
+        // Invalid JSON, continue
+      }
+    }
     
     if (!brandId) {
       return new Response(
