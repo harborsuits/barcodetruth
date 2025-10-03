@@ -20,7 +20,7 @@ export function HeroSection() {
       <div className="max-w-2xl mx-auto text-center space-y-6">
         <div className="space-y-3">
           <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            Know your brands. Instantly.
+            Barcode Truth
           </h1>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto">
             Evidence-backed brand scores from EPA, OSHA, FEC, and archived articles. Every change is cited.

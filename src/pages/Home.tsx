@@ -20,7 +20,7 @@ export const Home = () => {
         <div className="container max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-              ShopSignals
+              Barcode Truth
             </h1>
             <Button
               variant="ghost"
