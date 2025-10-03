@@ -77,7 +77,11 @@ export default function Search() {
       } catch (error: any) {
         if (error?.name !== 'AbortError') {
           console.error("Search error:", error);
-          toast.error("Search failed. Please try again.");
+          if (error?.message?.includes('Too many requests')) {
+            toast.error("You're searching too fast—pause a sec and try again.");
+          } else {
+            toast.error("Search failed. Please try again.");
+          }
         }
       } finally {
         setIsSearching(false);
