@@ -894,6 +894,15 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      search_brands_fuzzy: {
+        Args: { min_similarity?: number; search_term: string }
+        Returns: {
+          id: string
+          name: string
+          parent_company: string
+          similarity: number
+        }[]
+      }
       set_limit: {
         Args: { "": number }
         Returns: number

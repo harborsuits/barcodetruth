@@ -1,17 +1,19 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search as SearchIcon, ArrowLeft } from "lucide-react";
+import { Search as SearchIcon, ArrowLeft, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { searchBrands } from "@/lib/searchBrands";
+import { Badge } from "@/components/ui/badge";
+import { searchBrands, type BrandSearchResult } from "@/lib/searchBrands";
 import { toast } from "sonner";
 
 export default function Search() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Array<{ id: string; name: string; parent_company: string | null }>>([]);
+  const [results, setResults] = useState<BrandSearchResult[]>([]);
+  const [suggestions, setSuggestions] = useState<Array<{ id: string; name: string; confidence: number }>>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const acRef = useRef<AbortController | null>(null);
@@ -63,6 +65,7 @@ export default function Search() {
     if (acRef.current) acRef.current.abort();
     if (!q.trim()) {
       setResults([]);
+      setSuggestions([]);
       setSelectedIndex(-1);
       return;
     }
@@ -71,8 +74,9 @@ export default function Search() {
     (handleSearch as any)._t = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const brands = await searchBrands(q);
-        setResults(brands);
+        const response = await searchBrands(q);
+        setResults(response.data);
+        setSuggestions(response.suggestions || []);
         setSelectedIndex(-1);
       } catch (error: any) {
         if (error?.name !== 'AbortError') {
@@ -143,6 +147,39 @@ export default function Search() {
           </div>
         )}
 
+        {/* Did you mean suggestions */}
+        {!isSearching && suggestions.length > 0 && (
+          <Card className="mb-4 border-primary/50 bg-primary/5">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <div>
+                  <div className="font-medium text-sm mb-2">Did you mean:</div>
+                  <div className="flex flex-wrap gap-2">
+                    {suggestions.map(sug => (
+                      <Button
+                        key={sug.id}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setQuery(sug.name);
+                          handleSearch(sug.name);
+                        }}
+                        className="h-auto py-1"
+                      >
+                        {sug.name}
+                        <Badge variant="secondary" className="ml-2 text-xs">
+                          {Math.round(sug.confidence * 100)}%
+                        </Badge>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {!isSearching && results.length > 0 && (
           <div className="space-y-2 max-h-[70vh] overflow-y-auto">
             {results.map((brand, idx) => (
@@ -157,12 +194,24 @@ export default function Search() {
                 aria-label={`${brand.name}${brand.parent_company ? `, parent company: ${brand.parent_company}` : ''}`}
               >
                 <CardContent className="pt-4 pb-3">
-                  <div 
-                    className="font-medium" 
-                    dangerouslySetInnerHTML={{ __html: highlightMatch(brand.name, query) }}
-                  />
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="font-medium flex-1" 
+                      dangerouslySetInnerHTML={{ __html: highlightMatch(brand.name, query) }}
+                    />
+                    {brand.match_type === 'alias' && (
+                      <Badge variant="secondary" className="text-xs">
+                        alias: {brand.matched_alias}
+                      </Badge>
+                    )}
+                    {brand.match_type === 'fuzzy' && brand.confidence && brand.confidence < 0.7 && (
+                      <Badge variant="outline" className="text-xs">
+                        {Math.round(brand.confidence * 100)}% match
+                      </Badge>
+                    )}
+                  </div>
                   {brand.parent_company && (
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-sm text-muted-foreground mt-1">
                       Parent: {brand.parent_company}
                     </div>
                   )}

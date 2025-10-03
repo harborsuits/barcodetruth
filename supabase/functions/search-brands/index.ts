@@ -26,6 +26,15 @@ function rateLimit(ip: string): boolean {
   return true;
 }
 
+// Normalize search term
+function normalize(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^\w\s]/g, " ") // strip punctuation
+    .replace(/\s+/g, " ")      // collapse whitespace
+    .trim();
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -53,22 +62,95 @@ serve(async (req) => {
 
   try {
     const { q } = await req.json();
-    const term = (q ?? "").trim();
+    const rawTerm = (q ?? "").trim();
     
-    if (!term) {
-      return new Response(JSON.stringify({ data: [] }), { 
+    if (!rawTerm) {
+      return new Response(JSON.stringify({ data: [], suggestions: [] }), { 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
       });
     }
 
     const t0 = performance.now();
+    const normalized = normalize(rawTerm);
     
-    // Use prefix and contains for fuzzy matching
-    const { data, error } = await supabase
+    // Step 1: Check aliases (exact + normalized)
+    const { data: aliasMatches } = await supabase
+      .from("brand_aliases")
+      .select(`
+        canonical_brand_id,
+        external_name,
+        brands!brand_aliases_canonical_brand_id_fkey (
+          id,
+          name,
+          parent_company
+        )
+      `)
+      .or(`external_name.ilike.${rawTerm},external_name.ilike.${normalized}`)
+      .limit(5);
+
+    const aliasResults = (aliasMatches || [])
+      .filter(m => m.brands)
+      .map(m => ({
+        ...m.brands,
+        confidence: 0.95,
+        match_type: "alias",
+        matched_alias: m.external_name
+      }));
+
+    // Step 2: Exact/prefix match on brands
+    const { data: exactMatches } = await supabase
       .from("brands")
       .select("id, name, parent_company")
-      .or(`name.ilike.${term}%,name.ilike.%${term}%`)
-      .limit(25);
+      .or(`name.ilike.${rawTerm},name.ilike.${rawTerm}%`)
+      .limit(10);
+
+    const exactResults = (exactMatches || []).map(b => ({
+      ...b,
+      confidence: b.name.toLowerCase() === rawTerm.toLowerCase() ? 1.0 : 0.85,
+      match_type: "exact"
+    }));
+
+    // Step 3: Fuzzy trigram search (if no exact matches)
+    let fuzzyResults: any[] = [];
+    if (exactResults.length === 0 && aliasResults.length === 0) {
+      const { data: fuzzyMatches } = await supabase
+        .rpc("search_brands_fuzzy", { 
+          search_term: normalized,
+          min_similarity: 0.3
+        })
+        .limit(10);
+
+      fuzzyResults = (fuzzyMatches || []).map((b: any) => ({
+        id: b.id,
+        name: b.name,
+        parent_company: b.parent_company,
+        confidence: Math.min(0.8, b.similarity),
+        match_type: "fuzzy",
+        similarity: b.similarity
+      }));
+    }
+
+    // Combine and dedupe results
+    const allResults = [...aliasResults, ...exactResults, ...fuzzyResults];
+    const seen = new Set<string>();
+    const uniqueResults = allResults.filter(r => {
+      if (seen.has(r.id)) return false;
+      seen.add(r.id);
+      return true;
+    });
+
+    // Sort by confidence
+    uniqueResults.sort((a, b) => b.confidence - a.confidence);
+    const topResults = uniqueResults.slice(0, 10);
+
+    // Generate suggestions (if top result has low confidence)
+    const suggestions = topResults.length > 0 && topResults[0].confidence < 0.7
+      ? topResults.slice(0, 3).map(r => ({
+          id: r.id,
+          name: r.name,
+          confidence: r.confidence
+        }))
+      : [];
 
     const dur = Math.round(performance.now() - t0);
     
@@ -76,15 +158,20 @@ serve(async (req) => {
       level: "info", 
       fn: "search-brands", 
       ip, 
-      q: term, 
-      count: data?.length ?? 0, 
-      dur_ms: dur, 
-      ok: !error 
+      q: rawTerm, 
+      normalized,
+      alias_hits: aliasResults.length,
+      exact_hits: exactResults.length,
+      fuzzy_hits: fuzzyResults.length,
+      total: topResults.length,
+      top_confidence: topResults[0]?.confidence,
+      dur_ms: dur
     }));
-
-    if (error) throw error;
     
-    return new Response(JSON.stringify({ data }), { 
+    return new Response(JSON.stringify({ 
+      data: topResults,
+      suggestions: suggestions.length > 0 ? suggestions : undefined
+    }), { 
       headers: { ...corsHeaders, "Content-Type": "application/json" } 
     });
   } catch (e: any) {
