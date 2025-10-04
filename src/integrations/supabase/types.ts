@@ -543,6 +543,20 @@ export type Database = {
             foreignKeyName: "event_sources_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
+            referencedRelation: "brand_evidence_view_base"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_sources_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_evidence_view_base"
+            referencedColumns: ["evidence_id"]
+          },
+          {
+            foreignKeyName: "event_sources_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
             referencedRelation: "v_brand_sources_inline"
             referencedColumns: ["event_id"]
           },
@@ -593,6 +607,20 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "brand_evidence_view"
+            referencedColumns: ["evidence_id"]
+          },
+          {
+            foreignKeyName: "fk_event"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_evidence_view_base"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "fk_event"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_evidence_view_base"
             referencedColumns: ["evidence_id"]
           },
           {
@@ -1249,28 +1277,34 @@ export type Database = {
       user_push_subs: {
         Row: {
           auth: string
+          auth_enc: string | null
           created_at: string | null
           endpoint: string
           id: string
           p256dh: string
+          p256dh_enc: string | null
           ua: string | null
           user_id: string
         }
         Insert: {
           auth: string
+          auth_enc?: string | null
           created_at?: string | null
           endpoint: string
           id?: string
           p256dh: string
+          p256dh_enc?: string | null
           ua?: string | null
           user_id: string
         }
         Update: {
           auth?: string
+          auth_enc?: string | null
           created_at?: string | null
           endpoint?: string
           id?: string
           p256dh?: string
+          p256dh_enc?: string | null
           ua?: string | null
           user_id?: string
         }
@@ -1348,6 +1382,20 @@ export type Database = {
             foreignKeyName: "verification_audit_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
+            referencedRelation: "brand_evidence_view_base"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "verification_audit_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_evidence_view_base"
+            referencedColumns: ["evidence_id"]
+          },
+          {
+            foreignKeyName: "verification_audit_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
             referencedRelation: "v_brand_sources_inline"
             referencedColumns: ["event_id"]
           },
@@ -1418,12 +1466,64 @@ export type Database = {
             foreignKeyName: "event_sources_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
+            referencedRelation: "brand_evidence_view_base"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_sources_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_evidence_view_base"
+            referencedColumns: ["evidence_id"]
+          },
+          {
+            foreignKeyName: "event_sources_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
             referencedRelation: "v_brand_sources_inline"
             referencedColumns: ["event_id"]
           },
         ]
       }
       brand_evidence_view: {
+        Row: {
+          archive_url: string | null
+          brand_id: string | null
+          category: Database["public"]["Enums"]["event_category"] | null
+          event_id: string | null
+          evidence_id: string | null
+          score_component: string | null
+          snippet: string | null
+          source_date: string | null
+          source_name: string | null
+          source_url: string | null
+          verification: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+        ]
+      }
+      brand_evidence_view_base: {
         Row: {
           archive_url: string | null
           brand_id: string | null
