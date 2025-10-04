@@ -3,6 +3,37 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { extractQuote } from "../_shared/extractQuote.ts";
 import { extractFacts } from "../_shared/extractFacts.ts";
 
+// URL normalization utilities
+function canonicalizeUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    // Remove tracking params
+    const cleanParams = new URLSearchParams();
+    for (const [k, v] of u.searchParams) {
+      if (!/^(utm_|fbclid|gclid|_ga)/.test(k)) {
+        cleanParams.set(k, v);
+      }
+    }
+    u.search = cleanParams.toString();
+    // Normalize trailing slash
+    if (u.pathname.endsWith('/') && u.pathname.length > 1) {
+      u.pathname = u.pathname.slice(0, -1);
+    }
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+function registrableDomain(url: string): string | null {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, '');
+    return hostname;
+  } catch {
+    return null;
+  }
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -66,8 +97,9 @@ serve(async (req) => {
     // Extract facts
     const facts = extractFacts(htmlText);
 
-    // Parse domain
-    const domain = new URL(url).hostname.replace('www.', '');
+    // Normalize URL and extract domain
+    const canonical = canonicalizeUrl(url);
+    const domain = registrableDomain(url) || new URL(url).hostname.replace('www.', '');
 
     // Get source credibility
     const { data: credData } = await supabase
@@ -88,12 +120,11 @@ serve(async (req) => {
       verification = 'corroborated';
     }
 
-    // Check for duplicates
+    // Check for duplicates using canonical URL
     const { data: existing } = await supabase
-      .from('brand_events')
+      .from('event_sources')
       .select('event_id')
-      .eq('brand_id', brand_id)
-      .eq('source_url', url)
+      .eq('canonical_url', canonical)
       .maybeSingle();
 
     let eventId: string;
@@ -132,27 +163,35 @@ serve(async (req) => {
     }
 
     // Create event source
-    const { error: sourceError } = await supabase
+    const { data: sourceData, error: sourceError } = await supabase
       .from('event_sources')
       .insert({
         event_id: eventId,
         source_name: domain,
         source_url: url,
+        canonical_url: canonical,
+        registrable_domain: domain,
         quote,
         source_date: occurred_at || new Date().toISOString()
-      });
+      })
+      .select('id')
+      .single();
 
-    if (sourceError && sourceError.code !== '23505') { // Ignore duplicate key errors
+    if (sourceError && sourceError.code !== '23505') {
       console.error('Source insert error:', sourceError);
     }
 
-    // Queue archive job
-    await supabase.functions.invoke('archive-url', {
-      body: {
-        source_id: eventId, // Will need the actual source_id
-        source_url: url
-      }
-    }).catch(e => console.error('Archive queue error:', e));
+    const sourceId = sourceData?.id;
+
+    // Queue archive job with proper source_id
+    if (sourceId) {
+      await supabase.functions.invoke('archive-url', {
+        body: {
+          source_id: sourceId,
+          source_url: url
+        }
+      }).catch(e => console.error('Archive queue error:', e));
+    }
 
     // Return preview
     return new Response(JSON.stringify({
