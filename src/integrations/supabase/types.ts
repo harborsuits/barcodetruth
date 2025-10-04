@@ -548,6 +548,86 @@ export type Database = {
           },
         ]
       }
+      event_summaries: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          summary: Json
+          tokens_in: number | null
+          tokens_out: number | null
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          summary: Json
+          tokens_in?: number | null
+          tokens_out?: number | null
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          summary?: Json
+          tokens_in?: number | null
+          tokens_out?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_event"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_events"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "fk_event"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_evidence_view"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "fk_event"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_evidence_view"
+            referencedColumns: ["evidence_id"]
+          },
+          {
+            foreignKeyName: "fk_event"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "v_brand_sources_inline"
+            referencedColumns: ["event_id"]
+          },
+        ]
+      }
+      fn_call_log: {
+        Row: {
+          created_at: string
+          fn: string
+          id: string
+          requester_ip: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          fn: string
+          id?: string
+          requester_ip?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          fn?: string
+          id?: string
+          requester_ip?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       gs1_prefix_registry: {
         Row: {
           company_name: string
