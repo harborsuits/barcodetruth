@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { extractQuote } from "../_shared/extractQuote.ts";
 import { extractFacts } from "../_shared/extractFacts.ts";
 
@@ -50,17 +51,18 @@ function registrableDomain(url: string): string | null {
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface IngestRequest {
-  url: string;
-  brand_id: string;
-  brand_name: string;
-  category: 'labor' | 'environment' | 'politics' | 'social';
-  severity?: 'minor' | 'moderate' | 'severe' | 'catastrophic';
-  occurred_at?: string;
-}
+const ingestRequestSchema = z.object({
+  url: z.string().url({ message: "Invalid URL format" }),
+  brand_id: z.string().uuid({ message: "Invalid brand_id UUID" }),
+  brand_name: z.string().min(1).max(255),
+  category: z.enum(['labor', 'environment', 'politics', 'social']),
+  severity: z.enum(['minor', 'moderate', 'severe', 'catastrophic']).optional(),
+  occurred_at: z.string().datetime().optional()
+});
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -111,18 +113,20 @@ serve(async (req) => {
     // Use service role for actual operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const body: IngestRequest = await req.json();
-    const { url, brand_id, brand_name, category, severity, occurred_at } = body;
-
-    // Validate inputs
-    if (!url || !brand_id || !brand_name || !category) {
+    const rawBody = await req.json();
+    const parsed = ingestRequestSchema.safeParse(rawBody);
+    
+    if (!parsed.success) {
       return new Response(JSON.stringify({
-        error: 'Missing required fields: url, brand_id, brand_name, category'
+        error: 'Invalid request',
+        details: parsed.error.errors
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
+
+    const { url, brand_id, brand_name, category, severity, occurred_at } = parsed.data;
 
     console.log(`📥 Ingesting external source: ${url} for brand ${brand_name}`);
 
@@ -258,10 +262,13 @@ serve(async (req) => {
       }).catch(e => console.error('Archive queue error:', e));
     }
 
-    // Return preview
+    // Return preview with source details
     return new Response(JSON.stringify({
       success: true,
       event_id: eventId,
+      source_id: sourceId,
+      canonical_url: canonical,
+      queued: true,
       preview: {
         title,
         quote,
