@@ -1290,6 +1290,62 @@ export type Database = {
         }
         Relationships: []
       }
+      verification_audit: {
+        Row: {
+          created_at: string | null
+          event_id: string | null
+          from_status: string | null
+          id: string
+          reason: string | null
+          to_status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_id?: string | null
+          from_status?: string | null
+          id?: string
+          reason?: string | null
+          to_status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_id?: string | null
+          from_status?: string | null
+          id?: string
+          reason?: string | null
+          to_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verification_audit_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_events"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "verification_audit_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_evidence_view"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "verification_audit_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_evidence_view"
+            referencedColumns: ["evidence_id"]
+          },
+          {
+            foreignKeyName: "verification_audit_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "v_brand_sources_inline"
+            referencedColumns: ["event_id"]
+          },
+        ]
+      }
     }
     Views: {
       brand_evidence_independent: {
@@ -1622,6 +1678,23 @@ export type Database = {
       brand_events_last_24h: {
         Args: { brand_id_param: string }
         Returns: number
+      }
+      get_corroboration_clusters: {
+        Args: {
+          min_credibility?: number
+          min_domains?: number
+          window_days?: number
+        }
+        Returns: {
+          avg_cred: number
+          brand_id: string
+          category: Database["public"]["Enums"]["event_category"]
+          day: string
+          domain_count: number
+          domains: string[]
+          event_ids: string[]
+          title_fp: string
+        }[]
       }
       get_source_credibility: {
         Args: { source_name_param: string }

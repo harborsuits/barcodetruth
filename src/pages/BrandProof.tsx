@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
-import { Download, Home, ChevronRight } from 'lucide-react';
+import { Download, Home, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -16,6 +16,8 @@ export default function BrandProof() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAllByComponent, setShowAllByComponent] = useState<Record<string, boolean>>({});
+  const [expandedSummaries, setExpandedSummaries] = useState<Set<string>>(new Set());
+  const [summaries, setSummaries] = useState<Record<string, any>>({});
 
   useEffect(() => {
     if (!id) return;
@@ -88,6 +90,35 @@ export default function BrandProof() {
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '';
     return new Date(dateStr).toLocaleString(undefined, { timeZone: 'UTC', dateStyle: 'short' });
+  };
+
+  const toggleSummary = async (eventId: string) => {
+    const newExpanded = new Set(expandedSummaries);
+    
+    if (newExpanded.has(eventId)) {
+      newExpanded.delete(eventId);
+    } else {
+      newExpanded.add(eventId);
+      
+      // Fetch summary if not already loaded
+      if (!summaries[eventId]) {
+        try {
+          const { data: summaryData } = await supabase
+            .from('event_summaries')
+            .select('summary')
+            .eq('event_id', eventId)
+            .maybeSingle();
+          
+          if (summaryData?.summary) {
+            setSummaries(prev => ({ ...prev, [eventId]: summaryData.summary }));
+          }
+        } catch (error) {
+          console.error('Error fetching summary:', error);
+        }
+      }
+    }
+    
+    setExpandedSummaries(newExpanded);
   };
 
   if (loading) {
@@ -311,6 +342,68 @@ export default function BrandProof() {
                       <blockquote className="text-sm italic text-muted-foreground border-l-2 border-border pl-3">
                         "{ev.snippet}"
                       </blockquote>
+                    )}
+                    
+                    {/* AI Summary Toggle */}
+                    <button
+                      onClick={() => toggleSummary(ev.event_id)}
+                      className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                    >
+                      {expandedSummaries.has(ev.event_id) ? (
+                        <>
+                          <ChevronUp className="h-3 w-3" />
+                          Hide AI Summary
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="h-3 w-3" />
+                          Show AI Summary
+                        </>
+                      )}
+                    </button>
+                    
+                    {/* AI Summary Content */}
+                    {expandedSummaries.has(ev.event_id) && summaries[ev.event_id] && (
+                      <div className="mt-2 p-3 rounded-lg bg-muted/50 space-y-2 text-sm">
+                        <div className="text-xs text-muted-foreground italic">
+                          AI-generated summary (for reference only)
+                        </div>
+                        
+                        {summaries[ev.event_id].tldr && (
+                          <div>
+                            <span className="font-medium">TL;DR:</span> {summaries[ev.event_id].tldr}
+                          </div>
+                        )}
+                        
+                        {summaries[ev.event_id].what_happened && (
+                          <div>
+                            <span className="font-medium">What Happened:</span> {summaries[ev.event_id].what_happened}
+                          </div>
+                        )}
+                        
+                        {summaries[ev.event_id].why_it_matters && (
+                          <div>
+                            <span className="font-medium">Why It Matters:</span> {summaries[ev.event_id].why_it_matters}
+                          </div>
+                        )}
+                        
+                        {summaries[ev.event_id].key_facts && summaries[ev.event_id].key_facts.length > 0 && (
+                          <div>
+                            <span className="font-medium">Key Facts:</span>
+                            <ul className="list-disc list-inside ml-2 space-y-1">
+                              {summaries[ev.event_id].key_facts.map((fact: string, i: number) => (
+                                <li key={i}>{fact}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        
+                        {summaries[ev.event_id].quote && (
+                          <blockquote className="italic border-l-2 border-border pl-2 text-muted-foreground">
+                            "{summaries[ev.event_id].quote}"
+                          </blockquote>
+                        )}
+                      </div>
                     )}
                   </div>
                       ))

@@ -48,3 +48,12 @@ verify_jwt = false
 
 [functions.simplify-description]
 verify_jwt = false
+
+[functions.upgrade-corroboration]
+verify_jwt = false
+
+[functions.ingest-external-source]
+verify_jwt = true
+
+[functions.archive-url]
+verify_jwt = false

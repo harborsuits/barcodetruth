@@ -9,14 +9,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, AlertCircle, CheckCircle2, Settings } from "lucide-react";
+import { ArrowLeft, AlertCircle, CheckCircle2, Settings, Plus } from "lucide-react";
 import { SourceCredibilityManager } from "@/components/admin/SourceCredibilityManager";
+import { AddSourceDrawer } from "@/components/admin/AddSourceDrawer";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 export function AdminReview() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
   const [newSourceUrl, setNewSourceUrl] = useState("");
+  const [showAddSource, setShowAddSource] = useState(false);
 
   const { data: events, isLoading, refetch } = useQuery({
     queryKey: ['admin-review-events'],
@@ -149,6 +152,31 @@ export function AdminReview() {
       </header>
 
       <main className="container max-w-6xl mx-auto px-4 py-6 space-y-6">
+        <div className="flex justify-end">
+          <Sheet open={showAddSource} onOpenChange={setShowAddSource}>
+            <SheetTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Source Manually
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>Ingest External Source</SheetTitle>
+                <SheetDescription>
+                  Paste a URL to create an event with extracted facts and quote
+                </SheetDescription>
+              </SheetHeader>
+              <div className="mt-6">
+                <AddSourceDrawer onSuccess={() => {
+                  setShowAddSource(false);
+                  refetch();
+                }} />
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+
         <Tabs defaultValue="review" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="review">Events Review</TabsTrigger>
