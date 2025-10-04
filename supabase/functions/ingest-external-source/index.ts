@@ -4,30 +4,44 @@ import { extractQuote } from "../_shared/extractQuote.ts";
 import { extractFacts } from "../_shared/extractFacts.ts";
 
 // URL normalization utilities
-function canonicalizeUrl(url: string): string {
+function canonicalizeUrl(raw: string): string {
   try {
-    const u = new URL(url);
-    // Remove tracking params
-    const cleanParams = new URLSearchParams();
-    for (const [k, v] of u.searchParams) {
-      if (!/^(utm_|fbclid|gclid|_ga)/.test(k)) {
-        cleanParams.set(k, v);
-      }
+    const u = new URL(raw.trim());
+
+    // Normalize protocol and hostname
+    u.protocol = u.protocol.toLowerCase();
+    u.hostname = u.hostname.toLowerCase().replace(/^www\./, '');
+
+    // Remove default ports
+    if ((u.protocol === 'http:' && u.port === '80') ||
+        (u.protocol === 'https:' && u.port === '443')) {
+      u.port = '';
     }
-    u.search = cleanParams.toString();
+
+    // Strip hash
+    u.hash = '';
+
+    // Sort query params & drop trackers
+    const killParams = new Set(['utm_source','utm_medium','utm_campaign','utm_term','utm_content','gclid','fbclid','mc_cid','mc_eid','_ga']);
+    const qp = [...u.searchParams.entries()]
+      .filter(([k]) => !killParams.has(k.toLowerCase()))
+      .sort(([a],[b]) => a.localeCompare(b));
+    u.search = qp.length ? `?${qp.map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&')}` : '';
+
     // Normalize trailing slash
-    if (u.pathname.endsWith('/') && u.pathname.length > 1) {
+    if (u.pathname !== '/' && u.pathname.endsWith('/')) {
       u.pathname = u.pathname.slice(0, -1);
     }
+
     return u.toString();
   } catch {
-    return url;
+    return raw;
   }
 }
 
 function registrableDomain(url: string): string | null {
   try {
-    const hostname = new URL(url).hostname.replace(/^www\./, '');
+    const hostname = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
     return hostname;
   } catch {
     return null;
@@ -162,10 +176,10 @@ serve(async (req) => {
       console.log(`✅ Created event: ${eventId}`);
     }
 
-    // Create event source
+    // Upsert event source (idempotent)
     const { data: sourceData, error: sourceError } = await supabase
       .from('event_sources')
-      .insert({
+      .upsert({
         event_id: eventId,
         source_name: domain,
         source_url: url,
@@ -173,22 +187,34 @@ serve(async (req) => {
         registrable_domain: domain,
         quote,
         source_date: occurred_at || new Date().toISOString()
+      }, { 
+        onConflict: 'event_id,canonical_url',
+        ignoreDuplicates: false 
       })
       .select('id')
       .single();
 
-    if (sourceError && sourceError.code !== '23505') {
-      console.error('Source insert error:', sourceError);
+    if (sourceError) {
+      console.error('Source upsert error:', sourceError);
+      throw sourceError;
     }
 
     const sourceId = sourceData?.id;
 
-    // Queue archive job with proper source_id
+    // Queue archive job with dedupe key
     if (sourceId) {
+      console.log(JSON.stringify({
+        evt: 'archive.queue',
+        source_id: sourceId,
+        url,
+        canonical
+      }));
+      
       await supabase.functions.invoke('archive-url', {
         body: {
           source_id: sourceId,
-          source_url: url
+          source_url: url,
+          dedupe_key: `src:${sourceId}`
         }
       }).catch(e => console.error('Archive queue error:', e));
     }
