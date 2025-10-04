@@ -965,6 +965,13 @@ export type Database = {
             referencedRelation: "product_claims_moderator"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "product_claim_votes_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "product_claims_moderator_base"
+            referencedColumns: ["id"]
+          },
         ]
       }
       product_claims: {
@@ -1496,6 +1503,48 @@ export type Database = {
           },
         ]
       }
+      product_claims_moderator_base: {
+        Row: {
+          barcode_ean13: string | null
+          claimed_brand_id: string | null
+          confidence: number | null
+          created_at: string | null
+          created_by: string | null
+          downvotes: number | null
+          id: string | null
+          moderated_at: string | null
+          moderated_by: string | null
+          product_name: string | null
+          rejection_reason: string | null
+          score: number | null
+          source_hint: string | null
+          status: Database["public"]["Enums"]["submission_status"] | null
+          upvotes: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_claims_claimed_brand_id_fkey"
+            columns: ["claimed_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_claims_claimed_brand_id_fkey"
+            columns: ["claimed_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "product_claims_claimed_brand_id_fkey"
+            columns: ["claimed_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+        ]
+      }
       v_baseline_inputs_24m: {
         Row: {
           brand_id: string | null
@@ -1711,6 +1760,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      is_mod_or_admin: {
+        Args: { uid: string }
+        Returns: boolean
+      }
       log_notification: {
         Args: {
           p_brand_id: string
@@ -1750,7 +1803,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "admin" | "user" | "moderator"
       event_category:
         | "labor"
         | "environment"
@@ -1893,7 +1946,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["admin", "user", "moderator"],
       event_category: [
         "labor",
         "environment",
