@@ -334,9 +334,15 @@ export default function BrandProof() {
                               </a>
                             </>
                           )}
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${getVerificationColor(ev.verification)}`}>
-                            {ev.verification}
-                          </span>
+                          {ev.archive_url ? (
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                              Archived
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                              Pending
+                            </span>
+                          )}
                         </div>
                     {ev.snippet && (
                       <blockquote className="text-sm italic text-muted-foreground border-l-2 border-border pl-3">

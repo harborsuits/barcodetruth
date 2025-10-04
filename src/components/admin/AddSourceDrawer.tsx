@@ -7,7 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Loader2, ExternalLink, CheckCircle2 } from "lucide-react";
+import { toast as sonnerToast } from "sonner";
 
 interface AddSourceDrawerProps {
   onSuccess?: () => void;
@@ -15,6 +17,7 @@ interface AddSourceDrawerProps {
 
 export function AddSourceDrawer({ onSuccess }: AddSourceDrawerProps) {
   const { toast } = useToast();
+  const isAdmin = useIsAdmin();
   const [url, setUrl] = useState("");
   const [brandId, setBrandId] = useState("");
   const [brandName, setBrandName] = useState("");
@@ -50,23 +53,37 @@ export function AddSourceDrawer({ onSuccess }: AddSourceDrawerProps) {
       if (error) throw error;
       
       setPreview(data.preview);
-      toast({
-        title: "Event created",
-        description: "Source ingested successfully"
+      sonnerToast.success("Source added and archiving queued", {
+        description: "Event ingested successfully"
       });
       
       onSuccess?.();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Ingest error:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to ingest source",
-        variant: "destructive"
+      sonnerToast.error(error?.message ?? "Failed to add source", {
+        description: "Check console for details"
       });
     } finally {
       setLoading(false);
     }
   };
+
+  // Admin-only guard
+  if (isAdmin === null) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isAdmin === false) {
+    return (
+      <div className="p-6 text-center text-muted-foreground">
+        <p>Admin access required</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

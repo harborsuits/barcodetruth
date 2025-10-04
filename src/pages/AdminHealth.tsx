@@ -103,6 +103,32 @@ export default function AdminHealth() {
     }
   }
 
+  async function rerunCorroboration() {
+    try {
+      toast.info("Starting corroboration job...", {
+        description: "Upgrading events with multi-domain support",
+      });
+
+      const { data, error } = await supabase.functions.invoke("upgrade-corroboration", {
+        body: {},
+      });
+
+      if (error) throw error;
+
+      toast.success("Corroboration completed", {
+        description: `Upgraded ${data.upgraded} events across ${data.clusters} clusters`,
+      });
+
+      // Refresh health data
+      await fetchHealth();
+    } catch (e: any) {
+      console.error("Corroboration error:", e);
+      toast.error("Corroboration failed", {
+        description: e.message || "Unknown error",
+      });
+    }
+  }
+
   async function runQAValidation() {
     try {
       toast.info("Running QA validation...", {
@@ -181,6 +207,10 @@ export default function AdminHealth() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button onClick={rerunCorroboration} variant="outline" size="sm">
+              <Activity className="w-4 h-4 mr-2" />
+              Re-run Corroboration
+            </Button>
             <Button onClick={runQAValidation} variant="outline" size="sm">
               <CheckCircle className="w-4 h-4 mr-2" />
               Run Mixed/Flags QA (read-only)
