@@ -64,6 +64,33 @@ export function toByteaLiteral(sealed: string): string {
 }
 
 /** 
+ * Convert sealed hex to base64 text for easier storage/retrieval
+ * Format: "v1:BASE64(iv+ct)" instead of "v1:HEX(iv+ct)"
+ */
+export function toBase64Text(sealed: string): string {
+  if (!sealed?.startsWith('v1:')) throw new Error('Unknown ciphertext version');
+  const hex = sealed.slice(3);
+  const bytes = hexToBytes(hex);
+  const b64 = btoa(String.fromCharCode(...bytes));
+  return `v1:${b64}`;
+}
+
+/** 
+ * Convert base64 text back to sealed format for decryption
+ */
+export function fromBase64Text(b64Text: string | null): string | null {
+  if (!b64Text?.startsWith('v1:')) return null;
+  try {
+    const b64 = b64Text.slice(3);
+    const bytes = b64ToBytes(b64);
+    return `v1:${bytesToHex(bytes)}`;
+  } catch (e) {
+    console.error('Failed to convert base64 text to sealed format:', e);
+    return null;
+  }
+}
+
+/** 
  * Convert PostgreSQL bytea (returned as base64 from Supabase) to sealed format 
  */
 export function fromByteaToSealed(b: string | null): string | null {

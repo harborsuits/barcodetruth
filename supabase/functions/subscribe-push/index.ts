@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { seal, toByteaLiteral } from "../_shared/crypto.ts";
+import { seal, toByteaLiteral, toBase64Text } from "../_shared/crypto.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -47,7 +47,7 @@ serve(async (req) => {
     const authSealed = await seal(subscription.keys.auth);
     const p256dhSealed = await seal(subscription.keys.p256dh);
 
-    // Upsert subscription with encrypted credentials (update if exists, insert if new)
+    // Upsert subscription with encrypted credentials (both bytea and text formats)
     const { error: dbError } = await supabase
       .from('user_push_subs')
       .upsert({
@@ -55,6 +55,8 @@ serve(async (req) => {
         endpoint: subscription.endpoint,
         auth_enc: toByteaLiteral(authSealed),
         p256dh_enc: toByteaLiteral(p256dhSealed),
+        auth_enc_b64: toBase64Text(authSealed),
+        p256dh_enc_b64: toBase64Text(p256dhSealed),
         ua: ua || null,
       }, {
         onConflict: 'endpoint'

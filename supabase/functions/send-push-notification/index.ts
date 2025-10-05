@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { open, fromByteaToSealed } from "../_shared/crypto.ts";
+import { open, fromBase64Text } from "../_shared/crypto.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -108,24 +108,27 @@ serve(async (req) => {
       let auth = subscription.auth;
       let p256dh = subscription.p256dh;
 
-      // If encrypted credentials exist, decrypt them
-      if (subscription.auth_enc && subscription.p256dh_enc) {
-        const { open, fromByteaToSealed } = await import("../_shared/crypto.ts");
-        const authSealed = fromByteaToSealed(subscription.auth_enc);
-        const p256dhSealed = fromByteaToSealed(subscription.p256dh_enc);
+      // If encrypted credentials exist, decrypt them (prefer text format)
+      if (subscription.auth_enc_b64 && subscription.p256dh_enc_b64) {
+        const authSealed = fromBase64Text(subscription.auth_enc_b64);
+        const p256dhSealed = fromBase64Text(subscription.p256dh_enc_b64);
         
         if (authSealed && p256dhSealed) {
           auth = await open(authSealed);
           p256dh = await open(p256dhSealed);
           console.log('[send-push-notification] Using encrypted credentials');
+        } else {
+          console.warn('[send-push-notification] Failed to decrypt credentials');
         }
+      } else if (!auth || !p256dh) {
+        throw new Error('Missing both plaintext and encrypted credentials');
       }
 
       await sendWebPush(
         {
           endpoint: subscription.endpoint,
-          p256dh,
-          auth,
+          p256dh: p256dh!,
+          auth: auth!,
         },
         payload,
         {

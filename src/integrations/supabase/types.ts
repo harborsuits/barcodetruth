@@ -1278,33 +1278,39 @@ export type Database = {
         Row: {
           auth: string
           auth_enc: string | null
+          auth_enc_b64: string | null
           created_at: string | null
           endpoint: string
           id: string
           p256dh: string
           p256dh_enc: string | null
+          p256dh_enc_b64: string | null
           ua: string | null
           user_id: string
         }
         Insert: {
           auth: string
           auth_enc?: string | null
+          auth_enc_b64?: string | null
           created_at?: string | null
           endpoint: string
           id?: string
           p256dh: string
           p256dh_enc?: string | null
+          p256dh_enc_b64?: string | null
           ua?: string | null
           user_id: string
         }
         Update: {
           auth?: string
           auth_enc?: string | null
+          auth_enc_b64?: string | null
           created_at?: string | null
           endpoint?: string
           id?: string
           p256dh?: string
           p256dh_enc?: string | null
+          p256dh_enc_b64?: string | null
           ua?: string | null
           user_id?: string
         }
@@ -1827,6 +1833,15 @@ export type Database = {
       brand_events_last_24h: {
         Args: { brand_id_param: string }
         Returns: number
+      }
+      check_push_encryption_status: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          encrypted_count: number
+          encryption_complete: boolean
+          plaintext_count: number
+          total_subs: number
+        }[]
       }
       get_corroboration_clusters: {
         Args: {

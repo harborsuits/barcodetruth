@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { seal, toByteaLiteral } from "../_shared/crypto.ts";
+import { seal, toByteaLiteral, toBase64Text } from "../_shared/crypto.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -53,7 +53,7 @@ serve(async (req) => {
     // Fetch rows with plaintext but missing encrypted versions
     const { data: rows, error: fetchError } = await supabase
       .from('user_push_subs')
-      .select('user_id, endpoint, auth, p256dh, auth_enc, p256dh_enc')
+      .select('user_id, endpoint, auth, p256dh, auth_enc_b64, p256dh_enc_b64')
       .not('auth', 'is', null)
       .not('p256dh', 'is', null)
       .limit(1000);
@@ -69,7 +69,7 @@ serve(async (req) => {
 
     for (const row of rows ?? []) {
       // Skip if already encrypted
-      if (row.auth_enc && row.p256dh_enc) {
+      if (row.auth_enc_b64 && row.p256dh_enc_b64) {
         skipped++;
         continue;
       }
@@ -83,6 +83,8 @@ serve(async (req) => {
           .update({
             auth_enc: toByteaLiteral(authSealed),
             p256dh_enc: toByteaLiteral(p256dhSealed),
+            auth_enc_b64: toBase64Text(authSealed),
+            p256dh_enc_b64: toBase64Text(p256dhSealed),
           })
           .eq('user_id', row.user_id)
           .eq('endpoint', row.endpoint);
