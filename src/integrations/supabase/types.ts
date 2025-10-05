@@ -1214,6 +1214,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_billing: {
+        Row: {
+          current_period_end: string | null
+          product_id: string | null
+          status: string | null
+          stripe_customer_id: string
+          stripe_subscription_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          current_period_end?: string | null
+          product_id?: string | null
+          status?: string | null
+          stripe_customer_id: string
+          stripe_subscription_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          current_period_end?: string | null
+          product_id?: string | null
+          status?: string | null
+          stripe_customer_id?: string
+          stripe_subscription_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_follows: {
         Row: {
           brand_id: string
