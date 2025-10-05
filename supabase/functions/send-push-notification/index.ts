@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { open, fromByteaToSealed } from "../_shared/crypto.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -102,13 +103,29 @@ serve(async (req) => {
       },
     };
 
-    // Send to single subscription
+    // Send to single subscription (decrypt if encrypted)
     try {
+      let auth = subscription.auth;
+      let p256dh = subscription.p256dh;
+
+      // If encrypted credentials exist, decrypt them
+      if (subscription.auth_enc && subscription.p256dh_enc) {
+        const { open, fromByteaToSealed } = await import("../_shared/crypto.ts");
+        const authSealed = fromByteaToSealed(subscription.auth_enc);
+        const p256dhSealed = fromByteaToSealed(subscription.p256dh_enc);
+        
+        if (authSealed && p256dhSealed) {
+          auth = await open(authSealed);
+          p256dh = await open(p256dhSealed);
+          console.log('[send-push-notification] Using encrypted credentials');
+        }
+      }
+
       await sendWebPush(
         {
           endpoint: subscription.endpoint,
-          p256dh: subscription.p256dh,
-          auth: subscription.auth,
+          p256dh,
+          auth,
         },
         payload,
         {

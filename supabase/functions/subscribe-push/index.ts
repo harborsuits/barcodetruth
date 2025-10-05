@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { seal, toByteaLiteral } from "../_shared/crypto.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,16 +41,20 @@ serve(async (req) => {
       throw new Error('Missing subscription keys');
     }
 
-    console.log('[subscribe-push] Saving subscription for user:', user.id);
+    console.log('[subscribe-push] Encrypting and saving subscription for user:', user.id);
 
-    // Upsert subscription (update if exists, insert if new)
+    // Encrypt sensitive keys
+    const authSealed = await seal(subscription.keys.auth);
+    const p256dhSealed = await seal(subscription.keys.p256dh);
+
+    // Upsert subscription with encrypted credentials (update if exists, insert if new)
     const { error: dbError } = await supabase
       .from('user_push_subs')
       .upsert({
         user_id: user.id,
         endpoint: subscription.endpoint,
-        p256dh: subscription.keys.p256dh,
-        auth: subscription.keys.auth,
+        auth_enc: toByteaLiteral(authSealed),
+        p256dh_enc: toByteaLiteral(p256dhSealed),
         ua: ua || null,
       }, {
         onConflict: 'endpoint'
