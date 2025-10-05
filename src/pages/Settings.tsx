@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Users, Leaf, Megaphone, Heart, Info, Bell } from "lucide-react";
+import { ArrowLeft, Users, Leaf, Megaphone, Heart, Info, Bell, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -11,11 +11,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { subscribeToPush, unsubscribeFromPush, isPushSubscribed } from "@/lib/pushNotifications";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useSubscription } from "@/hooks/useSubscription";
 
 type ValuePreset = "balanced" | "worker-first" | "green-first" | "politics-light" | "custom";
 
 export const Settings = () => {
   const navigate = useNavigate();
+  const { subscribed, subscription_end, loading, startCheckout, manageSubscription } = useSubscription();
   const [values, setValues] = useState({
     labor: 50,
     environment: 50,
@@ -189,6 +191,48 @@ export const Settings = () => {
       </header>
 
       <main className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Crown className="h-5 w-5 text-primary" />
+              Subscription
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {loading ? (
+              <p className="text-sm text-muted-foreground">Loading subscription status...</p>
+            ) : subscribed ? (
+              <>
+                <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg">
+                  <div>
+                    <p className="font-medium">Premium Active</p>
+                    <p className="text-sm text-muted-foreground">
+                      {subscription_end && `Renews on ${new Date(subscription_end).toLocaleDateString()}`}
+                    </p>
+                  </div>
+                  <Crown className="h-6 w-6 text-primary" />
+                </div>
+                <Button variant="outline" onClick={manageSubscription} className="w-full">
+                  Manage Subscription
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <p className="font-medium">Upgrade to Premium</p>
+                  <p className="text-sm text-muted-foreground">
+                    Get unlimited brand scans for just $5/month
+                  </p>
+                </div>
+                <Button onClick={startCheckout} className="w-full gap-2">
+                  <Crown className="h-4 w-4" />
+                  Subscribe Now - $5/month
+                </Button>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
         <TooltipProvider>
         <Card>
           <CardHeader>

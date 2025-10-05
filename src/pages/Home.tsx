@@ -7,6 +7,7 @@ import { TrustedSources } from "@/components/landing/TrustedSources";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { LatestVerifications } from "@/components/landing/LatestVerifications";
 import { AttributionFooter } from "@/components/AttributionFooter";
+import { SubscriptionBanner } from "@/components/SubscriptionBanner";
 import { useSnapshotPrewarm } from "@/hooks/useSnapshotPrewarm";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import logo from "@/assets/logo.png";
@@ -36,6 +37,7 @@ export const Home = () => {
 
       <main className="max-w-screen-md mx-auto px-4 sm:px-6 space-y-8 pb-24">
         <HeroSection />
+        <SubscriptionBanner />
         <LatestVerifications />
         <TrendingPreview />
         <HowItWorks />
