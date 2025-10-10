@@ -80,6 +80,14 @@ serve(async (req) => {
       line_items: [{ price: PRICE_SUBSCRIPTION, quantity: 1 }],
       success_url: successUrl,
       cancel_url: cancelUrl,
+      // Pass user_id for reliable webhook processing
+      client_reference_id: user.id,
+      subscription_data: {
+        metadata: {
+          user_id: user.id,
+          ...metadata,
+        },
+      },
       metadata,
     });
 

@@ -4,9 +4,12 @@ import { Crown } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 
 export function SubscriptionBanner() {
-  const { subscribed, loading, startCheckout } = useSubscription();
+  const { subscribed, loading, startCheckout, subscription_end } = useSubscription();
 
-  if (loading || subscribed) return null;
+  // Hide banner if subscribed and period hasn't ended
+  const isActive = subscribed && (!subscription_end || new Date(subscription_end) > new Date());
+  
+  if (loading || isActive) return null;
 
   return (
     <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10 p-6 mb-6">

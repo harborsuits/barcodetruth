@@ -37,36 +37,67 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
+    // Idempotency: skip if we've already processed this event
+    const { data: existingEvent } = await supabase
+      .from("stripe_events")
+      .select("id")
+      .eq("id", event.id)
+      .maybeSingle();
+
+    if (existingEvent) {
+      console.log(`Event ${event.id} already processed, skipping`);
+      return new Response(JSON.stringify({ received: true, skipped: true }), {
+        headers: { "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
+    // Record this event as processed
+    await supabase.from("stripe_events").insert({ id: event.id });
+
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         if (session.mode === "subscription" && session.customer && session.subscription) {
           const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
-          const customer = await stripe.customers.retrieve(session.customer as string);
+          const customerId = session.customer as string;
           
-          if (customer.deleted) {
-            console.error("Customer was deleted");
-            break;
-          }
+          // Get user_id from metadata or client_reference_id
+          let userId = session.client_reference_id || subscription.metadata?.user_id;
           
-          const email = customer.email;
-          if (!email) {
-            console.error("No customer email");
-            break;
+          if (!userId) {
+            // Fallback: lookup by customer email
+            const customer = await stripe.customers.retrieve(customerId);
+            if (customer.deleted) {
+              console.error("Customer was deleted");
+              break;
+            }
+            
+            const email = customer.email;
+            if (!email) {
+              console.error("No customer email");
+              break;
+            }
+
+            const { data: usersData } = await supabase.auth.admin.listUsers();
+            const user = usersData.users.find(u => u.email === email);
+            if (!user) {
+              console.error(`User not found: ${email}`);
+              break;
+            }
+            userId = user.id;
           }
 
-          // Get user from email
-          const { data: usersData } = await supabase.auth.admin.listUsers();
-          const user = usersData.users.find(u => u.email === email);
-          if (!user) {
-            console.error(`User not found: ${email}`);
-            break;
-          }
+          // Store customer mapping for future events
+          await supabase.from("stripe_customers").upsert({
+            user_id: userId,
+            stripe_customer_id: customerId,
+          }, { onConflict: "user_id" });
 
           // Create or update billing record
           const { error: upsertError } = await supabase.from("user_billing").upsert({
-            user_id: user.id,
-            stripe_customer_id: session.customer as string,
+            user_id: userId,
+            stripe_customer_id: customerId,
             stripe_subscription_id: subscription.id,
             status: subscription.status,
             product_id: subscription.items.data[0]?.price?.product as string || null,
@@ -77,7 +108,7 @@ serve(async (req) => {
           if (upsertError) {
             console.error("Error upserting billing:", upsertError);
           } else {
-            console.log(`Subscription created for user ${user.id}`);
+            console.log(`Subscription created for user ${userId}`);
           }
         }
         break;
@@ -88,24 +119,29 @@ serve(async (req) => {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
         
-        // Get user by customer ID (use maybeSingle to handle edge cases)
-        const { data: billing, error: billingError } = await supabase
-          .from("user_billing")
-          .select("user_id")
-          .eq("stripe_customer_id", customerId)
-          .maybeSingle();
-
-        if (billingError) {
-          console.error(`Error fetching billing for customer ${customerId}:`, billingError);
-          return new Response(JSON.stringify({ error: 'Database error' }), { status: 500 });
+        // Try to get user_id from metadata first, then customer mapping
+        let userId = subscription.metadata?.user_id;
+        
+        if (!userId) {
+          const { data: customer } = await supabase
+            .from("stripe_customers")
+            .select("user_id")
+            .eq("stripe_customer_id", customerId)
+            .maybeSingle();
+          userId = customer?.user_id;
         }
 
-        if (billing) {
+        if (!userId) {
+          console.error(`No user mapping found for customer ${customerId}`);
+          break;
+        }
+
+        if (userId) {
           // Log sensitive billing data access
           await supabase.rpc('log_sensitive_access', {
             p_action: 'subscription_updated',
             p_table_name: 'user_billing',
-            p_record_id: billing.user_id,
+            p_record_id: userId,
             p_details: {
               subscription_id: subscription.id,
               status: subscription.status,
@@ -115,16 +151,17 @@ serve(async (req) => {
 
           await supabase
             .from("user_billing")
-            .update({
+            .upsert({
+              user_id: userId,
+              stripe_customer_id: customerId,
               stripe_subscription_id: subscription.id,
               status: subscription.status,
               product_id: subscription.items.data[0]?.price?.product as string || null,
               current_period_end: toISO(subscription.current_period_end),
               updated_at: new Date().toISOString(),
-            })
-            .eq("user_id", billing.user_id);
+            }, { onConflict: "user_id" });
           
-          console.log(`Updated subscription for user ${billing.user_id}`);
+          console.log(`Updated subscription for user ${userId}`);
         }
         break;
       }
@@ -133,23 +170,25 @@ serve(async (req) => {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
 
-        const { data: billing, error: billingError } = await supabase
-          .from("user_billing")
+        // Get user_id from customer mapping
+        const { data: customer } = await supabase
+          .from("stripe_customers")
           .select("user_id")
           .eq("stripe_customer_id", customerId)
           .maybeSingle();
 
-        if (billingError) {
-          console.error(`Error fetching billing for customer ${customerId}:`, billingError);
-          return new Response(JSON.stringify({ error: 'Database error' }), { status: 500 });
+        const userId = customer?.user_id;
+        if (!userId) {
+          console.error(`No user mapping found for customer ${customerId}`);
+          break;
         }
 
-        if (billing) {
+        if (userId) {
           // Log sensitive billing data access
           await supabase.rpc('log_sensitive_access', {
             p_action: 'subscription_canceled',
             p_table_name: 'user_billing',
-            p_record_id: billing.user_id,
+            p_record_id: userId,
             p_details: {
               subscription_id: subscription.id,
               event_type: event.type
@@ -165,9 +204,9 @@ serve(async (req) => {
               current_period_end: null,
               updated_at: new Date().toISOString(),
             })
-            .eq("user_id", billing.user_id);
+            .eq("user_id", userId);
           
-          console.log(`Canceled subscription for user ${billing.user_id}`);
+          console.log(`Canceled subscription for user ${userId}`);
         }
         break;
       }
