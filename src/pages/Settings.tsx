@@ -224,7 +224,7 @@ export const Settings = () => {
                     Get unlimited brand scans for just $5/month
                   </p>
                 </div>
-                <Button onClick={startCheckout} className="w-full gap-2">
+                <Button onClick={() => startCheckout("subscription")} className="w-full gap-2">
                   <Crown className="h-4 w-4" />
                   Subscribe Now - $5/month
                 </Button>

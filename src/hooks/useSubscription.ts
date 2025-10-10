@@ -49,7 +49,7 @@ export function useSubscription() {
     }
   }, []);
 
-  const startCheckout = async () => {
+  const startCheckout = async (type: "deposit" | "subscription" = "subscription", metadata = {}) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -66,6 +66,7 @@ export function useSubscription() {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
+        body: { type, metadata },
       });
 
       if (error) throw error;
