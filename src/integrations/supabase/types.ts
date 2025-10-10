@@ -1184,6 +1184,42 @@ export type Database = {
         }
         Relationships: []
       }
+      security_audit_log: {
+        Row: {
+          accessed_at: string
+          accessor_id: string | null
+          accessor_role: string
+          action: string
+          details: Json | null
+          id: string
+          ip_address: string | null
+          record_id: string | null
+          table_name: string
+        }
+        Insert: {
+          accessed_at?: string
+          accessor_id?: string | null
+          accessor_role: string
+          action: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          record_id?: string | null
+          table_name: string
+        }
+        Update: {
+          accessed_at?: string
+          accessor_id?: string | null
+          accessor_role?: string
+          action?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          record_id?: string | null
+          table_name?: string
+        }
+        Relationships: []
+      }
       source_credibility: {
         Row: {
           base_credibility: number
@@ -1915,6 +1951,15 @@ export type Database = {
           p_error?: string
           p_success?: boolean
           p_user_id: string
+        }
+        Returns: undefined
+      }
+      log_sensitive_access: {
+        Args: {
+          p_action: string
+          p_details?: Json
+          p_record_id?: string
+          p_table_name: string
         }
         Returns: undefined
       }

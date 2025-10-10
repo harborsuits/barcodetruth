@@ -46,6 +46,18 @@ serve(async (req) => {
         }
 
         if (billing) {
+          // Log sensitive billing data access
+          await supabase.rpc('log_sensitive_access', {
+            p_action: 'subscription_updated',
+            p_table_name: 'user_billing',
+            p_record_id: billing.user_id,
+            p_details: {
+              subscription_id: subscription.id,
+              status: subscription.status,
+              event_type: event.type
+            }
+          });
+
           await supabase
             .from("user_billing")
             .update({
@@ -78,6 +90,17 @@ serve(async (req) => {
         }
 
         if (billing) {
+          // Log sensitive billing data access
+          await supabase.rpc('log_sensitive_access', {
+            p_action: 'subscription_canceled',
+            p_table_name: 'user_billing',
+            p_record_id: billing.user_id,
+            p_details: {
+              subscription_id: subscription.id,
+              event_type: event.type
+            }
+          });
+
           await supabase
             .from("user_billing")
             .update({
