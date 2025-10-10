@@ -254,10 +254,10 @@ Deno.serve(async (req) => {
 
           const followerIds = followers.map(f => f.user_id);
 
-          // Fetch push subscriptions only for followers
+          // Fetch push subscriptions only for followers (encrypted columns only)
           const { data: subs, error: subErr } = await supabase
             .from('user_push_subs')
-            .select('endpoint, p256dh, auth, user_id')
+            .select('endpoint, p256dh_enc_b64, auth_enc_b64, user_id')
             .in('user_id', followerIds);
 
           if (subErr) throw subErr;
@@ -321,11 +321,15 @@ Deno.serve(async (req) => {
               continue;
             }
 
-            // Send push notification
+            // Send push notification (with encrypted credentials)
             try {
               const { error: fnErr } = await supabase.functions.invoke('send-push-notification', {
                 body: { 
-                  subscription: { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
+                  subscription: { 
+                    endpoint: sub.endpoint, 
+                    p256dh_enc_b64: sub.p256dh_enc_b64, 
+                    auth_enc_b64: sub.auth_enc_b64 
+                  },
                   brand_id, 
                   brand_name,
                   category: 'batch',

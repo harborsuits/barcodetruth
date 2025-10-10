@@ -110,13 +110,16 @@ serve(async (req) => {
 
       if (digest.length === 0) continue;
 
-      // Send digest notification
+      // Fetch push subscriptions for this user (encrypted columns)
       const { data: pushSubs } = await supabase
         .from("user_push_subs")
-        .select("*")
+        .select("endpoint, auth_enc_b64, p256dh_enc_b64")
         .eq("user_id", userPref.user_id);
 
-      if (!pushSubs || pushSubs.length === 0) continue;
+      if (!pushSubs || pushSubs.length === 0) {
+        console.log(`No push subscriptions for user ${userPref.user_id}`);
+        continue;
+      }
 
       const title = `Daily Digest: ${digest.length} update${digest.length !== 1 ? 's' : ''}`;
       const body = digest
@@ -124,17 +127,59 @@ serve(async (req) => {
         .map(d => `${d.brand_name}: ${d.event_count} ${d.category} event${d.event_count !== 1 ? 's' : ''}`)
         .join(", ");
 
-      // Log digest (actual push would happen here)
+      // Build notification payload
+      const payload = {
+        title,
+        body,
+        icon: '/placeholder.svg',
+        badge: '/favicon.ico',
+        tag: 'daily-digest',
+        data: { digest, type: 'digest' }
+      };
+
+      // Send to all user's subscriptions
+      let sentToUser = false;
+      for (const sub of pushSubs) {
+        try {
+          const { error: pushError } = await supabase.functions.invoke('send-push-notification', {
+            body: {
+              subscription: {
+                endpoint: sub.endpoint,
+                auth_enc_b64: sub.auth_enc_b64,
+                p256dh_enc_b64: sub.p256dh_enc_b64
+              },
+              brand_id: "digest",
+              brand_name: "Daily Digest",
+              category: "digest",
+              delta: digest.length,
+              payload
+            }
+          });
+
+          if (!pushError) {
+            sentToUser = true;
+          } else {
+            console.error(`Failed to send digest to subscription ${sub.endpoint.substring(0, 50)}:`, pushError);
+          }
+        } catch (err) {
+          console.error(`Error sending digest:`, err);
+        }
+      }
+
+      // Log digest delivery result
       await supabase.from("notification_log").insert({
         user_id: userPref.user_id,
         brand_id: "digest",
         category: "digest",
         delta: digest.length,
-        success: true,
+        success: sentToUser,
+        error: sentToUser ? null : "Failed to send to any subscription",
       });
 
-      sentCount++;
-      console.log(`Sent digest to user ${userPref.user_id}: ${title}`);
+      if (sentToUser) {
+        sentCount++;
+        console.log(`Sent digest to user ${userPref.user_id}: ${title}`);
+      }
     }
 
     return new Response(
