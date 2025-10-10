@@ -37,8 +37,12 @@ export function useSubscription() {
         return;
       }
 
+      // Verify subscription is truly active by checking period end
+      const isActive = data.subscribed && 
+        (!data.subscription_end || new Date(data.subscription_end) > new Date());
+      
       setStatus({
-        subscribed: data.subscribed || false,
+        subscribed: isActive,
         product_id: data.product_id,
         subscription_end: data.subscription_end,
         loading: false,

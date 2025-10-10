@@ -8,6 +8,16 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
 
 const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
 
+// Helper to safely convert Unix seconds to ISO string
+const toISO = (sec?: number | null): string | null => {
+  if (!sec) return null;
+  try {
+    return new Date(sec * 1000).toISOString();
+  } catch {
+    return null;
+  }
+};
+
 serve(async (req) => {
   const signature = req.headers.get("stripe-signature");
   
@@ -59,8 +69,8 @@ serve(async (req) => {
             stripe_customer_id: session.customer as string,
             stripe_subscription_id: subscription.id,
             status: subscription.status,
-            product_id: subscription.items.data[0].price.product as string,
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            product_id: subscription.items.data[0]?.price?.product as string || null,
+            current_period_end: toISO(subscription.current_period_end),
             updated_at: new Date().toISOString(),
           }, { onConflict: "user_id" });
 
@@ -108,8 +118,8 @@ serve(async (req) => {
             .update({
               stripe_subscription_id: subscription.id,
               status: subscription.status,
-              product_id: subscription.items.data[0]?.price.product as string,
-              current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+              product_id: subscription.items.data[0]?.price?.product as string || null,
+              current_period_end: toISO(subscription.current_period_end),
               updated_at: new Date().toISOString(),
             })
             .eq("user_id", billing.user_id);
