@@ -28,6 +28,51 @@ serve(async (req) => {
     );
 
     switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        if (session.mode === "subscription" && session.customer && session.subscription) {
+          const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+          const customer = await stripe.customers.retrieve(session.customer as string);
+          
+          if (customer.deleted) {
+            console.error("Customer was deleted");
+            break;
+          }
+          
+          const email = customer.email;
+          if (!email) {
+            console.error("No customer email");
+            break;
+          }
+
+          // Get user from email
+          const { data: usersData } = await supabase.auth.admin.listUsers();
+          const user = usersData.users.find(u => u.email === email);
+          if (!user) {
+            console.error(`User not found: ${email}`);
+            break;
+          }
+
+          // Create or update billing record
+          const { error: upsertError } = await supabase.from("user_billing").upsert({
+            user_id: user.id,
+            stripe_customer_id: session.customer as string,
+            stripe_subscription_id: subscription.id,
+            status: subscription.status,
+            product_id: subscription.items.data[0].price.product as string,
+            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "user_id" });
+
+          if (upsertError) {
+            console.error("Error upserting billing:", upsertError);
+          } else {
+            console.log(`Subscription created for user ${user.id}`);
+          }
+        }
+        break;
+      }
+
       case "customer.subscription.created":
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;

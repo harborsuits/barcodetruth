@@ -43,6 +43,30 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // Check database first for existing subscription
+    const { data: billing } = await supabaseClient
+      .from("user_billing")
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (billing && billing.status === "active" && billing.current_period_end) {
+      const endDate = new Date(billing.current_period_end);
+      if (endDate > new Date()) {
+        logStep("Active subscription found in database");
+        return new Response(JSON.stringify({
+          subscribed: true,
+          product_id: billing.product_id,
+          subscription_end: billing.current_period_end
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+    }
+
+    // Fallback to Stripe API
+    logStep("Checking Stripe for subscription status");
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     
