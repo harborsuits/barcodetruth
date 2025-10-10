@@ -201,6 +201,16 @@ export const Settings = () => {
           <CardContent className="space-y-4">
             {loading ? (
               <p className="text-sm text-muted-foreground">Loading subscription status...</p>
+            ) : !loading && subscribed === false && subscription_end === undefined ? (
+              <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <p className="font-medium text-destructive mb-2">Authentication Required</p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Please sign in to subscribe
+                </p>
+                <Button onClick={() => navigate('/auth')} variant="outline" className="w-full">
+                  Sign In
+                </Button>
+              </div>
             ) : subscribed ? (
               <>
                 <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg">

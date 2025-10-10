@@ -14,6 +14,7 @@ import { NotFound } from "./pages/NotFound";
 import { AdminRoute } from "@/components/routes/AdminRoute";
 
 const Forbidden = lazyNamed(() => import("./pages/Forbidden"), "default");
+const Auth = lazyNamed(() => import("./pages/Auth"), "default");
 
 // Lazy load heavy routes
 const Home = lazyNamed(() => import("./pages/Home"), "Home");
@@ -51,6 +52,14 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/onboarding" element={<Onboarding />} />
+          <Route 
+            path="/auth" 
+            element={
+              <Suspense fallback={<RouteFallback label="Loading…" />}>
+                <Auth />
+              </Suspense>
+            } 
+          />
           <Route
             path="/"
             element={
