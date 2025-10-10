@@ -36,7 +36,7 @@ serve(async (req) => {
       customer_email: customerId ? undefined : user.email,
       line_items: [
         {
-          price: "price_1SEkAl5vjL2L9qLcLjhcrpsa",
+          price: Deno.env.get("STRIPE_PRICE_ID") || "",
           quantity: 1,
         },
       ],
