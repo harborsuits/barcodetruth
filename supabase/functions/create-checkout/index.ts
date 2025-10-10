@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@14?target=deno";
+import Stripe from "https://esm.sh/stripe@18.5.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
@@ -7,9 +7,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, { apiVersion: "2024-06-20" });
+const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, { apiVersion: "2025-08-27.basil" });
 
-const PRICE_SUBSCRIPTION = Deno.env.get("PRICE_SUBSCRIPTION")!;
+const PRICE_SUBSCRIPTION = Deno.env.get("PRICE_SUBSCRIPTION") || Deno.env.get("STRIPE_PRICE_ID") || "";
 
 serve(async (req) => {
   console.log("[CREATE-CHECKOUT] Function invoked");
