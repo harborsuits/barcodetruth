@@ -52,10 +52,21 @@ serve(async (req) => {
 
     const { type = "subscription", metadata = {} } = await req.json().catch(() => ({}));
     console.log("[CREATE-CHECKOUT] Payment type:", type);
-    
+
     const price = type === "deposit" ? PRICE_DEPOSIT : PRICE_SUBSCRIPTION;
     const mode = type === "deposit" ? "payment" : "subscription";
     console.log("[CREATE-CHECKOUT] Using price:", price, "mode:", mode);
+
+    if (!price) {
+      const missing = type === "deposit" ? "PRICE_DEPOSIT" : "PRICE_SUBSCRIPTION";
+      console.error(`[CREATE-CHECKOUT] Missing required env var: ${missing}`);
+      throw new Error(`Missing Stripe price ID. Please set ${missing} secret`);
+    }
+
+    const origin = req.headers.get("origin") || Deno.env.get("APP_URL") || "https://lovable.app";
+    const successUrl = Deno.env.get("SUCCESS_URL") || origin;
+    const cancelUrl = Deno.env.get("CANCEL_URL") || origin;
+    console.log("[CREATE-CHECKOUT] success_url:", successUrl, "cancel_url:", cancelUrl);
 
     console.log("[CREATE-CHECKOUT] Looking up Stripe customer");
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
@@ -74,8 +85,8 @@ serve(async (req) => {
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: [{ price, quantity: 1 }],
-      success_url: SUCCESS_URL,
-      cancel_url: CANCEL_URL,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
       metadata,
     });
 
