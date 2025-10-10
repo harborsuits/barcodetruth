@@ -1306,41 +1306,35 @@ export type Database = {
       }
       user_push_subs: {
         Row: {
-          auth: string
           auth_enc: string | null
-          auth_enc_b64: string | null
+          auth_enc_b64: string
           created_at: string | null
           endpoint: string
           id: string
-          p256dh: string
           p256dh_enc: string | null
-          p256dh_enc_b64: string | null
+          p256dh_enc_b64: string
           ua: string | null
           user_id: string
         }
         Insert: {
-          auth: string
           auth_enc?: string | null
-          auth_enc_b64?: string | null
+          auth_enc_b64: string
           created_at?: string | null
           endpoint: string
           id?: string
-          p256dh: string
           p256dh_enc?: string | null
-          p256dh_enc_b64?: string | null
+          p256dh_enc_b64: string
           ua?: string | null
           user_id: string
         }
         Update: {
-          auth?: string
           auth_enc?: string | null
-          auth_enc_b64?: string | null
+          auth_enc_b64?: string
           created_at?: string | null
           endpoint?: string
           id?: string
-          p256dh?: string
           p256dh_enc?: string | null
-          p256dh_enc_b64?: string | null
+          p256dh_enc_b64?: string
           ua?: string | null
           user_id?: string
         }
@@ -1872,6 +1866,10 @@ export type Database = {
           plaintext_count: number
           total_subs: number
         }[]
+      }
+      cleanup_old_notification_logs: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
       get_corroboration_clusters: {
         Args: {

@@ -33,12 +33,17 @@ serve(async (req) => {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
         
-        // Get user by customer ID
-        const { data: billing } = await supabase
+        // Get user by customer ID (use maybeSingle to handle edge cases)
+        const { data: billing, error: billingError } = await supabase
           .from("user_billing")
           .select("user_id")
           .eq("stripe_customer_id", customerId)
-          .single();
+          .maybeSingle();
+
+        if (billingError) {
+          console.error(`Error fetching billing for customer ${customerId}:`, billingError);
+          return new Response(JSON.stringify({ error: 'Database error' }), { status: 500 });
+        }
 
         if (billing) {
           await supabase
@@ -61,11 +66,16 @@ serve(async (req) => {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
 
-        const { data: billing } = await supabase
+        const { data: billing, error: billingError } = await supabase
           .from("user_billing")
           .select("user_id")
           .eq("stripe_customer_id", customerId)
-          .single();
+          .maybeSingle();
+
+        if (billingError) {
+          console.error(`Error fetching billing for customer ${customerId}:`, billingError);
+          return new Response(JSON.stringify({ error: 'Database error' }), { status: 500 });
+        }
 
         if (billing) {
           await supabase
@@ -106,10 +116,19 @@ serve(async (req) => {
       status: 200,
     });
   } catch (err) {
-    console.error("Webhook error:", err);
+    // Log detailed error server-side for debugging
+    console.error("Webhook error:", {
+      message: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
+    
+    // Return generic error to client (security best practice)
     return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
-      { status: 400 }
+      JSON.stringify({ error: "Webhook processing failed" }),
+      { 
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      }
     );
   }
 });

@@ -103,32 +103,33 @@ serve(async (req) => {
       },
     };
 
-    // Send to single subscription (decrypt if encrypted)
+    // Decrypt credentials (now only encrypted columns exist)
     try {
-      let auth = subscription.auth;
-      let p256dh = subscription.p256dh;
-
-      // If encrypted credentials exist, decrypt them (prefer text format)
-      if (subscription.auth_enc_b64 && subscription.p256dh_enc_b64) {
-        const authSealed = fromBase64Text(subscription.auth_enc_b64);
-        const p256dhSealed = fromBase64Text(subscription.p256dh_enc_b64);
-        
-        if (authSealed && p256dhSealed) {
-          auth = await open(authSealed);
-          p256dh = await open(p256dhSealed);
-          console.log('[send-push-notification] Using encrypted credentials');
-        } else {
-          console.warn('[send-push-notification] Failed to decrypt credentials');
-        }
-      } else if (!auth || !p256dh) {
-        throw new Error('Missing both plaintext and encrypted credentials');
+      if (!subscription.auth_enc_b64 || !subscription.p256dh_enc_b64) {
+        throw new Error('Missing encrypted credentials');
       }
+
+      const authSealed = fromBase64Text(subscription.auth_enc_b64);
+      const p256dhSealed = fromBase64Text(subscription.p256dh_enc_b64);
+      
+      if (!authSealed || !p256dhSealed) {
+        throw new Error('Failed to parse encrypted credentials');
+      }
+
+      const auth = await open(authSealed);
+      const p256dh = await open(p256dhSealed);
+      
+      if (!auth || !p256dh) {
+        throw new Error('Failed to decrypt credentials');
+      }
+
+      console.log('[send-push-notification] Successfully decrypted credentials');
 
       await sendWebPush(
         {
           endpoint: subscription.endpoint,
-          p256dh: p256dh!,
-          auth: auth!,
+          p256dh,
+          auth,
         },
         payload,
         {
