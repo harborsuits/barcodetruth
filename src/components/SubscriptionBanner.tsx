@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Crown, DollarSign } from "lucide-react";
+import { Crown } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 
 export function SubscriptionBanner() {
@@ -16,22 +16,16 @@ export function SubscriptionBanner() {
             <Crown className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h3 className="font-semibold text-lg">Choose Your Plan</h3>
+            <h3 className="font-semibold text-lg">Subscribe for Full Access</h3>
             <p className="text-muted-foreground text-sm">
-              Pay a deposit or subscribe monthly for unlimited brand scans
+              Get unlimited brand scans with a monthly subscription
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => startCheckout("deposit")} size="lg" variant="outline" className="gap-2">
-            <DollarSign className="h-4 w-4" />
-            Pay Deposit
-          </Button>
-          <Button onClick={() => startCheckout("subscription")} size="lg" className="gap-2">
-            <Crown className="h-4 w-4" />
-            Subscribe Monthly
-          </Button>
-        </div>
+        <Button onClick={() => startCheckout()} size="lg" className="gap-2">
+          <Crown className="h-4 w-4" />
+          Subscribe Monthly
+        </Button>
       </div>
     </Card>
   );

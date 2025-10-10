@@ -9,10 +9,7 @@ const corsHeaders = {
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, { apiVersion: "2024-06-20" });
 
-const PRICE_DEPOSIT = Deno.env.get("PRICE_DEPOSIT")!;
 const PRICE_SUBSCRIPTION = Deno.env.get("PRICE_SUBSCRIPTION")!;
-const SUCCESS_URL = Deno.env.get("SUCCESS_URL")!;
-const CANCEL_URL = Deno.env.get("CANCEL_URL")!;
 
 serve(async (req) => {
   console.log("[CREATE-CHECKOUT] Function invoked");
@@ -50,18 +47,14 @@ serve(async (req) => {
     
     console.log("[CREATE-CHECKOUT] User authenticated:", user.email);
 
-    const { type = "subscription", metadata = {} } = await req.json().catch(() => ({}));
-    console.log("[CREATE-CHECKOUT] Payment type:", type);
+    const { metadata = {} } = await req.json().catch(() => ({}));
+    console.log("[CREATE-CHECKOUT] Creating subscription checkout");
 
-    const price = type === "deposit" ? PRICE_DEPOSIT : PRICE_SUBSCRIPTION;
-    const mode = type === "deposit" ? "payment" : "subscription";
-    console.log("[CREATE-CHECKOUT] Using price:", price, "mode:", mode);
-
-    if (!price) {
-      const missing = type === "deposit" ? "PRICE_DEPOSIT" : "PRICE_SUBSCRIPTION";
-      console.error(`[CREATE-CHECKOUT] Missing required env var: ${missing}`);
-      throw new Error(`Missing Stripe price ID. Please set ${missing} secret`);
+    if (!PRICE_SUBSCRIPTION) {
+      console.error("[CREATE-CHECKOUT] Missing PRICE_SUBSCRIPTION env var");
+      throw new Error("Missing Stripe price ID. Please set PRICE_SUBSCRIPTION secret");
     }
+    console.log("[CREATE-CHECKOUT] Using price:", PRICE_SUBSCRIPTION);
 
     const origin = req.headers.get("origin") || Deno.env.get("APP_URL") || "https://lovable.app";
     const successUrl = Deno.env.get("SUCCESS_URL") || origin;
@@ -80,11 +73,11 @@ serve(async (req) => {
 
     console.log("[CREATE-CHECKOUT] Creating checkout session");
     const session = await stripe.checkout.sessions.create({
-      mode,
+      mode: "subscription",
       payment_method_types: ["card"],
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
-      line_items: [{ price, quantity: 1 }],
+      line_items: [{ price: PRICE_SUBSCRIPTION, quantity: 1 }],
       success_url: successUrl,
       cancel_url: cancelUrl,
       metadata,
