@@ -15,7 +15,10 @@ const SUCCESS_URL = Deno.env.get("SUCCESS_URL")!;
 const CANCEL_URL = Deno.env.get("CANCEL_URL")!;
 
 serve(async (req) => {
+  console.log("[CREATE-CHECKOUT] Function invoked");
+  
   if (req.method === "OPTIONS") {
+    console.log("[CREATE-CHECKOUT] Handling OPTIONS request");
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -25,23 +28,46 @@ serve(async (req) => {
   );
 
   try {
-    const authHeader = req.headers.get("Authorization")!;
+    console.log("[CREATE-CHECKOUT] Authenticating user");
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      console.error("[CREATE-CHECKOUT] No authorization header");
+      throw new Error("No authorization header provided");
+    }
+    
     const token = authHeader.replace("Bearer ", "");
-    const { data } = await supabaseClient.auth.getUser(token);
+    const { data, error: authError } = await supabaseClient.auth.getUser(token);
+    if (authError) {
+      console.error("[CREATE-CHECKOUT] Auth error:", authError.message);
+      throw new Error(`Authentication error: ${authError.message}`);
+    }
+    
     const user = data.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
+    if (!user?.email) {
+      console.error("[CREATE-CHECKOUT] No user or email found");
+      throw new Error("User not authenticated or email not available");
+    }
+    
+    console.log("[CREATE-CHECKOUT] User authenticated:", user.email);
 
     const { type = "subscription", metadata = {} } = await req.json().catch(() => ({}));
+    console.log("[CREATE-CHECKOUT] Payment type:", type);
     
     const price = type === "deposit" ? PRICE_DEPOSIT : PRICE_SUBSCRIPTION;
     const mode = type === "deposit" ? "payment" : "subscription";
+    console.log("[CREATE-CHECKOUT] Using price:", price, "mode:", mode);
 
+    console.log("[CREATE-CHECKOUT] Looking up Stripe customer");
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let customerId;
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
+      console.log("[CREATE-CHECKOUT] Found existing customer:", customerId);
+    } else {
+      console.log("[CREATE-CHECKOUT] No existing customer found");
     }
 
+    console.log("[CREATE-CHECKOUT] Creating checkout session");
     const session = await stripe.checkout.sessions.create({
       mode,
       payment_method_types: ["card"],
@@ -53,12 +79,14 @@ serve(async (req) => {
       metadata,
     });
 
+    console.log("[CREATE-CHECKOUT] Session created successfully:", session.id);
     return new Response(JSON.stringify({ id: session.id, url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[CREATE-CHECKOUT] Error:", errorMessage);
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
