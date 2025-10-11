@@ -25,6 +25,8 @@ Deno.serve(async (req) => {
     let resolved = 0;
     let skipped = 0;
 
+    const pause = (ms: number) => new Promise(r => setTimeout(r, ms));
+
     for (const row of (pending ?? [])) {
       try {
         // Try agency rules first (deterministic permalinks)
@@ -32,6 +34,7 @@ Deno.serve(async (req) => {
         if (articleFromAgency) {
           await updateResolved(supabase, row.id, articleFromAgency);
           resolved++;
+          await pause(300); // ~3 req/s max
           continue;
         }
 
@@ -41,6 +44,7 @@ Deno.serve(async (req) => {
           if (articleFromOutlet) {
             await updateResolved(supabase, row.id, articleFromOutlet);
             resolved++;
+            await pause(300);
             continue;
           }
         }
@@ -50,6 +54,8 @@ Deno.serve(async (req) => {
         console.warn('[resolver] error', row.id, e);
         skipped++;
       }
+      
+      await pause(100); // small delay even on skip
     }
 
     const duration = Math.round(performance.now() - t0);
@@ -251,16 +257,53 @@ function bestRssItemMatch(xml: string): {url:string,title?:string,published_at?:
   return null;
 }
 
+async function tryArchive(url: string): Promise<string|null> {
+  try {
+    const res = await fetch(`https://web.archive.org/save/${encodeURIComponent(url)}`, { 
+      method: 'GET',
+      signal: AbortSignal.timeout(8000)
+    });
+    const saved = await fetch(`https://archive.org/wayback/available?url=${encodeURIComponent(url)}`)
+      .then(r => r.json())
+      .catch(() => null);
+    return saved?.archived_snapshots?.closest?.url ?? null;
+  } catch { return null; }
+}
+
+function isLikelyGeneric(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const p = u.pathname.toLowerCase();
+    if (p === '' || p === '/') return true;
+    if (/(press|about|news|index|landing)$/i.test(p)) return true;
+    if (/^(osha\.gov|epa\.gov)$/i.test(u.hostname) && p.split('/').filter(Boolean).length < 2) return true;
+    return false;
+  } catch { return true; }
+}
+
 async function updateResolved(supabase: any, id: string, found: {url:string,title?:string,published_at?:string}) {
+  // Safety check: don't resolve if it's still generic
+  if (isLikelyGeneric(found.url)) {
+    console.warn(JSON.stringify({ level: 'warn', action: 'skip_generic', source_id: id, url: found.url }));
+    return;
+  }
+
+  // Try to archive the permalink
+  const archiveUrl = await tryArchive(found.url);
+
   await supabase.from('event_sources').update({
     canonical_url: found.url,
+    article_title: found.title ?? null,
+    article_published_at: found.published_at ?? null,
+    archive_url: archiveUrl,
     is_generic: false,
-  }).eq('id', id);
+  }).eq('id', id).is('canonical_url', null); // idempotent
   
   console.log(JSON.stringify({
     level: 'info',
     action: 'resolved_permalink',
     source_id: id,
     url: found.url,
+    archived: !!archiveUrl,
   }));
 }
