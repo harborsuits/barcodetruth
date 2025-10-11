@@ -178,6 +178,31 @@ export default function AdminHealth() {
     }
   }
 
+  async function backfillSummaries() {
+    try {
+      toast.info("Generating AI summaries...", {
+        description: "Processing up to 50 evidence items",
+      });
+
+      const { data, error } = await supabase.functions.invoke("backfill-evidence-summaries", {
+        body: { limit: 50, dryRun: false },
+      });
+
+      if (error) throw error;
+
+      toast.success("Summaries generated", {
+        description: `Processed ${data.processed}: ${data.succeeded} succeeded, ${data.failed} failed`,
+      });
+
+      console.log('Backfill results:', data);
+    } catch (e: any) {
+      console.error("Backfill error:", e);
+      toast.error("Failed to generate summaries", {
+        description: e.message || "Unknown error",
+      });
+    }
+  }
+
   if (!isAdmin) {
     return null;
   }
@@ -207,6 +232,10 @@ export default function AdminHealth() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button onClick={backfillSummaries} variant="outline" size="sm">
+              <Activity className="w-4 h-4 mr-2" />
+              Generate AI Summaries (50)
+            </Button>
             <Button onClick={rerunCorroboration} variant="outline" size="sm">
               <Activity className="w-4 h-4 mr-2" />
               Re-run Corroboration

@@ -60,3 +60,9 @@ verify_jwt = false
 
 [functions.resolve-evidence-links]
 verify_jwt = false
+
+[functions.generate-evidence-summary]
+verify_jwt = false
+
+[functions.backfill-evidence-summaries]
+verify_jwt = false
