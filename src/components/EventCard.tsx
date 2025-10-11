@@ -7,6 +7,7 @@ import { computeSeverity, type Severity } from "@/lib/severityConfig";
 import { getPoliticalContext, getAlignmentBadgeColor, type PoliticalAlignment } from "@/lib/politicsContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { isGeneric as checkIfGeneric } from "@/lib/links";
 
 type CategoryKey = "labor" | "environment" | "politics" | "social" | "cultural-values" | "general";
 type EventOrientation = "positive" | "negative" | "mixed";
@@ -18,6 +19,8 @@ interface EventSource {
   date?: string;
   quote?: string;
   archive_url?: string;
+  canonical_url?: string;
+  is_generic?: boolean;
 }
 
 export interface BrandEvent {
@@ -263,7 +266,11 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
   const severityConfig = getSeverityUIConfig(severityResult.level, severityResult.reason);
   const isNew = isNewEvent(timestamp);
   const SourceLogo = getSourceLogo(primarySource?.name);
-  const preferredPrimaryUrl = primarySource?.archive_url || primarySource?.url;
+  
+  // Prefer archive → canonical → source
+  const preferredPrimaryUrl = primarySource?.archive_url || primarySource?.canonical_url || primarySource?.url;
+  const isPrimaryGeneric = preferredPrimaryUrl ? (primarySource?.is_generic ?? checkIfGeneric(preferredPrimaryUrl)) : true;
+  
   // Political context for FEC events
   const politicalContext = useMemo(() => {
     if (event.category !== 'politics' || !event.raw_data || !politicalAlignment) {
@@ -460,17 +467,34 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                           </Badge>
                         )}
                       </div>
-                      {primarySource?.url && (
+                      {preferredPrimaryUrl && !isPrimaryGeneric ? (
                         <a
-                          href={primarySource.url}
+                          href={preferredPrimaryUrl}
                           target="_blank"
-                          rel="noopener noreferrer nofollow"
-                          className="inline-flex items-center gap-1 text-blue-700 font-medium underline underline-offset-2 hover:no-underline whitespace-nowrap"
-                          aria-label="View official source document"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200"
+                          aria-label="View evidence article"
                         >
-                          View source
+                          Evidence
                           <ExternalLink className="h-3 w-3" />
                         </a>
+                      ) : (
+                        <div className="inline-flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                            Evidence pending
+                          </span>
+                          {preferredPrimaryUrl && (
+                            <a
+                              href={preferredPrimaryUrl}
+                              target="_blank"
+                              rel="noopener noreferrer nofollow"
+                              className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                              aria-label={`View ${primarySource?.name || 'source'} outlet`}
+                            >
+                              {primarySource?.name || 'Outlet'}
+                            </a>
+                          )}
+                        </div>
                       )}
                     </div>
                     

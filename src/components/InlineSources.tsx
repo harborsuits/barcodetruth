@@ -21,6 +21,8 @@ interface Source {
   source: string;
   url?: string;
   archive_url?: string;
+  canonical_url?: string;
+  is_generic?: boolean;
   severity?: string;
   amount?: number;
   verification?: string;
@@ -167,30 +169,33 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                           <FileText className="h-3 w-3 mr-1" />
                           Details
                         </Button>
-                        {(source.archive_url || source.url) && (
+                        {source.url && !source.is_generic ? (
                           <a
-                            href={source.archive_url || source.url}
+                            href={source.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs text-muted-foreground hover:text-foreground hover:underline flex items-center gap-1"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200"
                           >
-                            View source
+                            Evidence
                             <ExternalLink className="h-3 w-3" />
                           </a>
-                        )}
-                        {source.archive_url && (
-                          <>
-                            <span className="text-xs text-muted-foreground" aria-hidden="true">·</span>
-                            <a
-                              href={source.archive_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-muted-foreground hover:text-foreground hover:underline flex items-center gap-1"
-                            >
-                              Archive
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
-                          </>
+                        ) : (
+                          <div className="inline-flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                              Evidence pending
+                            </span>
+                            {source.url && (
+                              <a
+                                href={source.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-muted-foreground hover:text-foreground hover:underline flex items-center gap-1"
+                              >
+                                {source.source}
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -243,7 +248,12 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                 <div>
                   <p className="font-medium">From: {selectedSource?.source}</p>
                   {selectedSource?.url && (
-                    <p className="text-xs">{selectedSource?.url || selectedSource?.archive_url ? new URL(selectedSource.archive_url || selectedSource.url || '').hostname : ''}</p>
+                    <p className="text-xs">{new URL(selectedSource.url).hostname}</p>
+                  )}
+                  {selectedSource?.is_generic && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                      ⚠️ Generic page - awaiting specific article link
+                    </p>
                   )}
                 </div>
               </div>
@@ -285,7 +295,7 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
               )}
 
               <div className="pt-4 border-t flex gap-2">
-                {selectedSource?.url && (
+                {selectedSource?.url && !selectedSource?.is_generic && (
                   <Button variant="outline" size="sm" asChild className="flex-1">
                     <a
                       href={selectedSource.url}
@@ -294,7 +304,20 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                       className="flex items-center gap-2 justify-center"
                     >
                       <ExternalLink className="h-4 w-4" />
-                      View Original
+                      View Evidence
+                    </a>
+                  </Button>
+                )}
+                {selectedSource?.url && selectedSource?.is_generic && (
+                  <Button variant="outline" size="sm" asChild className="flex-1">
+                    <a
+                      href={selectedSource.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 justify-center"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      View Outlet
                     </a>
                   </Button>
                 )}

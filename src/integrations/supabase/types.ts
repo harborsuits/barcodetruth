@@ -527,6 +527,7 @@ export type Database = {
           domain_owner: string | null
           event_id: string
           id: string
+          is_generic: boolean | null
           quote: string | null
           registrable_domain: string | null
           source_date: string | null
@@ -543,6 +544,7 @@ export type Database = {
           domain_owner?: string | null
           event_id: string
           id?: string
+          is_generic?: boolean | null
           quote?: string | null
           registrable_domain?: string | null
           source_date?: string | null
@@ -559,6 +561,7 @@ export type Database = {
           domain_owner?: string | null
           event_id?: string
           id?: string
+          is_generic?: boolean | null
           quote?: string | null
           registrable_domain?: string | null
           source_date?: string | null

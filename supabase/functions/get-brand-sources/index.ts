@@ -101,18 +101,39 @@ Deno.serve(async (req) => {
 
     const items = (data || []).slice(0, safeLimit).map((row: any) => {
       const badge = getBadge(row.source);
-      // URL safety: only allow HTTP/HTTPS
-      const safeUrl = /^https?:\/\//i.test((row.url || '').trim()) ? row.url : null;
-      const safeArchiveUrl = /^https?:\/\//i.test((row.archive_url || '').trim()) ? row.archive_url : null;
-      const preferredUrl = safeArchiveUrl || safeUrl;
+      
+      // Prefer archive → canonical → source
+      const archiveNorm = normalizeUrl(row.archive_url);
+      const canonicalNorm = normalizeUrl(row.canonical_url);
+      const sourceNorm = normalizeUrl(row.url);
+      
+      const chosen = archiveNorm || canonicalNorm || sourceNorm || null;
+      const generic = chosen ? isGenericUrl(chosen) : true;
+      
+      // Log generic/homepage evidence
+      if (!chosen || generic) {
+        console.warn(JSON.stringify({
+          level: "warn",
+          event: "generic_evidence",
+          event_id: row.event_id,
+          outlet: row.source,
+          chosen,
+          archive: archiveNorm,
+          canonical: canonicalNorm,
+          source: sourceNorm
+        }));
+      }
+      
       return {
         id: row.event_id,
         occurred_at: row.occurred_at,
         title: row.title,
         badge,
         source: row.source,
-        url: preferredUrl,
-        archive_url: safeArchiveUrl,
+        url: chosen,
+        archive_url: archiveNorm,
+        canonical_url: canonicalNorm,
+        is_generic: generic,
         severity: row.severity,
         amount: row.amount,
         verification: row.verification,
@@ -146,6 +167,39 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+function normalizeUrl(raw?: string | null): string | null {
+  if (!raw) return null;
+  const s = raw.trim();
+  if (!/^https?:\/\//i.test(s)) return null;
+  try {
+    const u = new URL(s);
+    // Strip tracking parameters
+    ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'fbclid', 'mc_cid', 'mc_eid']
+      .forEach(k => u.searchParams.delete(k));
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
+function isGenericUrl(u: string): boolean {
+  try {
+    const url = new URL(u);
+    const host = url.hostname.replace(/^www\./, '');
+    // Homepage check
+    if (url.pathname === '' || url.pathname === '/') return true;
+    // Generic paths
+    if (/(press|about|news|index|landing)/i.test(url.pathname)) return true;
+    // Agency roots that often show hubs
+    if (/^(osha\.gov|epa\.gov)$/i.test(host) && url.pathname.split('/').filter(Boolean).length < 2) {
+      return true;
+    }
+    return false;
+  } catch {
+    return true;
+  }
+}
 
 function getBadge(source?: string): string {
   if (!source) return 'News';
