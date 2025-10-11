@@ -11,6 +11,16 @@ interface BackfillOptions {
   dryRun: boolean;
 }
 
+function stripHtml(text: string): string {
+  return text.replace(/<[^>]*>/g, '').trim();
+}
+
+function clampSnippet(text: string | null, maxChars = 600): string {
+  if (!text) return '';
+  const clean = stripHtml(text);
+  return clean.length > maxChars ? clean.slice(0, maxChars) + '...' : clean;
+}
+
 async function backfillSummaries(options: BackfillOptions) {
   const { limit, dryRun } = options;
   const supabase = createClient(
@@ -22,8 +32,18 @@ async function backfillSummaries(options: BackfillOptions) {
   let succeeded = 0;
   let failed = 0;
   const errors: any[] = [];
+  const runId = crypto.randomUUID();
 
-  console.log(`[backfill] Starting: limit=${limit}, dryRun=${dryRun}`);
+  console.log(`[backfill] Starting run ${runId}: limit=${limit}, dryRun=${dryRun}`);
+
+  // Create run record
+  if (!dryRun) {
+    await supabase.from('evidence_resolution_runs').insert({
+      id: runId,
+      mode: 'backfill-summaries',
+      started_at: new Date().toISOString(),
+    });
+  }
 
   // Check daily limit
   const today = new Date().toISOString().split('T')[0];
@@ -34,6 +54,15 @@ async function backfillSummaries(options: BackfillOptions) {
 
   if ((todayCount ?? 0) >= MAX_DAILY_SUMMARIES) {
     console.log(`[backfill] Daily limit reached: ${todayCount}/${MAX_DAILY_SUMMARIES}`);
+    if (!dryRun) {
+      await supabase.from('evidence_resolution_runs').update({
+        finished_at: new Date().toISOString(),
+        processed: 0,
+        resolved: 0,
+        failed: 0,
+        notes: { reason: 'daily_limit_reached', todayCount }
+      }).eq('id', runId);
+    }
     return { processed, succeeded, failed, errors, limitReached: true };
   }
 
@@ -69,6 +98,7 @@ async function backfillSummaries(options: BackfillOptions) {
       .eq('is_generic', false)
       .not('canonical_url', 'is', null)
       .in('credibility_tier', ['official', 'reputable'])
+      .order('id', { ascending: true })
       .limit(pageSize);
 
     if (fetchError) {
@@ -84,6 +114,12 @@ async function backfillSummaries(options: BackfillOptions) {
     // Circuit breaker: if error rate > 50% after 20 items, bail
     if (processed >= 20 && failed / processed > 0.5) {
       console.error('[backfill] Circuit breaker: high error rate, stopping');
+      break;
+    }
+
+    // Hard failure floor: bail if 10+ failures with zero successes
+    if (failed >= 10 && succeeded === 0) {
+      console.error('[backfill] Hard failure floor: 10+ failures with no successes, stopping');
       break;
     }
 
@@ -108,14 +144,14 @@ async function backfillSummaries(options: BackfillOptions) {
           continue;
         }
 
-        // Generate summary with high-signal fields only
+        // Generate summary with high-signal fields only (sanitize inputs)
         const summaryResponse = await supabase.functions.invoke('generate-evidence-summary', {
           body: {
             brandName: brand.name,
             category: brandEvent.category,
             outlet: source.source_name,
-            articleTitle: source.article_title,
-            articleSnippet: source.article_snippet,
+            articleTitle: source.article_title?.trim(),
+            articleSnippet: clampSnippet(source.article_snippet, 600),
             occurredAt: brandEvent.occurred_at,
             severity: brandEvent.severity,
             penaltyAmount: brandEvent.raw_data?.penalty_amount ?? null,
@@ -169,7 +205,19 @@ async function backfillSummaries(options: BackfillOptions) {
     if (processed >= limit) break;
   }
 
-  console.log(`[backfill] Complete: ${processed} processed, ${succeeded} succeeded, ${failed} failed`);
+  console.log(`[backfill] Complete run ${runId}: ${processed} processed, ${succeeded} succeeded, ${failed} failed`);
+  
+  // Update run record
+  if (!dryRun) {
+    await supabase.from('evidence_resolution_runs').update({
+      finished_at: new Date().toISOString(),
+      processed,
+      resolved: succeeded,
+      failed,
+      notes: { errors: errors.slice(0, 10) } // Keep first 10 errors
+    }).eq('id', runId);
+  }
+
   return { processed, succeeded, failed, errors };
 }
 

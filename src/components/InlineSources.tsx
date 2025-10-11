@@ -6,6 +6,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
+import { format } from "date-fns";
 
 interface InlineSourcesProps {
   brandId: string;
@@ -19,6 +20,7 @@ interface Source {
   title: string;
   badge: string;
   source: string;
+  source_date?: string;
   url?: string;
   archive_url?: string;
   canonical_url?: string;
@@ -39,11 +41,21 @@ const badgeColors: Record<string, string> = {
   'News': 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
 };
 
-const credibilityBadges: Record<string, { emoji: string; label: string; color: string }> = {
-  'official': { emoji: '🟢', label: 'Official Record', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' },
-  'reputable': { emoji: '🔵', label: 'Reputable Media', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
-  'local': { emoji: '🟠', label: 'Local/Industry', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' },
-  'unknown': { emoji: '⚪', label: 'Unverified', color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200' },
+const getCredibilityEmoji = (tier?: string): string => {
+  switch (tier) {
+    case 'official': return '🟢';
+    case 'reputable': return '🔵';
+    case 'local': return '🟠';
+    default: return '⚪';
+  }
+};
+
+const getCredibilityVariant = (tier?: string): "default" | "secondary" | "destructive" | "outline" => {
+  switch (tier) {
+    case 'official': return 'default';
+    case 'reputable': return 'secondary';
+    default: return 'outline';
+  }
 };
 
 export function InlineSources({ brandId, category, categoryLabel }: InlineSourcesProps) {
@@ -132,108 +144,94 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
               {sources.map((source) => {
                 const isArchived = !!source.archive_url;
                 const linkUrl = source.url || source.archive_url;
-                const dateStr = new Date(source.occurred_at).toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  year: 'numeric' 
-                });
+                const dateStr = source.source_date 
+                  ? format(new Date(source.source_date), 'MMM yyyy')
+                  : format(new Date(source.occurred_at), 'MMM yyyy');
 
                 return (
                   <div
                     key={source.id}
-                    className="p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
+                    className="p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
                   >
                     <div className="space-y-2">
-                      {/* Outlet header with credibility */}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge
-                          variant="outline"
-                          className={`text-xs ${badgeColors[source.badge] || badgeColors.News}`}
-                        >
-                          {source.badge}
-                        </Badge>
-                        <span className="text-sm font-medium">{source.source}</span>
-                        
-                        {source.credibility_tier && credibilityBadges[source.credibility_tier] && (
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            source.credibility_tier === 'official' 
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                              : source.credibility_tier === 'reputable'
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                              : source.credibility_tier === 'local'
-                              ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
-                              : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                          }`}>
-                            {credibilityBadges[source.credibility_tier].emoji} {credibilityBadges[source.credibility_tier].label}
-                          </span>
-                        )}
-                        
-                        {isArchived && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
-                            Archived
-                          </span>
-                        )}
-
-                        <span className="text-xs text-muted-foreground ml-auto">
-                          {dateStr}
-                        </span>
+                      <div className="flex items-start gap-2">
+                        <span className="text-xl">{getCredibilityEmoji(source.credibility_tier)}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant={getCredibilityVariant(source.credibility_tier)} className="shrink-0">
+                              {source.credibility_tier || 'Unknown'}
+                            </Badge>
+                            <span className="font-medium text-sm">
+                              {source.source || 'Unknown Source'}
+                            </span>
+                            {dateStr && (
+                              <span className="text-xs text-muted-foreground">
+                                · {dateStr}
+                              </span>
+                            )}
+                            {isArchived && (
+                              <Badge variant="secondary" className="text-xs shrink-0">
+                                Archived
+                              </Badge>
+                            )}
+                          </div>
+                          
+                          {source.article_title && (
+                            <p className="text-sm text-foreground/90 mt-1 line-clamp-2">
+                              {source.article_title}
+                            </p>
+                          )}
+                          
+                          {source.ai_summary && (
+                            <p className="text-sm text-muted-foreground mt-2">
+                              {source.ai_summary}
+                            </p>
+                          )}
+                        </div>
                       </div>
 
-                      {/* Article title */}
-                      {source.article_title && (
-                        <p className="text-sm font-semibold">{source.article_title}</p>
-                      )}
-
-                      {/* AI Summary */}
-                      {source.ai_summary && (
-                        <p className="text-sm text-foreground leading-relaxed">
-                          {source.ai_summary}
-                        </p>
-                      )}
-
-                      {/* Metadata row */}
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground pt-1">
-                        {source.verification && (
-                          <span className={`${
-                            source.verification === 'official' 
-                              ? 'text-green-600 dark:text-green-400'
-                              : source.verification === 'corroborated'
-                              ? 'text-blue-600 dark:text-blue-400'
-                              : ''
-                          }`}>
-                            {source.verification}
-                          </span>
-                        )}
+                      {/* Metadata and actions */}
+                      <div className="flex items-center gap-2 pt-1">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground flex-1">
+                          {source.severity && (
+                            <Badge variant="outline" className="text-xs capitalize">
+                              {source.severity}
+                            </Badge>
+                          )}
+                          {source.amount && (
+                            <span className="font-medium">
+                              ${source.amount.toLocaleString()}
+                            </span>
+                          )}
+                        </div>
                         
-                        {source.severity && (
-                          <span className="capitalize">{source.severity}</span>
-                        )}
-                        
-                        {source.amount && (
-                          <span className="font-medium">
-                            ${source.amount.toLocaleString()}
-                          </span>
-                        )}
-                        
-                        <div className="ml-auto flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedSource(source)}
-                            className="h-6 text-xs px-2"
-                          >
-                            <FileText className="h-3 w-3 mr-1" />
-                            Details
-                          </Button>
+                        <div className="flex gap-1">
                           {linkUrl && !source.is_generic && (
-                            <a
-                              href={linkUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-primary/10 hover:bg-primary/20 text-primary"
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              asChild
+                              className="h-7 text-xs px-2"
                             >
-                              View
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
+                              <a
+                                href={linkUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <ExternalLink className="h-3 w-3 mr-1" />
+                                View
+                              </a>
+                            </Button>
+                          )}
+                          {source.is_generic && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled
+                              className="h-7 text-xs px-2"
+                            >
+                              Evidence pending
+                            </Button>
                           )}
                         </div>
                       </div>
