@@ -441,9 +441,23 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                 {/* Simplified explanation */}
                 {showSimplified && simplified && (
                   <div className="mt-4 p-4 bg-muted/50 rounded-lg border space-y-3">
-                    <div className="flex items-start gap-2 text-xs text-muted-foreground pb-2 border-b">
-                      <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                      <p>AI summary from cited source. Check the original for full details.</p>
+                    <div className="flex items-start justify-between gap-2 text-xs pb-2 border-b">
+                      <div className="flex items-start gap-2 text-muted-foreground">
+                        <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                        <p>AI summary from cited source.</p>
+                      </div>
+                      {primarySource?.url && (
+                        <a
+                          href={primarySource.url}
+                          target="_blank"
+                          rel="noopener noreferrer nofollow"
+                          className="inline-flex items-center gap-1 text-blue-700 font-medium underline underline-offset-2 hover:no-underline whitespace-nowrap"
+                          aria-label="View official source document"
+                        >
+                          View source
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
                     </div>
                     
                     <div>
