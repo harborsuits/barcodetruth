@@ -104,7 +104,23 @@ interface NewsArticle {
 
 // Inline adapters for news sources
 async function fetchGuardian(apiKey: string, brandName: string): Promise<NewsArticle[]> {
-  const query = "lawsuit OR recall OR boycott OR scandal OR controversy OR discrimination";
+  // Comprehensive query covering labor, environment, politics, social, safety
+  const query = [
+    // Labor & workplace
+    "OSHA", "violation", "safety", "workplace", "worker", "union", "wage", "discrimination", 
+    "harassment", "injury", "fatality", "labor", "employee", "fired", "layoff",
+    // Environment
+    "EPA", "pollution", "emissions", "environmental", "toxic", "waste", "spill", 
+    "contamination", "climate", "sustainability", "fine", "penalty",
+    // Social & consumer
+    "lawsuit", "recall", "boycott", "scandal", "fraud", "deceptive", "settlement",
+    "consumer", "data breach", "privacy", "investigation",
+    // Politics & governance
+    "FEC", "donation", "lobbying", "PAC", "campaign", "political",
+    // General accountability
+    "allegation", "charged", "accused", "complaint", "regulatory"
+  ].join(" OR ");
+  
   const searchQuery = `${brandName} AND (${query})`;
   const url = new URL("https://content.guardianapis.com/search");
   url.searchParams.set("q", searchQuery);
@@ -137,7 +153,17 @@ async function fetchGuardian(apiKey: string, brandName: string): Promise<NewsArt
 }
 
 async function fetchNewsAPI(apiKey: string, brandName: string): Promise<NewsArticle[]> {
-  const query = "lawsuit OR recall OR boycott OR scandal OR controversy OR discrimination";
+  const query = [
+    "OSHA", "violation", "safety", "workplace", "worker", "union", "wage", "discrimination", 
+    "harassment", "injury", "fatality", "labor", "employee", "fired", "layoff",
+    "EPA", "pollution", "emissions", "environmental", "toxic", "waste", "spill", 
+    "contamination", "climate", "sustainability", "fine", "penalty",
+    "lawsuit", "recall", "boycott", "scandal", "fraud", "deceptive", "settlement",
+    "consumer", "data breach", "privacy", "investigation",
+    "FEC", "donation", "lobbying", "PAC", "campaign", "political",
+    "allegation", "charged", "accused", "complaint", "regulatory"
+  ].join(" OR ");
+  
   const searchQuery = `${brandName} AND (${query})`;
   const url = new URL("https://newsapi.org/v2/everything");
   url.searchParams.set("q", searchQuery);
@@ -173,7 +199,17 @@ async function fetchNewsAPI(apiKey: string, brandName: string): Promise<NewsArti
 }
 
 async function fetchNYTimes(apiKey: string, brandName: string): Promise<NewsArticle[]> {
-  const query = "lawsuit OR recall OR boycott OR scandal OR controversy OR discrimination";
+  const query = [
+    "OSHA", "violation", "safety", "workplace", "worker", "union", "wage", "discrimination", 
+    "harassment", "injury", "fatality", "labor", "employee", "fired", "layoff",
+    "EPA", "pollution", "emissions", "environmental", "toxic", "waste", "spill", 
+    "contamination", "climate", "sustainability", "fine", "penalty",
+    "lawsuit", "recall", "boycott", "scandal", "fraud", "deceptive", "settlement",
+    "consumer", "data breach", "privacy", "investigation",
+    "FEC", "donation", "lobbying", "PAC", "campaign", "political",
+    "allegation", "charged", "accused", "complaint", "regulatory"
+  ].join(" OR ");
+  
   const searchQuery = `${brandName} AND (${query})`;
   const url = new URL("https://api.nytimes.com/svc/search/v2/articlesearch.json");
   url.searchParams.set("q", searchQuery);
@@ -205,7 +241,17 @@ async function fetchNYTimes(apiKey: string, brandName: string): Promise<NewsArti
 }
 
 async function fetchGNews(apiKey: string, brandName: string): Promise<NewsArticle[]> {
-  const query = "lawsuit OR recall OR boycott OR scandal OR controversy OR discrimination";
+  const query = [
+    "OSHA", "violation", "safety", "workplace", "worker", "union", "wage", "discrimination", 
+    "harassment", "injury", "fatality", "labor", "employee", "fired", "layoff",
+    "EPA", "pollution", "emissions", "environmental", "toxic", "waste", "spill", 
+    "contamination", "climate", "sustainability", "fine", "penalty",
+    "lawsuit", "recall", "boycott", "scandal", "fraud", "deceptive", "settlement",
+    "consumer", "data breach", "privacy", "investigation",
+    "FEC", "donation", "lobbying", "PAC", "campaign", "political",
+    "allegation", "charged", "accused", "complaint", "regulatory"
+  ].join(" OR ");
+  
   const searchQuery = `${brandName} AND (${query})`;
   const url = new URL("https://gnews.io/api/v4/search");
   url.searchParams.set("q", searchQuery);
