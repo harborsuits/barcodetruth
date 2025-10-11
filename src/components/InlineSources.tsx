@@ -129,13 +129,21 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
         {!isLoading && !error && sources.length > 0 && (
           <>
             <div className="space-y-2">
-              {sources.map((source) => (
-                <div
-                  key={source.id}
-                  className="p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 space-y-2">
+              {sources.map((source) => {
+                const isArchived = !!source.archive_url;
+                const linkUrl = source.url || source.archive_url;
+                const dateStr = new Date(source.occurred_at).toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  year: 'numeric' 
+                });
+
+                return (
+                  <div
+                    key={source.id}
+                    className="p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="space-y-2">
+                      {/* Outlet header with credibility */}
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge
                           variant="outline"
@@ -143,87 +151,96 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                         >
                           {source.badge}
                         </Badge>
+                        <span className="text-sm font-medium">{source.source}</span>
+                        
                         {source.credibility_tier && credibilityBadges[source.credibility_tier] && (
-                          <Badge variant="outline" className={`text-xs ${credibilityBadges[source.credibility_tier].color}`}>
-                            {credibilityBadges[source.credibility_tier].emoji} {credibilityBadges[source.credibility_tier].label}
-                          </Badge>
-                        )}
-                        {source.verification && source.verification !== 'unverified' && (
-                          <span className={`px-2 py-0.5 rounded text-xs ${
-                            source.verification === 'official'
-                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
-                              : 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            source.credibility_tier === 'official' 
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                              : source.credibility_tier === 'reputable'
+                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                              : source.credibility_tier === 'local'
+                              ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
+                              : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
                           }`}>
-                            {source.verification === 'official' ? 'Official' : 'Reported'}
+                            {credibilityBadges[source.credibility_tier].emoji} {credibilityBadges[source.credibility_tier].label}
                           </span>
                         )}
+                        
+                        {isArchived && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+                            Archived
+                          </span>
+                        )}
+
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          {dateStr}
+                        </span>
                       </div>
+
+                      {/* Article title */}
                       {source.article_title && (
                         <p className="text-sm font-semibold">{source.article_title}</p>
                       )}
-                      {source.ai_summary ? (
-                        <p className="text-sm text-foreground leading-relaxed">{source.ai_summary}</p>
-                      ) : (
-                        <p className="text-sm font-medium">{source.title}</p>
-                      )}
-                      {source.severity && (
-                        <p className="text-xs text-muted-foreground">
-                          Severity: {source.severity}
+
+                      {/* AI Summary */}
+                      {source.ai_summary && (
+                        <p className="text-sm text-foreground leading-relaxed">
+                          {source.ai_summary}
                         </p>
                       )}
-                      {source.amount && (
-                        <p className="text-xs text-muted-foreground">
-                          Amount: ${source.amount.toLocaleString()}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {new Date(source.occurred_at).toLocaleDateString()}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedSource(source)}
-                          className="h-6 text-xs px-2"
-                        >
-                          <FileText className="h-3 w-3 mr-1" />
-                          Details
-                        </Button>
-                        {source.url && !source.is_generic ? (
-                          <a
-                            href={source.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200"
-                          >
-                            Evidence
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        ) : (
-                          <div className="inline-flex items-center gap-2">
-                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                              Evidence pending
-                            </span>
-                            {source.url && (
-                              <a
-                                href={source.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-muted-foreground hover:text-foreground hover:underline flex items-center gap-1"
-                              >
-                                {source.source}
-                                <ExternalLink className="h-3 w-3" />
-                              </a>
-                            )}
-                          </div>
+
+                      {/* Metadata row */}
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground pt-1">
+                        {source.verification && (
+                          <span className={`${
+                            source.verification === 'official' 
+                              ? 'text-green-600 dark:text-green-400'
+                              : source.verification === 'corroborated'
+                              ? 'text-blue-600 dark:text-blue-400'
+                              : ''
+                          }`}>
+                            {source.verification}
+                          </span>
                         )}
+                        
+                        {source.severity && (
+                          <span className="capitalize">{source.severity}</span>
+                        )}
+                        
+                        {source.amount && (
+                          <span className="font-medium">
+                            ${source.amount.toLocaleString()}
+                          </span>
+                        )}
+                        
+                        <div className="ml-auto flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedSource(source)}
+                            className="h-6 text-xs px-2"
+                          >
+                            <FileText className="h-3 w-3 mr-1" />
+                            Details
+                          </Button>
+                          {linkUrl && !source.is_generic && (
+                            <a
+                              href={linkUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-primary/10 hover:bg-primary/20 text-primary"
+                            >
+                              View
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {hasMore && (

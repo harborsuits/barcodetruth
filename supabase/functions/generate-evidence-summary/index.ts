@@ -15,12 +15,12 @@ serve(async (req) => {
     const {
       brandName,
       category,
+      outlet,
       articleTitle,
       articleSnippet,
-      source,
-      fineAmount,
+      occurredAt,
       severity,
-      date
+      penaltyAmount
     } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -28,31 +28,36 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY not configured");
     }
 
-    // Build context for the AI
-    const context = [
+    // Format date
+    const dateStr = occurredAt 
+      ? new Date(occurredAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+      : null;
+
+    // Build structured prompt
+    const fieldsData = [
       `Brand: ${brandName}`,
       `Category: ${category}`,
-      articleTitle ? `Headline: ${articleTitle}` : null,
-      articleSnippet ? `Details: ${articleSnippet}` : null,
-      source ? `Source: ${source}` : null,
-      fineAmount ? `Fine: $${fineAmount.toLocaleString()}` : null,
+      `Outlet: ${outlet || 'Unknown'}`,
+      `Title: ${articleTitle || 'N/A'}`,
+      `Snippet: ${articleSnippet || 'N/A'}`,
+      dateStr ? `Date: ${dateStr}` : null,
       severity ? `Severity: ${severity}` : null,
-      date ? `Date: ${new Date(date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : null,
+      penaltyAmount ? `Penalty: $${Number(penaltyAmount).toLocaleString()}` : null,
     ].filter(Boolean).join('\n');
 
-    const prompt = `Summarize this brand accountability event in ONE clear sentence that normal people understand.
+    const prompt = `You are writing a single-sentence, factual summary for a brand event.
+Use ONLY the provided fields. Do not speculate.
 
-${context}
+Required:
+- Start with the outlet name (e.g., "According to Reuters,").
+- Mention the brand, action/outcome, and any penalty/fine.
+- Include timing (month + year).
+- Keep it under 30 words. No adjectives.
 
-Rules:
-- Start with "According to [source]" if available
-- Include the brand name, what happened, and the outcome
-- Mention fine amounts if significant
-- Keep it factual and neutral
-- Make it readable for consumers, not lawyers
-- One sentence only
+Fields:
+${fieldsData}
 
-Example: "According to Reuters, Nestlé was fined $28,000 by OSHA in January 2025 after workers were exposed to unsafe ammonia levels."`;
+Output (one sentence only):`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

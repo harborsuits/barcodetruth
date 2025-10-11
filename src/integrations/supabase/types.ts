@@ -519,7 +519,9 @@ export type Database = {
       }
       event_sources: {
         Row: {
+          ai_model_version: string | null
           ai_summary: string | null
+          ai_summary_updated_at: string | null
           archive_url: string | null
           article_snippet: string | null
           canonical_url: string | null
@@ -540,7 +542,9 @@ export type Database = {
           title_fp: string | null
         }
         Insert: {
+          ai_model_version?: string | null
           ai_summary?: string | null
+          ai_summary_updated_at?: string | null
           archive_url?: string | null
           article_snippet?: string | null
           canonical_url?: string | null
@@ -561,7 +565,9 @@ export type Database = {
           title_fp?: string | null
         }
         Update: {
+          ai_model_version?: string | null
           ai_summary?: string | null
+          ai_summary_updated_at?: string | null
           archive_url?: string | null
           article_snippet?: string | null
           canonical_url?: string | null
