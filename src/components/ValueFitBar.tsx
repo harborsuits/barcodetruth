@@ -23,16 +23,16 @@ export function ValueFitBar({ score, showLabel = true, showExplainer = false }: 
         </div>
       )}
       <Progress value={Math.min(100, Math.max(0, score))} className="h-2" />
-      <div className="flex justify-between text-xs text-[var(--muted)]">
+      <div className="flex justify-between text-xs text-muted-foreground">
         <span>0</span>
-        <span className="font-medium">{score}</span>
+        <span className="font-medium text-foreground">{score}</span>
         <span>100</span>
       </div>
       {showExplainer && (
         <p className="text-xs text-muted-foreground">
-          Weighted by your priorities (Labor {Math.round(weights.labor * 100)}%, Environment {Math.round(weights.environment * 100)}%, Politics {Math.round(weights.politics * 100)}%, Social {Math.round(weights.social * 100)}%).{' '}
+          Based on your priorities: Labor {Math.round(weights.labor * 100)}%, Environment {Math.round(weights.environment * 100)}%, Politics {Math.round(weights.politics * 100)}%, Social {Math.round(weights.social * 100)}%.{' '}
           <Link to="/settings" className="underline underline-offset-2 hover:no-underline">
-            Edit priorities
+            Adjust priorities
           </Link>
         </p>
       )}

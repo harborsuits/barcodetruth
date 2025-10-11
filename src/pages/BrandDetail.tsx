@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import ScoreBreakdown from "@/components/ScoreBreakdown";
 import { EventTimeline } from "@/components/EventTimeline";
+import { TrustIndicators } from "@/components/TrustIndicators";
 
 export const BrandDetail = () => {
   const { brandId } = useParams();
@@ -443,7 +444,7 @@ export const BrandDetail = () => {
         {/* Overall Score */}
         <Card>
           <CardContent className="pt-6">
-            <div className="text-center space-y-2">
+            <div className="text-center space-y-4">
               <div className={`text-6xl font-bold ${getScoreColor(brand.overall_score)}`}>
                 {brand.overall_score}
               </div>
@@ -465,6 +466,20 @@ export const BrandDetail = () => {
                   <span className="text-muted-foreground">Stable</span>
                 )}
               </div>
+              
+              {/* Trust Indicators */}
+              {proofData?.breakdown && (
+                <div className="pt-4 border-t">
+                  <TrustIndicators
+                    confidence={proofData.totals.confidence}
+                    verifiedCount={proofData.breakdown.reduce((sum: number, b: any) => sum + b.verified_count, 0)}
+                    totalCount={proofData.breakdown.reduce((sum: number, b: any) => sum + b.evidence_count, 0)}
+                    independentSources={Math.max(...proofData.breakdown.map((b: any) => b.independent_owners))}
+                    lastUpdated={brand.last_updated}
+                    proofRequired={proofData.breakdown.some((b: any) => b.proof_required)}
+                  />
+                </div>
+              )}
               
               {/* Why this matters */}
               {brand && brand.events && brand.events.length > 0 && (
