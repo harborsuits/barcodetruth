@@ -119,7 +119,7 @@ serve(async (req: Request) => {
     // --- 3) Confidence distribution (client-side width_bucket 0..1 into 10 bins)
     const buckets: Record<number, number> = {};
     for (const s of allScores) {
-      const c = clamp(s.confidence ?? 0, 0, 1);
+      const c = clamp(Number(s.confidence ?? 0), 0, 1);
       const bucket = Math.min(Math.floor(c * 10), 9); // 0..9
       buckets[bucket] = (buckets[bucket] || 0) + 1;
     }
@@ -222,6 +222,27 @@ serve(async (req: Request) => {
     };
 
     console.log("[validate-coverage-health] Done:", report.summary);
+
+    // Optional webhook notification (Slack/Telegram/Discord)
+    const WEBHOOK_URL = Deno.env.get("HEALTH_WEBHOOK_URL");
+    if (WEBHOOK_URL) {
+      const text = [
+        `Coverage Health: *${status.toUpperCase()}*`,
+        `Avg confidence: ${avg_confidence}`,
+        `Brands: ${total_brands}, With data: ${brands_with_data}`,
+        `High-conf: ${high_confidence_brands}, Low-conf: ${low_confidence_brands}`,
+        warnings.length ? `Warnings:\n• ${warnings.join("\n• ")}` : "No warnings",
+        `Run: ${new Date().toISOString()}`
+      ].join("\n");
+
+      // Fire-and-forget; don't block the response
+      fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      }).catch(() => {});
+    }
+
     return json(report, 200);
   } catch (e: any) {
     console.error("[validate-coverage-health] error:", e);
@@ -238,6 +259,11 @@ function round3(n: number) {
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+      "Pragma": "no-cache",
+    },
   });
 }
