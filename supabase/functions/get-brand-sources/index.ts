@@ -137,6 +137,9 @@ Deno.serve(async (req) => {
         severity: row.severity,
         amount: row.amount,
         verification: row.verification,
+        credibility_tier: row.credibility_tier,
+        ai_summary: row.ai_summary,
+        article_title: row.article_title,
       };
     });
 

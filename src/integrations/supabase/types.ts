@@ -519,9 +519,12 @@ export type Database = {
       }
       event_sources: {
         Row: {
+          ai_summary: string | null
           archive_url: string | null
+          article_snippet: string | null
           canonical_url: string | null
           created_at: string
+          credibility_tier: string | null
           day_bucket: string | null
           domain_kind: string | null
           domain_owner: string | null
@@ -537,9 +540,12 @@ export type Database = {
           title_fp: string | null
         }
         Insert: {
+          ai_summary?: string | null
           archive_url?: string | null
+          article_snippet?: string | null
           canonical_url?: string | null
           created_at?: string
+          credibility_tier?: string | null
           day_bucket?: string | null
           domain_kind?: string | null
           domain_owner?: string | null
@@ -555,9 +561,12 @@ export type Database = {
           title_fp?: string | null
         }
         Update: {
+          ai_summary?: string | null
           archive_url?: string | null
+          article_snippet?: string | null
           canonical_url?: string | null
           created_at?: string
+          credibility_tier?: string | null
           day_bucket?: string | null
           domain_kind?: string | null
           domain_owner?: string | null
@@ -2239,6 +2248,10 @@ export type Database = {
       allow_push_send: {
         Args: { p_brand: string; p_category: string; p_user_id: string }
         Returns: boolean
+      }
+      assign_credibility_tier: {
+        Args: { domain: string }
+        Returns: string
       }
       brand_events_last_24h: {
         Args: { brand_id_param: string }

@@ -26,6 +26,9 @@ interface Source {
   severity?: string;
   amount?: number;
   verification?: string;
+  credibility_tier?: 'official' | 'reputable' | 'local' | 'unknown';
+  ai_summary?: string;
+  article_title?: string;
 }
 
 const badgeColors: Record<string, string> = {
@@ -34,6 +37,13 @@ const badgeColors: Record<string, string> = {
   'FEC': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
   'FDA': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
   'News': 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
+};
+
+const credibilityBadges: Record<string, { emoji: string; label: string; color: string }> = {
+  'official': { emoji: '🟢', label: 'Official Record', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' },
+  'reputable': { emoji: '🔵', label: 'Reputable Media', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
+  'local': { emoji: '🟠', label: 'Local/Industry', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' },
+  'unknown': { emoji: '⚪', label: 'Unverified', color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200' },
 };
 
 export function InlineSources({ brandId, category, categoryLabel }: InlineSourcesProps) {
@@ -125,7 +135,7 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                   className="p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 space-y-1">
+                    <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge
                           variant="outline"
@@ -133,6 +143,11 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                         >
                           {source.badge}
                         </Badge>
+                        {source.credibility_tier && credibilityBadges[source.credibility_tier] && (
+                          <Badge variant="outline" className={`text-xs ${credibilityBadges[source.credibility_tier].color}`}>
+                            {credibilityBadges[source.credibility_tier].emoji} {credibilityBadges[source.credibility_tier].label}
+                          </Badge>
+                        )}
                         {source.verification && source.verification !== 'unverified' && (
                           <span className={`px-2 py-0.5 rounded text-xs ${
                             source.verification === 'official'
@@ -143,7 +158,14 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                           </span>
                         )}
                       </div>
-                      <p className="text-sm font-medium">{source.title}</p>
+                      {source.article_title && (
+                        <p className="text-sm font-semibold">{source.article_title}</p>
+                      )}
+                      {source.ai_summary ? (
+                        <p className="text-sm text-foreground leading-relaxed">{source.ai_summary}</p>
+                      ) : (
+                        <p className="text-sm font-medium">{source.title}</p>
+                      )}
                       {source.severity && (
                         <p className="text-xs text-muted-foreground">
                           Severity: {source.severity}
