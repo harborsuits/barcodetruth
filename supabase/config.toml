@@ -57,3 +57,6 @@ verify_jwt = true
 
 [functions.archive-url]
 verify_jwt = false
+
+[functions.resolve-evidence-links]
+verify_jwt = false

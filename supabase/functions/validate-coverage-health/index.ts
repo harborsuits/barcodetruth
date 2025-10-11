@@ -237,6 +237,36 @@ serve(async (req: Request) => {
       );
     }
 
+    // Check last resolver run
+    const { data: lastRun } = await supabase
+      .from('evidence_resolution_runs')
+      .select('*')
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (lastRun) {
+      const age = Date.now() - new Date(lastRun.started_at).getTime();
+      const ageHours = Math.round(age / (1000 * 60 * 60));
+      const successRate = lastRun.processed > 0 
+        ? Math.round((lastRun.resolved / lastRun.processed) * 100) 
+        : 0;
+      
+      if (ageHours > 2) {
+        warnings.push(
+          `Resolver hasn't run in ${ageHours} hours (last run: ${lastRun.started_at})`,
+        );
+      }
+      
+      if (successRate < 20 && lastRun.processed > 10) {
+        warnings.push(
+          `Low resolver success rate: ${successRate}% (${lastRun.resolved}/${lastRun.processed} resolved)`,
+        );
+      }
+    } else {
+      warnings.push('Resolver has never run - evidence links pending resolution');
+    }
+
     const majorsZero =
       (majorBrands ?? []).filter((b) => (b.events_365d ?? 0) === 0);
     if (majorsZero.length > 0) {
@@ -290,7 +320,7 @@ serve(async (req: Request) => {
       },
       offenders: offenders.length > 0 ? offenders : undefined,
       summary: {
-        total_checks: 10, // added archive + resolved-generic guards
+        total_checks: 11, // added resolver run tracking
         status,
         warnings,
       },

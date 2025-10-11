@@ -526,6 +526,7 @@ export type Database = {
           domain_kind: string | null
           domain_owner: string | null
           event_id: string
+          evidence_status: string | null
           id: string
           is_generic: boolean | null
           quote: string | null
@@ -543,6 +544,7 @@ export type Database = {
           domain_kind?: string | null
           domain_owner?: string | null
           event_id: string
+          evidence_status?: string | null
           id?: string
           is_generic?: boolean | null
           quote?: string | null
@@ -560,6 +562,7 @@ export type Database = {
           domain_kind?: string | null
           domain_owner?: string | null
           event_id?: string
+          evidence_status?: string | null
           id?: string
           is_generic?: boolean | null
           quote?: string | null
@@ -683,6 +686,42 @@ export type Database = {
             referencedColumns: ["event_id"]
           },
         ]
+      }
+      evidence_resolution_runs: {
+        Row: {
+          failed: number
+          finished_at: string | null
+          id: number
+          mode: string
+          notes: Json | null
+          processed: number
+          resolved: number
+          skipped: number
+          started_at: string
+        }
+        Insert: {
+          failed?: number
+          finished_at?: string | null
+          id?: number
+          mode: string
+          notes?: Json | null
+          processed?: number
+          resolved?: number
+          skipped?: number
+          started_at?: string
+        }
+        Update: {
+          failed?: number
+          finished_at?: string | null
+          id?: number
+          mode?: string
+          notes?: Json | null
+          processed?: number
+          resolved?: number
+          skipped?: number
+          started_at?: string
+        }
+        Relationships: []
       }
       fn_call_log: {
         Row: {
@@ -2259,6 +2298,7 @@ export type Database = {
         | "cultural-values"
         | "general"
       event_orientation: "positive" | "negative" | "mixed"
+      evidence_status: "pending" | "resolved" | "no_evidence" | "failed"
       ownership_relation:
         | "brand_of"
         | "division_of"
@@ -2403,6 +2443,7 @@ export const Constants = {
         "general",
       ],
       event_orientation: ["positive", "negative", "mixed"],
+      evidence_status: ["pending", "resolved", "no_evidence", "failed"],
       ownership_relation: [
         "brand_of",
         "division_of",

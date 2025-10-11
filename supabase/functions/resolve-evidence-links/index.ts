@@ -7,31 +7,61 @@ Deno.serve(async (req) => {
   }
 
   const t0 = performance.now();
+  const url = new URL(req.url);
+  
+  // Parse URL parameters
+  const MODE = url.searchParams.get('mode') ?? 'agency-first'; // 'agency-only' | 'agency-first' | 'full'
+  const LIMIT = Number(url.searchParams.get('limit') ?? 50);
+  const ONLY_EVENT = url.searchParams.get('event_id'); // optional: process single event
+  const ONLY_SOURCE = url.searchParams.get('source_id'); // optional: process single source
+  
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
   const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
+  // Start run tracking
+  const { data: runData } = await supabase
+    .from('evidence_resolution_runs')
+    .insert({ 
+      mode: MODE, 
+      notes: { limit: LIMIT, event_id: ONLY_EVENT, source_id: ONLY_SOURCE } 
+    })
+    .select('id')
+    .single();
+  const run_id = runData?.id;
+
   try {
-  // Fetch pending discoveries (sources without specific article URLs)
-  const { data: pending, error } = await supabase
-    .from('event_sources')
-    .select(`
-      id, 
-      event_id, 
-      source_name, 
-      source_url, 
-      canonical_url, 
-      is_generic,
-      brand_events!inner(brand_id, category)
-    `)
-    .is('canonical_url', null)
-    .eq('is_generic', true)
-    .limit(50);
+    // Fetch pending discoveries (sources without specific article URLs)
+    let query = supabase
+      .from('event_sources')
+      .select(`
+        id, 
+        event_id, 
+        source_name, 
+        source_url, 
+        canonical_url, 
+        is_generic,
+        evidence_status,
+        brand_events!inner(brand_id, category, raw_data)
+      `)
+      .is('canonical_url', null)
+      .eq('is_generic', true)
+      .eq('evidence_status', 'pending');
+    
+    // Apply filters
+    if (ONLY_SOURCE) {
+      query = query.eq('id', ONLY_SOURCE);
+    } else if (ONLY_EVENT) {
+      query = query.eq('event_id', ONLY_EVENT);
+    }
+    
+    const { data: pending, error } = await query.limit(LIMIT);
 
     if (error) throw error;
 
     let resolved = 0;
     let skipped = 0;
+    let failed = 0;
 
     const pause = (ms: number) => new Promise(r => setTimeout(r, ms));
 
@@ -39,9 +69,10 @@ Deno.serve(async (req) => {
       try {
         const brand_id = row.brand_events?.[0]?.brand_id;
         const category = row.brand_events?.[0]?.category;
+        const raw_data = row.brand_events?.[0]?.raw_data;
 
         // Try agency rules first (deterministic permalinks)
-        const articleFromAgency = await resolveAgencyLink(supabase, row.event_id);
+        const articleFromAgency = await resolveAgencyLink(supabase, row.event_id, raw_data);
         if (articleFromAgency) {
           await updateResolved(supabase, row.id, articleFromAgency, { 
             event_id: row.event_id, 
@@ -51,6 +82,12 @@ Deno.serve(async (req) => {
           });
           resolved++;
           await pause(300); // ~3 req/s max
+          continue;
+        }
+
+        // Skip outlet discovery if mode is agency-only
+        if (MODE === 'agency-only') {
+          skipped++;
           continue;
         }
 
@@ -73,28 +110,66 @@ Deno.serve(async (req) => {
         skipped++;
       } catch (e) {
         console.warn('[resolver] error', row.id, e);
-        skipped++;
+        failed++;
       }
       
       await pause(100); // small delay even on skip
     }
 
     const duration = Math.round(performance.now() - t0);
+    
+    // Update run tracking
+    if (run_id) {
+      await supabase
+        .from('evidence_resolution_runs')
+        .update({ 
+          finished_at: new Date().toISOString(), 
+          processed: pending?.length ?? 0,
+          resolved, 
+          skipped,
+          failed 
+        })
+        .eq('id', run_id);
+    }
+
     console.log(JSON.stringify({
       level: 'info',
       fn: 'resolve-evidence-links',
+      run_id,
+      mode: MODE,
       processed: pending?.length ?? 0,
       resolved,
       skipped,
+      failed,
       duration_ms: duration,
     }));
 
     return new Response(
-      JSON.stringify({ processed: pending?.length ?? 0, resolved, skipped }),
+      JSON.stringify({ 
+        run_id,
+        mode: MODE,
+        processed: pending?.length ?? 0, 
+        resolved, 
+        skipped,
+        failed,
+        duration_ms: duration 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (e: any) {
     console.error('[resolve-evidence-links] Error:', e);
+    
+    // Mark run as failed
+    if (run_id) {
+      await supabase
+        .from('evidence_resolution_runs')
+        .update({ 
+          finished_at: new Date().toISOString(),
+          notes: { error: e.message || 'Internal error' }
+        })
+        .eq('id', run_id);
+    }
+    
     return new Response(
       JSON.stringify({ error: e.message || 'Internal error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -104,62 +179,64 @@ Deno.serve(async (req) => {
 
 // ----- Agency-specific permalink resolution -----
 
-async function resolveAgencyLink(supabase: any, eventId: string): Promise<{url:string,title?:string,published_at?:string}|null> {
-  const { data: ev } = await supabase
-    .from('brand_events')
-    .select('category, raw_data, occurred_at, title')
-    .eq('event_id', eventId)
-    .maybeSingle();
-
-  if (!ev?.raw_data) return null;
-
-  const raw = ev.raw_data;
+async function resolveAgencyLink(supabase: any, eventId: string, rawData?: any): Promise<{url:string,title?:string,published_at?:string}|null> {
+  // Use provided raw_data or fetch from brand_events
+  let raw = rawData;
+  if (!raw) {
+    const { data: ev } = await supabase
+      .from('brand_events')
+      .select('category, raw_data, occurred_at, title')
+      .eq('event_id', eventId)
+      .maybeSingle();
+    if (!ev?.raw_data) return null;
+    raw = ev.raw_data;
+  }
   
-  // OSHA permalinks
-  if (raw.activity_nr) {
+  // OSHA permalinks (normalize synonyms)
+  const activity_nr = raw.activity_nr ?? raw.activityId ?? raw.activity_id;
+  if (activity_nr) {
     return { 
-      url: `https://www.osha.gov/ords/imis/establishment.inspection_detail?id=${encodeURIComponent(raw.activity_nr)}`,
-      title: ev.title,
-      published_at: ev.occurred_at
+      url: `https://www.osha.gov/ords/imis/establishment.inspection_detail?id=${encodeURIComponent(activity_nr)}`,
+      title: raw.title,
+      published_at: raw.occurred_at
     };
   }
-  if (raw.establishment_name && raw.estab_name) {
-    // Fallback to establishment page if we have the ID
-    const estabId = raw.estab_id || raw.establishment_id;
-    if (estabId) {
-      return {
-        url: `https://www.osha.gov/establishments/${encodeURIComponent(estabId)}`,
-        title: ev.title,
-        published_at: ev.occurred_at
-      };
-    }
-  }
-
-  // EPA ECHO permalinks
-  if (raw.case_number || raw.enforcement_case_id) {
-    const caseId = raw.case_number || raw.enforcement_case_id;
+  
+  const estab_id = raw.estab_id ?? raw.establishment_id ?? raw.establishmentId;
+  if (estab_id) {
     return {
-      url: `https://echo.epa.gov/enforcement-case-report?id=${encodeURIComponent(caseId)}`,
-      title: ev.title,
-      published_at: ev.occurred_at
-    };
-  }
-  if (raw.registry_id || raw.frs_id) {
-    const facilityId = raw.registry_id || raw.frs_id;
-    return {
-      url: `https://echo.epa.gov/detailed-facility-report?fid=${encodeURIComponent(facilityId)}`,
-      title: ev.title,
-      published_at: ev.occurred_at
+      url: `https://www.osha.gov/establishments/${encodeURIComponent(estab_id)}`,
+      title: raw.title,
+      published_at: raw.occurred_at
     };
   }
 
-  // FEC permalinks
-  if (raw.image_number || raw.file_number) {
-    const imageNum = raw.image_number || raw.file_number;
+  // EPA ECHO permalinks (normalize synonyms)
+  const case_number = raw.case_number ?? raw.enforcement_case_id ?? raw.caseId;
+  if (case_number) {
     return {
-      url: `https://docquery.fec.gov/cgi-bin/fecimg/?${encodeURIComponent(imageNum)}`,
-      title: ev.title,
-      published_at: ev.occurred_at
+      url: `https://echo.epa.gov/enforcement-case-report?id=${encodeURIComponent(case_number)}`,
+      title: raw.title,
+      published_at: raw.occurred_at
+    };
+  }
+  
+  const registry_id = raw.registry_id ?? raw.frs_id ?? raw.facility_id ?? raw.facilityId;
+  if (registry_id) {
+    return {
+      url: `https://echo.epa.gov/detailed-facility-report?fid=${encodeURIComponent(registry_id)}`,
+      title: raw.title,
+      published_at: raw.occurred_at
+    };
+  }
+
+  // FEC permalinks (normalize synonyms)
+  const image_number = raw.image_number ?? raw.file_number ?? raw.imageNumber ?? raw.fileNumber;
+  if (image_number) {
+    return {
+      url: `https://docquery.fec.gov/cgi-bin/fecimg/?${encodeURIComponent(image_number)}`,
+      title: raw.title,
+      published_at: raw.occurred_at
     };
   }
 
@@ -356,6 +433,7 @@ async function updateResolved(
     article_published_at: found.published_at ?? null,
     archive_url: archiveUrl,
     is_generic: false,
+    evidence_status: 'resolved',
   }).eq('id', id).is('canonical_url', null); // idempotent
   
   console.log(JSON.stringify({
