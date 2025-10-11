@@ -97,7 +97,13 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
     }
   }, [isOpen, data, cursor]);
 
-  const sources = allSources;
+  // Sort by credibility: reputable → official → local → unknown
+  const credibilityOrder = { 'reputable': 0, 'official': 1, 'local': 2, 'unknown': 3 };
+  const sources = [...allSources].sort((a, b) => {
+    const orderA = credibilityOrder[a.credibility_tier as keyof typeof credibilityOrder] ?? 4;
+    const orderB = credibilityOrder[b.credibility_tier as keyof typeof credibilityOrder] ?? 4;
+    return orderA - orderB;
+  });
   const hasMore = !!data?.nextCursor;
 
   return (
@@ -157,23 +163,27 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                       <div className="flex items-start gap-2">
                         <span className="text-xl">{getCredibilityEmoji(source.credibility_tier)}</span>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant={getCredibilityVariant(source.credibility_tier)} className="shrink-0">
-                              {source.credibility_tier || 'Unknown'}
-                            </Badge>
-                            <span className="font-medium text-sm">
+                          <div className="flex items-center gap-1.5 flex-wrap text-sm">
+                            <span className="font-medium">
                               {source.source || 'Unknown Source'}
                             </span>
                             {dateStr && (
-                              <span className="text-xs text-muted-foreground">
-                                · {dateStr}
-                              </span>
+                              <>
+                                <span className="text-muted-foreground">·</span>
+                                <span className="text-muted-foreground">{dateStr}</span>
+                              </>
                             )}
                             {isArchived && (
-                              <Badge variant="secondary" className="text-xs shrink-0">
-                                Archived
-                              </Badge>
+                              <>
+                                <span className="text-muted-foreground">·</span>
+                                <Badge variant="secondary" className="text-xs shrink-0">
+                                  Archived
+                                </Badge>
+                              </>
                             )}
+                            <Badge variant={getCredibilityVariant(source.credibility_tier)} className="text-xs shrink-0">
+                              {source.credibility_tier || 'Unknown'}
+                            </Badge>
                           </div>
                           
                           {source.article_title && (
