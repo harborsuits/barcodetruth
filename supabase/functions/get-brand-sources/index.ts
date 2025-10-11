@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
       const sourceNorm = normalizeUrl(row.url);
       
       const chosen = archiveNorm || canonicalNorm || sourceNorm || null;
-      const generic = chosen ? isGenericUrl(chosen) : true;
+      const generic = chosen ? isGeneric(chosen) : true;
       
       // Log generic/homepage evidence
       if (!chosen || generic) {
@@ -168,13 +168,13 @@ Deno.serve(async (req) => {
   }
 });
 
+// URL utilities - match /lib/links.ts naming
 function normalizeUrl(raw?: string | null): string | null {
   if (!raw) return null;
   const s = raw.trim();
   if (!/^https?:\/\//i.test(s)) return null;
   try {
     const u = new URL(s);
-    // Strip tracking parameters
     ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'fbclid', 'mc_cid', 'mc_eid']
       .forEach(k => u.searchParams.delete(k));
     return u.toString();
@@ -183,15 +183,12 @@ function normalizeUrl(raw?: string | null): string | null {
   }
 }
 
-function isGenericUrl(u: string): boolean {
+function isGeneric(u: string): boolean {
   try {
     const url = new URL(u);
     const host = url.hostname.replace(/^www\./, '');
-    // Homepage check
     if (url.pathname === '' || url.pathname === '/') return true;
-    // Generic paths
     if (/(press|about|news|index|landing)/i.test(url.pathname)) return true;
-    // Agency roots that often show hubs
     if (/^(osha\.gov|epa\.gov)$/i.test(host) && url.pathname.split('/').filter(Boolean).length < 2) {
       return true;
     }

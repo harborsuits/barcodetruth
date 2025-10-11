@@ -248,7 +248,15 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                 <div>
                   <p className="font-medium">From: {selectedSource?.source}</p>
                   {selectedSource?.url && (
-                    <p className="text-xs">{new URL(selectedSource.url).hostname}</p>
+                    <p className="text-xs">
+                      {(() => {
+                        try {
+                          return new URL(selectedSource.url).hostname;
+                        } catch {
+                          return selectedSource.url;
+                        }
+                      })()}
+                    </p>
                   )}
                   {selectedSource?.is_generic && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
@@ -313,7 +321,7 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                     <a
                       href={selectedSource.url}
                       target="_blank"
-                      rel="noopener noreferrer"
+                      rel="noopener noreferrer nofollow"
                       className="flex items-center gap-2 justify-center"
                     >
                       <ExternalLink className="h-4 w-4" />

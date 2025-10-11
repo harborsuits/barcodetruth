@@ -186,6 +186,30 @@ serve(async (req: Request) => {
       );
     }
 
+    // Evidence quality checks
+    const { count: genericCount } = await supabase
+      .from('event_sources')
+      .select('*', { head: true, count: 'exact' })
+      .eq('is_generic', true);
+
+    if ((genericCount ?? 0) > 0) {
+      warnings.push(
+        `${genericCount} source links point to generic/homepage URLs (awaiting specific permalinks)`,
+      );
+    }
+
+    const { data: missingEvidence } = await supabase
+      .from('brand_events')
+      .select('event_id', { count: 'exact' })
+      .is('verification', null)
+      .limit(1);
+
+    if ((missingEvidence?.length ?? 0) > 0) {
+      warnings.push(
+        `Some events lack verified evidence links (pending ingestion or archival)`,
+      );
+    }
+
     const majorsZero =
       (majorBrands ?? []).filter((b) => (b.events_365d ?? 0) === 0);
     if (majorsZero.length > 0) {
@@ -239,7 +263,7 @@ serve(async (req: Request) => {
       },
       offenders: offenders.length > 0 ? offenders : undefined,
       summary: {
-        total_checks: 6, // added range validation
+        total_checks: 8, // added evidence quality checks
         status,
         warnings,
       },
