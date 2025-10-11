@@ -216,7 +216,24 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                         </div>
                         
                         <div className="flex gap-1">
-                          {linkUrl && !source.is_generic && (
+                          {source.canonical_url && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              asChild
+                              className="h-7 text-xs px-2"
+                            >
+                              <a
+                                href={source.canonical_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <ExternalLink className="h-3 w-3 mr-1" />
+                                View Article
+                              </a>
+                            </Button>
+                          )}
+                          {!source.canonical_url && source.credibility_tier === 'official' && linkUrl && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -229,18 +246,18 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                                 rel="noopener noreferrer"
                               >
                                 <ExternalLink className="h-3 w-3 mr-1" />
-                                View
+                                View Database
                               </a>
                             </Button>
                           )}
-                          {source.is_generic && (
+                          {!source.canonical_url && source.credibility_tier !== 'official' && (
                             <Button
                               variant="ghost"
                               size="sm"
                               disabled
-                              className="h-7 text-xs px-2"
+                              className="h-7 text-xs px-2 opacity-50"
                             >
-                              Evidence pending
+                              Article pending
                             </Button>
                           )}
                         </div>
