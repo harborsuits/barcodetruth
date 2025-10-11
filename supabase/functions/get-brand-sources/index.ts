@@ -103,13 +103,16 @@ Deno.serve(async (req) => {
       const badge = getBadge(row.source);
       // URL safety: only allow HTTP/HTTPS
       const safeUrl = /^https?:\/\//i.test((row.url || '').trim()) ? row.url : null;
+      const safeArchiveUrl = /^https?:\/\//i.test((row.archive_url || '').trim()) ? row.archive_url : null;
+      const preferredUrl = safeArchiveUrl || safeUrl;
       return {
         id: row.event_id,
         occurred_at: row.occurred_at,
         title: row.title,
         badge,
         source: row.source,
-        url: safeUrl,
+        url: preferredUrl,
+        archive_url: safeArchiveUrl,
         severity: row.severity,
         amount: row.amount,
         verification: row.verification,

@@ -263,7 +263,7 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
   const severityConfig = getSeverityUIConfig(severityResult.level, severityResult.reason);
   const isNew = isNewEvent(timestamp);
   const SourceLogo = getSourceLogo(primarySource?.name);
-  
+  const preferredPrimaryUrl = primarySource?.archive_url || primarySource?.url;
   // Political context for FEC events
   const politicalContext = useMemo(() => {
     if (event.category !== 'politics' || !event.raw_data || !politicalAlignment) {

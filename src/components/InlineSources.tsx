@@ -20,6 +20,7 @@ interface Source {
   badge: string;
   source: string;
   url?: string;
+  archive_url?: string;
   severity?: string;
   amount?: number;
   verification?: string;
@@ -166,16 +167,30 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                           <FileText className="h-3 w-3 mr-1" />
                           Details
                         </Button>
-                        {source.url && (
+                        {(source.archive_url || source.url) && (
                           <a
-                            href={source.url}
+                            href={source.archive_url || source.url}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-muted-foreground hover:text-foreground hover:underline flex items-center gap-1"
                           >
-                            Source
+                            View source
                             <ExternalLink className="h-3 w-3" />
                           </a>
+                        )}
+                        {source.archive_url && (
+                          <>
+                            <span className="text-xs text-muted-foreground" aria-hidden="true">·</span>
+                            <a
+                              href={source.archive_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-muted-foreground hover:text-foreground hover:underline flex items-center gap-1"
+                            >
+                              Archive
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </>
                         )}
                       </div>
                     </div>
@@ -228,7 +243,7 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                 <div>
                   <p className="font-medium">From: {selectedSource?.source}</p>
                   {selectedSource?.url && (
-                    <p className="text-xs">{new URL(selectedSource.url).hostname}</p>
+                    <p className="text-xs">{selectedSource?.url || selectedSource?.archive_url ? new URL(selectedSource.archive_url || selectedSource.url || '').hostname : ''}</p>
                   )}
                 </div>
               </div>
