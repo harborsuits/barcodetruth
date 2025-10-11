@@ -12,13 +12,21 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
   try {
-    // Fetch pending discoveries (sources without specific article URLs)
-    const { data: pending, error } = await supabase
-      .from('event_sources')
-      .select('id, event_id, source_name, source_url, canonical_url, is_generic')
-      .is('canonical_url', null)
-      .eq('is_generic', true)
-      .limit(50);
+  // Fetch pending discoveries (sources without specific article URLs)
+  const { data: pending, error } = await supabase
+    .from('event_sources')
+    .select(`
+      id, 
+      event_id, 
+      source_name, 
+      source_url, 
+      canonical_url, 
+      is_generic,
+      brand_events!inner(brand_id, category)
+    `)
+    .is('canonical_url', null)
+    .eq('is_generic', true)
+    .limit(50);
 
     if (error) throw error;
 
@@ -29,10 +37,18 @@ Deno.serve(async (req) => {
 
     for (const row of (pending ?? [])) {
       try {
+        const brand_id = row.brand_events?.[0]?.brand_id;
+        const category = row.brand_events?.[0]?.category;
+
         // Try agency rules first (deterministic permalinks)
         const articleFromAgency = await resolveAgencyLink(supabase, row.event_id);
         if (articleFromAgency) {
-          await updateResolved(supabase, row.id, articleFromAgency);
+          await updateResolved(supabase, row.id, articleFromAgency, { 
+            event_id: row.event_id, 
+            brand_id, 
+            category,
+            reason: 'agency_id' 
+          });
           resolved++;
           await pause(300); // ~3 req/s max
           continue;
@@ -42,7 +58,12 @@ Deno.serve(async (req) => {
         if (row.source_url) {
           const articleFromOutlet = await resolveOutletDiscovery(row.source_url, row.source_name);
           if (articleFromOutlet) {
-            await updateResolved(supabase, row.id, articleFromOutlet);
+            await updateResolved(supabase, row.id, articleFromOutlet, { 
+              event_id: row.event_id, 
+              brand_id, 
+              category,
+              reason: articleFromOutlet.source === 'rss' ? 'rss' : 'homepage-heuristic' 
+            });
             resolved++;
             await pause(300);
             continue;
@@ -171,7 +192,11 @@ async function resolveOutletDiscovery(discoveryUrl: string, outlet?: string|null
     // Fetch canonical from the candidate page
     const page = await safeGet(candidates[0].url);
     const canonical = page ? extractCanonical(page.html, page.url) : null;
-    return { url: canonical ?? candidates[0].url, title: candidates[0].text || undefined };
+    return { 
+      url: canonical ?? candidates[0].url, 
+      title: candidates[0].text || undefined,
+      source: 'homepage' as const
+    };
   }
 
   return null;
@@ -245,14 +270,14 @@ function scoreCandidate(a: {url:string,text:string}): number {
   return Math.min(1, score);
 }
 
-function bestRssItemMatch(xml: string): {url:string,title?:string,published_at?:string}|null {
+function bestRssItemMatch(xml: string): {url:string,title?:string,published_at?:string,source:'rss'}|null {
   const items = Array.from(xml.matchAll(/<item>[\s\S]*?<\/item>/gi));
   for (const it of items) {
     const link = it[0].match(/<link>\s*<!\[CDATA\[(.*?)\]\]>\s*<\/link>|<link>([^<]+)<\/link>/i);
     const title = it[0].match(/<title>\s*<!\[CDATA\[(.*?)\]\]>\s*<\/title>|<title>([^<]+)<\/title>/i);
     const pub = it[0].match(/<pubDate>([^<]+)<\/pubDate>/i);
     const url = (link?.[1] || link?.[2] || '').trim();
-    if (url) return { url, title: (title?.[1] || title?.[2])?.trim(), published_at: pub?.[1] };
+    if (url) return { url, title: (title?.[1] || title?.[2])?.trim(), published_at: pub?.[1], source: 'rss' };
   }
   return null;
 }
@@ -281,11 +306,45 @@ function isLikelyGeneric(url: string): boolean {
   } catch { return true; }
 }
 
-async function updateResolved(supabase: any, id: string, found: {url:string,title?:string,published_at?:string}) {
+async function updateResolved(
+  supabase: any, 
+  id: string, 
+  found: {url:string,title?:string,published_at?:string}, 
+  context?: {event_id?: string, brand_id?: string, category?: string, reason?: string}
+) {
   // Safety check: don't resolve if it's still generic
   if (isLikelyGeneric(found.url)) {
-    console.warn(JSON.stringify({ level: 'warn', action: 'skip_generic', source_id: id, url: found.url }));
+    console.warn(JSON.stringify({ 
+      level: 'warn', 
+      action: 'skip_generic', 
+      source_id: id, 
+      url: found.url,
+      ...context 
+    }));
     return;
+  }
+
+  // Check for duplicates: avoid resolving same URL for same event
+  if (context?.event_id) {
+    const { data: existing } = await supabase
+      .from('event_sources')
+      .select('id')
+      .eq('event_id', context.event_id)
+      .eq('canonical_url', found.url)
+      .limit(1)
+      .maybeSingle();
+    
+    if (existing) {
+      console.warn(JSON.stringify({ 
+        level: 'warn', 
+        action: 'skip_duplicate', 
+        source_id: id, 
+        duplicate_of: existing.id,
+        url: found.url,
+        ...context 
+      }));
+      return;
+    }
   }
 
   // Try to archive the permalink
@@ -305,5 +364,6 @@ async function updateResolved(supabase: any, id: string, found: {url:string,titl
     source_id: id,
     url: found.url,
     archived: !!archiveUrl,
+    ...context,
   }));
 }

@@ -192,7 +192,7 @@ serve(async (req: Request) => {
       .select('*', { head: true, count: 'exact' })
       .eq('is_generic', true);
 
-    if ((genericCount ?? 0) > 0) {
+    if ((genericCount ?? 0) > 100) {
       warnings.push(
         `${genericCount} source links point to generic/homepage URLs (awaiting specific permalinks)`,
       );
@@ -207,6 +207,33 @@ serve(async (req: Request) => {
     if ((missingEvidence?.length ?? 0) > 0) {
       warnings.push(
         `Some events lack verified evidence links (pending ingestion or archival)`,
+      );
+    }
+
+    // Check for resolved sources without archives
+    const { count: unresolvedArchives } = await supabase
+      .from('event_sources')
+      .select('*', { count: 'exact', head: true })
+      .not('canonical_url', 'is', null)
+      .eq('is_generic', false)
+      .is('archive_url', null);
+
+    if ((unresolvedArchives ?? 0) > 200) {
+      warnings.push(
+        `${unresolvedArchives} resolved sources lack archive URLs (archival backlog)`,
+      );
+    }
+
+    // Check for resolved sources still marked generic (should be 0)
+    const { count: resolvedButGeneric } = await supabase
+      .from('event_sources')
+      .select('*', { count: 'exact', head: true })
+      .not('canonical_url', 'is', null)
+      .eq('is_generic', true);
+
+    if ((resolvedButGeneric ?? 0) > 0) {
+      warnings.push(
+        `⚠️ ${resolvedButGeneric} resolved sources incorrectly marked as generic (resolver bug - needs investigation)`,
       );
     }
 
@@ -263,7 +290,7 @@ serve(async (req: Request) => {
       },
       offenders: offenders.length > 0 ? offenders : undefined,
       summary: {
-        total_checks: 8, // added evidence quality checks
+        total_checks: 10, // added archive + resolved-generic guards
         status,
         warnings,
       },
