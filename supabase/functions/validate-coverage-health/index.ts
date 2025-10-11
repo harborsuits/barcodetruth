@@ -172,8 +172,19 @@ serve(async (req: Request) => {
       (s) => (s.events_365d ?? 0) === 0,
     ).length;
 
+    // Detect out-of-range scores (regression guard)
+    const over100 = allScores.filter((s) => (s.baseline_score ?? 0) > 100).length;
+    const under0 = allScores.filter((s) => (s.baseline_score ?? 0) < 0).length;
+
     // --- 7) Warnings + status
     const warnings: string[] = [];
+
+    // Range violation guard
+    if (over100 > 0 || under0 > 0) {
+      warnings.push(
+        `⚠️ Baseline score out-of-range: >100 (${over100}), <0 (${under0}) — view logic regression!`,
+      );
+    }
 
     const majorsZero =
       (majorBrands ?? []).filter((b) => (b.events_365d ?? 0) === 0);
@@ -197,6 +208,17 @@ serve(async (req: Request) => {
       );
     }
 
+    // Fetch top offenders if any exist
+    let offenders: any[] = [];
+    if (over100 > 0 || under0 > 0) {
+      const { data } = await supabase
+        .from("brand_score_effective")
+        .select("brand_id, brand_name, baseline_score, overall_effective")
+        .or("baseline_score.gt.100,baseline_score.lt.0,overall_effective.gt.100,overall_effective.lt.0")
+        .limit(20);
+      offenders = data ?? [];
+    }
+
     const status = warnings.length === 0 ? "healthy" : "warnings";
 
     const report = {
@@ -213,9 +235,11 @@ serve(async (req: Request) => {
         low_confidence_brands,
         avg_confidence,
         zero_event_brands,
+        out_of_range: { over100, under0 },
       },
+      offenders: offenders.length > 0 ? offenders : undefined,
       summary: {
-        total_checks: 5,
+        total_checks: 6, // added range validation
         status,
         warnings,
       },
