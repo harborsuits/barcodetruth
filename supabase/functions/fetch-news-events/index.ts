@@ -395,21 +395,63 @@ serve(async (req) => {
         continue;
       }
 
+      // Validate relevance before inserting
+      let relevanceScore = 0.5; // Default for dryrun
+      let verificationLevel = 'unverified';
+      let specificFacts: string[] = [];
+
+      if (!dryrun) {
+        try {
+          const validationResponse = await supabase.functions.invoke('validate-news-relevance', {
+            body: {
+              article_url: normalizedUrl,
+              article_title: article.title,
+              article_summary: article.summary || article.title,
+              brand_name: brand.name,
+              claimed_category: article.category
+            }
+          });
+
+          if (validationResponse.data?.success) {
+            relevanceScore = validationResponse.data.relevance_score;
+            verificationLevel = validationResponse.data.verification_level;
+            specificFacts = validationResponse.data.specific_facts || [];
+
+            // Skip if not relevant
+            if (relevanceScore < 0.5) {
+              console.log(`[fetch-news-events] Skipping low relevance (${relevanceScore}): ${article.title}`);
+              console.log(`  Reason: ${validationResponse.data.rejection_reason}`);
+              skipped++;
+              continue;
+            }
+          } else {
+            console.warn(`[fetch-news-events] Validation failed, using defaults: ${validationResponse.error}`);
+          }
+        } catch (validationErr) {
+          console.error(`[fetch-news-events] Validation error: ${validationErr}`);
+          // Continue with defaults rather than blocking
+        }
+      }
+
       const event = {
         brand_id: brandId,
         title: article.title,
         description: article.summary || article.title,
         category: article.category,
         event_date: article.published_at,
-        verification: 'corroborated',
+        verification: verificationLevel as 'official' | 'corroborated' | 'unverified',
         orientation: 'negative',
         impact_social: article.category === 'social' ? -3 : -1,
         source_url: normalizedUrl,
-        raw_data: article.raw_data,
+        raw_data: {
+          ...article.raw_data,
+          relevance_score: relevanceScore,
+          specific_facts: specificFacts
+        },
       };
 
       if (dryrun) {
-        console.log(`[fetch-news-events] [DRYRUN] Would insert event:`, event.title);
+        console.log(`[fetch-news-events] [DRYRUN] Would insert event (relevance: ${relevanceScore}):`, event.title);
         events.push('dryrun-' + article.url);
         continue;
       }
