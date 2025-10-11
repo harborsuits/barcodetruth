@@ -62,6 +62,7 @@ Deno.serve(async (req) => {
     let resolved = 0;
     let skipped = 0;
     let failed = 0;
+    let consecutiveSkips = 0;
 
     const pause = (ms: number) => new Promise(r => setTimeout(r, ms));
 
@@ -78,9 +79,11 @@ Deno.serve(async (req) => {
             event_id: row.event_id, 
             brand_id, 
             category,
-            reason: 'agency_id' 
+            reason: 'agency_id',
+            run_id 
           });
           resolved++;
+          consecutiveSkips = 0;
           await pause(300); // ~3 req/s max
           continue;
         }
@@ -88,6 +91,7 @@ Deno.serve(async (req) => {
         // Skip outlet discovery if mode is agency-only
         if (MODE === 'agency-only') {
           skipped++;
+          consecutiveSkips++;
           continue;
         }
 
@@ -99,18 +103,33 @@ Deno.serve(async (req) => {
               event_id: row.event_id, 
               brand_id, 
               category,
-              reason: articleFromOutlet.source === 'rss' ? 'rss' : 'homepage-heuristic' 
+              reason: articleFromOutlet.source === 'rss' ? 'rss' : 'homepage-heuristic',
+              run_id 
             });
             resolved++;
+            consecutiveSkips = 0;
             await pause(300);
             continue;
           }
         }
 
         skipped++;
+        consecutiveSkips++;
+        
+        // Circuit breaker: stop if too many consecutive skips (prevents hammering outlets)
+        if (consecutiveSkips >= 25 && MODE !== 'agency-only') {
+          console.log(JSON.stringify({
+            level: 'info',
+            action: 'circuit_breaker_triggered',
+            consecutive_skips: consecutiveSkips,
+            processed_so_far: resolved + skipped + failed
+          }));
+          break;
+        }
       } catch (e) {
         console.warn('[resolver] error', row.id, e);
         failed++;
+        consecutiveSkips++;
       }
       
       await pause(100); // small delay even on skip
@@ -387,7 +406,7 @@ async function updateResolved(
   supabase: any, 
   id: string, 
   found: {url:string,title?:string,published_at?:string}, 
-  context?: {event_id?: string, brand_id?: string, category?: string, reason?: string}
+  context?: {event_id?: string, brand_id?: string, category?: string, reason?: string, run_id?: number}
 ) {
   // Safety check: don't resolve if it's still generic
   if (isLikelyGeneric(found.url)) {
@@ -424,17 +443,26 @@ async function updateResolved(
     }
   }
 
-  // Try to archive the permalink
-  const archiveUrl = await tryArchive(found.url);
+  // Try to archive the permalink (with error handling)
+  const archiveUrl = await tryArchive(found.url).catch(() => null);
 
+  // Idempotent update: only set if canonical_url is still null
   await supabase.from('event_sources').update({
     canonical_url: found.url,
+    archive_url: archiveUrl ?? null,
     article_title: found.title ?? null,
     article_published_at: found.published_at ?? null,
-    archive_url: archiveUrl,
-    is_generic: false,
     evidence_status: 'resolved',
-  }).eq('id', id).is('canonical_url', null); // idempotent
+    is_generic: false,
+    updated_at: new Date().toISOString(),
+    notes: context ? { 
+      reason: context.reason,
+      run_id: context.run_id,
+      brand_id: context.brand_id,
+      category: context.category,
+      resolved_at: new Date().toISOString()
+    } : null,
+  }).eq('id', id).is('canonical_url', null); // idempotent: don't overwrite
   
   console.log(JSON.stringify({
     level: 'info',
