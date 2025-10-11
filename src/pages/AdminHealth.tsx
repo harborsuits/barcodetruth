@@ -181,7 +181,7 @@ export default function AdminHealth() {
   async function backfillSummaries() {
     try {
       toast.info("Generating AI summaries...", {
-        description: "Processing up to 50 evidence items",
+        description: "This may take a minute for 50 items",
       });
 
       const { data, error } = await supabase.functions.invoke("backfill-evidence-summaries", {
@@ -190,9 +190,15 @@ export default function AdminHealth() {
 
       if (error) throw error;
 
-      toast.success("Summaries generated", {
-        description: `Processed ${data.processed}: ${data.succeeded} succeeded, ${data.failed} failed`,
-      });
+      if (data.processed === 0) {
+        toast.info("No summaries needed", {
+          description: "All evidence already has AI summaries",
+        });
+      } else {
+        toast.success("Summaries generated", {
+          description: `${data.succeeded} succeeded, ${data.failed} failed`,
+        });
+      }
 
       console.log('Backfill results:', data);
     } catch (e: any) {
