@@ -4,14 +4,19 @@ import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, ArrowRight, AlertTriangle } from "lucide-react";
+import { TrendingUp, ArrowRight, AlertTriangle, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { confidenceMeta } from "@/lib/confidence";
 
 interface TrendingBrand {
   brand_id: string;
   brand_name: string;
   overall_score: number;
   event_count?: number;
+  confidence?: number;
+  verified_rate?: number;
+  independent_sources?: number;
+  last_event_at?: string;
   recent_event?: {
     title: string;
     category: string;
@@ -57,39 +62,26 @@ export function TrendingPreview() {
       console.log('Snapshot not available, using live data', e);
     }
 
-    // Use new brand_score_effective view with confidence-weighted scoring
+    // Use brand_score_effective_named view to eliminate N+1 queries
     const { data } = await supabase
-      .from('brand_score_effective')
-      .select(`
-        brand_id,
-        overall_effective,
-        events_90d,
-        events_365d,
-        confidence
-      `)
+      .from('brand_score_effective_named')
+      .select('brand_id, brand_name, overall_effective, events_90d, events_365d, verified_rate, independent_sources, confidence, last_event_at')
       .order('events_90d', { ascending: false })
       .order('overall_effective', { ascending: false })
+      .gt('confidence', 0) // Hide brands with no data
       .limit(5);
 
     if (data) {
-      const brandsWithNames = await Promise.all(
-        data.map(async (b: any) => {
-          const { data: brand } = await supabase
-            .from('brands')
-            .select('name')
-            .eq('id', b.brand_id)
-            .single();
-          
-          return {
-            brand_id: b.brand_id,
-            brand_name: brand?.name || 'Unknown',
-            event_count: b.events_365d || 0,
-            overall_score: b.overall_effective || 50,
-            confidence: b.confidence || 0
-          };
-        })
-      );
-      setTrending(brandsWithNames);
+      setTrending(data.map((b: any) => ({
+        brand_id: b.brand_id,
+        brand_name: b.brand_name,
+        event_count: b.events_365d || 0,
+        overall_score: b.overall_effective || 50,
+        confidence: b.confidence || 0,
+        verified_rate: b.verified_rate || 0,
+        independent_sources: b.independent_sources || 0,
+        last_event_at: b.last_event_at
+      })));
     }
     setLoading(false);
   };
@@ -144,28 +136,25 @@ export function TrendingPreview() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-semibold text-base">{brand.brand_name}</h3>
-                    {brand.event_count !== undefined && brand.event_count < 3 && (
-                      <Badge variant="outline" className="gap-1 border-warning/50 text-warning text-[10px] px-1.5 py-0">
-                        <AlertTriangle className="h-2.5 w-2.5" />
-                        Limited Data
-                      </Badge>
-                    )}
+                    {brand.event_count !== undefined && brand.verified_rate !== undefined && brand.independent_sources !== undefined && (() => {
+                      const meta = confidenceMeta(brand.event_count, brand.verified_rate, brand.independent_sources);
+                      if (meta.level === 'low' || meta.level === 'none') {
+                        return (
+                          <Badge variant="outline" className="gap-1 border-warning/50 text-warning text-[10px] px-1.5 py-0">
+                            <AlertTriangle className="h-2.5 w-2.5" />
+                            {meta.label}
+                          </Badge>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
-                  {brand.recent_event && (
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <Badge variant="outline" className="text-xs">
-                          {brand.recent_event.category}
-                        </Badge>
-                        <Badge variant="secondary" className="text-xs">
-                          {brand.recent_event.verification}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {brand.recent_event.title}
-                      </p>
+                  {brand.last_event_at && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      Last event: {new Date(brand.last_event_at).toLocaleDateString()}
                     </div>
                   )}
                   {brand.event_count === 0 && (

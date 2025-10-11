@@ -1813,6 +1813,51 @@ export type Database = {
           },
         ]
       }
+      brand_score_effective_named: {
+        Row: {
+          baseline_score: number | null
+          brand_id: string | null
+          brand_name: string | null
+          confidence: number | null
+          events_365d: number | null
+          events_90d: number | null
+          evidence_score: number | null
+          independent_sources: number | null
+          last_event_at: string | null
+          overall_effective: number | null
+          verified_rate: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_scores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_scores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_scores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_scores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+        ]
+      }
       product_claims_moderator: {
         Row: {
           barcode_ean13: string | null

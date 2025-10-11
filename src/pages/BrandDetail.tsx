@@ -59,6 +59,13 @@ export const BrandDetail = () => {
         .eq('brand_id', brandId)
         .maybeSingle();
       
+      // Get coverage/confidence data
+      const { data: coverage } = await supabase
+        .from('brand_data_coverage')
+        .select('events_365d, verified_rate, independent_sources')
+        .eq('brand_id', brandId)
+        .maybeSingle();
+      
       // Get recent events (last 12 months)
       const twelveMonthsAgo = new Date();
       twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
@@ -117,6 +124,11 @@ export const BrandDetail = () => {
         parent_company: brandData.parent_company || brandData.name,
         overall_score: overallScore,
         last_updated: scores?.last_updated || brandData.updated_at,
+        coverage: {
+          events_365d: coverage?.events_365d || 0,
+          verified_rate: coverage?.verified_rate || 0,
+          independent_sources: coverage?.independent_sources || 0,
+        },
         signals: {
           labor: { score: scores?.score_labor || 50, risk_level: "low", recent_events: [] },
           environment: { score: scores?.score_environment || 50, risk_level: "low", recent_events: [] },
@@ -450,10 +462,11 @@ export const BrandDetail = () => {
                 <div className={`text-6xl font-bold ${getScoreColor(brand.overall_score)}`}>
                   {brand.overall_score}
                 </div>
-                {brand.events && brand.events.length < 3 && (
+                {brand.coverage && (
                   <InsufficientDataBadge 
-                    eventCount={brand.events.length}
-                    verifiedCount={brand.events.filter((e: any) => e.verification !== 'unverified').length}
+                    eventCount={brand.coverage.events_365d}
+                    verifiedRate={brand.coverage.verified_rate}
+                    independentSources={brand.coverage.independent_sources}
                   />
                 )}
               </div>
