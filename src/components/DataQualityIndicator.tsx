@@ -1,6 +1,7 @@
 import { Shield, AlertTriangle, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { confidenceMeta } from "@/lib/confidence";
 
 interface DataQualityIndicatorProps {
   eventCount: number;
@@ -16,10 +17,13 @@ export function DataQualityIndicator({
   className 
 }: DataQualityIndicatorProps) {
   const getQuality = () => {
+    const verificationRate = eventCount > 0 ? verifiedCount / eventCount : 0;
+    const meta = confidenceMeta(eventCount, verificationRate, independentSources);
+    
     if (eventCount === 0) {
       return {
-        level: "none",
-        label: "No Data",
+        level: meta.level,
+        label: meta.label,
         description: "Baseline estimates only",
         icon: AlertTriangle,
         color: "text-destructive bg-destructive/10 border-destructive/30"
@@ -28,20 +32,18 @@ export function DataQualityIndicator({
     
     if (eventCount < 3) {
       return {
-        level: "low",
-        label: "Limited Data",
+        level: meta.level,
+        label: meta.label,
         description: `${eventCount} event${eventCount > 1 ? 's' : ''}, ${verifiedCount} verified`,
         icon: Info,
         color: "text-warning bg-warning/10 border-warning/30"
       };
     }
     
-    const verificationRate = verifiedCount / eventCount;
-    
-    if (verificationRate >= 0.7 && independentSources >= 2) {
+    if (meta.level === 'high') {
       return {
-        level: "high",
-        label: "Strong Data",
+        level: meta.level,
+        label: meta.label,
         description: `${eventCount} events, ${verifiedCount} verified, ${independentSources} sources`,
         icon: Shield,
         color: "text-success bg-success/10 border-success/30"
@@ -49,8 +51,8 @@ export function DataQualityIndicator({
     }
     
     return {
-      level: "medium",
-      label: "Moderate Data",
+      level: meta.level,
+      label: meta.label,
       description: `${eventCount} events, ${verifiedCount} verified`,
       icon: Info,
       color: "text-primary bg-primary/10 border-primary/30"

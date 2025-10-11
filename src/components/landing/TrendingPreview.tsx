@@ -57,42 +57,39 @@ export function TrendingPreview() {
       console.log('Snapshot not available, using live data', e);
     }
 
-    // Fallback to live query with event count
+    // Use new brand_score_effective view with confidence-weighted scoring
     const { data } = await supabase
-      .from('brands')
+      .from('brand_score_effective')
       .select(`
-        id,
-        name,
-        brand_scores(score_labor, score_environment, score_politics, score_social)
+        brand_id,
+        overall_effective,
+        events_90d,
+        events_365d,
+        confidence
       `)
+      .order('events_90d', { ascending: false })
+      .order('overall_effective', { ascending: false })
       .limit(5);
 
     if (data) {
-      // Fetch event counts for each brand
-      const brandsWithCounts = await Promise.all(
+      const brandsWithNames = await Promise.all(
         data.map(async (b: any) => {
-          const { count } = await supabase
-            .from('brand_events')
-            .select('*', { count: 'exact', head: true })
-            .eq('brand_id', b.id)
-            .gte('event_date', new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString());
+          const { data: brand } = await supabase
+            .from('brands')
+            .select('name')
+            .eq('id', b.brand_id)
+            .single();
           
           return {
-            brand_id: b.id,
-            brand_name: b.name,
-            event_count: count || 0,
-            overall_score: b.brand_scores 
-              ? Math.round((
-                  b.brand_scores.score_labor +
-                  b.brand_scores.score_environment +
-                  b.brand_scores.score_politics +
-                  b.brand_scores.score_social
-                ) / 4)
-              : 50
+            brand_id: b.brand_id,
+            brand_name: brand?.name || 'Unknown',
+            event_count: b.events_365d || 0,
+            overall_score: b.overall_effective || 50,
+            confidence: b.confidence || 0
           };
         })
       );
-      setTrending(brandsWithCounts);
+      setTrending(brandsWithNames);
     }
     setLoading(false);
   };
