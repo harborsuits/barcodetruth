@@ -9,9 +9,11 @@ import { initA2HS, triggerA2HS, isA2HSAvailable, dismissA2HS, isA2HSDismissed } 
 import { toast } from "@/hooks/use-toast";
 import { createScanner } from "@/lib/barcodeScanner";
 import { supabase } from "@/integrations/supabase/client";
+import { useScanLimit } from "@/hooks/useScanLimit";
 
 export const Scan = () => {
   const navigate = useNavigate();
+  const { can_scan, scans_remaining, is_subscribed, trackScan, checkLimit } = useScanLimit();
   const [scanResult, setScanResult] = useState<'idle' | 'scanning' | 'processing' | 'success' | 'not_found'>('idle');
   const [scannedBarcode, setScannedBarcode] = useState<string>('');
   const [showA2HSPrompt, setShowA2HSPrompt] = useState(false);
@@ -119,6 +121,9 @@ export const Scan = () => {
         setScanResult('success');
         console.log('[Analytics] resolve_ok', { barcode, brand_id: data.brand.id, dur_ms: dur });
         
+        // Track the successful scan
+        await trackScan(data.brand.id, barcode);
+        
         // Prefetch brand page
         const link = document.createElement('link');
         link.rel = 'prefetch';
@@ -155,6 +160,18 @@ export const Scan = () => {
   };
 
   const startScanner = async () => {
+    // Check scan limit before starting
+    if (!can_scan) {
+      toast({
+        title: "Scan limit reached",
+        description: is_subscribed 
+          ? "Please try again later" 
+          : `You've used all 5 free scans this month. Subscribe for unlimited scans.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!videoRef.current) {
       console.error('Video element not ready');
       return;
@@ -474,6 +491,11 @@ export const Scan = () => {
                   <p className="text-sm text-muted-foreground">
                     Position a product barcode in front of your camera for instant brand analysis
                   </p>
+                  {!is_subscribed && (
+                    <p className="text-sm font-medium text-primary">
+                      {scans_remaining} free scans remaining this month
+                    </p>
+                  )}
                 </div>
                 
                 {error && (
@@ -486,7 +508,7 @@ export const Scan = () => {
                   <Button 
                     onClick={startScanner} 
                     aria-label="Start barcode scanner"
-                    disabled={!isSecure}
+                    disabled={!isSecure || !can_scan}
                   >
                     <Camera className="mr-2 h-4 w-4" />
                     Start Camera
@@ -495,6 +517,7 @@ export const Scan = () => {
                     variant="secondary" 
                     onClick={onManualFallbackClick} 
                     aria-label="Enter barcode manually"
+                    disabled={!can_scan}
                   >
                     Enter barcode instead
                   </Button>

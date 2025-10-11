@@ -1549,6 +1549,62 @@ export type Database = {
         }
         Relationships: []
       }
+      user_scans: {
+        Row: {
+          barcode: string | null
+          brand_id: string | null
+          created_at: string
+          id: string
+          scanned_at: string
+          user_id: string
+        }
+        Insert: {
+          barcode?: string | null
+          brand_id?: string | null
+          created_at?: string
+          id?: string
+          scanned_at?: string
+          user_id: string
+        }
+        Update: {
+          barcode?: string | null
+          brand_id?: string | null
+          created_at?: string
+          id?: string
+          scanned_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_scans_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "user_scans_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_scans_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "user_scans_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+        ]
+      }
       verification_audit: {
         Row: {
           created_at: string | null
@@ -2187,6 +2243,10 @@ export type Database = {
       brand_events_last_24h: {
         Args: { brand_id_param: string }
         Returns: number
+      }
+      can_user_scan: {
+        Args: { p_user_id: string }
+        Returns: Json
       }
       check_push_encryption_status: {
         Args: Record<PropertyKey, never>
