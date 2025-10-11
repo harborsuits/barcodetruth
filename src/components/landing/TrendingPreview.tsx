@@ -4,13 +4,14 @@ import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, ArrowRight } from "lucide-react";
+import { TrendingUp, ArrowRight, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface TrendingBrand {
   brand_id: string;
   brand_name: string;
   overall_score: number;
+  event_count?: number;
   recent_event?: {
     title: string;
     category: string;
@@ -56,7 +57,7 @@ export function TrendingPreview() {
       console.log('Snapshot not available, using live data', e);
     }
 
-    // Fallback to live query
+    // Fallback to live query with event count
     const { data } = await supabase
       .from('brands')
       .select(`
@@ -67,18 +68,31 @@ export function TrendingPreview() {
       .limit(5);
 
     if (data) {
-      setTrending(data.map((b: any) => ({
-        brand_id: b.id,
-        brand_name: b.name,
-        overall_score: b.brand_scores 
-          ? Math.round((
-              b.brand_scores.score_labor +
-              b.brand_scores.score_environment +
-              b.brand_scores.score_politics +
-              b.brand_scores.score_social
-            ) / 4)
-          : 50
-      })));
+      // Fetch event counts for each brand
+      const brandsWithCounts = await Promise.all(
+        data.map(async (b: any) => {
+          const { count } = await supabase
+            .from('brand_events')
+            .select('*', { count: 'exact', head: true })
+            .eq('brand_id', b.id)
+            .gte('event_date', new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString());
+          
+          return {
+            brand_id: b.id,
+            brand_name: b.name,
+            event_count: count || 0,
+            overall_score: b.brand_scores 
+              ? Math.round((
+                  b.brand_scores.score_labor +
+                  b.brand_scores.score_environment +
+                  b.brand_scores.score_politics +
+                  b.brand_scores.score_social
+                ) / 4)
+              : 50
+          };
+        })
+      );
+      setTrending(brandsWithCounts);
     }
     setLoading(false);
   };
@@ -133,7 +147,15 @@ export function TrendingPreview() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 space-y-2">
-                  <h3 className="font-semibold text-base">{brand.brand_name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-base">{brand.brand_name}</h3>
+                    {brand.event_count !== undefined && brand.event_count < 3 && (
+                      <Badge variant="outline" className="gap-1 border-warning/50 text-warning text-[10px] px-1.5 py-0">
+                        <AlertTriangle className="h-2.5 w-2.5" />
+                        Limited Data
+                      </Badge>
+                    )}
+                  </div>
                   {brand.recent_event && (
                     <div className="space-y-2">
                       <div className="flex gap-2">
@@ -148,6 +170,11 @@ export function TrendingPreview() {
                         {brand.recent_event.title}
                       </p>
                     </div>
+                  )}
+                  {brand.event_count === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Score based on baseline estimates
+                    </p>
                   )}
                 </div>
                 <div className="text-right">

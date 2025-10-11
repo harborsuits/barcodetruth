@@ -26,6 +26,7 @@ import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import ScoreBreakdown from "@/components/ScoreBreakdown";
 import { EventTimeline } from "@/components/EventTimeline";
 import { TrustIndicators } from "@/components/TrustIndicators";
+import { InsufficientDataBadge } from "@/components/InsufficientDataBadge";
 
 export const BrandDetail = () => {
   const { brandId } = useParams();
@@ -445,10 +446,29 @@ export const BrandDetail = () => {
         <Card>
           <CardContent className="pt-6">
             <div className="text-center space-y-4">
-              <div className={`text-6xl font-bold ${getScoreColor(brand.overall_score)}`}>
-                {brand.overall_score}
+              <div className="flex items-center justify-center gap-3">
+                <div className={`text-6xl font-bold ${getScoreColor(brand.overall_score)}`}>
+                  {brand.overall_score}
+                </div>
+                {brand.events && brand.events.length < 3 && (
+                  <InsufficientDataBadge 
+                    eventCount={brand.events.length}
+                    verifiedCount={brand.events.filter((e: any) => e.verification !== 'unverified').length}
+                  />
+                )}
               </div>
               <p className="text-muted-foreground">Overall Score</p>
+              
+              {/* Insufficient Data Warning */}
+              {brand.events && brand.events.length === 0 && (
+                <div className="px-4 py-3 rounded-lg bg-warning/10 border border-warning/30 text-sm">
+                  <p className="font-medium text-warning mb-1">Score uses baseline estimates only</p>
+                  <p className="text-muted-foreground text-xs">
+                    No recent events found for this brand. The score shown is based on category defaults, not actual performance data.
+                  </p>
+                </div>
+              )}
+              
               <div className="flex items-center justify-center gap-2 text-sm">
                 {brand.trending.velocity === "rising" && (
                   <>
