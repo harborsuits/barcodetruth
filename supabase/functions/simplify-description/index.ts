@@ -29,6 +29,7 @@ interface SummarySchema {
   quote: string;
 }
 
+
 function validateSchema(data: any): SummarySchema {
   return {
     tldr: typeof data.tldr === 'string' ? data.tldr : '',
@@ -38,6 +39,36 @@ function validateSchema(data: any): SummarySchema {
     quote: typeof data.quote === 'string' ? data.quote : 'No direct quote available.'
   };
 }
+
+// Heuristic: does text include specifics (dates, numbers, amounts, proper nouns, codes)?
+function hasSpecifics(text: string): boolean {
+  if (!text) return false;
+  const patterns = [
+    /\$\s?\d+[\d,]*(\.\d+)?/i,           // dollar amounts
+    /\b\d{1,3}(,\d{3})+(\.\d+)?\b/,      // large numbers with commas
+    /\b\d+\s?(percent|%|ppm|tons?|mg|kg)\b/i, // units/percentages
+    /\b(19|20)\d{2}\b/,                    // years
+    /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b/i, // months
+    /\bClass\s?[I|II|III]\b/i,             // recall classes
+    /\b(§|Code|CFR|OSHA|EPA|FEC|FDA)\b/,    // agencies/codes
+    /\b[A-Z][a-z]+\s[A-Z][a-z]+\b/         // proper noun (First Last)
+  ];
+  return patterns.some((re) => re.test(text));
+}
+
+function enforceSpecificity(summary: SummarySchema): SummarySchema {
+  const textBlob = [summary.tldr, ...summary.whatHappened, ...summary.keyFacts].join(' \n ');
+  const specific = hasSpecifics(textBlob);
+  if (specific) return summary;
+  return {
+    tldr: 'Source provides limited details. Review the original document for specifics.',
+    whatHappened: ['Limited details available in source. No concrete amounts, dates, or named parties provided.'],
+    whyItMatters: summary.whyItMatters,
+    keyFacts: [],
+    quote: summary.quote || 'No direct quote available.'
+  };
+}
+
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -98,7 +129,7 @@ serve(async (req) => {
       fn: 'simplify-description'
     });
 
-    const { description, category, title, severity, occurredAt, verification, sourceName, sourceDomain, eventId: reqEventId } = await req.json();
+    const { description, category, title, severity, occurredAt, verification, sourceName, sourceDomain, eventId: reqEventId, refresh } = await req.json();
     eventId = reqEventId;
 
     if (!description) {
@@ -109,7 +140,7 @@ serve(async (req) => {
     }
 
     // Check cache first
-    if (eventId) {
+    if (eventId && !refresh) {
       const { data: cached } = await supabase
         .from('event_summaries')
         .select('summary, tokens_in, tokens_out')
@@ -268,13 +299,15 @@ Return a JSON object with: tldr, whatHappened (array), whyItMatters (array), key
       if (eventId) {
         await supabase.from('event_summaries').insert({
           event_id: eventId,
-          summary: parsed,
+          summary: enforceSpecificity(parsed),
           tokens_in: data.usage?.prompt_tokens || 0,
           tokens_out: data.usage?.completion_tokens || 0,
         });
       }
 
-      // Log success with metrics
+      // Replace with specificity-enforced version for response
+      parsed = enforceSpecificity(parsed);
+
       console.log(JSON.stringify({
         level: 'info',
         fn: 'simplify-description',

@@ -166,6 +166,14 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
   } | null>(null);
   const [isSimplifying, setIsSimplifying] = useState(false);
   const { toast } = useToast();
+
+  const limitedDetails = useMemo(() => {
+    if (!simplified) return false;
+    const blob = [simplified.tldr, ...(simplified.whatHappened || []), ...(simplified.keyFacts || [])].join(' ');
+    const hasSpecifics = /\$\d|\d+\s?(percent|%|ppm|tons?|mg|kg)|\b(19|20)\d{2}\b|\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.test(blob);
+    const mentionsLimited = /limited details/i.test(blob);
+    return mentionsLimited || !hasSpecifics;
+  }, [simplified]);
   
   // Single source of truth for timestamp
   const timestamp = event.occurred_at ?? event.date;
@@ -307,7 +315,8 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
           occurredAt: timestamp,
           verification: event.verification,
           sourceName: primarySource?.name || 'Unknown',
-          sourceDomain
+          sourceDomain,
+          refresh: true
         }
       });
 
@@ -442,9 +451,14 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                 {showSimplified && simplified && (
                   <div className="mt-4 p-4 bg-muted/50 rounded-lg border space-y-3">
                     <div className="flex items-start justify-between gap-2 text-xs pb-2 border-b">
-                      <div className="flex items-start gap-2 text-muted-foreground">
+                      <div className="flex items-center gap-2 text-muted-foreground">
                         <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
                         <p>AI summary from cited source.</p>
+                        {limitedDetails && (
+                          <Badge variant="outline" className="ml-1 h-5 px-2 text-[10px] bg-neutral-600/10 text-neutral-700 border-neutral-600/20">
+                            Limited details
+                          </Badge>
+                        )}
                       </div>
                       {primarySource?.url && (
                         <a
@@ -569,7 +583,7 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                       aria-label={`Open source: ${primarySource.name ?? 'external link'}`}
                       title={`View official source at ${primarySource.name}`}
                     >
-                      Source
+                      View source
                       <ExternalLink className="h-3 w-3 opacity-70 group-hover:opacity-100" />
                     </a>
                   )}
@@ -643,7 +657,7 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                                   aria-label={`Open source: ${source.name ?? 'external link'}`}
                                   title={`View source at ${source.name}`}
                                 >
-                                  Source
+                                  View source
                                   <ExternalLink className="h-3 w-3" />
                                 </a>
                               )}
