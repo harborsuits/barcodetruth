@@ -25,6 +25,7 @@ interface Source {
   archive_url?: string;
   canonical_url?: string;
   is_generic?: boolean;
+  link_kind?: 'article' | 'database' | 'homepage';
   severity?: string;
   amount?: number;
   verification?: string;
@@ -216,7 +217,7 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                         </div>
                         
                         <div className="flex gap-1">
-                          {source.canonical_url && (
+                          {source.link_kind === 'article' && source.canonical_url && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -233,7 +234,7 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                               </a>
                             </Button>
                           )}
-                          {!source.canonical_url && source.credibility_tier === 'official' && linkUrl && (
+                          {source.link_kind === 'database' && linkUrl && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -250,7 +251,7 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                               </a>
                             </Button>
                           )}
-                          {!source.canonical_url && source.credibility_tier !== 'official' && (
+                          {source.link_kind === 'homepage' && (
                             <Button
                               variant="ghost"
                               size="sm"

@@ -534,6 +534,7 @@ export type Database = {
           evidence_status: string | null
           id: string
           is_generic: boolean | null
+          link_kind: Database["public"]["Enums"]["link_kind"] | null
           quote: string | null
           registrable_domain: string | null
           source_date: string | null
@@ -557,6 +558,7 @@ export type Database = {
           evidence_status?: string | null
           id?: string
           is_generic?: boolean | null
+          link_kind?: Database["public"]["Enums"]["link_kind"] | null
           quote?: string | null
           registrable_domain?: string | null
           source_date?: string | null
@@ -580,6 +582,7 @@ export type Database = {
           evidence_status?: string | null
           id?: string
           is_generic?: boolean | null
+          link_kind?: Database["public"]["Enums"]["link_kind"] | null
           quote?: string | null
           registrable_domain?: string | null
           source_date?: string | null
@@ -2378,6 +2381,7 @@ export type Database = {
         | "general"
       event_orientation: "positive" | "negative" | "mixed"
       evidence_status: "pending" | "resolved" | "no_evidence" | "failed"
+      link_kind: "article" | "database" | "homepage"
       ownership_relation:
         | "brand_of"
         | "division_of"
@@ -2523,6 +2527,7 @@ export const Constants = {
       ],
       event_orientation: ["positive", "negative", "mixed"],
       evidence_status: ["pending", "resolved", "no_evidence", "failed"],
+      link_kind: ["article", "database", "homepage"],
       ownership_relation: [
         "brand_of",
         "division_of",
