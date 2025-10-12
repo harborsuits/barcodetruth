@@ -186,15 +186,27 @@ serve(async (req: Request) => {
       );
     }
 
-    // Evidence quality checks
-    const { count: genericCount } = await supabase
+    // Evidence quality checks: link_kind integrity
+    const { count: badKinds } = await supabase
       .from('event_sources')
       .select('*', { head: true, count: 'exact' })
-      .eq('is_generic', true);
+      .or('and(link_kind.eq.article,canonical_url.is.null),and(link_kind.eq.database,canonical_url.not.is.null)');
 
-    if ((genericCount ?? 0) > 100) {
+    if ((badKinds ?? 0) > 0) {
       warnings.push(
-        `${genericCount} source links point to generic/homepage URLs (awaiting specific permalinks)`,
+        `⚠️ ${badKinds} sources have invalid link_kind/canonical_url state (data integrity issue)`,
+      );
+    }
+
+    // Homepage volume (should trend down as resolver runs)
+    const { count: homepageCount } = await supabase
+      .from('event_sources')
+      .select('*', { head: true, count: 'exact' })
+      .eq('link_kind', 'homepage');
+
+    if ((homepageCount ?? 0) > 100) {
+      warnings.push(
+        `${homepageCount} sources are homepage-only (article pending resolution)`,
       );
     }
 
@@ -210,30 +222,16 @@ serve(async (req: Request) => {
       );
     }
 
-    // Check for resolved sources without archives
+    // Check for resolved articles without archives
     const { count: unresolvedArchives } = await supabase
       .from('event_sources')
       .select('*', { count: 'exact', head: true })
-      .not('canonical_url', 'is', null)
-      .eq('is_generic', false)
+      .eq('link_kind', 'article')
       .is('archive_url', null);
 
     if ((unresolvedArchives ?? 0) > 200) {
       warnings.push(
-        `${unresolvedArchives} resolved sources lack archive URLs (archival backlog)`,
-      );
-    }
-
-    // Check for resolved sources still marked generic (should be 0)
-    const { count: resolvedButGeneric } = await supabase
-      .from('event_sources')
-      .select('*', { count: 'exact', head: true })
-      .not('canonical_url', 'is', null)
-      .eq('is_generic', true);
-
-    if ((resolvedButGeneric ?? 0) > 0) {
-      warnings.push(
-        `⚠️ ${resolvedButGeneric} resolved sources incorrectly marked as generic (resolver bug - needs investigation)`,
+        `${unresolvedArchives} article sources lack archive URLs (archival backlog)`,
       );
     }
 

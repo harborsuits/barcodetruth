@@ -40,12 +40,11 @@ Deno.serve(async (req) => {
         source_name, 
         source_url, 
         canonical_url, 
-        is_generic,
+        link_kind,
         evidence_status,
         brand_events!inner(brand_id, category, raw_data)
       `)
-      .is('canonical_url', null)
-      .eq('is_generic', true)
+      .or('link_kind.eq.homepage,link_kind.is.null')
       .eq('evidence_status', 'pending');
     
     // Apply filters
@@ -452,8 +451,8 @@ async function updateResolved(
     archive_url: archiveUrl ?? null,
     article_title: found.title ?? null,
     article_published_at: found.published_at ?? null,
+    link_kind: 'article',
     evidence_status: 'resolved',
-    is_generic: false,
     updated_at: new Date().toISOString(),
     notes: context ? { 
       reason: context.reason,

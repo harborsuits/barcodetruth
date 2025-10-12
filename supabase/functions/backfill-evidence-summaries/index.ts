@@ -78,7 +78,7 @@ async function backfillSummaries(options: BackfillOptions) {
         event_id,
         source_name,
         canonical_url,
-        is_generic,
+        link_kind,
         article_title,
         article_snippet,
         credibility_tier,
@@ -95,7 +95,7 @@ async function backfillSummaries(options: BackfillOptions) {
       `)
       .is('ai_summary', null)
       .not('article_title', 'is', null)
-      .eq('is_generic', false)
+      .eq('link_kind', 'article')
       .not('canonical_url', 'is', null)
       .in('credibility_tier', ['official', 'reputable'])
       .order('id', { ascending: true })
