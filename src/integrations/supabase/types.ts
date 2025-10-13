@@ -32,6 +32,72 @@ export type Database = {
         }
         Relationships: []
       }
+      article_brand_matches: {
+        Row: {
+          brand_id: string
+          confidence: number
+          decided: boolean
+          decided_at: string | null
+          id: string
+          item_id: string
+          method: string
+        }
+        Insert: {
+          brand_id: string
+          confidence: number
+          decided?: boolean
+          decided_at?: string | null
+          id?: string
+          item_id: string
+          method: string
+        }
+        Update: {
+          brand_id?: string
+          confidence?: number
+          decided?: boolean
+          decided_at?: string | null
+          id?: string
+          item_id?: string
+          method?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_brand_matches_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "article_brand_matches_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_brand_matches_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "article_brand_matches_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "article_brand_matches_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "rss_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brand_aliases: {
         Row: {
           canonical_brand_id: string
@@ -1333,6 +1399,50 @@ export type Database = {
         }
         Relationships: []
       }
+      rss_items: {
+        Row: {
+          created_at: string
+          feed_id: string
+          id: string
+          published_at: string | null
+          raw_text: string | null
+          status: string
+          summary: string | null
+          title: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          feed_id: string
+          id?: string
+          published_at?: string | null
+          raw_text?: string | null
+          status?: string
+          summary?: string | null
+          title: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          feed_id?: string
+          id?: string
+          published_at?: string | null
+          raw_text?: string | null
+          status?: string
+          summary?: string | null
+          title?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rss_items_feed_id_fkey"
+            columns: ["feed_id"]
+            isOneToOne: false
+            referencedRelation: "rss_feeds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scoring_caps: {
         Row: {
           description: string | null
@@ -2339,6 +2449,22 @@ export type Database = {
       allow_push_send: {
         Args: { p_brand: string; p_category: string; p_user_id: string }
         Returns: boolean
+      }
+      app_brand_alias_candidates: {
+        Args: { p_summary: string; p_title: string }
+        Returns: {
+          brand_id: string
+          confidence: number
+          method: string
+        }[]
+      }
+      app_brand_trigram_candidates: {
+        Args: { p_title: string }
+        Returns: {
+          brand_id: string
+          confidence: number
+          method: string
+        }[]
       }
       assign_credibility_tier: {
         Args: { domain: string }

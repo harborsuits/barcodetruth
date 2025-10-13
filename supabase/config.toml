@@ -66,3 +66,6 @@ verify_jwt = false
 
 [functions.backfill-evidence-summaries]
 verify_jwt = false
+
+[functions.brand-match]
+verify_jwt = false

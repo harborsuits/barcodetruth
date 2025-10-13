@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
 
     if (!feeds || feeds.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, message: 'No feeds configured', jobs_created: 0 }),
+        JSON.stringify({ success: true, message: 'No feeds configured', items_inserted: 0 }),
         { headers: baseHeaders }
       );
     }
@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
 
         if (!feedRes.ok) {
           console.error(`[${requestId}] Failed to fetch ${feed.source_name}: ${feedRes.status}`);
-          results.push({ feed: feed.source_name, error: `HTTP ${feedRes.status}`, jobs: 0 });
+          results.push({ feed: feed.source_name, error: `HTTP ${feedRes.status}`, inserted: 0 });
           continue;
         }
 
@@ -97,15 +97,14 @@ Deno.serve(async (req) => {
 
         console.log(`[${requestId}] Extracted ${items.length} items from ${feed.source_name}`);
 
-        let jobsCreated = 0;
+        let itemsInserted = 0;
 
         for (const item of items) {
-          // Check if we already processed this URL (simple dedupe)
+          // Check if we already have this URL in rss_items
           const { data: existing } = await supabase
-            .from('brand_events')
-            .select('event_id')
-            .eq('ingested_from', feed.source_name)
-            .ilike('description', `%${item.link}%`)
+            .from('rss_items')
+            .select('id')
+            .eq('url', item.link)
             .maybeSingle();
 
           if (existing) {
@@ -113,56 +112,50 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          // Queue ingestion job
-          const { error: jobError } = await supabase
-            .from('jobs')
+          // Insert into rss_items with status='queued' for brand-match to process
+          const { error: insertError } = await supabase
+            .from('rss_items')
             .insert({
-              stage: 'ingest_event',
-              payload: {
-                ingested_from: feed.source_name,
-                title: item.title,
-                description: item.description || item.title,
-                event_date: item.pubDate.split('T')[0], // Date only
-                category: feed.category_hint || 'general',
-                sources: [{
-                  name: feed.source_name,
-                  url: item.link,
-                  published_at: item.pubDate,
-                }],
-              },
+              feed_id: feed.id,
+              title: item.title,
+              summary: item.description || null,
+              url: item.link,
+              published_at: item.pubDate,
+              status: 'queued'
             });
 
-          if (!jobError) {
-            jobsCreated++;
+          if (!insertError) {
+            itemsInserted++;
+          } else {
+            console.error(`[${requestId}] Failed to insert item: ${insertError.message}`);
           }
         }
 
-        // Update feed last_fetched
+        // Update feed last_fetched_at
         await supabase
           .from('rss_feeds')
           .update({
-            last_fetched: new Date().toISOString(),
-            last_item_date: items[0]?.pubDate || null,
+            last_fetched_at: new Date().toISOString()
           })
           .eq('id', feed.id);
 
-        results.push({ feed: feed.source_name, items: items.length, jobs: jobsCreated });
-        totalJobsCreated += jobsCreated;
+        results.push({ feed: feed.source_name, items: items.length, inserted: itemsInserted });
+        totalJobsCreated += itemsInserted;
 
       } catch (err) {
         console.error(`[${requestId}] Error processing ${feed.source_name}:`, err);
-        results.push({ feed: feed.source_name, error: String(err), jobs: 0 });
+        results.push({ feed: feed.source_name, error: String(err), inserted: 0 });
       }
     }
 
     const response = {
       success: true,
       feeds_processed: feeds.length,
-      jobs_created: totalJobsCreated,
+      items_inserted: totalJobsCreated,
       results,
     };
 
-    console.log(`[${requestId}] Completed: ${totalJobsCreated} jobs created`);
+    console.log(`[${requestId}] Completed: ${totalJobsCreated} items inserted`);
 
     return new Response(JSON.stringify(response), { headers: baseHeaders });
 
