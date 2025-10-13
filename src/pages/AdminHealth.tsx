@@ -60,12 +60,30 @@ interface QAResult {
   checks: QACheck[];
 }
 
+interface HealthMetrics {
+  evidence_recent: boolean;
+  match_rate_ok: boolean;
+  scores_fresh: boolean;
+  homepage_ok: boolean;
+  details: {
+    rss_items_2h: number;
+    rss_matched_2h: number;
+    match_rate_pct: number;
+    scores_updated_24h: number;
+    homepage_pending: number;
+    products_with_brands: number;
+    total_products: number;
+  };
+}
+
 export default function AdminHealth() {
   const [loading, setLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [data, setData] = useState<HealthData | null>(null);
   const [qaResult, setQaResult] = useState<QAResult | null>(null);
   const [showQaModal, setShowQaModal] = useState(false);
+  const [healthMetrics, setHealthMetrics] = useState<HealthMetrics | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
 
   useEffect(() => {
     checkAdminAndFetch();
@@ -203,6 +221,36 @@ export default function AdminHealth() {
     }
   }
 
+  async function runHealthCheck() {
+    setHealthLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("comprehensive-health", {
+        body: {},
+      });
+
+      if (error) throw error;
+      setHealthMetrics(data);
+      
+      const allGreen = data.evidence_recent && data.match_rate_ok && data.scores_fresh && data.homepage_ok;
+      if (allGreen) {
+        toast.success("All systems operational", {
+          description: "Pipeline, scoring, and scanner are healthy",
+        });
+      } else {
+        toast.warning("System health check complete", {
+          description: "Some indicators need attention",
+        });
+      }
+    } catch (e: any) {
+      console.error("Health check error:", e);
+      toast.error("Health check failed", {
+        description: e.message || "Unknown error",
+      });
+    } finally {
+      setHealthLoading(false);
+    }
+  }
+
   if (!isAdmin) {
     return null;
   }
@@ -249,6 +297,93 @@ export default function AdminHealth() {
             </Button>
           </div>
         </div>
+
+        {/* Comprehensive Health Check */}
+        <Card className="p-6 border-2">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-semibold">System Health Status</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                End-to-end validation: data → evidence → scores → scanner
+              </p>
+            </div>
+            <Button onClick={runHealthCheck} disabled={healthLoading} size="sm">
+              {healthLoading ? "Checking..." : "Run Health Check"}
+            </Button>
+          </div>
+
+          {healthMetrics && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <Card className={`p-4 border-2 ${healthMetrics.evidence_recent ? 'border-green-500 bg-green-50 dark:bg-green-950/20' : 'border-red-500 bg-red-50 dark:bg-red-950/20'}`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`text-2xl ${healthMetrics.evidence_recent ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                      {healthMetrics.evidence_recent ? '✓' : '✗'}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-sm">Pipeline Active</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {healthMetrics.details.rss_matched_2h} matched / {healthMetrics.details.rss_items_2h} items
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className={`p-4 border-2 ${healthMetrics.match_rate_ok ? 'border-green-500 bg-green-50 dark:bg-green-950/20' : 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20'}`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`text-2xl ${healthMetrics.match_rate_ok ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'}`}>
+                      {healthMetrics.match_rate_ok ? '✓' : '⚠'}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-sm">Match Rate</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {healthMetrics.details.match_rate_pct}% (target: ≥5%)
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className={`p-4 border-2 ${healthMetrics.scores_fresh ? 'border-green-500 bg-green-50 dark:bg-green-950/20' : 'border-red-500 bg-red-50 dark:bg-red-950/20'}`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`text-2xl ${healthMetrics.scores_fresh ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                      {healthMetrics.scores_fresh ? '✓' : '✗'}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-sm">Scores Fresh</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {healthMetrics.details.scores_updated_24h} updated (24h)
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className={`p-4 border-2 ${healthMetrics.homepage_ok ? 'border-green-500 bg-green-50 dark:bg-green-950/20' : 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20'}`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`text-2xl ${healthMetrics.homepage_ok ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'}`}>
+                      {healthMetrics.homepage_ok ? '✓' : '⚠'}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-sm">Scanner Ready</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {healthMetrics.details.products_with_brands}/{healthMetrics.details.total_products} linked
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                <strong>Next steps if unhealthy:</strong>
+                <ul className="list-disc list-inside mt-1 space-y-0.5">
+                  <li>Pipeline inactive? Check pg_cron jobs and run pull-feeds + brand-match</li>
+                  <li>Low match rate? Add brand_aliases for major CPG brands</li>
+                  <li>Scores stale? Run calculate-baselines function</li>
+                  <li>Homepage backlog high ({healthMetrics.details.homepage_pending})? Run resolve-evidence-links</li>
+                </ul>
+              </div>
+            </>
+          )}
+        </Card>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="p-6">
