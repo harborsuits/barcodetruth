@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { CheckCircle2, XCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertCircle, Loader2, Copy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 interface DiagnosticResult {
   check: string;
@@ -149,6 +150,20 @@ export function ScannerDiagnostics({ open, onOpenChange }: { open: boolean; onOp
     }
   };
 
+  const copyDebugReport = () => {
+    const report = {
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      results: results.map(r => ({
+        check: r.check,
+        status: r.status,
+        message: r.message
+      }))
+    };
+    navigator.clipboard.writeText(JSON.stringify(report, null, 2));
+    toast({ title: 'Debug report copied to clipboard' });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -176,20 +191,32 @@ export function ScannerDiagnostics({ open, onOpenChange }: { open: boolean; onOp
             </div>
           )}
 
-          <Button 
-            onClick={runDiagnostics} 
-            disabled={running}
-            className="w-full"
-          >
-            {running ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Running Tests...
-              </>
-            ) : (
-              <>Run Diagnostics</>
+          <div className="flex gap-2">
+            <Button 
+              onClick={runDiagnostics} 
+              disabled={running}
+              className="flex-1"
+            >
+              {running ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Running Tests...
+                </>
+              ) : (
+                <>Run Diagnostics</>
+              )}
+            </Button>
+            {results.length > 0 && (
+              <Button 
+                onClick={copyDebugReport} 
+                variant="outline"
+                size="icon"
+                title="Copy debug report"
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
             )}
-          </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
