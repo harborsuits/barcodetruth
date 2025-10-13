@@ -1,9 +1,10 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, AlertCircle, Download, WifiOff, X, Flashlight, FlashlightOff } from "lucide-react";
+import { ArrowLeft, Camera, AlertCircle, Download, WifiOff, X, Flashlight, FlashlightOff, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ReportIssue } from "@/components/ReportIssue";
+import { ScannerDiagnostics } from "@/components/ScannerDiagnostics";
 import { useState, useEffect, useRef } from "react";
 import { initA2HS, triggerA2HS, isA2HSAvailable, dismissA2HS, isA2HSDismissed } from "@/lib/a2hs";
 import { toast } from "@/hooks/use-toast";
@@ -24,6 +25,7 @@ export const Scan = () => {
   const [manualBarcode, setManualBarcode] = useState('');
   const [isSecure, setIsSecure] = useState(true);
   const [showManual, setShowManual] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<ReturnType<typeof createScanner> | null>(null);
   const manualInputRef = useRef<HTMLInputElement | null>(null);
@@ -329,6 +331,14 @@ export const Scan = () => {
               </Button>
               <h1 className="text-xl font-bold">Scan Product</h1>
             </div>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setShowDiagnostics(true)}
+              title="Scanner Diagnostics"
+            >
+              <Wrench className="h-5 w-5" />
+            </Button>
             {isOffline && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <WifiOff className="h-4 w-4" />
@@ -663,6 +673,7 @@ export const Scan = () => {
           </div>
         </details>
       </main>
+      <ScannerDiagnostics open={showDiagnostics} onOpenChange={setShowDiagnostics} />
     </div>
   );
 };
