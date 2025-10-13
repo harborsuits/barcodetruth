@@ -9,6 +9,8 @@ interface DiagnosticResult {
   check: string;
   status: 'pending' | 'pass' | 'fail' | 'warning';
   message: string;
+  latencyMs?: number;
+  error?: string;
 }
 
 export function ScannerDiagnostics({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -92,44 +94,51 @@ export function ScannerDiagnostics({ open, onOpenChange }: { open: boolean; onOp
 
     // 5. Test resolve-barcode endpoint with test EAN-13
     const testBarcode = '0012345678905'; // Valid EAN-13 format
-    checks.push({
+    const idx = checks.push({
       check: 'Endpoint Test',
       status: 'pending',
       message: `Testing resolve-barcode with ${testBarcode}...`
-    });
+    }) - 1;
     setResults([...checks]);
 
+    const t0 = performance.now();
     try {
-      const t0 = performance.now();
       const { data, error } = await supabase.functions.invoke('resolve-barcode', {
         body: { barcode: testBarcode }
       });
       const latency = Math.round(performance.now() - t0);
 
       if (error) {
-        checks[checks.length - 1] = {
+        checks[idx] = {
           check: 'Endpoint Test',
           status: 'fail',
-          message: `Error: ${error.message}`
+          message: `Error: ${error.message}`,
+          latencyMs: latency,
+          error: error.message
         };
       } else if (data?.success) {
-        checks[checks.length - 1] = {
+        checks[idx] = {
           check: 'Endpoint Test',
           status: 'pass',
-          message: `Found: ${data.product?.name || 'product'} (${latency}ms)`
+          message: `Found: ${data.product?.name || 'product'} (${latency}ms)`,
+          latencyMs: latency
         };
       } else {
-        checks[checks.length - 1] = {
+        checks[idx] = {
           check: 'Endpoint Test',
           status: 'warning',
-          message: `Not found (but endpoint working, ${latency}ms)`
+          message: `Not found (but endpoint working, ${latency}ms)`,
+          latencyMs: latency
         };
       }
     } catch (err: any) {
-      checks[checks.length - 1] = {
+      const latency = Math.round(performance.now() - t0);
+      checks[idx] = {
         check: 'Endpoint Test',
         status: 'fail',
-        message: `Network error: ${err.message}`
+        message: `Network error: ${err.message}`,
+        latencyMs: latency,
+        error: err.stack || err.message
       };
     }
 
@@ -150,18 +159,37 @@ export function ScannerDiagnostics({ open, onOpenChange }: { open: boolean; onOp
     }
   };
 
-  const copyDebugReport = () => {
+  const copyDebugReport = async () => {
     const report = {
       timestamp: new Date().toISOString(),
       userAgent: navigator.userAgent,
       results: results.map(r => ({
         check: r.check,
         status: r.status,
-        message: r.message
+        message: r.message,
+        latencyMs: r.latencyMs ?? null,
+        error: r.error ?? null,
       }))
     };
-    navigator.clipboard.writeText(JSON.stringify(report, null, 2));
-    toast({ title: 'Debug report copied to clipboard' });
+
+    const text = JSON.stringify(report, null, 2);
+
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: 'Debug report copied to clipboard' });
+    } catch {
+      // Fallback: download JSON file
+      const blob = new Blob([text], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `scanner-debug-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: 'Downloaded debug report (clipboard blocked)' });
+    }
   };
 
   return (
@@ -210,10 +238,9 @@ export function ScannerDiagnostics({ open, onOpenChange }: { open: boolean; onOp
               <Button 
                 onClick={copyDebugReport} 
                 variant="outline"
-                size="icon"
-                title="Copy debug report"
               >
-                <Copy className="h-4 w-4" />
+                <Copy className="mr-2 h-4 w-4" />
+                Copy debug report
               </Button>
             )}
           </div>
