@@ -1282,6 +1282,57 @@ export type Database = {
         }
         Relationships: []
       }
+      rss_feeds: {
+        Row: {
+          category_hint: string | null
+          country: string | null
+          created_at: string
+          credibility_tier: string
+          enabled: boolean
+          etag: string | null
+          id: string
+          language: string | null
+          last_fetched_at: string | null
+          last_modified: string | null
+          parser: string | null
+          source_name: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          category_hint?: string | null
+          country?: string | null
+          created_at?: string
+          credibility_tier?: string
+          enabled?: boolean
+          etag?: string | null
+          id?: string
+          language?: string | null
+          last_fetched_at?: string | null
+          last_modified?: string | null
+          parser?: string | null
+          source_name: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          category_hint?: string | null
+          country?: string | null
+          created_at?: string
+          credibility_tier?: string
+          enabled?: boolean
+          etag?: string | null
+          id?: string
+          language?: string | null
+          last_fetched_at?: string | null
+          last_modified?: string | null
+          parser?: string | null
+          source_name?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
       scoring_caps: {
         Row: {
           description: string | null
