@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, AlertCircle, Download, WifiOff, X, Flashlight, FlashlightOff, Wrench } from "lucide-react";
+import { ArrowLeft, Camera, AlertCircle, Download, WifiOff, X, Flashlight, FlashlightOff, Wrench, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { createScanner } from "@/lib/barcodeScanner";
 import { supabase } from "@/integrations/supabase/client";
 import { useScanLimit } from "@/hooks/useScanLimit";
+import { BrowserMultiFormatReader } from '@zxing/browser';
 
 export const Scan = () => {
   const navigate = useNavigate();
@@ -29,6 +30,7 @@ export const Scan = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<ReturnType<typeof createScanner> | null>(null);
   const manualInputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Check HTTPS (except localhost)
   useEffect(() => {
@@ -74,6 +76,21 @@ export const Scan = () => {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Full-screen mode styling
+  useEffect(() => {
+    const isFullscreen = new URLSearchParams(window.location.search).get('fullscreen') === '1';
+    if (isFullscreen) {
+      document.body.style.margin = '0';
+      document.documentElement.style.height = '100%';
+      document.body.style.height = '100%';
+    }
+    return () => {
+      document.body.style.margin = '';
+      document.documentElement.style.height = '';
+      document.body.style.height = '';
     };
   }, []);
 
@@ -320,6 +337,53 @@ export const Scan = () => {
     }
   };
 
+  const onUploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const url = URL.createObjectURL(file);
+    setScanResult('processing');
+    
+    try {
+      const img = new Image();
+      img.onload = async () => {
+        try {
+          const reader = new BrowserMultiFormatReader();
+          const result = await reader.decodeFromImageElement(img);
+          if (result) {
+            await handleBarcodeDetected(result.getText());
+          } else {
+            toast({ title: 'No barcode detected in image' });
+            setScanResult('idle');
+          }
+        } catch (err: any) {
+          toast({ 
+            title: 'Failed to decode barcode', 
+            description: err?.message || 'Could not read barcode from image' 
+          });
+          setScanResult('idle');
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        toast({ title: 'Could not read image' });
+        setScanResult('idle');
+      };
+      img.src = url;
+    } catch (err: any) {
+      URL.revokeObjectURL(url);
+      toast({ title: 'Failed to process image', description: err?.message });
+      setScanResult('idle');
+    }
+    
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-10 bg-card border-b">
@@ -331,14 +395,25 @@ export const Scan = () => {
               </Button>
               <h1 className="text-xl font-bold">Scan Product</h1>
             </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => setShowDiagnostics(true)}
-              title="Scanner Diagnostics"
-            >
-              <Wrench className="h-5 w-5" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline"
+                size="sm"
+                onClick={() => window.open('/scan?fullscreen=1', '_blank', 'noopener')}
+                title="Open full-screen scanner"
+                className="hidden sm:flex"
+              >
+                Open full-screen
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setShowDiagnostics(true)}
+                title="Scanner Diagnostics"
+              >
+                <Wrench className="h-5 w-5" />
+              </Button>
+            </div>
             {isOffline && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <WifiOff className="h-4 w-4" />
@@ -514,23 +589,45 @@ export const Scan = () => {
                   </div>
                 )}
                 
-                <div className="flex items-center gap-3 justify-center">
-                  <Button 
-                    onClick={startScanner} 
-                    aria-label="Start barcode scanner"
-                    disabled={!isSecure || !can_scan}
-                  >
-                    <Camera className="mr-2 h-4 w-4" />
-                    Start Camera
-                  </Button>
-                  <Button 
-                    variant="secondary" 
-                    onClick={onManualFallbackClick} 
-                    aria-label="Enter barcode manually"
-                    disabled={!can_scan}
-                  >
-                    Enter barcode instead
-                  </Button>
+                <div className="flex flex-col gap-3 items-center">
+                  <div className="flex items-center gap-3 justify-center">
+                    <Button 
+                      onClick={startScanner} 
+                      aria-label="Start barcode scanner"
+                      disabled={!isSecure || !can_scan}
+                    >
+                      <Camera className="mr-2 h-4 w-4" />
+                      Start Camera
+                    </Button>
+                    <Button 
+                      variant="secondary" 
+                      onClick={onManualFallbackClick} 
+                      aria-label="Enter barcode manually"
+                      disabled={!can_scan}
+                    >
+                      Enter barcode instead
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={!can_scan}
+                      aria-label="Upload barcode photo"
+                    >
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload photo
+                    </Button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={onUploadImage}
+                      aria-label="Choose barcode image file"
+                    />
+                  </div>
                 </div>
                 
                 <div className="text-xs text-muted-foreground space-y-1">
