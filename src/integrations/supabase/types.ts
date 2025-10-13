@@ -2283,10 +2283,6 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
-      exec_sql: {
-        Args: { sql: string }
-        Returns: undefined
-      }
       get_corroboration_clusters: {
         Args: {
           min_credibility?: number
@@ -2341,6 +2337,10 @@ export type Database = {
           p_record_id?: string
           p_table_name: string
         }
+        Returns: undefined
+      }
+      refresh_coverage_materialized_view: {
+        Args: Record<PropertyKey, never>
         Returns: undefined
       }
       search_brands_fuzzy: {

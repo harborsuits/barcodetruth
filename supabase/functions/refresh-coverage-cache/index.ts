@@ -18,10 +18,8 @@ Deno.serve(async (req) => {
 
     console.log('[refresh-coverage-cache] Starting materialized view refresh...');
 
-    // Refresh the materialized view concurrently (doesn't lock reads)
-    const { error } = await supabase.rpc('exec_sql', {
-      sql: 'REFRESH MATERIALIZED VIEW CONCURRENTLY brand_data_coverage'
-    });
+    // Call the specific function instead of exec_sql for security
+    const { error } = await supabase.rpc('refresh_coverage_materialized_view');
 
     if (error) {
       console.error('[refresh-coverage-cache] Failed to refresh:', error);

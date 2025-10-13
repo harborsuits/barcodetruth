@@ -322,9 +322,9 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                       })()}
                     </p>
                   )}
-                  {selectedSource?.is_generic && (
+                  {selectedSource?.link_kind === 'homepage' && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                      ⚠️ Generic page - awaiting specific article link
+                      ⚠️ Article pending - homepage reference
                     </p>
                   )}
                 </div>
@@ -367,7 +367,7 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
               )}
 
               <div className="pt-4 border-t flex gap-2">
-                {selectedSource?.url && !selectedSource?.is_generic && (
+                {selectedSource?.url && selectedSource?.link_kind === 'article' && (
                   <Button variant="outline" size="sm" asChild className="flex-1">
                     <a
                       href={selectedSource.url}
@@ -376,11 +376,24 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                       className="flex items-center gap-2 justify-center"
                     >
                       <ExternalLink className="h-4 w-4" />
-                      View Evidence
+                      View Article
                     </a>
                   </Button>
                 )}
-                {selectedSource?.url && selectedSource?.is_generic && (
+                {selectedSource?.url && selectedSource?.link_kind === 'database' && (
+                  <Button variant="outline" size="sm" asChild className="flex-1">
+                    <a
+                      href={selectedSource.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 justify-center"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      View Database
+                    </a>
+                  </Button>
+                )}
+                {selectedSource?.url && selectedSource?.link_kind === 'homepage' && (
                   <Button variant="outline" size="sm" asChild className="flex-1">
                     <a
                       href={selectedSource.url}

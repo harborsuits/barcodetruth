@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
-import { Download, Home, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { Download, Home, ChevronRight, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
