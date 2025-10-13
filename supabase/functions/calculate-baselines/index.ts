@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { requireInternal } from '../_shared/internal.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -412,6 +413,9 @@ function allowRequest(identifier: string, maxRequests = 5, windowMs = 60_000): b
 }
 
 serve(async (req) => {
+  const guard = requireInternal(req);
+  if (guard) return guard;
+
   const startTime = performance.now();
   
   if (req.method === 'OPTIONS') {
