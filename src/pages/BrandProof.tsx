@@ -308,39 +308,64 @@ export default function BrandProof() {
                           >
                             {ev.verification}
                           </span>
-                          {ev.source_url && (
-                            <>
-                              <span className="text-muted-foreground">·</span>
-                              <a
-                                className="underline hover:text-primary"
-                                href={ev.source_url}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                Source
-                              </a>
-                            </>
-                          )}
-                          {ev.archive_url && (
-                            <>
-                              <span className="text-muted-foreground">·</span>
-                              <a
-                                className="underline hover:text-primary"
-                                href={ev.archive_url}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                Archive
-                              </a>
-                            </>
-                          )}
-                          {ev.archive_url ? (
+                        </div>
+                        
+                        {/* Link action based on link_kind */}
+                        <div className="flex items-center gap-2 mt-1">
+                          {(() => {
+                            const linkKind = (ev as any).link_kind;
+                            const articleUrl = ev.archive_url || (ev as any).canonical_url;
+                            const dbUrl = ev.source_url || ev.archive_url;
+                            
+                            if (linkKind === 'article' && articleUrl) {
+                              return (
+                                <a
+                                  className="inline-flex items-center gap-1 text-xs text-primary underline hover:no-underline"
+                                  href={articleUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  View Article
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                              );
+                            }
+                            
+                            if (linkKind === 'database' && dbUrl) {
+                              return (
+                                <>
+                                  <a
+                                    className="inline-flex items-center gap-1 text-xs text-primary underline hover:no-underline"
+                                    href={dbUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                  >
+                                    View Database
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                  {ev.verification === 'official' && (
+                                    <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                      🟢 Official
+                                    </span>
+                                  )}
+                                </>
+                              );
+                            }
+                            
+                            if (linkKind === 'homepage') {
+                              return (
+                                <span className="text-xs text-muted-foreground">
+                                  Article pending
+                                </span>
+                              );
+                            }
+                            
+                            return null;
+                          })()}
+                          
+                          {ev.archive_url && (ev as any).link_kind === 'article' && (
                             <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
                               Archived
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                              Pending
                             </span>
                           )}
                         </div>

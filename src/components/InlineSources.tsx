@@ -24,7 +24,6 @@ interface Source {
   url?: string;
   archive_url?: string;
   canonical_url?: string;
-  is_generic?: boolean;
   link_kind?: 'article' | 'database' | 'homepage';
   severity?: string;
   amount?: number;

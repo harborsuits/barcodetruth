@@ -8,11 +8,16 @@ export type EvidenceItem = {
   source_name: string;
   source_url: string | null;
   archive_url: string | null;
+  canonical_url?: string | null;
   source_date: string | null;
   snippet?: string | null;
   verification: VerificationLevel;
   domain_owner?: string;
   domain_kind?: string;
+  link_kind?: 'article' | 'database' | 'homepage';
+  credibility_tier?: 'official' | 'reputable' | 'local' | 'unknown';
+  ai_summary?: string | null;
+  article_title?: string | null;
 };
 
 export type CategoryProofSummary = {

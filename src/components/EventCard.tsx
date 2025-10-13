@@ -21,6 +21,10 @@ interface EventSource {
   archive_url?: string;
   canonical_url?: string;
   is_generic?: boolean;
+  link_kind?: 'article' | 'database' | 'homepage';
+  credibility_tier?: 'official' | 'reputable' | 'local' | 'unknown';
+  ai_summary?: string;
+  article_title?: string;
 }
 
 export interface BrandEvent {
@@ -267,9 +271,16 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
   const isNew = isNewEvent(timestamp);
   const SourceLogo = getSourceLogo(primarySource?.name);
   
-  // Prefer archive → canonical → source
-  const preferredPrimaryUrl = primarySource?.archive_url || primarySource?.canonical_url || primarySource?.url;
-  const isPrimaryGeneric = preferredPrimaryUrl ? (primarySource?.is_generic ?? checkIfGeneric(preferredPrimaryUrl)) : true;
+  // Determine link action based on link_kind
+  const linkKind = primarySource?.link_kind;
+  const articleUrl = primarySource?.archive_url || primarySource?.canonical_url || null;
+  const dbUrl = primarySource?.url || primarySource?.archive_url || null;
+  
+  const action = linkKind === 'article'
+    ? { label: 'View Article', href: articleUrl }
+    : linkKind === 'database'
+      ? { label: 'View Database', href: dbUrl }
+      : null;
   
   // Political context for FEC events
   const politicalContext = useMemo(() => {
@@ -467,35 +478,22 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                           </Badge>
                         )}
                       </div>
-                      {preferredPrimaryUrl && !isPrimaryGeneric ? (
+                      {action?.href ? (
                         <a
-                          href={preferredPrimaryUrl}
+                          href={action.href}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200"
-                          aria-label="View evidence article"
+                          aria-label={action.label}
                         >
-                          Evidence
+                          {action.label}
                           <ExternalLink className="h-3 w-3" />
                         </a>
-                      ) : (
-                        <div className="inline-flex items-center gap-2">
-                          <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                            Evidence pending
-                          </span>
-                          {preferredPrimaryUrl && (
-                            <a
-                              href={preferredPrimaryUrl}
-                              target="_blank"
-                              rel="noopener noreferrer nofollow"
-                              className="text-xs text-muted-foreground hover:text-foreground hover:underline"
-                              aria-label={`View ${primarySource?.name || 'source'} outlet`}
-                            >
-                              {primarySource?.name || 'Outlet'}
-                            </a>
-                          )}
-                        </div>
-                      )}
+                      ) : linkKind === 'homepage' ? (
+                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                          Article pending
+                        </span>
+                      ) : null}
                     </div>
                     
                     <div>
