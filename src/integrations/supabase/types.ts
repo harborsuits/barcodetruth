@@ -1258,6 +1258,30 @@ export type Database = {
           },
         ]
       }
+      push_key_versions: {
+        Row: {
+          active: boolean
+          created_at: string
+          enc_key: string
+          id: string
+          key_alias: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          enc_key: string
+          id?: string
+          key_alias: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          enc_key?: string
+          id?: string
+          key_alias?: string
+        }
+        Relationships: []
+      }
       scoring_caps: {
         Row: {
           description: string | null
@@ -1517,6 +1541,7 @@ export type Database = {
           created_at: string | null
           endpoint: string
           id: string
+          key_alias: string | null
           p256dh_enc: string | null
           p256dh_enc_b64: string
           ua: string | null
@@ -1528,6 +1553,7 @@ export type Database = {
           created_at?: string | null
           endpoint: string
           id?: string
+          key_alias?: string | null
           p256dh_enc?: string | null
           p256dh_enc_b64: string
           ua?: string | null
@@ -1539,6 +1565,7 @@ export type Database = {
           created_at?: string | null
           endpoint?: string
           id?: string
+          key_alias?: string | null
           p256dh_enc?: string | null
           p256dh_enc_b64?: string
           ua?: string | null
@@ -2254,6 +2281,10 @@ export type Database = {
       }
     }
     Functions: {
+      admin_refresh_coverage: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       allow_push_send: {
         Args: { p_brand: string; p_category: string; p_user_id: string }
         Returns: boolean

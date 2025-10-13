@@ -35,6 +35,13 @@ function normalize(s: string): string {
     .trim();
 }
 
+// Escape SQL LIKE wildcards to prevent unintended pattern matching
+function escapeLike(input: string, maxLength = 64): string {
+  const trimmed = (input || "").slice(0, maxLength);
+  // Escape %, _ and backslash to treat them as literal characters
+  return trimmed.replace(/([\\%_])/g, "\\$1");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -73,6 +80,10 @@ serve(async (req) => {
     const t0 = performance.now();
     const normalized = normalize(rawTerm);
     
+    // Escape SQL wildcards for safe LIKE queries
+    const escapedRaw = escapeLike(rawTerm);
+    const escapedNormalized = escapeLike(normalized);
+    
     // Step 1: Check aliases (exact + normalized)
     const { data: aliasMatches } = await supabase
       .from("brand_aliases")
@@ -85,7 +96,7 @@ serve(async (req) => {
           parent_company
         )
       `)
-      .or(`external_name.ilike.${rawTerm},external_name.ilike.${normalized}`)
+      .or(`external_name.ilike.${escapedRaw},external_name.ilike.${escapedNormalized}`)
       .limit(5);
 
     const aliasResults = (aliasMatches || [])
@@ -101,7 +112,7 @@ serve(async (req) => {
     const { data: exactMatches } = await supabase
       .from("brands")
       .select("id, name, parent_company")
-      .or(`name.ilike.${rawTerm},name.ilike.${rawTerm}%`)
+      .or(`name.ilike.${escapedRaw},name.ilike.${escapedRaw}%`)
       .limit(10);
 
     const exactResults = (exactMatches || []).map(b => ({
