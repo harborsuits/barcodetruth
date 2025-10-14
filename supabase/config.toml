@@ -82,3 +82,6 @@ verify_jwt = false
 
 [functions.cron-calc-baselines]
 verify_jwt = false
+
+[functions.sync-internal-token]
+verify_jwt = false
