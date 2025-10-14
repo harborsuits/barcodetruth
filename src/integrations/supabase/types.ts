@@ -2510,6 +2510,10 @@ export type Database = {
         Args: { brand_id_param: string }
         Returns: number
       }
+      brand_profile_view: {
+        Args: { p_brand_id: string }
+        Returns: Json
+      }
       can_user_scan: {
         Args: { p_user_id: string }
         Returns: Json

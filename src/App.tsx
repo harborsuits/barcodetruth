@@ -20,6 +20,7 @@ const Auth = lazyNamed(() => import("./pages/Auth"), "default");
 const Home = lazyNamed(() => import("./pages/Home"), "Home");
 const Search = lazyNamed(() => import("./pages/Search"), "default");
 const BrandDetail = lazyNamed(() => import("./pages/BrandDetail"), "BrandDetail");
+const BrandProfile = lazyNamed(() => import("./pages/BrandProfile"), "default");
 const BrandProof = lazyNamed(() => import("./pages/BrandProof"), "default");
 const Scan = lazyNamed(() => import("./pages/Scan"), "Scan");
 const ScanResult = lazyNamed(() => import("./pages/ScanResult"), "default");
@@ -91,6 +92,24 @@ const App = () => (
                 </RouteErrorBoundary>
               </ProtectedRoute>
             }
+          />
+          {/* Canonical brand profile route */}
+          <Route
+            path="/brand/:id"
+            element={
+              <ProtectedRoute>
+                <RouteErrorBoundary>
+                  <Suspense fallback={<RouteFallback label="Loading brand profile…" />}>
+                    <BrandProfile />
+                  </Suspense>
+                </RouteErrorBoundary>
+              </ProtectedRoute>
+            }
+          />
+          {/* Redirect /brands/:id to /brand/:id */}
+          <Route
+            path="/brands/:id"
+            element={<Navigate to="/brand/:id" replace />}
           />
           <Route
             path="/scan"

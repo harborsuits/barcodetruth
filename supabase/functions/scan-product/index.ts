@@ -44,7 +44,10 @@ Deno.serve(async (req: Request) => {
     // Validate request
     if (!body.upc || !reqSchema.upc(body.upc)) {
       return new Response(
-        JSON.stringify({ error: 'Invalid request', details: 'upc must be 8-18 characters' }),
+        JSON.stringify({ 
+          error: 'Invalid request', 
+          details: { field: 'upc', message: 'upc must be 8-18 characters' }
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -53,7 +56,10 @@ Deno.serve(async (req: Request) => {
     const upc = normalizeUPC(body.upc);
     if (upc.length < 8 || upc.length > 14) {
       return new Response(
-        JSON.stringify({ error: 'UPC must be 8-14 digits after normalization' }),
+        JSON.stringify({ 
+          error: 'Invalid barcode', 
+          details: { field: 'upc', message: 'UPC must be 8-14 digits after normalization' }
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
