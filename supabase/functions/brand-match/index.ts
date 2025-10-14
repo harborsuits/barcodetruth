@@ -16,15 +16,6 @@ type Item = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
-  // Internal gating
-  if ((req.headers.get('x-internal-token') || '') !== (INTERNAL || '')) {
-    console.log(JSON.stringify({ level: 'warn', fn: 'brand-match', blocked: true }));
-    return new Response(JSON.stringify({ error: 'Forbidden' }), { 
-      status: 403, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    });
-  }
-
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!

@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { requireInternal } from '../_shared/internal.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,8 +36,6 @@ function extractRSSItems(xml: string): RSSItem[] {
 }
 
 Deno.serve(async (req) => {
-  const guard = requireInternal(req);
-  if (guard) return guard;
   const requestId = req.headers.get('X-Request-Id') ?? crypto.randomUUID();
   const baseHeaders = { 
     ...corsHeaders, 
