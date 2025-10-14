@@ -106,69 +106,77 @@ export const Scan = () => {
   };
 
   const handleBarcodeDetected = async (barcode: string) => {
-    if (scanResult === 'processing') return; // Debounce multiple detections
+    if (scanResult === 'processing') return;
     
     setScannedBarcode(barcode);
     setScanResult('processing');
     
-    // Analytics: scan detected
     console.log('[Analytics] scan_detect', { barcode, ts: Date.now() });
     
-    // Haptic feedback (mobile)
+    // Haptic feedback
     if ('vibrate' in navigator) {
       navigator.vibrate(35);
     }
     
-    // Stop scanner temporarily while processing
+    // Stop scanner while processing
     if (scannerRef.current) {
       scannerRef.current.stopScanning();
     }
 
     try {
       const t0 = performance.now();
-      console.log('Resolving barcode:', barcode);
       
-      const { data, error } = await supabase.functions.invoke('resolve-barcode', {
-        body: { barcode }
+      // Call new scan-product endpoint per TICKET B
+      const { data, error } = await supabase.functions.invoke('scan-product', {
+        body: { upc: barcode }
       });
 
       const dur = Math.round(performance.now() - t0);
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('404') || error.message?.includes('not found')) {
+          setScanResult('not_found');
+          console.log('[Analytics] scan_not_found', { barcode, dur_ms: dur });
+          toast({ 
+            title: "Product not found", 
+            description: "Try another barcode or search by brand",
+            variant: "destructive" 
+          });
+          return;
+        }
+        throw error;
+      }
 
-      if (data?.success && data?.brand?.id) {
+      if (data) {
         setScanResult('success');
-        console.log('[Analytics] resolve_ok', { barcode, brand_id: data.brand.id, dur_ms: dur });
+        console.log('[Analytics] scan_success', { barcode, brand_id: data.brand_id, dur_ms: dur });
         
-        // Track the successful scan
-        await trackScan(data.brand.id, barcode);
+        // Track the scan
+        if (data.brand_id) {
+          await trackScan(data.brand_id, barcode);
+        }
         
-        // Prefetch brand page
-        const link = document.createElement('link');
-        link.rel = 'prefetch';
-        link.href = `/brands/${data.brand.id}`;
-        document.head.appendChild(link);
+        // Save to recent scans
+        const recentScan = {
+          upc: data.upc,
+          product_name: data.product_name,
+          timestamp: Date.now()
+        };
+        
+        const stored = localStorage.getItem('recent_scans');
+        const existing = stored ? JSON.parse(stored) : [];
+        const updated = [recentScan, ...existing.filter((s: any) => s.upc !== data.upc)].slice(0, 10);
+        localStorage.setItem('recent_scans', JSON.stringify(updated));
         
         toast({ 
           title: "Product found!", 
-          description: `${data.product.name} by ${data.brand.name}` 
+          description: `${data.product_name}${data.brand_name ? ` by ${data.brand_name}` : ''}`
         });
-        
-        setTimeout(() => {
-          console.log('[Analytics] brand_nav', { brand_id: data.brand.id });
-          navigate(`/brands/${data.brand.id}`);
-        }, 1000);
       } else {
         setScanResult('not_found');
-        console.log('[Analytics] resolve_miss', { barcode, dur_ms: dur });
-        toast({ 
-          title: "Product not found", 
-          description: "Help us add it to the database",
-          variant: "destructive" 
-        });
       }
     } catch (error: any) {
-      console.error('Barcode resolution error:', error);
+      console.error('Scan error:', error);
       setScanResult('not_found');
       toast({ 
         title: "Scan failed", 

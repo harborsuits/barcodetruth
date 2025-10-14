@@ -1303,7 +1303,9 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          upc_type: string | null
           updated_at: string
+          valid_checksum: boolean | null
         }
         Insert: {
           barcode: string
@@ -1312,7 +1314,9 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          upc_type?: string | null
           updated_at?: string
+          valid_checksum?: boolean | null
         }
         Update: {
           barcode?: string
@@ -1321,7 +1325,9 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          upc_type?: string | null
           updated_at?: string
+          valid_checksum?: boolean | null
         }
         Relationships: [
           {
@@ -2581,6 +2587,23 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      scan_product_lookup: {
+        Args: { p_upc: string }
+        Returns: {
+          brand_id: string
+          brand_name: string
+          category: string
+          events_90d: number
+          independent_sources: number
+          product_id: string
+          product_name: string
+          score: number
+          score_updated: string
+          size: string
+          upc: string
+          verified_rate: number
+        }[]
+      }
       search_brands_fuzzy: {
         Args: { min_similarity?: number; search_term: string }
         Returns: {
@@ -2593,6 +2616,10 @@ export type Database = {
       unlock_stale_jobs: {
         Args: { timeout_seconds: number }
         Returns: number
+      }
+      upc_check_digit: {
+        Args: { barcode: string }
+        Returns: string
       }
       upsert_coalesced_job: {
         Args: {

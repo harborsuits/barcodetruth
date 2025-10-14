@@ -66,3 +66,13 @@ WHERE b.parent_company IN (
 )
 GROUP BY b.parent_company
 ORDER BY products_count DESC;
+
+-- Test 6 (A2): UPC type and checksum validation breakdown
+SELECT 
+  upc_type,
+  valid_checksum,
+  COUNT(*) as count,
+  ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM products), 1) as percentage
+FROM products
+GROUP BY upc_type, valid_checksum
+ORDER BY upc_type, valid_checksum;

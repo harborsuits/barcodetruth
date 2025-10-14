@@ -85,3 +85,6 @@ verify_jwt = false
 
 [functions.sync-internal-token]
 verify_jwt = false
+
+[functions.scan-product]
+verify_jwt = false
