@@ -83,12 +83,22 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  let runId: string | undefined;
 
+  try {
     console.log('Starting brand score recomputation...');
+    
+    // Log run start
+    const { data: runRecord, error: runError } = await supabase
+      .from('score_runs')
+      .insert({ status: 'running' })
+      .select('id')
+      .single();
+    
+    runId = runRecord?.id;
     
     const now = new Date();
     const oneYearAgo = new Date(now);
@@ -235,23 +245,20 @@ Deno.serve(async (req: Request) => {
   } catch (error: any) {
     console.error('Recompute error:', error);
     
-    // Log error
-    const { data: runRecord } = await supabase
-      .from('score_runs')
-      .select('id')
-      .order('started_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (runRecord?.id) {
-      await supabase
-        .from('score_runs')
-        .update({
-          status: 'error',
-          finished_at: new Date().toISOString(),
-          details: { error: error?.message ?? 'Unknown error' }
-        })
-        .eq('id', runRecord.id);
+    // Log error if we have a runId
+    if (runId) {
+      try {
+        await supabase
+          .from('score_runs')
+          .update({
+            status: 'error',
+            finished_at: new Date().toISOString(),
+            details: { error: error?.message ?? 'Unknown error' }
+          })
+          .eq('id', runId);
+      } catch (logError) {
+        console.error('Failed to log error:', logError);
+      }
     }
     
     return new Response(
