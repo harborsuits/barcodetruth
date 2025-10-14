@@ -1,12 +1,14 @@
-export function requireInternal(req: Request): Response | null {
-  const got = req.headers.get('x-internal-token');
-  const want = Deno.env.get('INTERNAL_FN_TOKEN'); // set in project env
-  if (!want || got !== want) {
-    // structured log (no secrets)
-    console.log(JSON.stringify({
+export function requireInternal(req: Request, fnName = 'internal-auth'): Response | null {
+  const token = req.headers.get('x-internal-token');
+  const expected = Deno.env.get('INTERNAL_FN_TOKEN');
+  const fromCron = req.headers.get('x-cron') === '1';
+
+  if (!fromCron || !expected || token !== expected) {
+    console.warn(JSON.stringify({
       level: 'warn',
-      fn: 'internal-auth',
+      fn: fnName,
       blocked: true,
+      reason: !fromCron ? 'missing-cron-header' : 'token-mismatch',
       ip: req.headers.get('x-forwarded-for') || null,
       ua: req.headers.get('user-agent') || null,
     }));

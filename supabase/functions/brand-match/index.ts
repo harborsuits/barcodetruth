@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { requireInternal } from '../_shared/internal.ts';
 
-const INTERNAL = Deno.env.get('INTERNAL_FN_TOKEN');
 const BATCH = parseInt(Deno.env.get('MATCH_BATCH') || '25', 10);
 const ACCEPT_THRESHOLD = 0.80;
 
@@ -15,6 +15,9 @@ type Item = {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+
+  const guard = requireInternal(req, 'brand-match');
+  if (guard) return guard;
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,

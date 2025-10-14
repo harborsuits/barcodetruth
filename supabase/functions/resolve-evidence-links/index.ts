@@ -1,10 +1,14 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { requireInternal } from '../_shared/internal.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const guard = requireInternal(req, 'resolve-evidence-links');
+  if (guard) return guard;
 
   const t0 = performance.now();
   const url = new URL(req.url);

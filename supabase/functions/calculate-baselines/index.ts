@@ -413,7 +413,11 @@ function allowRequest(identifier: string, maxRequests = 5, windowMs = 60_000): b
 }
 
 serve(async (req) => {
-  const guard = requireInternal(req);
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  const guard = requireInternal(req, 'calculate-baselines');
   if (guard) return guard;
 
   const startTime = performance.now();
