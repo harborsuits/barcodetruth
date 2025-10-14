@@ -20,15 +20,18 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify(msg), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 
-  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } })
+  const url = `${SUPABASE_URL}/functions/v1/pull-feeds`
 
   try {
-    const { data, error } = await supabase.functions.invoke('pull-feeds', {
-      body: {},
-      headers: { 'x-internal-token': INTERNAL },
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'x-internal-token': INTERNAL, 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
     })
-    if (error) throw error
-    return new Response(JSON.stringify({ ok: true, data }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    const text = await res.text()
+    const payload = (() => { try { return JSON.parse(text) } catch { return { raw: text } } })()
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`)
+    return new Response(JSON.stringify({ ok: true, data: payload }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   } catch (err) {
     console.error('cron-pull-feeds error', err)
     return new Response(JSON.stringify({ ok: false, error: String(err) }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
