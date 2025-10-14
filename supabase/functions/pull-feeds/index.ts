@@ -57,6 +57,31 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Rate limiting check
+    const MIN_GAP_MS = 5 * 60 * 1000; // 5 minutes
+    const { data: lastRun } = await supabase
+      .from('cron_runs')
+      .select('last_run')
+      .eq('fn', 'pull-feeds')
+      .maybeSingle();
+
+    if (lastRun?.last_run) {
+      const elapsed = Date.now() - new Date(lastRun.last_run).getTime();
+      if (elapsed < MIN_GAP_MS) {
+        console.log(`[${requestId}] Rate limited: last run ${Math.round(elapsed/1000)}s ago`);
+        return new Response(
+          JSON.stringify({ skipped: true, reason: 'recent-run', retry_after: Math.ceil((MIN_GAP_MS - elapsed)/1000) }),
+          { status: 429, headers: baseHeaders }
+        );
+      }
+    }
+
+    // Update last run timestamp
+    await supabase.from('cron_runs').upsert({ 
+      fn: 'pull-feeds', 
+      last_run: new Date().toISOString() 
+    });
+
     console.log(`[${requestId}] Pulling RSS feeds...`);
 
     // Fetch enabled feeds

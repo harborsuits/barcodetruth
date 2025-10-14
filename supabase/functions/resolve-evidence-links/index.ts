@@ -23,6 +23,31 @@ Deno.serve(async (req) => {
   const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
+  // Rate limiting check
+  const MIN_GAP_MS = 5 * 60 * 1000; // 5 minutes
+  const { data: lastRun } = await supabase
+    .from('cron_runs')
+    .select('last_run')
+    .eq('fn', 'resolve-evidence-links')
+    .maybeSingle();
+
+  if (lastRun?.last_run) {
+    const elapsed = Date.now() - new Date(lastRun.last_run).getTime();
+    if (elapsed < MIN_GAP_MS) {
+      console.log(`[resolve-evidence-links] Rate limited: last run ${Math.round(elapsed/1000)}s ago`);
+      return new Response(
+        JSON.stringify({ skipped: true, reason: 'recent-run', retry_after: Math.ceil((MIN_GAP_MS - elapsed)/1000) }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+  }
+
+  // Update last run timestamp
+  await supabase.from('cron_runs').upsert({ 
+    fn: 'resolve-evidence-links', 
+    last_run: new Date().toISOString() 
+  });
+
   // Start run tracking
   const { data: runData } = await supabase
     .from('evidence_resolution_runs')

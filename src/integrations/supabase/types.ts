@@ -583,6 +583,21 @@ export type Database = {
         }
         Relationships: []
       }
+      cron_runs: {
+        Row: {
+          fn: string
+          last_run: string
+        }
+        Insert: {
+          fn: string
+          last_run?: string
+        }
+        Update: {
+          fn?: string
+          last_run?: string
+        }
+        Relationships: []
+      }
       event_sources: {
         Row: {
           ai_model_version: string | null

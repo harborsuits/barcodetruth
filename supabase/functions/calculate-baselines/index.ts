@@ -421,10 +421,6 @@ serve(async (req) => {
   if (guard) return guard;
 
   const startTime = performance.now();
-  
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
 
   // Only accept POST with JSON
   if (req.method !== 'POST') {
@@ -449,10 +445,40 @@ serve(async (req) => {
     body = await req.json();
   } catch (e) {
     return new Response(
-      JSON.stringify({ error: 'Invalid JSON body' }),
+      JSON.stringify({ error: 'Invalid JSON' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
+
+  // Initialize Supabase client
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+
+  // Rate limiting check
+  const MIN_GAP_MS = 30 * 60 * 1000; // 30 minutes (expensive operation)
+  const { data: lastRun } = await supabase
+    .from('cron_runs')
+    .select('last_run')
+    .eq('fn', 'calculate-baselines')
+    .maybeSingle();
+
+  if (lastRun?.last_run) {
+    const elapsed = Date.now() - new Date(lastRun.last_run).getTime();
+    if (elapsed < MIN_GAP_MS) {
+      console.log(`[calculate-baselines] Rate limited: last run ${Math.round(elapsed/1000)}s ago`);
+      return new Response(
+        JSON.stringify({ skipped: true, reason: 'recent-run', retry_after: Math.ceil((MIN_GAP_MS - elapsed)/1000) }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+  }
+
+  // Update last run timestamp
+  await supabase.from('cron_runs').upsert({ 
+    fn: 'calculate-baselines', 
+    last_run: new Date().toISOString() 
+  });
   
   const { brandId, mode } = body;
   
