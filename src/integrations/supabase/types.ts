@@ -14,6 +14,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      _secrets_internal: {
+        Row: {
+          key: string
+          val: string
+        }
+        Insert: {
+          key: string
+          val: string
+        }
+        Update: {
+          key?: string
+          val?: string
+        }
+        Relationships: []
+      }
       app_config: {
         Row: {
           key: string
@@ -2505,10 +2520,6 @@ export type Database = {
       cleanup_old_notification_logs: {
         Args: Record<PropertyKey, never>
         Returns: number
-      }
-      exec_sql: {
-        Args: { sql: string }
-        Returns: undefined
       }
       get_corroboration_clusters: {
         Args: {
