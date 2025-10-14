@@ -2506,6 +2506,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
+      exec_sql: {
+        Args: { sql: string }
+        Returns: undefined
+      }
       get_corroboration_clusters: {
         Args: {
           min_credibility?: number
