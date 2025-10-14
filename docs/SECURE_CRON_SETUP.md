@@ -1,103 +1,41 @@
 # Secure Cron Job Setup
 
-## Step 1: Generate a Strong Token
+## Overview
 
-```bash
-openssl rand -base64 32
-```
+This setup uses:
+- **Dual-header authentication**: Edge Functions require both `x-internal-token` and `x-cron: 1`
+- **Centralized token storage**: Token stored in `_secrets_internal` table (postgres-owned, no RLS)
+- **SECURITY DEFINER helper**: `app.internal_headers()` safely retrieves token for cron jobs
+- **Rate limiting**: Built-in via `cron_runs` table
 
-Save this token securely - you'll need it in the next steps.
+## Step 1: Set the Token
 
-## Step 2: Add Environment Variable to Supabase
+The migration has already created the `_secrets_internal` table and `app.internal_headers()` helper.
 
-1. Go to your Supabase project dashboard
-2. Navigate to **Project Settings** → **Edge Functions** (or **Environment Variables**)
-3. Add a new environment variable:
-   - Name: `INTERNAL_FN_TOKEN`
-   - Value: `<your-generated-token-from-step-1>`
-4. Save and redeploy your Edge Functions
-
-## Step 3: Schedule Cron Jobs
-
-Run this SQL in your Supabase SQL Editor, replacing `<TOKEN>` with your generated token:
+Run this SQL once to set your actual token:
 
 ```sql
--- Pull feeds (every 15 min)
-SELECT cron.schedule(
-  'pull-feeds-15m',
-  '*/15 * * * *',
-  $$
-  SELECT net.http_post(
-    url := 'https://midmvcwtywnexzdwbekp.supabase.co/functions/v1/pull-feeds',
-    headers := jsonb_build_object(
-      'x-internal-token', '<TOKEN>',
-      'x-cron', '1',
-      'content-type', 'application/json'
-    ),
-    body := '{}'::jsonb,
-    timeout_milliseconds := 30000
-  );
-  $$
-);
-
--- Brand match (every 10 min)
-SELECT cron.schedule(
-  'brand-match-10m',
-  '*/10 * * * *',
-  $$
-  SELECT net.http_post(
-    url := 'https://midmvcwtywnexzdwbekp.supabase.co/functions/v1/brand-match',
-    headers := jsonb_build_object(
-      'x-internal-token', '<TOKEN>',
-      'x-cron', '1',
-      'content-type', 'application/json'
-    ),
-    body := '{}'::jsonb,
-    timeout_milliseconds := 45000
-  );
-  $$
-);
-
--- Resolve evidence (every 15 min)
-SELECT cron.schedule(
-  'resolve-evidence-15m',
-  '*/15 * * * *',
-  $$
-  SELECT net.http_post(
-    url := 'https://midmvcwtywnexzdwbekp.supabase.co/functions/v1/resolve-evidence-links?mode=agency-first&limit=300',
-    headers := jsonb_build_object(
-      'x-internal-token', '<TOKEN>',
-      'x-cron', '1',
-      'content-type', 'application/json'
-    ),
-    body := '{}'::jsonb,
-    timeout_milliseconds := 60000
-  );
-  $$
-);
-
--- Calculate baselines (nightly at 2:10 AM)
-SELECT cron.schedule(
-  'calculate-baselines-nightly',
-  '10 2 * * *',
-  $$
-  SELECT net.http_post(
-    url := 'https://midmvcwtywnexzdwbekp.supabase.co/functions/v1/calculate-baselines',
-    headers := jsonb_build_object(
-      'x-internal-token', '<TOKEN>',
-      'x-cron', '1',
-      'content-type', 'application/json'
-    ),
-    body := jsonb_build_object('mode', 'batch'),
-    timeout_milliseconds := 300000
-  );
-  $$
-);
+UPDATE _secrets_internal
+SET val = 'YOUR_ACTUAL_INTERNAL_FN_TOKEN'
+WHERE key = 'INTERNAL_FN_TOKEN';
 ```
 
-## Step 4: Verify Setup
+Replace `YOUR_ACTUAL_INTERNAL_FN_TOKEN` with your token from Supabase environment variables.
 
-Test that the security is working:
+## Step 2: Verify Security Lockdown
+
+The cron jobs are already scheduled (via migration) to use `app.internal_headers()`. Verify they're active:
+
+```sql
+SELECT jobid, jobname, schedule, active
+FROM cron.job
+WHERE jobname IN ('pull-feeds-15m','brand-match-15m','resolve-evidence-links-15m','calculate-baselines-nightly')
+ORDER BY jobid;
+```
+
+## Step 3: Test Authentication
+
+Verify dual-header authentication:
 
 ```bash
 # Should return 403 (missing headers)
@@ -106,34 +44,52 @@ curl -i https://midmvcwtywnexzdwbekp.supabase.co/functions/v1/pull-feeds
 # Should return 403 (only one header)
 curl -i -H "x-cron: 1" https://midmvcwtywnexzdwbekp.supabase.co/functions/v1/pull-feeds
 
-# Should return 200 (both headers present)
+# Should return 200 (both headers present - token from env)
 curl -i -H "x-cron: 1" \
-     -H "x-internal-token: <TOKEN>" \
+     -H "x-internal-token: YOUR_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{}' \
      https://midmvcwtywnexzdwbekp.supabase.co/functions/v1/pull-feeds
 ```
 
-Check that cron jobs are running:
+## Step 4: Monitor Cron Execution
 
 ```sql
-SELECT jobname, last_run, status, return_message
+-- Check recent runs
+SELECT jobname, status, return_message, start_time, end_time
 FROM cron.job_run_details
 ORDER BY start_time DESC
 LIMIT 20;
+
+-- Pipeline health (last 30 minutes)
+SELECT
+  COUNT(*) FILTER (WHERE created_at > now()-interval '30 min') AS rss_30m,
+  COUNT(*) FILTER (WHERE status='matched' AND created_at > now()-interval '30 min') AS matched_30m
+FROM rss_items;
+
+-- Events flowing in?
+SELECT
+  (SELECT COUNT(*) FROM brand_events WHERE created_at > now()-interval '30 min') AS events_30m,
+  (SELECT COUNT(*) FROM event_sources WHERE created_at > now()-interval '30 min') AS sources_30m;
 ```
 
 ## Security Features
 
 ✅ **Dual-header authentication**: Requires both `x-internal-token` and `x-cron: 1`  
-✅ **Rate limiting**: Built-in protection via `cron_runs` table (prevents spam if token leaks)  
-✅ **Structured logging**: All blocked requests are logged with context  
+✅ **Token isolation**: Stored in postgres-owned `_secrets_internal` (no RLS, no public access)  
+✅ **SECURITY DEFINER helper**: Safe `search_path` prevents function hijacking  
+✅ **Rate limiting**: Built-in via `cron_runs` table  
+✅ **No SQL injection**: No generic "exec_sql" RPC functions  
 
-## Token Rotation
+## Token Rotation (Zero Downtime)
 
-To rotate the token:
-
-1. Generate a new token: `openssl rand -base64 32`
-2. Update environment variable in Supabase dashboard
-3. Redeploy Edge Functions
-4. Update cron job SQL with new token
+1. Generate new token: `openssl rand -base64 32`
+2. Update in Supabase Edge Function environment variables
+3. Update in database:
+```sql
+UPDATE _secrets_internal 
+SET val = 'NEW_TOKEN_HERE' 
+WHERE key = 'INTERNAL_FN_TOKEN';
+```
+4. Redeploy Edge Functions
+5. Cron jobs automatically use new token via `app.internal_headers()`
