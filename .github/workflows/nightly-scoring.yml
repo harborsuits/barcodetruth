@@ -16,8 +16,10 @@ jobs:
             "${{ secrets.SUPABASE_URL }}/functions/v1/recompute-brand-scores" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
             -H "Content-Type: application/json" \
+            -H "x-cron-key: ${{ secrets.CRON_KEY }}" \
             -d '{"trigger":"cron"}' \
             --fail-with-body
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          CRON_KEY: ${{ secrets.CRON_KEY }}

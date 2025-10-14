@@ -12,9 +12,19 @@ Implemented nightly job to recompute brand scores from last 365 days of events u
   - Calculates verified_rate from verification levels
   - Counts independent sources from event_sources
   - Updates `brand_data_coverage` table via UPSERT
+- **Migration**: Added canonical columns to `brand_scores`
+  - Added `score` (integer) for UI/RPC contract
+  - Added `updated_at` (timestamptz) for consistency
+  - Added `reason_json` (jsonb) for detailed breakdown
+- **Migration**: Created `score_runs` table for run logging
+  - Tracks each scoring job execution
+  - Records events processed, brands updated, status
+  - Admin-only access via RLS
 
 ### Edge Function
 - **New file**: `supabase/functions/recompute-brand-scores/index.ts`
+  - **Security**: Protected by `x-cron-key` header (401 if missing/invalid)
+  - Logs run start/finish in `score_runs` table
   - Fetches all events from last 365 days
   - Applies recency weights:
     - 0-30 days: 1.0
@@ -26,15 +36,18 @@ Implemented nightly job to recompute brand scores from last 365 days of events u
     - unverified: 0.4
   - Computes raw weighted score per brand
   - Min-max normalizes to 0-100 scale
-  - Upserts into `brand_scores` with `reason_json`
+  - Upserts into `brand_scores` with canonical fields:
+    - `score`, `updated_at`, `reason_json` (UI contract)
+    - Also writes legacy fields for compatibility
   - Calls `refresh_brand_coverage()` RPC
-  - Public endpoint (no JWT required)
+  - Public endpoint (no JWT, but requires cron key)
 
 ### CI/CD
 - **New file**: `.github/workflows/nightly-scoring.yml`
   - Scheduled daily at 3 AM UTC
   - Invokes `recompute-brand-scores` edge function
-  - Uses GitHub secrets for Supabase credentials
+  - Passes `x-cron-key` header for authentication
+  - Uses GitHub secrets: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `CRON_KEY`
   - Supports manual dispatch for testing
 
 ### Config
@@ -47,6 +60,7 @@ Implemented nightly job to recompute brand scores from last 365 days of events u
 curl -X POST \
   "https://midmvcwtywnexzdwbekp.supabase.co/functions/v1/recompute-brand-scores" \
   -H "Content-Type: application/json" \
+  -H "x-cron-key: YOUR_CRON_KEY" \
   -d '{"trigger":"manual"}'
 ```
 
@@ -62,13 +76,17 @@ Expected response:
 
 ### Verify scores updated
 ```sql
-SELECT COUNT(*) FROM brand_scores WHERE score_labor IS NOT NULL;
+-- Canonical columns populated
+SELECT COUNT(*) FROM brand_scores WHERE score IS NOT NULL;
 -- Should show at least 12 brands with non-null scores
 
-SELECT brand_id, score_labor, last_updated, breakdown->>'event_count' AS events
+SELECT brand_id, score, updated_at, reason_json->>'event_count' AS events
 FROM brand_scores 
-ORDER BY last_updated DESC 
+ORDER BY updated_at DESC 
 LIMIT 10;
+
+-- Legacy columns also populated (compatibility)
+SELECT COUNT(*) FROM brand_scores WHERE score_labor IS NOT NULL;
 ```
 
 ### Verify coverage updated
@@ -81,6 +99,13 @@ LIMIT 10;
 
 ### Reason JSON structure
 ```sql
+-- Canonical field
+SELECT reason_json 
+FROM brand_scores 
+WHERE reason_json IS NOT NULL 
+LIMIT 1;
+
+-- Legacy field (same content)
 SELECT breakdown 
 FROM brand_scores 
 WHERE breakdown IS NOT NULL 
@@ -95,6 +120,15 @@ Expected keys:
 - `event_count`: Number
 - `recent_events`: Number (last 30 days)
 - `computed_at`: ISO timestamp
+
+### Run logging
+```sql
+-- Check recent runs
+SELECT id, started_at, finished_at, status, events_count, brands_updated
+FROM score_runs
+ORDER BY started_at DESC
+LIMIT 10;
+```
 
 ## Notes
 
@@ -111,7 +145,10 @@ Expected keys:
 - Uses indexed queries (event_date, brand_id)
 
 ## Security
-No new critical warnings. Function marked as public (no JWT) for cron access.
+- Function protected by `x-cron-key` header (prevents unauthorized execution)
+- `CRON_KEY` secret must be set in Supabase and GitHub Actions
+- RLS policies on `score_runs` limit visibility to admins
+- Service role can write to all tables (expected for background jobs)
 
 ## GitHub Action Status
 - Workflow file created and will run at next scheduled time (3 AM UTC)

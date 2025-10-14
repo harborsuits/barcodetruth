@@ -71,6 +71,18 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Protect endpoint with cron key
+  const CRON_KEY = Deno.env.get('CRON_KEY');
+  const providedKey = req.headers.get('x-cron-key');
+  
+  if (!CRON_KEY || providedKey !== CRON_KEY) {
+    console.error('Unauthorized: missing or invalid x-cron-key');
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -162,6 +174,11 @@ Deno.serve(async (req: Request) => {
         .from('brand_scores')
         .upsert({
           brand_id: brandId,
+          // Canonical fields for UI/RPC
+          score: score,
+          updated_at: now.toISOString(),
+          reason_json: reasonJson,
+          // Legacy fields (kept for compatibility)
           score_labor: score,
           score_environment: score,
           score_politics: score,
@@ -191,6 +208,20 @@ Deno.serve(async (req: Request) => {
       console.log('Coverage data refreshed successfully');
     }
 
+    // Log successful completion
+    if (runId) {
+      await supabase
+        .from('score_runs')
+        .update({
+          status: 'ok',
+          finished_at: new Date().toISOString(),
+          events_count: events.length,
+          brands_updated: updatedCount,
+          details: { message: 'Success' }
+        })
+        .eq('id', runId);
+    }
+
     return new Response(
       JSON.stringify({
         message: 'Brand scores recomputed successfully',
@@ -203,6 +234,26 @@ Deno.serve(async (req: Request) => {
 
   } catch (error: any) {
     console.error('Recompute error:', error);
+    
+    // Log error
+    const { data: runRecord } = await supabase
+      .from('score_runs')
+      .select('id')
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (runRecord?.id) {
+      await supabase
+        .from('score_runs')
+        .update({
+          status: 'error',
+          finished_at: new Date().toISOString(),
+          details: { error: error?.message ?? 'Unknown error' }
+        })
+        .eq('id', runRecord.id);
+    }
+    
     return new Response(
       JSON.stringify({ error: 'Failed to recompute scores', message: error?.message ?? 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

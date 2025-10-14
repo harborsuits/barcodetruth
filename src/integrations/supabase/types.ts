@@ -439,6 +439,8 @@ export type Database = {
           created_at: string
           id: string
           last_updated: string
+          reason_json: Json | null
+          score: number | null
           score_environment: number
           score_labor: number
           score_politics: number
@@ -453,6 +455,8 @@ export type Database = {
           created_at?: string
           id?: string
           last_updated?: string
+          reason_json?: Json | null
+          score?: number | null
           score_environment?: number
           score_labor?: number
           score_politics?: number
@@ -467,6 +471,8 @@ export type Database = {
           created_at?: string
           id?: string
           last_updated?: string
+          reason_json?: Json | null
+          score?: number | null
           score_environment?: number
           score_labor?: number
           score_politics?: number
@@ -1478,6 +1484,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      score_runs: {
+        Row: {
+          brands_updated: number
+          details: Json | null
+          events_count: number
+          finished_at: string | null
+          id: string
+          started_at: string
+          status: string
+        }
+        Insert: {
+          brands_updated?: number
+          details?: Json | null
+          events_count?: number
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          brands_updated?: number
+          details?: Json | null
+          events_count?: number
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+        }
+        Relationships: []
       }
       scoring_caps: {
         Row: {
