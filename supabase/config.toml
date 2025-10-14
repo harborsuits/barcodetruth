@@ -69,3 +69,16 @@ verify_jwt = false
 
 [functions.brand-match]
 verify_jwt = false
+
+# New public cron wrappers
+[functions.cron-pull-feeds]
+verify_jwt = false
+
+[functions.cron-brand-match]
+verify_jwt = false
+
+[functions.cron-resolve-evidence]
+verify_jwt = false
+
+[functions.cron-calc-baselines]
+verify_jwt = false
