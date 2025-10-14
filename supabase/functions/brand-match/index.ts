@@ -98,9 +98,9 @@ Deno.serve(async (req) => {
             decided_at: new Date().toISOString()
           }, { onConflict: 'item_id,brand_id' });
 
-          // Create event + source
+          // Create event + source (with conflict handling)
           const eventId = crypto.randomUUID();
-          const { error: evtErr } = await supabase
+          const { data: evtData, error: evtErr } = await supabase
             .from('brand_events')
             .insert({
               event_id: eventId,
@@ -109,23 +109,46 @@ Deno.serve(async (req) => {
               title: item.title,
               description: item.summary || item.title,
               occurred_at: item.published_at ?? new Date().toISOString(),
-              verification: 'corroborated'
-            });
+              verification: 'corroborated',
+              source_url: item.url
+            })
+            .select()
+            .single();
 
           if (evtErr) {
-            console.error('Event insert error:', evtErr);
-          } else {
-            await supabase.from('event_sources').insert({
-              id: crypto.randomUUID(),
-              event_id: eventId,
-              source_name: 'RSS',
-              source_url: item.url,
-              canonical_url: item.url,
-              credibility_tier: 'reputable',
-              link_kind: 'article',
-              evidence_status: 'resolved',
-              source_date: item.published_at ?? new Date().toISOString()
-            });
+            console.error(`[brand-match] Event insert failed for item ${item.id}:`, JSON.stringify(evtErr));
+            // If duplicate source_url, try to find existing event
+            if (evtErr.code === '23505') {
+              const { data: existing } = await supabase
+                .from('brand_events')
+                .select('event_id')
+                .eq('source_url', item.url)
+                .single();
+              
+              if (existing) {
+                console.log(`[brand-match] Using existing event ${existing.event_id} for duplicate URL`);
+                await supabase.from('rss_items').update({ status: 'matched' }).eq('id', item.id);
+                matched++;
+                continue;
+              }
+            }
+            throw evtErr;
+          }
+
+          const { error: srcErr } = await supabase.from('event_sources').insert({
+            id: crypto.randomUUID(),
+            event_id: eventId,
+            source_name: 'RSS',
+            source_url: item.url,
+            canonical_url: item.url,
+            credibility_tier: 'reputable',
+            link_kind: 'article',
+            evidence_status: 'resolved',
+            source_date: item.published_at ?? new Date().toISOString()
+          });
+
+          if (srcErr) {
+            console.error(`[brand-match] Source insert failed:`, JSON.stringify(srcErr));
           }
 
           await supabase.from('rss_items').update({ status: 'matched' }).eq('id', item.id);
