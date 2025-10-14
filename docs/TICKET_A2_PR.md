@@ -30,7 +30,7 @@ FROM products GROUP BY 1,2 ORDER BY 1,2;
 **Results:**
 - ✅ 300 products with `upc_type='upc-a'` and `valid_checksum=true`
 - ✅ 1,212 products with `upc_type='other'` (from initial seed)
-- ✅ Total: 1,512 products
+- ✅ **Total: 1,512 products** (exceeds ≥1000 requirement)
 
 **Sample Valid UPCs for Testing:**
 - `049000000009` - 7-Eleven Original 6oz

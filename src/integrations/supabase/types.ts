@@ -2587,6 +2587,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      refresh_brand_coverage: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       refresh_coverage_materialized_view: {
         Args: Record<PropertyKey, never>
         Returns: undefined

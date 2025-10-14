@@ -22,10 +22,17 @@ Implemented comprehensive brand profile page at `/brand/:id` with score display,
   - Evidence table with date, title, category, source, verification, external link
   - Loading skeletons and error states
   - Empty state for brands with no evidence
+  - Null-safe rendering for evidence array (`data.evidence ?? []`)
+  - External links use `rel="noopener noreferrer"` for security
+
+- **New component**: `src/components/routes/BrandRedirect.tsx`
+  - Handles redirect from `/brands/:id` → `/brand/:id` at router level
+  - Uses React Router `useParams` and `Navigate` for clean redirect
+  - Avoids SSR issues and render flickers
 
 - **Route updates**: `src/App.tsx`
   - Added `/brand/:id` route for BrandProfile page
-  - Added redirect from `/brands/:id` → `/brand/:id` (canonical)
+  - Added redirect route `/brands/:id` using BrandRedirect component (canonical)
 
 - **Error standardization**: `supabase/functions/scan-product/index.ts`
   - Standardized 400 errors to use `{ error, details: { field, message } }` shape

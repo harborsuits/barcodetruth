@@ -48,11 +48,6 @@ export default function BrandProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Redirect /brands/:id to /brand/:id
-  if (window.location.pathname.startsWith('/brands/')) {
-    return <Navigate to={`/brand/${actualId}`} replace />;
-  }
-
   useEffect(() => {
     if (!actualId) {
       setError('Brand ID is required');
@@ -255,7 +250,7 @@ export default function BrandProfile() {
             <h3 className="text-lg font-semibold">Latest evidence</h3>
           </CardHeader>
           <CardContent>
-            {data.evidence?.length > 0 ? (
+            {(data.evidence ?? []).length > 0 ? (
               <div className="border rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -270,7 +265,7 @@ export default function BrandProfile() {
                       </tr>
                     </thead>
                     <tbody>
-                      {data.evidence.map((e, i) => (
+                      {(data.evidence ?? []).map((e, i) => (
                         <tr key={i} className="border-t hover:bg-muted/50">
                           <td className="p-3 whitespace-nowrap">
                             {new Date(e.event_date).toLocaleDateString()}
@@ -303,7 +298,7 @@ export default function BrandProfile() {
                               <a 
                                 href={e.canonical_url} 
                                 target="_blank" 
-                                rel="noreferrer"
+                                rel="noopener noreferrer"
                                 aria-label="Open source in new tab"
                                 className="text-primary hover:text-primary/80"
                               >

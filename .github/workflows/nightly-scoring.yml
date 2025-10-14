@@ -1,0 +1,23 @@
+name: Nightly Brand Score Recomputation
+
+on:
+  schedule:
+    # Run at 3 AM UTC daily
+    - cron: '0 3 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  recompute-scores:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke scoring edge function
+        run: |
+          curl -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/recompute-brand-scores" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"trigger":"cron"}' \
+            --fail-with-body
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}

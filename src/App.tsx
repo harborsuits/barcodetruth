@@ -15,6 +15,7 @@ import { AdminRoute } from "@/components/routes/AdminRoute";
 
 const Forbidden = lazyNamed(() => import("./pages/Forbidden"), "default");
 const Auth = lazyNamed(() => import("./pages/Auth"), "default");
+const BrandRedirect = lazyNamed(() => import("./components/routes/BrandRedirect"), "BrandRedirect");
 
 // Lazy load heavy routes
 const Home = lazyNamed(() => import("./pages/Home"), "Home");
@@ -106,10 +107,14 @@ const App = () => (
               </ProtectedRoute>
             }
           />
-          {/* Redirect /brands/:id to /brand/:id */}
+          {/* Redirect /brands/:id to /brand/:id - canonical route */}
           <Route
             path="/brands/:id"
-            element={<Navigate to="/brand/:id" replace />}
+            element={
+              <Suspense fallback={<RouteFallback label="Redirecting…" />}>
+                <BrandRedirect />
+              </Suspense>
+            }
           />
           <Route
             path="/scan"
