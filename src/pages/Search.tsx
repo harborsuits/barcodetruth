@@ -148,7 +148,15 @@ export default function Search() {
                   <Card 
                     key={product.id} 
                     className="cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => navigate(`/scan?upc=${product.barcode}`)}
+                    onClick={() => {
+                      navigate(`/scan?upc=${product.barcode}`);
+                      // Prefetch scan function to reduce cold-start latency
+                      fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scan-product`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+                        body: JSON.stringify({ upc: '00000000' })
+                      }).catch(() => {});
+                    }}
                     role="button"
                     aria-label={`View ${product.name}`}
                   >

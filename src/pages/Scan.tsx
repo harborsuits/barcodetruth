@@ -133,6 +133,8 @@ export const Scan = () => {
             description: "Try another barcode or search by brand",
             variant: "destructive" 
           });
+          // Cooldown before next scan
+          setTimeout(() => setScanResult('idle'), 800);
           return;
         }
         throw error;
@@ -163,6 +165,8 @@ export const Scan = () => {
           title: "Product found!", 
           description: `${data.product_name}${data.brand_name ? ` by ${data.brand_name}` : ''}`
         });
+        // Cooldown before next scan
+        setTimeout(() => setScanResult('idle'), 800);
       } else {
         setScanResult('not_found');
         toast({ 
@@ -170,6 +174,8 @@ export const Scan = () => {
           description: "Try another barcode or search by brand",
           variant: "destructive" 
         });
+        // Cooldown before next scan
+        setTimeout(() => setScanResult('idle'), 800);
       }
     } catch (error: any) {
       console.error('[Analytics] scan_error', error);
@@ -178,7 +184,9 @@ export const Scan = () => {
         title: "Scan failed", 
         description: error?.message || "Try again",
         variant: "destructive" 
-        });
+      });
+      // Cooldown before next scan
+      setTimeout(() => setScanResult('idle'), 800);
     }
   }, [scanResult, trackScan]);
 

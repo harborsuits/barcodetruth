@@ -1,4 +1,5 @@
 /* ShopSignals SW v3: App shell + snapshot cache + API fallback + scan queue + brand/profile caching */
+const VERSION = 3; // Increment on each PWA change to force client refresh
 const APP_SHELL = [
   '/', '/index.html',
 ];
