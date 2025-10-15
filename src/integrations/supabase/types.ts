@@ -2657,6 +2657,10 @@ export type Database = {
           similarity: number
         }[]
       }
+      search_catalog: {
+        Args: { p_limit?: number; p_q: string }
+        Returns: Json
+      }
       unlock_stale_jobs: {
         Args: { timeout_seconds: number }
         Returns: number
