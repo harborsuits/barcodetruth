@@ -63,15 +63,10 @@ export function TrendingPreview() {
       console.log('Snapshot not available, using live data', e);
     }
 
-    // Use brand_score_effective_named view to eliminate N+1 queries
-    // Only show brands with actual event data (events_90d > 0)
+    // Use brand_trending view for optimized trending data
     const { data: trendingData } = await supabase
-      .from('brand_score_effective_named')
-      .select('brand_id, brand_name, overall_effective, events_90d, events_365d, verified_rate, independent_sources, confidence, last_event_at')
-      .gt('events_90d', 0) // Must have recent events to be "trending"
-      .gt('confidence', 0.5) // Require meaningful confidence
-      .order('events_90d', { ascending: false })
-      .order('overall_effective', { ascending: false })
+      .from('brand_trending')
+      .select('brand_id, name, score, events_7d, events_30d, verified_rate, independent_sources, score_confidence, last_event_at, trend_score')
       .limit(5);
 
     if (trendingData && trendingData.length) {
@@ -92,11 +87,11 @@ export function TrendingPreview() {
 
       setTrending(trendingData.map((b: any) => ({
         brand_id: b.brand_id,
-        brand_name: b.brand_name,
+        brand_name: b.name,
         logo_url: logoMap[b.brand_id],
-        event_count: b.events_365d || 0,
-        overall_score: b.overall_effective || 50,
-        confidence: b.confidence || 0,
+        event_count: b.events_30d || 0,
+        overall_score: b.score || 50,
+        confidence: b.score_confidence || 0.5,
         verified_rate: b.verified_rate || 0,
         independent_sources: b.independent_sources || 0,
         last_event_at: b.last_event_at

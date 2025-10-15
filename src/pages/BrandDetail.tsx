@@ -68,7 +68,7 @@ export const BrandDetail = () => {
       // Get coverage/confidence data
       const { data: coverage } = await supabase
         .from('brand_data_coverage')
-        .select('events_90d, events_365d, verified_rate, independent_sources')
+        .select('events_30d, events_365d, verified_rate, independent_sources')
         .eq('brand_id', brandId)
         .maybeSingle();
       
@@ -146,7 +146,7 @@ export const BrandDetail = () => {
         last_updated: scores?.last_updated || brandData.updated_at,
         breakdown: scores?.breakdown,
         coverage: {
-          events_90d: coverage?.events_90d || 0,
+          events_90d: coverage?.events_30d || 0,
           events_365d: coverage?.events_365d || 0,
           verified_rate: coverage?.verified_rate || 0,
           independent_sources: coverage?.independent_sources || 0,

@@ -14,7 +14,13 @@ serve(async (req) => {
 
   const url = new URL(req.url);
   const path = url.pathname.replace(/\/+$/,'');
-  const [, , , ...rest] = path.split("/");
+  
+  // Extract path after /functions/v1/v1-brands/
+  // e.g., /functions/v1/v1-brands/search -> /search
+  const functionBase = '/functions/v1/v1-brands';
+  const routePath = path.startsWith(functionBase) 
+    ? path.substring(functionBase.length) 
+    : path;
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -23,8 +29,8 @@ serve(async (req) => {
   );
 
   try {
-    // /v1/search
-    if (path === "/v1/search" && req.method === "GET") {
+    // /search
+    if (routePath === "/search" && req.method === "GET") {
       const q = url.searchParams.get("q")?.trim() ?? "";
       if (!q) return json({ products: [], brands: [] });
       
@@ -37,8 +43,8 @@ serve(async (req) => {
       return json(data ?? { products: [], brands: [] });
     }
 
-    // /v1/trending
-    if (path === "/v1/trending" && req.method === "GET") {
+    // /trending
+    if (routePath === "/trending" && req.method === "GET") {
       const limit = Number(url.searchParams.get("limit") ?? 25);
       
       const { data, error } = await supabase
@@ -51,9 +57,9 @@ serve(async (req) => {
       return json(data);
     }
 
-    // /v1/brands/:id
-    if (rest.length === 1 && req.method === "GET") {
-      const brandId = rest[0];
+    // /brands/:id
+    if (routePath.startsWith("/brands/") && req.method === "GET") {
+      const brandId = routePath.substring("/brands/".length);
       
       // Get standings (score, freshness, summary)
       const { data: standing, error: e1 } = await supabase

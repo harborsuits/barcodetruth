@@ -60,7 +60,7 @@ export default function Discover() {
   async function fetchTrending() {
     setLoadingTrending(true);
     try {
-      const response = await fetch(`${API_BASE}/v1-brands/v1/trending?limit=25`, {
+      const response = await fetch(`${API_BASE}/v1-brands/trending?limit=25`, {
         headers: {
           'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         }
@@ -81,7 +81,7 @@ export default function Discover() {
     setLoading(true);
     try {
       const response = await fetch(
-        `${API_BASE}/v1-brands/v1/search?q=${encodeURIComponent(q)}`,
+        `${API_BASE}/v1-brands/search?q=${encodeURIComponent(q)}`,
         {
           headers: {
             'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
@@ -103,7 +103,7 @@ export default function Discover() {
   async function openBrand(id: string) {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/v1-brands/v1/brands/${id}`, {
+      const response = await fetch(`${API_BASE}/v1-brands/brands/${id}`, {
         headers: {
           'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         }
