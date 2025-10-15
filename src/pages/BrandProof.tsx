@@ -299,15 +299,29 @@ export default function BrandProof() {
                       <div key={ev.id} className="space-y-2">
                         {/* Clickable title with provenance */}
                         <div className="space-y-1">
-                          <a
-                            href={ev.canonical_url || ev.archive_url || ev.source_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[15px] font-medium text-foreground underline decoration-dotted underline-offset-4 hover:decoration-solid hover:text-primary transition-colors"
-                            aria-label={`Open source: ${ev.source_name}`}
-                          >
-                            {ev.title || 'View evidence'}
-                          </a>
+                          {ev.canonical_url ? (
+                            <a
+                              href={ev.canonical_url || ev.archive_url || ev.source_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[15px] font-medium text-foreground underline decoration-dotted underline-offset-4 hover:decoration-solid hover:text-primary transition-colors"
+                              aria-label={`Open source: ${ev.source_name}`}
+                            >
+                              {ev.title || 'View evidence'}
+                            </a>
+                          ) : (
+                            <div className="space-y-1">
+                              <span className="text-[15px] font-medium text-foreground">
+                                {ev.title || 'Evidence item'}
+                              </span>
+                              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 text-xs">
+                                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                Source document pending
+                              </div>
+                            </div>
+                          )}
                           <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
                             <span>Source: {ev.source_name}</span>
                             {ev.domain_owner && ev.domain_owner !== 'Unknown' && (

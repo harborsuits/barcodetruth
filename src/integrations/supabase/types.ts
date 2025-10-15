@@ -712,11 +712,13 @@ export type Database = {
           is_generic: boolean | null
           is_primary: boolean | null
           link_kind: Database["public"]["Enums"]["link_kind"] | null
+          owner_domain: string | null
           quote: string | null
           registrable_domain: string | null
           source_date: string | null
           source_name: string
           source_url: string | null
+          title: string | null
           title_fp: string | null
         }
         Insert: {
@@ -737,11 +739,13 @@ export type Database = {
           is_generic?: boolean | null
           is_primary?: boolean | null
           link_kind?: Database["public"]["Enums"]["link_kind"] | null
+          owner_domain?: string | null
           quote?: string | null
           registrable_domain?: string | null
           source_date?: string | null
           source_name: string
           source_url?: string | null
+          title?: string | null
           title_fp?: string | null
         }
         Update: {
@@ -762,11 +766,13 @@ export type Database = {
           is_generic?: boolean | null
           is_primary?: boolean | null
           link_kind?: Database["public"]["Enums"]["link_kind"] | null
+          owner_domain?: string | null
           quote?: string | null
           registrable_domain?: string | null
           source_date?: string | null
           source_name?: string
           source_url?: string | null
+          title?: string | null
           title_fp?: string | null
         }
         Relationships: [

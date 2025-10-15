@@ -191,15 +191,25 @@ serve(async (req) => {
           continue;
         }
 
-        // Insert event source
+        // Insert primary event source with full provenance
+        const ownerDomain = 'osha.gov';
+        const sourceTitle = inspection.case_name 
+          || inspection.violation_type 
+          || `OSHA Inspection #${activityNr}`;
+        
         const { error: sourceError } = await supabase
           .from('event_sources')
           .insert({
             event_id: newEvent.event_id,
             source_name: 'OSHA',
+            title: sourceTitle,
+            canonical_url: sourceUrl,
             source_url: sourceUrl,
+            owner_domain: ownerDomain,
             source_date: occurredAt,
-            quote: `Inspection #${activityNr}: ${violationCount} violation(s), $${penalty.toLocaleString()} penalty`,
+            is_primary: true,
+            link_kind: 'database',
+            article_snippet: `Inspection #${activityNr}: ${violationCount} violation(s), $${penalty.toLocaleString()} penalty`,
           });
 
         if (sourceError) {
