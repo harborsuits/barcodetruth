@@ -48,10 +48,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get latest score breakdown
+    // Get latest score breakdown + recompute timestamp
     const { data: scoreRow, error: scoreError } = await supabase
       .from('brand_scores')
-      .select('breakdown, last_updated, score_labor, score_environment, score_politics, score_social')
+      .select('breakdown, last_updated, recomputed_at, score_labor, score_environment, score_politics, score_social')
       .eq('brand_id', brandId)
       .order('last_updated', { ascending: false })
       .limit(1)
@@ -87,20 +87,33 @@ Deno.serve(async (req) => {
       .in('category', components)
       .limit(500);
 
+    // Get last ingested timestamp
+    const { data: lastEvent } = await supabase
+      .from('brand_events')
+      .select('created_at')
+      .eq('brand_id', brandId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     // Helper to shape rows
     const toItem = (row: any) => ({
       id: row.evidence_id ?? row.id,
       event_id: row.event_id,
       brand_id: row.brand_id,
       category: row.category ?? row.score_component,
+      title: row.title || 'Untitled event',
+      occurred_at: row.occurred_at,
       source_name: row.source_name || 'Unknown Source',
       source_url: row.source_url,
+      canonical_url: row.canonical_url,
       archive_url: row.archive_url,
       source_date: row.source_date,
       snippet: row.snippet,
       verification: row.verification || 'unverified',
       domain_owner: row.domain_owner || 'Unknown',
       domain_kind: row.domain_kind || 'publisher',
+      link_kind: row.link_kind,
     });
 
     const fullByCat: Record<string, any[]> = { 
@@ -169,6 +182,8 @@ Deno.serve(async (req) => {
       brandId: brand.id,
       brandName: brand.name,
       updatedAt: scoreRow.last_updated,
+      lastRecomputeAt: scoreRow.recomputed_at || scoreRow.last_updated,
+      lastIngestedAt: lastEvent?.created_at || null,
       totals: {
         totalScore,
         confidence: avgConf,

@@ -5,6 +5,8 @@ export type EvidenceItem = {
   event_id: string;
   brand_id: string;
   category: 'labor' | 'environment' | 'politics' | 'social';
+  title?: string | null;
+  occurred_at?: string | null;
   source_name: string;
   source_url: string | null;
   archive_url: string | null;
@@ -38,6 +40,8 @@ export type BrandProofResponse = {
   brandId: string;
   brandName: string;
   updatedAt: string;
+  lastRecomputeAt?: string | null;
+  lastIngestedAt?: string | null;
   totals: {
     totalScore: number;
     confidence: number;

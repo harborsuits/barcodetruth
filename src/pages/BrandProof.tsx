@@ -168,9 +168,9 @@ export default function BrandProof() {
             <span className="text-foreground font-medium">Evidence</span>
           </nav>
           
-          <header className="flex items-baseline justify-between flex-wrap gap-4">
-            <h1 className="text-2xl font-semibold text-foreground">{data.brandName} · Evidence</h1>
-            <div className="flex items-center gap-3">
+          <header className="space-y-3">
+            <div className="flex items-baseline justify-between flex-wrap gap-4">
+              <h1 className="text-2xl font-semibold text-foreground">{data.brandName} · Evidence</h1>
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -180,9 +180,14 @@ export default function BrandProof() {
                 <Download className="h-4 w-4" />
                 Export CSV
               </Button>
-              <div className="text-sm text-muted-foreground">
-                Updated {new Date(data.updatedAt).toLocaleString(undefined, { timeZone: 'UTC' })}
-              </div>
+            </div>
+            <div className="text-xs text-muted-foreground flex gap-4 flex-wrap">
+              {data.lastRecomputeAt && (
+                <span>Last recomputed: {new Date(data.lastRecomputeAt).toLocaleString()}</span>
+              )}
+              {data.lastIngestedAt && (
+                <span>Last ingested: {new Date(data.lastIngestedAt).toLocaleString()}</span>
+              )}
             </div>
           </header>
 
@@ -292,22 +297,40 @@ export default function BrandProof() {
                         .sort((a, b) => getVerificationOrder(a.verification) - getVerificationOrder(b.verification))
                         .map((ev) => (
                       <div key={ev.id} className="space-y-2">
-                        <div className="text-sm flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-foreground">{ev.source_name}</span>
-                          {ev.domain_owner && ev.domain_owner !== 'Unknown' && (
-                            <span className="text-xs text-muted-foreground">({ev.domain_owner})</span>
-                          )}
-                          {ev.source_date && (
-                            <span className="text-muted-foreground">
-                              · {formatDate(ev.source_date)}
-                            </span>
-                          )}
-                          <span className="text-muted-foreground">·</span>
-                          <span 
-                            className={`text-xs font-medium px-1.5 py-0.5 rounded ${getVerificationColor(ev.verification)}`}
+                        {/* Clickable title with provenance */}
+                        <div className="space-y-1">
+                          <a
+                            href={ev.canonical_url || ev.archive_url || ev.source_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[15px] font-medium text-foreground underline decoration-dotted underline-offset-4 hover:decoration-solid hover:text-primary transition-colors"
+                            aria-label={`Open source: ${ev.source_name}`}
                           >
-                            {ev.verification}
-                          </span>
+                            {ev.title || 'View evidence'}
+                          </a>
+                          <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+                            <span>Source: {ev.source_name}</span>
+                            {ev.domain_owner && ev.domain_owner !== 'Unknown' && (
+                              <>
+                                <span>·</span>
+                                <span>({ev.domain_owner})</span>
+                              </>
+                            )}
+                            {(ev.occurred_at || ev.source_date) && (
+                              <>
+                                <span>·</span>
+                                <time dateTime={ev.occurred_at || ev.source_date}>
+                                  {formatDate(ev.occurred_at || ev.source_date)}
+                                </time>
+                              </>
+                            )}
+                            <span>·</span>
+                            <span 
+                              className={`text-xs font-medium px-1.5 py-0.5 rounded ${getVerificationColor(ev.verification)}`}
+                            >
+                              {ev.verification}
+                            </span>
+                          </div>
                         </div>
                         
                         {/* Link action based on link_kind */}

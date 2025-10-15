@@ -440,6 +440,7 @@ export type Database = {
           id: string
           last_updated: string
           reason_json: Json | null
+          recomputed_at: string | null
           score: number | null
           score_environment: number
           score_labor: number
@@ -456,6 +457,7 @@ export type Database = {
           id?: string
           last_updated?: string
           reason_json?: Json | null
+          recomputed_at?: string | null
           score?: number | null
           score_environment?: number
           score_labor?: number
@@ -472,6 +474,7 @@ export type Database = {
           id?: string
           last_updated?: string
           reason_json?: Json | null
+          recomputed_at?: string | null
           score?: number | null
           score_environment?: number
           score_labor?: number
@@ -707,6 +710,7 @@ export type Database = {
           evidence_status: string | null
           id: string
           is_generic: boolean | null
+          is_primary: boolean | null
           link_kind: Database["public"]["Enums"]["link_kind"] | null
           quote: string | null
           registrable_domain: string | null
@@ -731,6 +735,7 @@ export type Database = {
           evidence_status?: string | null
           id?: string
           is_generic?: boolean | null
+          is_primary?: boolean | null
           link_kind?: Database["public"]["Enums"]["link_kind"] | null
           quote?: string | null
           registrable_domain?: string | null
@@ -755,6 +760,7 @@ export type Database = {
           evidence_status?: string | null
           id?: string
           is_generic?: boolean | null
+          is_primary?: boolean | null
           link_kind?: Database["public"]["Enums"]["link_kind"] | null
           quote?: string | null
           registrable_domain?: string | null
@@ -777,13 +783,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "brand_evidence_view"
             referencedColumns: ["event_id"]
-          },
-          {
-            foreignKeyName: "event_sources_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "brand_evidence_view"
-            referencedColumns: ["evidence_id"]
           },
           {
             foreignKeyName: "event_sources_event_id_fkey"
@@ -847,13 +846,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "brand_evidence_view"
             referencedColumns: ["event_id"]
-          },
-          {
-            foreignKeyName: "fk_event"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "brand_evidence_view"
-            referencedColumns: ["evidence_id"]
           },
           {
             foreignKeyName: "fk_event"
@@ -1998,13 +1990,6 @@ export type Database = {
             foreignKeyName: "verification_audit_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
-            referencedRelation: "brand_evidence_view"
-            referencedColumns: ["evidence_id"]
-          },
-          {
-            foreignKeyName: "verification_audit_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
             referencedRelation: "brand_evidence_view_base"
             referencedColumns: ["event_id"]
           },
@@ -2100,13 +2085,6 @@ export type Database = {
             foreignKeyName: "event_sources_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
-            referencedRelation: "brand_evidence_view"
-            referencedColumns: ["evidence_id"]
-          },
-          {
-            foreignKeyName: "event_sources_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
             referencedRelation: "brand_evidence_view_base"
             referencedColumns: ["event_id"]
           },
@@ -2128,16 +2106,24 @@ export type Database = {
       }
       brand_evidence_view: {
         Row: {
+          added_at: string | null
           archive_url: string | null
           brand_id: string | null
-          category: Database["public"]["Enums"]["event_category"] | null
+          canonical_url: string | null
+          domain_kind: string | null
+          domain_owner: string | null
           event_id: string | null
           evidence_id: string | null
-          score_component: string | null
+          link_kind: string | null
+          occurred_at: string | null
+          score_component: Database["public"]["Enums"]["event_category"] | null
+          sentiment: string | null
+          severity: string | null
           snippet: string | null
           source_date: string | null
           source_name: string | null
           source_url: string | null
+          title: string | null
           verification: string | null
         }
         Relationships: [
