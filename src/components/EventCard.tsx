@@ -465,157 +465,122 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                   {event.description}
                 </p>
                 
-                {/* Simplified explanation */}
-                {showSimplified && simplified && (
-                  <div className="mt-4 p-4 bg-muted/50 rounded-lg border space-y-3">
-                    <div className="flex items-start justify-between gap-2 text-xs pb-2 border-b">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                        <p>AI summary from cited source</p>
-                      </div>
-                      {action?.href && (
-                        <a
-                          href={action.href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
-                          aria-label={action.label}
-                        >
-                          {action.label}
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
-                    </div>
-                    
-                    <div>
-                      <h4 className="text-sm font-semibold mb-1">TL;DR</h4>
-                      <p className="text-sm leading-relaxed">{simplified.tldr}</p>
-                    </div>
-
-                    {simplified.whatHappened?.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-semibold mb-1">What Happened</h4>
-                        <ul className="text-sm space-y-1 list-disc list-inside">
-                          {simplified.whatHappened.map((item, i) => (
-                            <li key={i}>{item}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {simplified.whyItMatters?.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-semibold mb-1">Why It Matters</h4>
-                        <ul className="text-sm space-y-1 list-disc list-inside">
-                          {simplified.whyItMatters.map((item, i) => (
-                            <li key={i}>{item}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {simplified.keyFacts?.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-semibold mb-1">Key Facts</h4>
-                        <ul className="text-sm space-y-1 list-disc list-inside">
-                          {simplified.keyFacts.map((item, i) => (
-                            <li key={i}>{item}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {simplified.quote && simplified.quote !== 'No direct quote available.' && (
-                      <div className="pt-2 border-t">
-                        <p className="text-sm italic text-muted-foreground">"{simplified.quote}"</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-                
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleSimplify}
-                  disabled={isSimplifying}
-                  className="text-xs h-7 gap-1"
-                >
-                  <FileText className="h-3 w-3" />
-                  {isSimplifying ? 'Loading...' : showSimplified ? 'Hide explanation' : 'Explain this event'}
-                </Button>
-              </div>
-              
-              {/* Political Context */}
-              {politicalContext && (
-                <div className={`p-2 rounded-md border text-xs ${getAlignmentBadgeColor(politicalContext.alignmentMatch)}`}>
-                  {politicalContext.message}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Impact chips - PROMINENT */}
-          {impactChips.length > 0 && (
-            <div className="flex items-start gap-2 flex-wrap p-2 rounded-lg bg-muted/30 border">
-              <span className="text-xs text-muted-foreground font-medium">Score impact:</span>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {impactChips.map(({ key, val }) => (
-                  <Badge
-                    key={key}
-                    variant="outline"
-                    className={`text-xs font-bold ${scoreTone(val)}`}
-                    title={`This event ${val > 0 ? 'increases' : 'decreases'} the ${key} score by ${Math.abs(val)} points`}
-                  >
-                    {val > 0 ? "+" : ""}{val} {key.charAt(0).toUpperCase() + key.slice(1)}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Primary source - ALWAYS VISIBLE */}
-          {primarySource && (
-            <div className="space-y-2 pt-2 border-t">
-              {showFullDetails && primarySource.quote && (
-                <blockquote className="pl-3 border-l-2 border-muted text-xs text-muted-foreground italic leading-relaxed">
-                  "{primarySource.quote}"
-                </blockquote>
-              )}
-              
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <div 
-                    className="text-xs text-muted-foreground truncate" 
-                    title={sourceTooltip}
-                  >
-                    Source: <span className="font-medium text-foreground">{primarySource.name}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {(primarySource.url || primarySource.archive_url || primarySource.canonical_url) && (
+              {/* SOURCE ATTRIBUTION - PROMINENT */}
+              {primarySource && (
+                <div className="flex items-center gap-2 pt-2 pb-1 text-sm border-t mt-3">
+                  <span className="text-muted-foreground font-medium">Source:</span>
+                  {(primarySource.canonical_url || primarySource.archive_url || primarySource.url) ? (
                     <a
-                      href={primarySource.url || primarySource.archive_url || primarySource.canonical_url || '#'}
+                      href={primarySource.canonical_url || primarySource.archive_url || primarySource.url}
                       target="_blank"
-                      rel="noopener noreferrer nofollow"
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-                      aria-label={`Open source: ${primarySource.name ?? 'external link'}`}
-                      title={`View official source at ${primarySource.name}`}
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium"
                     >
-                      View source
-                      <ExternalLink className="h-3 w-3" />
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      {primarySource.name}
+                      {primarySource.date && (
+                        <span className="text-muted-foreground font-normal">
+                          · {new Date(primarySource.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                        </span>
+                      )}
                     </a>
+                  ) : (
+                    <span className="font-medium">{primarySource.name}</span>
                   )}
-                  {!primarySource.url && !primarySource.archive_url && !primarySource.canonical_url && (
-                    <span className="text-xs text-muted-foreground italic">
-                      Database record
+                  {verificationBadge && (
+                    <span 
+                      className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md ${verificationBadge.className}`}
+                      title={verificationBadge.tooltip}
+                    >
+                      {verificationBadge.label}
                     </span>
                   )}
                 </div>
-              </div>
+              )}
+
+              {/* Simplified explanation */}
+              {showSimplified && simplified && (
+                <div className="mt-4 p-4 bg-muted/50 rounded-lg border space-y-3">
+                  <div className="flex items-start justify-between gap-2 text-xs pb-2 border-b">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Info className="h-3.5 w-3.5" />
+                      <span>AI summary from cited source</span>
+                      {limitedDetails && (
+                        <span className="px-1.5 py-0.5 bg-amber-600/10 text-amber-700 text-[10px] rounded-md border border-amber-600/20">
+                          Limited details
+                        </span>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSimplify}
+                      className="h-6 px-2 text-xs -mt-1"
+                    >
+                      <ChevronUp className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  
+                  {simplified.tldr && (
+                    <div>
+                      <p className="text-xs font-semibold mb-1 uppercase tracking-wide text-muted-foreground">TL;DR</p>
+                      <p className="text-sm leading-relaxed">{simplified.tldr}</p>
+                    </div>
+                  )}
+
+                  {simplified.whatHappened && simplified.whatHappened.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold mb-1.5 uppercase tracking-wide text-muted-foreground">What Happened</p>
+                      <ul className="space-y-1 text-sm leading-relaxed">
+                        {simplified.whatHappened.map((item, i) => (
+                          <li key={i} className="flex gap-2">
+                            <span className="text-muted-foreground mt-0.5">•</span>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {simplified.whyItMatters && simplified.whyItMatters.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold mb-1.5 uppercase tracking-wide text-muted-foreground">Why It Matters</p>
+                      <ul className="space-y-1 text-sm leading-relaxed">
+                        {simplified.whyItMatters.map((item, i) => (
+                          <li key={i} className="flex gap-2">
+                            <span className="text-muted-foreground mt-0.5">•</span>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {simplified.keyFacts && simplified.keyFacts.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold mb-1.5 uppercase tracking-wide text-muted-foreground">Key Facts</p>
+                      <ul className="space-y-1 text-sm leading-relaxed">
+                        {simplified.keyFacts.map((item, i) => (
+                          <li key={i} className="flex gap-2">
+                            <span className="text-muted-foreground mt-0.5">•</span>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {simplified.quote && (
+                    <blockquote className="pl-3 border-l-2 border-muted text-sm italic text-muted-foreground">
+                      "{simplified.quote}"
+                    </blockquote>
+                  )}
+                </div>
+              )}
 
               {/* Unverified warning */}
               {showUnverifiedWarning && (
-                <div className="flex items-start gap-2 p-2 rounded bg-warning/10 border border-warning/20">
+                <div className="flex items-start gap-2 p-2 rounded bg-warning/10 border border-warning/20 mt-3">
                   <AlertCircle className="h-3 w-3 text-warning shrink-0 mt-0.5" />
                   <p className="text-xs text-warning">
                     This report is not yet corroborated and does not affect the score.
@@ -625,7 +590,7 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
 
               {/* Additional sources */}
               {additionalSources.length > 0 && (
-                <div className="space-y-2">
+                <div className="space-y-2 pt-2 border-t mt-3">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -647,7 +612,7 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                               "{source.quote}"
                             </blockquote>
                           )}
-                           <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center justify-between gap-2">
                             <div 
                               className="text-xs text-[var(--muted)] italic truncate"
                               title={source.url ?? source.name}
@@ -655,34 +620,17 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                               {source.name}{source.date && `, ${relTime(source.date)}`}
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              {source.url && (
+                              {(source.url || source.archive_url || source.canonical_url) && (
                                 <a
-                                  href={source.url}
+                                  href={source.canonical_url || source.archive_url || source.url || '#'}
                                   target="_blank"
-                                  rel="noopener noreferrer nofollow"
-                                  className="inline-flex items-center gap-1 text-xs text-blue-700 underline underline-offset-2 hover:no-underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                                   aria-label={`Open source: ${source.name ?? 'external link'}`}
-                                  title={`View source at ${source.name}`}
                                 >
-                                  View source
                                   <ExternalLink className="h-3 w-3" />
+                                  View
                                 </a>
-                              )}
-                              {source.archive_url && (
-                                <>
-                                  <span className="text-xs text-muted-foreground" aria-hidden="true">·</span>
-                                  <a
-                                    href={source.archive_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer nofollow"
-                                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 hover:no-underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                                    aria-label="View archived version"
-                                    title="Wayback Machine archive"
-                                  >
-                                    Archive
-                                    <ExternalLink className="h-3 w-3" />
-                                  </a>
-                                </>
                               )}
                             </div>
                           </div>
@@ -692,6 +640,8 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                   )}
                 </div>
               )}
+
+              </div>
             </div>
           )}
 
