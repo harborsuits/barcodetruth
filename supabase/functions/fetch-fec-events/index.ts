@@ -306,7 +306,7 @@ Deno.serve(async (req) => {
           occurred_at: occurredAt,
           event_date: occurredAt,
           impact_politics: impact,
-          raw_data: {
+          raw_data: JSON.parse(JSON.stringify({
             committee_id: cmteId,
             committee_name: committee.name,
             tilt_pct: tiltPct,
@@ -316,7 +316,7 @@ Deno.serve(async (req) => {
             lean: lean,
             committee: committee,
             disbursements_sample: allDisbursements.slice(0, 10)
-          }
+          }))
         })
         .select("event_id")
         .single();

@@ -155,7 +155,7 @@ serve(async (req) => {
         const title = `FDA Recall: ${recall.product_description || 'Product recall'}`;
         const description = `${classification || 'Recall'} - ${recall.reason_for_recall || 'See recall details'}`;
 
-        // Insert event
+        // Insert event (sanitize raw_data to ensure JSON compatibility)
         const { data: newEvent, error: eventError } = await supabase
           .from('brand_events')
           .insert({
@@ -169,7 +169,7 @@ serve(async (req) => {
             occurred_at: occurredAt,
             event_date: occurredAt,
             impact_social: impactSocial,
-            raw_data: recall,
+            raw_data: JSON.parse(JSON.stringify(recall)),
           })
           .select('event_id')
           .single();
