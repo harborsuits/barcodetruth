@@ -282,6 +282,16 @@ export const Scan = () => {
     setScanResult('idle');
   };
 
+  // Auto-lookup UPC from query param if present
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const upc = params.get('upc');
+    if (upc && scanResult === 'idle' && !isScanning) {
+      console.log('[Analytics] upc_prefill', { upc });
+      handleBarcodeDetected(upc);
+    }
+  }, []); // Run once on mount
+
   // Stop scanner on visibility change
   useEffect(() => {
     const handleVisibilityChange = () => {

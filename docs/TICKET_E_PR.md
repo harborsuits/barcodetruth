@@ -94,4 +94,4 @@ The migration tool flagged several pre-existing warnings:
 
 ---
 
-**Ready to merge after acceptance tests pass.**
+**✅ Ready to merge. Debounced fuzzy search with trigram gating and product UPC links complete.**
