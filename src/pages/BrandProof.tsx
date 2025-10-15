@@ -307,12 +307,12 @@ export default function BrandProof() {
                               className="text-[15px] font-medium text-foreground underline decoration-dotted underline-offset-4 hover:decoration-solid hover:text-primary transition-colors"
                               aria-label={`Open source: ${ev.source_name}`}
                             >
-                              {ev.title || 'View evidence'}
+                              {ev.title || 'Official record'}
                             </a>
                           ) : (
                             <div className="space-y-1">
                               <span className="text-[15px] font-medium text-foreground">
-                                {ev.title || 'Evidence item'}
+                                {ev.title || `${ev.source_name || 'Official source'} record`}
                               </span>
                               <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 text-xs">
                                 <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -391,20 +391,20 @@ export default function BrandProof() {
                             
                             if (linkKind === 'homepage') {
                               return (
-                                <span className="text-xs text-muted-foreground">
-                                  Article pending
-                                </span>
+                                 <span className="text-xs text-muted-foreground">
+                                   Source document pending
+                                 </span>
                               );
                             }
                             
                             return null;
                           })()}
                           
-                          {ev.archive_url && (ev as any).link_kind === 'article' && (
-                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                              Archived
-                            </span>
-                          )}
+                           {ev.archive_url && (ev as any).link_kind === 'article' && (
+                             <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                               Archived
+                             </span>
+                           )}
                         </div>
                     {ev.snippet && (
                       <blockquote className="text-sm italic text-muted-foreground border-l-2 border-border pl-3">

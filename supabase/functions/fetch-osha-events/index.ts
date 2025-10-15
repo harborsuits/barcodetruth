@@ -199,18 +199,21 @@ serve(async (req) => {
         
         const { error: sourceError } = await supabase
           .from('event_sources')
-          .insert({
-            event_id: newEvent.event_id,
-            source_name: 'OSHA',
-            title: sourceTitle,
-            canonical_url: sourceUrl,
-            source_url: sourceUrl,
-            owner_domain: ownerDomain,
-            source_date: occurredAt,
-            is_primary: true,
-            link_kind: 'database',
-            article_snippet: `Inspection #${activityNr}: ${violationCount} violation(s), $${penalty.toLocaleString()} penalty`,
-          });
+          .upsert(
+            {
+              event_id: newEvent.event_id,
+              source_name: 'OSHA',
+              title: sourceTitle,
+              canonical_url: sourceUrl,
+              source_url: sourceUrl,
+              owner_domain: ownerDomain,
+              source_date: occurredAt,
+              is_primary: true,
+              link_kind: 'database',
+              article_snippet: `Inspection #${activityNr}: ${violationCount} violation(s), $${penalty.toLocaleString()} penalty`,
+            },
+            { onConflict: 'event_id,canonical_url', ignoreDuplicates: true }
+          );
 
         if (sourceError) {
           console.error('[fetch-osha-events] Error inserting source:', sourceError);
