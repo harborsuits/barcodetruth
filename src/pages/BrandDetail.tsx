@@ -89,12 +89,19 @@ export const BrandDetail = () => {
       if (eventIds.length) {
         const { data: srcs } = await supabase
           .from('event_sources')
-          .select('event_id, source_name, source_url, source_date, quote')
+          .select('event_id, source_name, source_url, canonical_url, archive_url, source_date, quote')
           .in('event_id', eventIds);
         if (srcs) {
           sourcesByEvent = srcs.reduce((acc: Record<string, any[]>, s: any) => {
             const list = acc[s.event_id] || [];
-            list.push({ name: s.source_name, url: s.source_url || undefined, date: s.source_date || undefined, quote: s.quote || undefined });
+            list.push({ 
+              name: s.source_name, 
+              url: s.source_url || undefined, 
+              canonical_url: s.canonical_url || undefined,
+              archive_url: s.archive_url || undefined,
+              date: s.source_date || undefined, 
+              quote: s.quote || undefined 
+            });
             acc[s.event_id] = list;
             return acc;
           }, {});
@@ -842,9 +849,10 @@ export const BrandDetail = () => {
                                 const sources = (event.event_sources || []).map((es: any) => ({
                                   name: es.source_name,
                                   url: es.source_url,
+                                  canonical_url: es.canonical_url,
+                                  archive_url: es.archive_url,
                                   date: es.source_date,
                                   quote: es.quote,
-                                  archive_url: es.archive_url,
                                 }));
                                 
                                 return (
