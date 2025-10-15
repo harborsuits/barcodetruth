@@ -334,20 +334,43 @@ Deno.serve(async (req) => {
 
       console.log(`[FEC] Inserted event ${newEvent.event_id} with impact ${impact}`);
 
-      // Insert source attribution
+      // Canonicalize URL
+      const canonicalUrl = (() => {
+        try {
+          const u = new URL(sourceUrl);
+          return `https://${u.hostname}${u.pathname}`;
+        } catch {
+          return sourceUrl;
+        }
+      })();
+
+      const sourceTitle = `FEC filing for ${committee.name || cmteId}`;
+      const safeTitle = sourceTitle.length >= 4 ? sourceTitle : 'FEC filing';
+
+      // Insert primary source attribution
       const { error: sourceError } = await supabase
         .from("event_sources")
-        .insert({
-          event_id: newEvent.event_id,
-          source_name: "FEC",
-          source_url: sourceUrl,
-          source_date: occurredAt,
-          quote: `${lean} tilt: ${tiltPct}% ($${Math.round(tiltAmt / 1000)}K of $${Math.round(total / 1000)}K)`
-        });
+        .upsert(
+          {
+            event_id: newEvent.event_id,
+            source_name: "FEC",
+            title: safeTitle,
+            canonical_url: canonicalUrl,
+            source_url: sourceUrl,
+            owner_domain: 'fec.gov',
+            source_date: occurredAt,
+            is_primary: true,
+            link_kind: 'database',
+            article_snippet: `${lean} tilt: ${tiltPct}% ($${Math.round(tiltAmt / 1000)}K of $${Math.round(total / 1000)}K)`
+          },
+          { onConflict: 'event_id,canonical_url', ignoreDuplicates: true }
+        );
 
       if (sourceError) {
         console.error(`[FEC] Failed to insert source:`, sourceError);
       }
+
+      console.log(`[FEC] ✅ evidence_source_primary_inserted: event=${newEvent.event_id}, source=FEC, domain=fec.gov`);
 
       eventsWithImpact.push({ id: newEvent.event_id, impact });
       inserted++;

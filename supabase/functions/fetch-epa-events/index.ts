@@ -155,27 +155,48 @@ serve(async (req) => {
           continue;
         }
 
-        // Insert source (for attribution, quotes, etc.)
-        const { data: sourceData, error: sourceError } = await supabase
+        // Canonicalize URL
+        const canonicalUrl = (() => {
+          try {
+            const u = new URL(sourceUrl);
+            // Preserve EPA facility ID param
+            const params = new URLSearchParams();
+            for (const [k, v] of u.searchParams) {
+              if (/fid|id|facility|registry/i.test(k)) params.set(k, v);
+            }
+            return `https://${u.hostname}${u.pathname}${params.toString() ? `?${params}` : ''}`;
+          } catch {
+            return sourceUrl;
+          }
+        })();
+
+        const sourceTitle = (facility.FacName || 'Facility').trim();
+        const safeTitle = sourceTitle.length >= 4 ? `EPA action at ${sourceTitle}` : 'EPA enforcement record';
+
+        // Insert primary source with full provenance
+        const { error: sourceError } = await supabase
           .from('event_sources')
-          .insert({
-            event_id: eventData.event_id,
-            source_name: 'EPA ECHO',
-            source_url: sourceUrl,
-            quote: `Facility: ${facility.FacName}, Registry ID: ${facility.RegistryID}`,
-            source_date: new Date().toISOString(),
-          })
-          .select('id')
-          .single();
+          .upsert(
+            {
+              event_id: eventData.event_id,
+              source_name: 'EPA',
+              title: safeTitle,
+              canonical_url: canonicalUrl,
+              source_url: sourceUrl,
+              owner_domain: 'echo.epa.gov',
+              source_date: new Date().toISOString(),
+              is_primary: true,
+              link_kind: 'database',
+              article_snippet: `Facility: ${facility.FacName}, Registry ID: ${facility.RegistryID}`,
+            },
+            { onConflict: 'event_id,canonical_url', ignoreDuplicates: true }
+          );
 
         if (sourceError) {
           console.error('[fetch-epa-events] Error inserting source:', sourceError);
-        } else if (sourceData?.id) {
-          // Archive in background (fire-and-forget)
-          void supabase.functions.invoke('archive-url', {
-            body: { source_id: sourceData.id, source_url: sourceUrl }
-          });
         }
+
+        console.log(`[fetch-epa-events] ✅ evidence_source_primary_inserted: event=${eventData.event_id}, source=EPA, domain=echo.epa.gov`);
 
         events.push(eventData.event_id);
       }
