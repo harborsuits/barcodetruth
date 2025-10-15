@@ -91,3 +91,6 @@ verify_jwt = false
 
 [functions.recompute-brand-scores]
 verify_jwt = false
+
+[functions.trigger-brand-ingestion]
+verify_jwt = true

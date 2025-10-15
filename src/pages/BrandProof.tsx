@@ -9,6 +9,8 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { BrandProofResponse } from '@/types/evidence';
+import { TriggerIngestion } from '@/components/admin/TriggerIngestion';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 export default function BrandProof() {
   const { id } = useParams<{ id: string }>();
@@ -18,6 +20,7 @@ export default function BrandProof() {
   const [showAllByComponent, setShowAllByComponent] = useState<Record<string, boolean>>({});
   const [expandedSummaries, setExpandedSummaries] = useState<Set<string>>(new Set());
   const [summaries, setSummaries] = useState<Record<string, any>>({});
+  const isAdmin = useIsAdmin();
 
   useEffect(() => {
     if (!id) return;
@@ -190,6 +193,10 @@ export default function BrandProof() {
               )}
             </div>
           </header>
+
+          {isAdmin && id && (
+            <TriggerIngestion brandId={id} brandName={data.brandName} />
+          )}
 
       <section className="rounded-xl border bg-card p-6">
         <div className="text-lg">
