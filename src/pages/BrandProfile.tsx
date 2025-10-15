@@ -15,6 +15,10 @@ type BrandProfile = {
     name: string; 
     parent_company?: string | null;
     website?: string | null;
+    description?: string | null;
+    description_source?: string | null;
+    logo_url?: string | null;
+    logo_attribution?: string | null;
   } | null;
   score?: { 
     score: number | null; 
@@ -166,9 +170,18 @@ export default function BrandProfile() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-start gap-4">
-              <div className="w-16 h-16 rounded-2xl border-2 grid place-items-center text-2xl font-bold bg-muted flex-shrink-0">
-                {monogram}
-              </div>
+              {data.brand.logo_url ? (
+                <img 
+                  src={data.brand.logo_url} 
+                  alt={`${data.brand.name} logo`}
+                  className="w-16 h-16 rounded-2xl border-2 object-contain bg-muted flex-shrink-0 p-2"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-2xl border-2 grid place-items-center text-2xl font-bold bg-muted flex-shrink-0">
+                  {monogram}
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <h2 className="text-2xl font-bold truncate">{data.brand.name}</h2>
                 {data.brand.parent_company && (
@@ -185,6 +198,16 @@ export default function BrandProfile() {
                   >
                     Visit website <ExternalLink className="h-3 w-3" />
                   </a>
+                )}
+                {data.brand.description && (
+                  <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
+                    {data.brand.description}
+                    {data.brand.description_source === 'wikipedia' && (
+                      <span className="text-xs opacity-75 ml-2">
+                        (Source: Wikipedia)
+                      </span>
+                    )}
+                  </p>
                 )}
               </div>
               <div className="text-right flex-shrink-0">

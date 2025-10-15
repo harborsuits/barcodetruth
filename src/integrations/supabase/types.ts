@@ -571,8 +571,13 @@ export type Database = {
       brands: {
         Row: {
           created_at: string
+          description: string | null
+          description_lang: string | null
+          description_source: string | null
           id: string
           is_test: boolean
+          logo_attribution: string | null
+          logo_url: string | null
           name: string
           parent_company: string | null
           push_paused: boolean
@@ -582,8 +587,13 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          description?: string | null
+          description_lang?: string | null
+          description_source?: string | null
           id?: string
           is_test?: boolean
+          logo_attribution?: string | null
+          logo_url?: string | null
           name: string
           parent_company?: string | null
           push_paused?: boolean
@@ -593,8 +603,13 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          description?: string | null
+          description_lang?: string | null
+          description_source?: string | null
           id?: string
           is_test?: boolean
+          logo_attribution?: string | null
+          logo_url?: string | null
           name?: string
           parent_company?: string | null
           push_paused?: boolean
