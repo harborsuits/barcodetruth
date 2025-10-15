@@ -65,51 +65,38 @@ serve(async (req) => {
       );
     }
 
-    if (!brand.wikidata_qid) {
-      console.log(JSON.stringify({ 
-        action: 'fetch-brand-summary', 
-        brand_id, 
-        ok: false, 
-        reason: 'no_wikidata',
-        duration_ms: Date.now() - startTime 
-      }));
-      return new Response(
-        JSON.stringify({ ok: false, reason: 'no_wikidata' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Fetch Wikipedia page title from Wikidata with timeout
+    // Search Wikipedia directly using brand name + "company"
+    const searchTerm = `${brand.name} company`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
     
     try {
-      const wikidataResp = await fetch(
-        `https://www.wikidata.org/wiki/Special:EntityData/${brand.wikidata_qid}.json`,
+      // First, search for the page
+      const searchResp = await fetch(
+        `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(searchTerm)}&limit=1&format=json`,
         { signal: controller.signal }
       );
       clearTimeout(timeout);
       
-      if (!wikidataResp.ok) {
+      if (!searchResp.ok) {
         console.log(JSON.stringify({ 
           action: 'fetch-brand-summary', 
           brand_id, 
           ok: false, 
-          reason: 'wikidata_fetch_failed',
-          status: wikidataResp.status,
+          reason: 'wikipedia_search_failed',
+          status: searchResp.status,
           duration_ms: Date.now() - startTime 
         }));
         return new Response(
-          JSON.stringify({ ok: false, reason: 'wikidata_fetch_failed' }),
+          JSON.stringify({ ok: false, reason: 'wikipedia_search_failed' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      const wikidataJson = await wikidataResp.json();
-      const entity = wikidataJson.entities[brand.wikidata_qid];
-      const enWikiTitle = entity?.sitelinks?.enwiki?.title;
+      const searchResults = await searchResp.json();
+      const pageTitle = searchResults[1]?.[0]; // First result title
 
-      if (!enWikiTitle) {
+      if (!pageTitle) {
         console.log(JSON.stringify({ 
           action: 'fetch-brand-summary', 
           brand_id, 
@@ -128,7 +115,7 @@ serve(async (req) => {
       const wikiTimeout = setTimeout(() => wikiController.abort(), 8000);
       
       const wikiResp = await fetch(
-        `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(enWikiTitle)}`,
+        `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(pageTitle)}`,
         { signal: wikiController.signal }
       );
       clearTimeout(wikiTimeout);
