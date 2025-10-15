@@ -9,7 +9,7 @@ echo "Testing Edge Functions at: $API_BASE"
 echo "============================================"
 
 # Test 1: Trending endpoint
-echo -e "\n1. Testing /trending endpoint..."
+echo -e "\n1. Testing /v1-brands/trending endpoint..."
 TRENDING_RESULT=$(curl -s "$API_BASE/v1-brands/trending?limit=10")
 TRENDING_COUNT=$(echo "$TRENDING_RESULT" | jq 'length' 2>/dev/null || echo "ERROR")
 
@@ -22,7 +22,7 @@ else
 fi
 
 # Test 2: Search endpoint
-echo -e "\n2. Testing /search endpoint..."
+echo -e "\n2. Testing /v1-brands/search endpoint..."
 SEARCH_RESULT=$(curl -s "$API_BASE/v1-brands/search?q=Unilever")
 BRANDS_COUNT=$(echo "$SEARCH_RESULT" | jq '.brands | length' 2>/dev/null || echo "ERROR")
 PRODUCTS_COUNT=$(echo "$SEARCH_RESULT" | jq '.products | length' 2>/dev/null || echo "ERROR")
@@ -36,7 +36,7 @@ else
 fi
 
 # Test 3: Brand detail endpoint
-echo -e "\n3. Testing /brands/:id endpoint..."
+echo -e "\n3. Testing /v1-brands/brands/:id endpoint..."
 BRAND_RESULT=$(curl -s "$API_BASE/v1-brands/brands/$BRAND_ID")
 BRAND_NAME=$(echo "$BRAND_RESULT" | jq -r '.name' 2>/dev/null || echo "ERROR")
 EVIDENCE_COUNT=$(echo "$BRAND_RESULT" | jq '.evidence | length' 2>/dev/null || echo "0")

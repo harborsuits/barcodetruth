@@ -60,7 +60,7 @@ export function BrandExplanationCard({ data }: { data: Brand }) {
             <div className="text-xs text-muted-foreground mt-1">
               {data.score_confidence !== null 
                 ? `${Math.round(100 * data.score_confidence)}% confidence`
-                : "Score unavailable"
+                : "No score yet"
               }
             </div>
           </div>
@@ -76,7 +76,7 @@ export function BrandExplanationCard({ data }: { data: Brand }) {
         ) : (
           <div className="flex items-center gap-2 text-muted-foreground text-sm p-4 bg-muted/50 rounded-lg">
             <AlertCircle className="h-4 w-4 shrink-0" />
-            <p>No verified events found yet. Score is based on baseline data.</p>
+            <p>No verified events yet.</p>
           </div>
         )}
 
