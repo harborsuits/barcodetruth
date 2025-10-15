@@ -1,4 +1,4 @@
-import { Shield } from "lucide-react";
+import { Shield, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
@@ -20,6 +20,14 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => navigate("/trending")}
+          >
+            <TrendingUp className="mr-2 h-4 w-4" />
+            Trending
+          </Button>
           {isAdmin === true && (
             <Button 
               variant="ghost" 
