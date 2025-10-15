@@ -207,6 +207,7 @@ export const Scan = () => {
     toggleTorch,
   } = useBarcodeScanner({
     onScan: handleBarcodeDetected,
+    isProcessing: scanResult === 'processing',
     onError: (err) => {
       console.error('Scanner error:', err);
       setError(err.message);

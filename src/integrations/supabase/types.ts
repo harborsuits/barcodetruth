@@ -2515,15 +2515,25 @@ export type Database = {
     }
     Functions: {
       admin_add_evidence: {
-        Args: {
-          p_brand_id: string
-          p_category: string
-          p_event_date: string
-          p_notes?: string
-          p_source_url: string
-          p_title: string
-          p_verification: string
-        }
+        Args:
+          | {
+              p_brand_id: string
+              p_category: string
+              p_event_date: string
+              p_notes?: string
+              p_source_url: string
+              p_title: string
+              p_verification: string
+            }
+          | {
+              p_brand_id: string
+              p_category?: string
+              p_notes?: string
+              p_occurred_at?: string
+              p_title: string
+              p_url: string
+              p_verification?: string
+            }
         Returns: {
           event_id: string
           source_id: string

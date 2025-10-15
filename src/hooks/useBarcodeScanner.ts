@@ -5,6 +5,7 @@ import { toast } from '@/hooks/use-toast';
 interface ScannerOptions {
   onScan: (code: string) => void;
   onError?: (error: Error) => void;
+  isProcessing?: boolean;
 }
 
 interface ScannerControls {
@@ -26,7 +27,7 @@ interface ScannerControls {
   changeResolution: (resolution: string) => Promise<void>;
 }
 
-export function useBarcodeScanner({ onScan, onError }: ScannerOptions): ScannerControls {
+export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOptions): ScannerControls {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
@@ -66,7 +67,7 @@ export function useBarcodeScanner({ onScan, onError }: ScannerOptions): ScannerC
   }, []);
 
   const scanFrame = useCallback(async () => {
-    if (isPaused || !videoRef.current || !readerRef.current) {
+    if (isPaused || isProcessing || !videoRef.current || !readerRef.current) {
       animationFrameRef.current = requestAnimationFrame(scanFrame);
       return;
     }
@@ -91,7 +92,7 @@ export function useBarcodeScanner({ onScan, onError }: ScannerOptions): ScannerC
     }
 
     animationFrameRef.current = requestAnimationFrame(scanFrame);
-  }, [isPaused, onScan, drawBoundingBox]);
+  }, [isPaused, isProcessing, onScan, drawBoundingBox]);
 
   const startScanning = useCallback(async () => {
     try {
