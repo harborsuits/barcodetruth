@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle, Heart, HeartOff, Clock, CheckCircle2, Filter, Bell, BellOff, Home } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle, Heart, HeartOff, Clock, CheckCircle2, Filter, Bell, BellOff, Home, Info } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -379,18 +379,20 @@ export const BrandDetail = () => {
             ) : (
               <>
                 <div className="flex-1 flex items-center gap-3">
-                  {brand.logo_url ? (
-                    <img 
-                      src={brand.logo_url} 
-                      alt={`${brand.name} logo`}
-                      className="w-10 h-10 rounded-lg border object-contain bg-muted p-1.5 flex-shrink-0"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-lg border grid place-items-center text-lg font-bold bg-muted flex-shrink-0">
-                      {brand.name?.[0]?.toUpperCase() ?? 'B'}
-                    </div>
-                  )}
+                  <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg border bg-muted/40">
+                    {brand.logo_url ? (
+                      <img 
+                        src={brand.logo_url} 
+                        alt={`${brand.name} logo`}
+                        className="max-w-full max-h-full object-contain p-1.5"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span className="text-lg font-bold">
+                        {brand.name?.[0]?.toUpperCase() ?? 'B'}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h1 className="text-xl font-bold">{brand.name}</h1>
@@ -498,13 +500,14 @@ export const BrandDetail = () => {
         {brand.description && (
           <Card>
             <CardContent className="pt-6">
-              <p className="text-sm leading-relaxed text-foreground/90">
+              <p className="text-sm leading-relaxed text-foreground/90 line-clamp-6">
                 {brand.description}
               </p>
               {brand.description_source === 'wikipedia' && (
-                <p className="text-xs text-muted-foreground mt-3">
-                  Source: Wikipedia
-                </p>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground/70 mt-3">
+                  <Info className="h-3 w-3" />
+                  <span>Source: Wikipedia</span>
+                </div>
               )}
             </CardContent>
           </Card>

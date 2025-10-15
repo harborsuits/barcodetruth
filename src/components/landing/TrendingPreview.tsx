@@ -154,19 +154,21 @@ export function TrendingPreview() {
               onClick={() => navigate(`/brand/${brand.brand_id}`)}
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3 flex-1">
-                  {brand.logo_url ? (
-                    <img 
-                      src={brand.logo_url} 
-                      alt={`${brand.brand_name} logo`}
-                      className="w-10 h-10 rounded-lg object-contain bg-muted p-1.5 flex-shrink-0"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-lg grid place-items-center text-lg font-bold bg-muted flex-shrink-0">
-                      {brand.brand_name?.[0]?.toUpperCase() ?? 'B'}
-                    </div>
-                  )}
+                <div className="flex items-start gap-3 flex-1">
+                  <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-muted/40 rounded-lg">
+                    {brand.logo_url ? (
+                      <img 
+                        src={brand.logo_url} 
+                        alt={`${brand.brand_name} logo`}
+                        loading="lazy"
+                        className="max-w-full max-h-full object-contain p-1"
+                      />
+                    ) : (
+                      <span className="text-lg font-bold">
+                        {brand.brand_name?.[0]?.toUpperCase() ?? 'B'}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-semibold text-base">{brand.brand_name}</h3>
