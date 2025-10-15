@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle, Heart, HeartOff, Clock, CheckCircle2, Filter, Bell, BellOff, Home } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -27,12 +27,14 @@ import ScoreBreakdown from "@/components/ScoreBreakdown";
 import { EventTimeline } from "@/components/EventTimeline";
 import { TrustIndicators } from "@/components/TrustIndicators";
 import { InsufficientDataBadge } from "@/components/InsufficientDataBadge";
+import { useBrandEnrichment } from "@/hooks/useBrandEnrichment";
 
 export const BrandDetail = () => {
   const { brandId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { fetchSummary, fetchLogo } = useBrandEnrichment();
   const [isFollowing, setIsFollowing] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<"all" | "labor" | "environment" | "politics" | "cultural-values">("all");
   const [showParent, setShowParent] = useState(false);
@@ -43,10 +45,10 @@ export const BrandDetail = () => {
     queryFn: async () => {
       if (!brandId) throw new Error("Brand ID required");
       
-      // Get brand info
+      // Get brand info including logo and description
       const { data: brandData, error: brandError } = await supabase
         .from('brands')
-        .select('id, name, parent_company, updated_at')
+        .select('id, name, parent_company, updated_at, logo_url, logo_attribution, description, description_source, website, wikidata_qid')
         .eq('id', brandId)
         .single();
       
@@ -120,8 +122,15 @@ export const BrandDetail = () => {
         : 50;
       
       return {
+        id: brandData.id,
         name: brandData.name,
         parent_company: brandData.parent_company || brandData.name,
+        logo_url: brandData.logo_url,
+        logo_attribution: brandData.logo_attribution,
+        description: brandData.description,
+        description_source: brandData.description_source,
+        website: brandData.website,
+        wikidata_qid: brandData.wikidata_qid,
         overall_score: overallScore,
         last_updated: scores?.last_updated || brandData.updated_at,
         coverage: {
@@ -143,6 +152,23 @@ export const BrandDetail = () => {
     },
     enabled: !!brandId,
   });
+
+  // Auto-enrich brands with wikidata_qid but missing logo/description
+  useEffect(() => {
+    if (brand && brand.wikidata_qid) {
+      if (!brand.logo_url && brand.logo_attribution !== 'manual') {
+        fetchLogo(brand.id).then(success => {
+          if (success) queryClient.invalidateQueries({ queryKey: ['brand', brandId] });
+        });
+      }
+      if (!brand.description && brand.description_source !== 'manual') {
+        fetchSummary(brand.id).then(success => {
+          if (success) queryClient.invalidateQueries({ queryKey: ['brand', brandId] });
+        });
+      }
+    }
+  }, [brand?.id, brand?.wikidata_qid]);
+
 
   // Query for notification follow status
   const { data: followData } = useQuery({
@@ -352,27 +378,41 @@ export const BrandDetail = () => {
               </div>
             ) : (
               <>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h1 className="text-xl font-bold">{brand.name}</h1>
-                    {showParent && parentRollup?.parent?.child_count > 1 && (
-                      <Badge variant="outline" className="text-xs">
-                        +{parentRollup.parent.child_count - 1} brands
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm text-muted-foreground">{brand.parent_company}</p>
-                    {brand.parent_company !== brand.name && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 text-xs"
-                        onClick={() => setShowParent(!showParent)}
-                      >
-                        {showParent ? 'Hide parent' : 'Include parent'}
-                      </Button>
-                    )}
+                <div className="flex-1 flex items-center gap-3">
+                  {brand.logo_url ? (
+                    <img 
+                      src={brand.logo_url} 
+                      alt={`${brand.name} logo`}
+                      className="w-10 h-10 rounded-lg border object-contain bg-muted p-1.5 flex-shrink-0"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg border grid place-items-center text-lg font-bold bg-muted flex-shrink-0">
+                      {brand.name?.[0]?.toUpperCase() ?? 'B'}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h1 className="text-xl font-bold">{brand.name}</h1>
+                      {showParent && parentRollup?.parent?.child_count > 1 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{parentRollup.parent.child_count - 1} brands
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-muted-foreground">{brand.parent_company}</p>
+                      {brand.parent_company !== brand.name && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-xs"
+                          onClick={() => setShowParent(!showParent)}
+                        >
+                          {showParent ? 'Hide parent' : 'Include parent'}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -454,6 +494,22 @@ export const BrandDetail = () => {
           </Card>
         ) : (
           <>
+        {/* Description */}
+        {brand.description && (
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm leading-relaxed text-foreground/90">
+                {brand.description}
+              </p>
+              {brand.description_source === 'wikipedia' && (
+                <p className="text-xs text-muted-foreground mt-3">
+                  Source: Wikipedia
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Overall Score */}
         <Card>
           <CardContent className="pt-6">

@@ -11,6 +11,7 @@ import { confidenceMeta } from "@/lib/confidence";
 interface TrendingBrand {
   brand_id: string;
   brand_name: string;
+  logo_url?: string;
   overall_score: number;
   event_count?: number;
   confidence?: number;
@@ -64,7 +65,7 @@ export function TrendingPreview() {
 
     // Use brand_score_effective_named view to eliminate N+1 queries
     // Only show brands with actual event data (events_90d > 0)
-    const { data } = await supabase
+    const { data: trendingData } = await supabase
       .from('brand_score_effective_named')
       .select('brand_id, brand_name, overall_effective, events_90d, events_365d, verified_rate, independent_sources, confidence, last_event_at')
       .gt('events_90d', 0) // Must have recent events to be "trending"
@@ -73,10 +74,26 @@ export function TrendingPreview() {
       .order('overall_effective', { ascending: false })
       .limit(5);
 
-    if (data) {
-      setTrending(data.map((b: any) => ({
+    // Fetch logos for these brands
+    const brandIds = (trendingData || []).map(b => b.brand_id);
+    let logoMap: Record<string, string> = {};
+    if (brandIds.length > 0) {
+      const { data: brandLogos } = await supabase
+        .from('brands')
+        .select('id, logo_url')
+        .in('id', brandIds);
+
+      logoMap = (brandLogos || []).reduce((acc, b) => {
+        if (b.logo_url) acc[b.id] = b.logo_url;
+        return acc;
+      }, {} as Record<string, string>);
+    }
+
+    if (trendingData) {
+      setTrending(trendingData.map((b: any) => ({
         brand_id: b.brand_id,
         brand_name: b.brand_name,
+        logo_url: logoMap[b.brand_id],
         event_count: b.events_365d || 0,
         overall_score: b.overall_effective || 50,
         confidence: b.confidence || 0,
@@ -137,33 +154,47 @@ export function TrendingPreview() {
               onClick={() => navigate(`/brand/${brand.brand_id}`)}
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold text-base">{brand.brand_name}</h3>
-                    {brand.event_count !== undefined && brand.verified_rate !== undefined && brand.independent_sources !== undefined && (() => {
-                      const meta = confidenceMeta(brand.event_count, brand.verified_rate, brand.independent_sources);
-                      if (meta.level === 'low' || meta.level === 'none') {
-                        return (
-                          <Badge variant="outline" className="gap-1 border-warning/50 text-warning text-[10px] px-1.5 py-0">
-                            <AlertTriangle className="h-2.5 w-2.5" />
-                            {meta.label}
-                          </Badge>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </div>
-                  {brand.last_event_at && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      Last event: {new Date(brand.last_event_at).toLocaleDateString()}
+                <div className="flex items-center gap-3 flex-1">
+                  {brand.logo_url ? (
+                    <img 
+                      src={brand.logo_url} 
+                      alt={`${brand.brand_name} logo`}
+                      className="w-10 h-10 rounded-lg object-contain bg-muted p-1.5 flex-shrink-0"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg grid place-items-center text-lg font-bold bg-muted flex-shrink-0">
+                      {brand.brand_name?.[0]?.toUpperCase() ?? 'B'}
                     </div>
                   )}
-                  {brand.event_count === 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      Score based on baseline estimates
-                    </p>
-                  )}
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-semibold text-base">{brand.brand_name}</h3>
+                      {brand.event_count !== undefined && brand.verified_rate !== undefined && brand.independent_sources !== undefined && (() => {
+                        const meta = confidenceMeta(brand.event_count, brand.verified_rate, brand.independent_sources);
+                        if (meta.level === 'low' || meta.level === 'none') {
+                          return (
+                            <Badge variant="outline" className="gap-1 border-warning/50 text-warning text-[10px] px-1.5 py-0">
+                              <AlertTriangle className="h-2.5 w-2.5" />
+                              {meta.label}
+                            </Badge>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                    {brand.last_event_at && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        Last event: {new Date(brand.last_event_at).toLocaleDateString()}
+                      </div>
+                    )}
+                    {brand.event_count === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Score based on baseline estimates
+                      </p>
+                    )}
+                  </div>
                 </div>
                 <div className="text-right">
                   <div className={`text-2xl font-bold ${getScoreColor(brand.overall_score)}`}>
