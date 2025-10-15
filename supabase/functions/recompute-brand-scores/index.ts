@@ -16,11 +16,22 @@ const VERIFICATION_WEIGHTS = {
 };
 
 interface BrandEvent {
+  event_id: string;
   brand_id: string;
   event_date: string;
+  title: string | null;
   verification: 'official' | 'corroborated' | 'unverified';
   impact_labor: number | null;
   category: string;
+}
+
+interface EventSource {
+  event_id: string;
+  canonical_url: string | null;
+  source_name: string;
+  registrable_domain: string | null;
+  verification: string | null;
+  source_date: string | null;
 }
 
 interface BrandScore {
@@ -28,6 +39,20 @@ interface BrandScore {
   raw_sum: number;
   event_count: number;
   recent_events: number;
+  per_event: Array<{
+    event_id: string;
+    date: string;
+    title: string | null;
+    canonical_url: string | null;
+    source_name: string | null;
+    source_domain: string | null;
+    category: string;
+    verification: string;
+    w_recency: number;
+    w_verif: number;
+    impact: number;
+    contrib: number;
+  }>;
 }
 
 function getRecencyWeight(eventDate: Date, now: Date): number {
@@ -107,7 +132,7 @@ Deno.serve(async (req: Request) => {
     // Fetch all events from last 365 days
     const { data: events, error: eventsError } = await supabase
       .from('brand_events')
-      .select('brand_id, event_date, verification, impact_labor, category')
+      .select('event_id, brand_id, title, event_date, verification, impact_labor, category')
       .gte('event_date', oneYearAgo.toISOString())
       .order('event_date', { ascending: false });
 
@@ -125,6 +150,32 @@ Deno.serve(async (req: Request) => {
     }
 
     console.log(`Processing ${events.length} events...`);
+
+    // Fetch best source per event (prefer official, then earliest)
+    const eventIds = events.map((e: any) => e.event_id);
+    const { data: sources, error: sourcesError } = await supabase
+      .from('event_sources')
+      .select('event_id, canonical_url, source_name, registrable_domain, verification, source_date')
+      .in('event_id', eventIds);
+
+    if (sourcesError) {
+      console.error('Failed to fetch event sources:', sourcesError);
+    }
+
+    // Map best source per event (prefer official sources)
+    const bestSourceByEvent = new Map<string, EventSource>();
+    if (sources) {
+      for (const source of sources as EventSource[]) {
+        const existing = bestSourceByEvent.get(source.event_id);
+        if (!existing || 
+            source.verification === 'official' ||
+            (existing.verification !== 'official' && source.source_date && (!existing.source_date || source.source_date < existing.source_date))) {
+          bestSourceByEvent.set(source.event_id, source);
+        }
+      }
+    }
+
+    console.log(`Mapped sources for ${bestSourceByEvent.size} events`);
 
     // Group events by brand and compute raw scores
     const brandScoresMap = new Map<string, BrandScore>();
@@ -146,6 +197,7 @@ Deno.serve(async (req: Request) => {
           raw_sum: 0,
           event_count: 0,
           recent_events: 0,
+          per_event: [],
         });
       }
 
@@ -157,6 +209,23 @@ Deno.serve(async (req: Request) => {
       if (daysSince <= 30) {
         brandScore.recent_events += 1;
       }
+
+      // Add per-event details for transparency
+      const bestSource = bestSourceByEvent.get(event.event_id);
+      brandScore.per_event.push({
+        event_id: event.event_id,
+        date: event.event_date,
+        title: event.title,
+        canonical_url: bestSource?.canonical_url ?? null,
+        source_name: bestSource?.source_name ?? null,
+        source_domain: bestSource?.registrable_domain ?? null,
+        category: event.category,
+        verification: event.verification,
+        w_recency: Math.round(recencyWeight * 100) / 100,
+        w_verif: Math.round(verificationWeight * 100) / 100,
+        impact: Math.round(eventImpact * 100) / 100,
+        contrib: Math.round(weightedImpact * 100) / 100,
+      });
     }
 
     const brandScores = Array.from(brandScoresMap.values());
@@ -171,13 +240,20 @@ Deno.serve(async (req: Request) => {
       const brandData = brandScoresMap.get(brandId)!;
       
       const reasonJson = {
-        recency_weights: RECENCY_WEIGHTS,
-        verification_weights: VERIFICATION_WEIGHTS,
+        window: {
+          from: oneYearAgo.toISOString().split('T')[0],
+          to: now.toISOString().split('T')[0],
+        },
+        coeffs: {
+          recency: RECENCY_WEIGHTS,
+          verification: VERIFICATION_WEIGHTS,
+        },
         raw_sum: Math.round(brandData.raw_sum * 100) / 100,
         normalized: score,
         event_count: brandData.event_count,
-        recent_events: brandData.recent_events,
+        recent_events_30d: brandData.recent_events,
         computed_at: now.toISOString(),
+        per_event: brandData.per_event,
       };
 
       const { error: upsertError } = await supabase
