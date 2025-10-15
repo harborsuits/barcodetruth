@@ -286,8 +286,16 @@ export const Scan = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const upc = params.get('upc');
-    if (upc && scanResult === 'idle' && !isScanning) {
+    
+    // Validate UPC format (8-14 digits) before processing
+    if (upc && /^\d{8,14}$/.test(upc) && scanResult === 'idle') {
       console.log('[Analytics] upc_prefill', { upc });
+      
+      // Stop scanner if running to avoid double toasts
+      if (isScanning) {
+        stopScanner();
+      }
+      
       handleBarcodeDetected(upc);
     }
   }, []); // Run once on mount

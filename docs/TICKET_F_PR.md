@@ -138,13 +138,15 @@ const {
 - [x] Aria-live status for accessibility ("Scanning for barcode..." / "Scanning paused")
 - [x] Control bar with Flip/Pause/Resume/Torch/Stop buttons
 - [x] Mirror effect on front-facing camera (scale-x-[-1])
-- [x] Auto-lookup UPC from ?upc= query param
+- [x] Auto-lookup UPC from ?upc= query param with validation (8-14 digits)
+- [x] Scanner stops on auto-lookup to prevent double toasts
 - [ ] Test 3 sample UPCs scan <1s in normal light
 - [ ] Test torch toggle in low light
 - [ ] Test mirror/facing mode toggle
 - [ ] Verify bounding box appears and clears
 - [ ] No memory leaks after multiple start/stop cycles
+- [ ] Test /scan?upc=049000000009 deep link (instant lookup)
 
 ---
 
-**✅ Ready to merge. Scanner hook fully integrated with UI controls, canvas overlay, a11y, and UPC prefill.**
+**✅ Ready to merge. E & F complete with auto-lookup, validation, and guardrails.**
