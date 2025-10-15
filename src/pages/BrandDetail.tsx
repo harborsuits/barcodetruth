@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle, Heart, HeartOff, Clock, CheckCircle2, Filter, Bell, BellOff, Home, Info } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle, Heart, HeartOff, Clock, CheckCircle2, Filter, Bell, BellOff, Home, Info, ExternalLink } from "lucide-react";
 import { ScoreExplainDrawer } from "@/components/brand/ScoreExplainDrawer";
 import { ConfidenceChip } from "@/components/brand/ConfidenceChip";
 import { LastUpdatedBadge } from "@/components/brand/LastUpdatedBadge";
@@ -744,6 +744,53 @@ export const BrandDetail = () => {
                           Verified sources and recent events affecting this score
                         </SheetDescription>
                       </SheetHeader>
+                      
+                      {/* Source links */}
+                      {brand && brand.events && brand.events.filter((e: any) => e.category === category && e.event_sources?.length > 0).length > 0 && (
+                        <div className="mt-4 p-4 bg-muted/50 rounded-lg border space-y-2">
+                          <h4 className="text-sm font-medium flex items-center gap-2">
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            Source Documents
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {brand.events
+                              .filter((e: any) => e.category === category)
+                              .flatMap((event: any) => 
+                                (event.event_sources || []).map((source: any) => ({
+                                  name: source.source_name,
+                                  url: source.canonical_url || source.archive_url || source.source_url,
+                                  verification: event.verification,
+                                  date: source.source_date,
+                                }))
+                              )
+                              .filter((source: any, index: number, self: any[]) => 
+                                index === self.findIndex((s: any) => s.url === source.url)
+                              )
+                              .slice(0, 8)
+                              .map((source: any, idx: number) => (
+                                source.url && (
+                                  <a
+                                    key={idx}
+                                    href={source.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-background border hover:border-primary transition-colors"
+                                    title={`${source.name}${source.date ? ` - ${new Date(source.date).toLocaleDateString()}` : ''}`}
+                                  >
+                                    <ExternalLink className="h-3 w-3" />
+                                    <span className="max-w-[120px] truncate">{source.name}</span>
+                                    {source.verification === 'official' && (
+                                      <span className="inline-flex items-center px-1 py-0.5 rounded text-[10px] bg-green-600 text-white font-medium">
+                                        Official
+                                      </span>
+                                    )}
+                                  </a>
+                                )
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                      
                       <div className="mt-6 space-y-6">
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
