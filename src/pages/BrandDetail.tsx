@@ -68,7 +68,7 @@ export const BrandDetail = () => {
       // Get coverage/confidence data
       const { data: coverage } = await supabase
         .from('brand_data_coverage')
-        .select('events_30d, events_365d, verified_rate, independent_sources')
+        .select('events_30d, events_365d, verified_rate, independent_sources, last_event_at')
         .eq('brand_id', brandId)
         .maybeSingle();
       
@@ -150,6 +150,7 @@ export const BrandDetail = () => {
           events_365d: coverage?.events_365d || 0,
           verified_rate: coverage?.verified_rate || 0,
           independent_sources: coverage?.independent_sources || 0,
+          last_event_at: coverage?.last_event_at || null,
         },
         signals: {
           labor: { score: scores?.score_labor || 50, risk_level: "low", recent_events: [] },
@@ -166,15 +167,13 @@ export const BrandDetail = () => {
     enabled: !!brandId,
   });
 
-  // Auto-enrich brands with wikidata_qid but missing logo/description
+  // Auto-enrich brands with wikidata_qid but missing logo
   useEffect(() => {
     console.log('[BrandDetail] Enrichment check:', { 
       hasBrand: !!brand, 
       hasQid: !!brand?.wikidata_qid,
       hasLogo: !!brand?.logo_url,
       logoAttr: brand?.logo_attribution,
-      hasDesc: !!brand?.description,
-      descSource: brand?.description_source
     });
     
     if (brand && brand.wikidata_qid) {
@@ -182,13 +181,6 @@ export const BrandDetail = () => {
         console.log('[BrandDetail] Triggering logo fetch for:', brand.id);
         fetchLogo(brand.id).then(success => {
           console.log('[BrandDetail] Logo fetch result:', success);
-          if (success) queryClient.invalidateQueries({ queryKey: ['brand', brandId] });
-        });
-      }
-      if (!brand.description && brand.description_source !== 'manual') {
-        console.log('[BrandDetail] Triggering summary fetch for:', brand.id);
-        fetchSummary(brand.id).then(success => {
-          console.log('[BrandDetail] Summary fetch result:', success);
           if (success) queryClient.invalidateQueries({ queryKey: ['brand', brandId] });
         });
       }
@@ -522,22 +514,6 @@ export const BrandDetail = () => {
           </Card>
         ) : (
           <>
-        {/* Description */}
-        {brand.description && (
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm leading-relaxed text-foreground/90 line-clamp-6">
-                {brand.description}
-              </p>
-              {brand.description_source === 'wikipedia' && (
-                <div className="flex items-center gap-1 text-xs text-muted-foreground/70 mt-3">
-                  <Info className="h-3 w-3" />
-                  <span>Source: Wikipedia</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
 
         {/* Overall Score */}
         <Card>
@@ -545,8 +521,8 @@ export const BrandDetail = () => {
             <div className="text-center space-y-4">
               <div className="flex flex-col items-center gap-3">
                 <div className="flex items-center justify-center gap-3">
-                  <div className={`text-6xl font-bold ${getScoreColor(brand.overall_score)}`}>
-                    {brand.overall_score}
+                  <div className={`text-6xl font-bold ${brand.coverage?.last_event_at ? getScoreColor(brand.overall_score) : "text-muted-foreground"}`}>
+                    {brand.coverage?.last_event_at ? brand.overall_score : "—"}
                   </div>
                   {brand.coverage && (
                     <InsufficientDataBadge 
@@ -563,16 +539,6 @@ export const BrandDetail = () => {
                 </div>
               </div>
               <p className="text-muted-foreground">Overall Score</p>
-              
-              {/* Insufficient Data Warning */}
-              {brand.events && brand.events.length === 0 && (
-                <div className="px-4 py-3 rounded-lg bg-warning/10 border border-warning/30 text-sm">
-                  <p className="font-medium text-warning mb-1">Score uses baseline estimates only</p>
-                  <p className="text-muted-foreground text-xs">
-                    No recent events found for this brand. The score shown is based on category defaults, not actual performance data.
-                  </p>
-                </div>
-              )}
               
               <div className="flex items-center justify-center gap-2 text-sm">
                 {brand.trending.velocity === "rising" && (
