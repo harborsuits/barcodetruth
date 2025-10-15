@@ -155,14 +155,27 @@ export const BrandDetail = () => {
 
   // Auto-enrich brands with wikidata_qid but missing logo/description
   useEffect(() => {
+    console.log('[BrandDetail] Enrichment check:', { 
+      hasBrand: !!brand, 
+      hasQid: !!brand?.wikidata_qid,
+      hasLogo: !!brand?.logo_url,
+      logoAttr: brand?.logo_attribution,
+      hasDesc: !!brand?.description,
+      descSource: brand?.description_source
+    });
+    
     if (brand && brand.wikidata_qid) {
       if (!brand.logo_url && brand.logo_attribution !== 'manual') {
+        console.log('[BrandDetail] Triggering logo fetch for:', brand.id);
         fetchLogo(brand.id).then(success => {
+          console.log('[BrandDetail] Logo fetch result:', success);
           if (success) queryClient.invalidateQueries({ queryKey: ['brand', brandId] });
         });
       }
       if (!brand.description && brand.description_source !== 'manual') {
+        console.log('[BrandDetail] Triggering summary fetch for:', brand.id);
         fetchSummary(brand.id).then(success => {
+          console.log('[BrandDetail] Summary fetch result:', success);
           if (success) queryClient.invalidateQueries({ queryKey: ['brand', brandId] });
         });
       }

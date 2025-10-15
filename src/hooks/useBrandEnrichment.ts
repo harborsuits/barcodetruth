@@ -6,10 +6,12 @@ export function useBrandEnrichment() {
 
   const fetchSummary = async (brandId: string) => {
     try {
+      console.log('[useBrandEnrichment] Fetching summary for brand:', brandId);
       const { data, error } = await supabase.functions.invoke('fetch-brand-summary', {
         body: { brand_id: brandId }
       });
       
+      console.log('[useBrandEnrichment] Summary response:', data, error);
       if (error) throw error;
       
       if (data?.ok) {
@@ -47,10 +49,12 @@ export function useBrandEnrichment() {
 
   const fetchLogo = async (brandId: string) => {
     try {
+      console.log('[useBrandEnrichment] Fetching logo for brand:', brandId);
       const { data, error } = await supabase.functions.invoke('resolve-brand-logo', {
         body: { brand_id: brandId }
       });
       
+      console.log('[useBrandEnrichment] Logo response:', data, error);
       if (error) throw error;
       
       if (data?.ok) {
