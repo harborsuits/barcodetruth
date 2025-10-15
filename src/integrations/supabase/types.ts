@@ -512,6 +512,62 @@ export type Database = {
           },
         ]
       }
+      brand_scores_history: {
+        Row: {
+          brand_id: string
+          recorded_at: string
+          score_environment: number
+          score_labor: number
+          score_politics: number
+          score_social: number
+        }
+        Insert: {
+          brand_id: string
+          recorded_at?: string
+          score_environment: number
+          score_labor: number
+          score_politics: number
+          score_social: number
+        }
+        Update: {
+          brand_id?: string
+          recorded_at?: string
+          score_environment?: number
+          score_labor?: number
+          score_politics?: number
+          score_social?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_scores_history_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_scores_history_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_scores_history_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_scores_history_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+        ]
+      }
       brand_social_baseline: {
         Row: {
           brand_id: string
@@ -2217,6 +2273,47 @@ export type Database = {
           last_event_at: string | null
           overall_effective: number | null
           verified_rate: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_scores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_scores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_scores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_scores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+        ]
+      }
+      brand_score_movers_24h: {
+        Row: {
+          brand_id: string | null
+          brand_name: string | null
+          delta_24h: number | null
+          last_updated: string | null
+          logo_url: string | null
+          score_24h_ago: number | null
+          score_now: number | null
         }
         Relationships: [
           {

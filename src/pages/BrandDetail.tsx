@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle, Heart, HeartOff, Clock, CheckCircle2, Filter, Bell, BellOff, Home, Info } from "lucide-react";
+import { ScoreExplainDrawer } from "@/components/brand/ScoreExplainDrawer";
+import { ConfidenceChip } from "@/components/brand/ConfidenceChip";
+import { LastUpdatedBadge } from "@/components/brand/LastUpdatedBadge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +41,7 @@ export const BrandDetail = () => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<"all" | "labor" | "environment" | "politics" | "cultural-values">("all");
   const [showParent, setShowParent] = useState(false);
+  const [whyOpen, setWhyOpen] = useState(false);
   
   // Fetch brand data
   const { data: brand, isLoading: brandLoading } = useQuery({
@@ -54,17 +58,17 @@ export const BrandDetail = () => {
       
       if (brandError) throw brandError;
       
-      // Get scores
+      // Get scores including breakdown
       const { data: scores } = await supabase
         .from('brand_scores')
-        .select('score_labor, score_environment, score_politics, score_social, last_updated')
+        .select('score_labor, score_environment, score_politics, score_social, last_updated, breakdown')
         .eq('brand_id', brandId)
         .maybeSingle();
       
       // Get coverage/confidence data
       const { data: coverage } = await supabase
         .from('brand_data_coverage')
-        .select('events_365d, verified_rate, independent_sources')
+        .select('events_90d, events_365d, verified_rate, independent_sources')
         .eq('brand_id', brandId)
         .maybeSingle();
       
@@ -133,7 +137,9 @@ export const BrandDetail = () => {
         wikidata_qid: brandData.wikidata_qid,
         overall_score: overallScore,
         last_updated: scores?.last_updated || brandData.updated_at,
+        breakdown: scores?.breakdown,
         coverage: {
+          events_90d: coverage?.events_90d || 0,
           events_365d: coverage?.events_365d || 0,
           verified_rate: coverage?.verified_rate || 0,
           independent_sources: coverage?.independent_sources || 0,
@@ -530,17 +536,24 @@ export const BrandDetail = () => {
         <Card>
           <CardContent className="pt-6">
             <div className="text-center space-y-4">
-              <div className="flex items-center justify-center gap-3">
-                <div className={`text-6xl font-bold ${getScoreColor(brand.overall_score)}`}>
-                  {brand.overall_score}
+              <div className="flex flex-col items-center gap-3">
+                <div className="flex items-center justify-center gap-3">
+                  <div className={`text-6xl font-bold ${getScoreColor(brand.overall_score)}`}>
+                    {brand.overall_score}
+                  </div>
+                  {brand.coverage && (
+                    <InsufficientDataBadge 
+                      eventCount={brand.coverage.events_365d}
+                      verifiedRate={brand.coverage.verified_rate}
+                      independentSources={brand.coverage.independent_sources}
+                    />
+                  )}
                 </div>
-                {brand.coverage && (
-                  <InsufficientDataBadge 
-                    eventCount={brand.coverage.events_365d}
-                    verifiedRate={brand.coverage.verified_rate}
-                    independentSources={brand.coverage.independent_sources}
-                  />
-                )}
+                <div className="flex items-center gap-2">
+                  {brand.coverage && (
+                    <ConfidenceChip coverage={brand.coverage} />
+                  )}
+                </div>
               </div>
               <p className="text-muted-foreground">Overall Score</p>
               
@@ -596,15 +609,18 @@ export const BrandDetail = () => {
                 </div>
               )}
               
-              <div className="flex items-center justify-center gap-1.5 text-xs">
-                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                <span 
-                  className={getStalenessBadge(brand.last_updated).className}
-                  title={getStalenessBadge(brand.last_updated).title}
+              <div className="flex flex-col items-center gap-2">
+                <div className="flex items-center gap-1.5 text-xs">
+                  <LastUpdatedBadge timestamp={brand.last_updated} />
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setWhyOpen(true)}
                 >
-                  Last updated: {new Date(brand.last_updated).toLocaleDateString()}
-                  {getStalenessBadge(brand.last_updated).isStale && " (stale)"}
-                </span>
+                  <Info className="w-4 h-4 mr-1" />
+                  Why this score?
+                </Button>
               </div>
             </div>
           </CardContent>
@@ -910,6 +926,12 @@ export const BrandDetail = () => {
           </>
         )}
       </main>
+      
+      <ScoreExplainDrawer
+        open={whyOpen}
+        onOpenChange={setWhyOpen}
+        breakdown={brand?.breakdown as any}
+      />
     </div>
   );
 };
