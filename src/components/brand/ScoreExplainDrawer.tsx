@@ -126,8 +126,8 @@ export function ScoreExplainDrawer({ open, onOpenChange, breakdown }: ScoreExpla
                 <tr>
                   <td colSpan={6} className="py-8 text-center">
                     <div className="text-muted-foreground">
-                      <p className="font-medium mb-1">No detailed event data available</p>
-                      <p className="text-sm">Score may be based on baseline estimates or data is still being processed.</p>
+                      <p className="font-medium mb-1">No verified events or sources</p>
+                      <p className="text-sm">We only show scores with cited evidence. This brand has no verified event yet.</p>
                     </div>
                   </td>
                 </tr>

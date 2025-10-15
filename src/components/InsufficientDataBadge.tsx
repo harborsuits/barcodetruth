@@ -32,14 +32,14 @@ export function InsufficientDataBadge({
         </TooltipTrigger>
         <TooltipContent className="max-w-xs">
           <div className="space-y-1 text-xs">
-            <p className="font-semibold">Score based on {meta.level === 'none' ? 'no data' : 'limited information'}</p>
+            <p className="font-semibold">{meta.level === 'none' ? 'No verified events' : 'Limited data'}</p>
             {eventCount === 0 ? (
-              <p>No events found. This score uses baseline estimates only.</p>
+              <p>No verified events found yet. Score will appear once we have cited sources.</p>
             ) : (
               <p>Only {eventCount} {eventCount === 1 ? 'event' : 'events'} found, {Math.round(verifiedRate * 100)}% verified from {independentSources} source{independentSources !== 1 ? 's' : ''}.</p>
             )}
             <p className="text-muted-foreground mt-2">
-              Actual performance may differ significantly. We'll update once more independent, verified sources report on this brand.
+              We only show scores backed by real evidence from independent sources.
             </p>
           </div>
         </TooltipContent>

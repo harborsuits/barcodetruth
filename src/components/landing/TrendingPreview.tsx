@@ -100,39 +100,8 @@ export function TrendingPreview() {
       return;
     }
 
-    // Fallback: show most recently updated brands by baseline scores
-    const { data: recentScores } = await supabase
-      .from('brand_scores')
-      .select('brand_id, score_labor, score_environment, score_politics, score_social, last_updated')
-      .order('last_updated', { ascending: false })
-      .limit(5);
-
-    const fallbackIds = (recentScores || []).map(b => b.brand_id);
-    const { data: brandRows } = await supabase
-      .from('brands')
-      .select('id, name, logo_url')
-      .in('id', fallbackIds);
-
-    const logoMap: Record<string, string> = {};
-    const nameMap: Record<string, string> = {};
-    (brandRows || []).forEach((b) => {
-      if (b.logo_url) logoMap[b.id] = b.logo_url;
-      nameMap[b.id] = b.name;
-    });
-
-    if (recentScores && recentScores.length) {
-      setTrending(recentScores.map((r: any) => ({
-        brand_id: r.brand_id,
-        brand_name: nameMap[r.brand_id] || 'Brand',
-        logo_url: logoMap[r.brand_id],
-        event_count: 0,
-        overall_score: Math.round((r.score_labor + r.score_environment + r.score_politics + r.score_social) / 4),
-        confidence: 0.5,
-        verified_rate: 0,
-        independent_sources: 0,
-        last_event_at: null
-      })));
-    }
+    // No fallback - only show verified brands
+    setTrending([]);
     setLoading(false);
   };
 
@@ -227,11 +196,6 @@ export function TrendingPreview() {
                         <Clock className="h-3 w-3" />
                         Last event: {new Date(brand.last_event_at).toLocaleDateString()}
                       </div>
-                    )}
-                    {brand.event_count === 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        Score based on baseline estimates
-                      </p>
                     )}
                   </div>
                 </div>

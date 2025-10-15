@@ -24,7 +24,7 @@ export function DataQualityIndicator({
       return {
         level: meta.level,
         label: meta.label,
-        description: "Baseline estimates only",
+        description: "No verified events",
         icon: AlertTriangle,
         color: "text-destructive bg-destructive/10 border-destructive/30"
       };
