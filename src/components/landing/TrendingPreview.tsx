@@ -74,22 +74,22 @@ export function TrendingPreview() {
       .order('overall_effective', { ascending: false })
       .limit(5);
 
-    // Fetch logos for these brands
-    const brandIds = (trendingData || []).map(b => b.brand_id);
-    let logoMap: Record<string, string> = {};
-    if (brandIds.length > 0) {
-      const { data: brandLogos } = await supabase
-        .from('brands')
-        .select('id, logo_url')
-        .in('id', brandIds);
+    if (trendingData && trendingData.length) {
+      // Fetch logos for these brands
+      const brandIds = trendingData.map(b => b.brand_id);
+      let logoMap: Record<string, string> = {};
+      if (brandIds.length > 0) {
+        const { data: brandLogos } = await supabase
+          .from('brands')
+          .select('id, logo_url')
+          .in('id', brandIds);
 
-      logoMap = (brandLogos || []).reduce((acc, b) => {
-        if (b.logo_url) acc[b.id] = b.logo_url;
-        return acc;
-      }, {} as Record<string, string>);
-    }
+        logoMap = (brandLogos || []).reduce((acc, b) => {
+          if (b.logo_url) acc[b.id] = b.logo_url;
+          return acc;
+        }, {} as Record<string, string>);
+      }
 
-    if (trendingData) {
       setTrending(trendingData.map((b: any) => ({
         brand_id: b.brand_id,
         brand_name: b.brand_name,
@@ -100,6 +100,42 @@ export function TrendingPreview() {
         verified_rate: b.verified_rate || 0,
         independent_sources: b.independent_sources || 0,
         last_event_at: b.last_event_at
+      })));
+      setLoading(false);
+      return;
+    }
+
+    // Fallback: show most recently updated brands by baseline scores
+    const { data: recentScores } = await supabase
+      .from('brand_scores')
+      .select('brand_id, score_labor, score_environment, score_politics, score_social, last_updated')
+      .order('last_updated', { ascending: false })
+      .limit(5);
+
+    const fallbackIds = (recentScores || []).map(b => b.brand_id);
+    const { data: brandRows } = await supabase
+      .from('brands')
+      .select('id, name, logo_url')
+      .in('id', fallbackIds);
+
+    const logoMap: Record<string, string> = {};
+    const nameMap: Record<string, string> = {};
+    (brandRows || []).forEach((b) => {
+      if (b.logo_url) logoMap[b.id] = b.logo_url;
+      nameMap[b.id] = b.name;
+    });
+
+    if (recentScores && recentScores.length) {
+      setTrending(recentScores.map((r: any) => ({
+        brand_id: r.brand_id,
+        brand_name: nameMap[r.brand_id] || 'Brand',
+        logo_url: logoMap[r.brand_id],
+        event_count: 0,
+        overall_score: Math.round((r.score_labor + r.score_environment + r.score_politics + r.score_social) / 4),
+        confidence: 0.5,
+        verified_rate: 0,
+        independent_sources: 0,
+        last_event_at: null
       })));
     }
     setLoading(false);
