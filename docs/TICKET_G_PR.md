@@ -103,17 +103,34 @@ Migration linter flagged:
 
 **No new security issues introduced.**
 
+## Integration Notes
+
+- RPC uses existing enums: `verification_level`, `event_category`
+- ON CONFLICT clause uses composite key: `(brand_id, occurred_at, title)`
+- **Unique constraint added**: `unique_event_per_brand_date_title` ensures idempotency
+- Function granted to `authenticated` role (AdminRoute enforces admin-only access)
+
+## Pre-existing Warnings
+Migration linter flagged:
+- Security definer views (pre-existing, not from this ticket)
+- Materialized view in API (brand_data_coverage, pre-existing)
+- Function search path mutable (pre-existing functions)
+- Leaked password protection disabled (auth config)
+
+**No new security issues introduced.**
+
 ## Merge Checklist
 - [x] `canonicalize_source_url` function created
 - [x] `admin_add_evidence` RPC created with SECURITY DEFINER
-- [x] AdminEvidence.tsx page created
+- [x] Unique constraint `unique_event_per_brand_date_title` added to brand_events
+- [x] AdminEvidence.tsx page created with form validation
 - [x] Route added to App.tsx with AdminRoute guard
-- [ ] Test: Add new evidence → appears in brand profile
+- [ ] Test: Add new evidence → appears in brand profile timeline
 - [ ] Test: Coverage chips update (30d/90d/365d, verified_rate, independent_sources)
-- [ ] Test: Duplicate submit updates in place (idempotent)
-- [ ] Test: URL validation catches malformed URLs
+- [ ] Test: Duplicate submit updates in place (idempotent, no duplicate events)
+- [ ] Test: URL validation catches malformed URLs (toast error)
 - [ ] Test: Non-admin users redirected to /forbidden
 
 ---
 
-**✅ Ready to test. G complete with idempotent upsert and coverage refresh.**
+**✅ Ready to test. G complete with unique constraint, idempotent upsert, and coverage refresh.**

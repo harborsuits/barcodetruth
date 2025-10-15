@@ -150,18 +150,57 @@ navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
 - No sensitive data cached (auth tokens, passwords)
 - RLS policies still enforced on backend (even if cached response served)
 
+## QA Verification Steps
+
+### Database Check
+```sql
+-- 1. Verify function exists with SECURITY DEFINER
+\df+ public.admin_add_evidence
+
+-- 2. Confirm unique constraint exists
+SELECT conname, pg_get_constraintdef(oid)
+FROM pg_constraint
+WHERE conrelid = 'public.brand_events'::regclass
+  AND conname = 'unique_event_per_brand_date_title';
+
+-- 3. Test RPC (as admin)
+SELECT * FROM admin_add_evidence(
+  'ced5176a-2adf-4a89-8070-33acd1f4188c'::uuid,
+  'Test Event',
+  'https://example.com/article',
+  'official',
+  'environment',
+  '2025-10-15'::date,
+  'Test notes'
+);
+```
+
+### PWA Check
+```bash
+# 1. Manifest referenced correctly in index.html
+grep 'manifest.webmanifest' public/index.html
+
+# 2. Service Worker version bumped
+grep "VERSION = 'v3'" public/service-worker.js
+
+# 3. Runtime cache defined
+grep 'CACHE_RUNTIME' public/service-worker.js
+```
+
 ## Merge Checklist
-- [x] Service Worker v2 implemented (stale-while-revalidate)
+- [x] Service Worker v3 implemented (stale-while-revalidate for brand/scan APIs)
+- [x] CACHE_RUNTIME added for brand profiles + scan results
 - [x] Manifest.webmanifest present with valid config
 - [x] SW registered in main.tsx
+- [x] Unique constraint added for event idempotency
 - [ ] Lighthouse PWA score ≥ 90
-- [ ] Offline test: App shell loads
-- [ ] Offline test: Brand profile loads from cache
-- [ ] Offline test: Scan results accessible offline
-- [ ] Install prompt works on Android Chrome
+- [ ] Offline test: App shell loads, OfflineIndicator shows
+- [ ] Offline test: Previously visited brand profile loads from cache
+- [ ] Offline test: Scan results (from cache) accessible offline
+- [ ] Install prompt shows on Chrome/Edge (beforeinstallprompt)
 - [ ] No console errors during SW activation
-- [ ] Old caches auto-deleted on version bump
+- [ ] Old caches (v1, v2) auto-deleted on activate
 
 ---
 
-**✅ Ready to test. H complete with offline caching and PWA compliance.**
+**✅ Ready to test. H complete with enhanced offline caching and PWA compliance.**
