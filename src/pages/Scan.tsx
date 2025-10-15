@@ -1,14 +1,14 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, AlertCircle, Download, WifiOff, X, Flashlight, FlashlightOff, Wrench, Upload } from "lucide-react";
+import { ArrowLeft, Camera, AlertCircle, Download, WifiOff, X, Flashlight, FlashlightOff, Wrench, Upload, FlipHorizontal, Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ReportIssue } from "@/components/ReportIssue";
 import { ScannerDiagnostics } from "@/components/ScannerDiagnostics";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { initA2HS, triggerA2HS, isA2HSAvailable, dismissA2HS, isA2HSDismissed } from "@/lib/a2hs";
 import { toast } from "@/hooks/use-toast";
-import { createScanner } from "@/lib/barcodeScanner";
+import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import { supabase } from "@/integrations/supabase/client";
 import { useScanLimit } from "@/hooks/useScanLimit";
 import { BrowserMultiFormatReader } from '@zxing/browser';
@@ -21,16 +21,26 @@ export const Scan = () => {
   const [showA2HSPrompt, setShowA2HSPrompt] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [error, setError] = useState<string>('');
-  const [torchSupported, setTorchSupported] = useState(false);
-  const [torchEnabled, setTorchEnabled] = useState(false);
   const [manualBarcode, setManualBarcode] = useState('');
   const [isSecure, setIsSecure] = useState(true);
   const [showManual, setShowManual] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const scannerRef = useRef<ReturnType<typeof createScanner> | null>(null);
   const manualInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle barcode detection (defined before use in hook)
+  const handleBarcodeDetected = useCallback(async (barcode: string) => {
+    if (scanResult === 'processing') return;
+    
+    setScannedBarcode(barcode);
+    setScanResult('processing');
+    
+    console.log('[Analytics] scan_detect', { barcode, ts: Date.now() });
+    
+    // Haptic feedback
+    if ('vibrate' in navigator) {
+      navigator.vibrate(35);
+    }
 
   // Check HTTPS (except localhost)
   useEffect(() => {
@@ -118,11 +128,6 @@ export const Scan = () => {
       navigator.vibrate(35);
     }
     
-    // Stop scanner while processing
-    if (scannerRef.current) {
-      scannerRef.current.stopScanning();
-    }
-
     try {
       const t0 = performance.now();
       
@@ -167,6 +172,58 @@ export const Scan = () => {
         const existing = stored ? JSON.parse(stored) : [];
         const updated = [recentScan, ...existing.filter((s: any) => s.upc !== data.upc)].slice(0, 10);
         localStorage.setItem('recent_scans', JSON.stringify(updated));
+        
+        toast({ 
+          title: "Product found!", 
+          description: `${data.product_name}${data.brand_name ? ` by ${data.brand_name}` : ''}`
+        });
+      } else {
+        setScanResult('not_found');
+        toast({ 
+          title: "Product not found", 
+          description: "Try another barcode or search by brand",
+          variant: "destructive" 
+        });
+      }
+    } catch (error: any) {
+      console.error('[Analytics] scan_error', error);
+      setScanResult('idle');
+      toast({ 
+        title: "Scan failed", 
+        description: error?.message || "Try again",
+        variant: "destructive" 
+        });
+    }
+  }, [scanResult, trackScan]);
+
+  // Barcode scanner hook (defined after handleBarcodeDetected)
+  const {
+    videoRef,
+    canvasRef,
+    isScanning,
+    hasPermission,
+    isPaused,
+    facingMode,
+    hasTorch,
+    torchEnabled,
+    startScanning: startBarcodeScanner,
+    stopScanning: stopBarcodeScanner,
+    togglePause,
+    toggleFacingMode,
+    toggleTorch,
+  } = useBarcodeScanner({
+    onScan: handleBarcodeDetected,
+    onError: (err) => {
+      console.error('Scanner error:', err);
+      setError(err.message);
+      setScanResult('idle');
+      toast({
+        title: "Camera error",
+        description: err.message,
+        variant: "destructive"
+      });
+    }
+  });
         
         toast({ 
           title: "Product found!", 
@@ -323,8 +380,8 @@ export const Scan = () => {
 
   const onManualFallbackClick = () => {
     console.log('[Analytics] manual_fallback_click', { ts: Date.now(), scanResult });
-    if (scannerRef.current?.isScanning()) {
-      scannerRef.current.stopScanning();
+    if (isScanning) {
+      stopScanner();
     }
     setScanResult('idle');
     setShowManual(true);
