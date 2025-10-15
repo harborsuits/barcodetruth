@@ -63,12 +63,14 @@ export function TrendingPreview() {
     }
 
     // Use brand_score_effective_named view to eliminate N+1 queries
+    // Only show brands with actual event data (events_90d > 0)
     const { data } = await supabase
       .from('brand_score_effective_named')
       .select('brand_id, brand_name, overall_effective, events_90d, events_365d, verified_rate, independent_sources, confidence, last_event_at')
+      .gt('events_90d', 0) // Must have recent events to be "trending"
+      .gt('confidence', 0.5) // Require meaningful confidence
       .order('events_90d', { ascending: false })
       .order('overall_effective', { ascending: false })
-      .gt('confidence', 0) // Hide brands with no data
       .limit(5);
 
     if (data) {

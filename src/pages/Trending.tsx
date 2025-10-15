@@ -66,7 +66,7 @@ export const Trending = () => {
         userFollows = data || [];
       }
 
-      // Combine data
+      // Combine data and filter for brands with meaningful activity
       return brands
         .map(brand => {
           const brandScore = scores?.find(s => s.brand_id === brand.id);
@@ -82,6 +82,7 @@ export const Trending = () => {
             id: brand.id,
             name: brand.name,
             score: overallScore,
+            hasScore: !!brandScore,
             events: brandEvents.map(e => ({
               event_id: e.event_id,
               brand_id: e.brand_id,
@@ -104,7 +105,10 @@ export const Trending = () => {
             notificationsEnabled: userFollow?.notifications_enabled || false,
           };
         })
-        .filter(b => b.events.length > 0) // Only show brands with recent activity
+        .filter(b => {
+          // Only show brands with recent activity AND a score (not just default)
+          return b.events.length > 0 && b.hasScore;
+        })
         .sort((a, b) => b.events.length - a.events.length) // Sort by activity
         .slice(0, 10);
     },
