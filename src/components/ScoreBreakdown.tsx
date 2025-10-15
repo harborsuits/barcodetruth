@@ -35,12 +35,17 @@ export default function ScoreBreakdown({
         const deltaStr = delta === 0 ? '—' : `${delta > 0 ? '+' : ''}${delta}`;
         const why = buildWhyLine(b, delta);
         return (
-          <div key={b.component} className={`rounded-xl border p-3 ${idx > 0 ? 'border-t border-border/60' : ''}`}>
+          <div key={b.component} className={`rounded-xl border p-3 space-y-3 ${idx > 0 ? 'border-t border-border/60' : ''}`}>
             <div className="flex items-center justify-between">
               <div className="font-medium capitalize">{b.component}</div>
               <div className="text-sm text-muted-foreground" title={`Confidence ${b.confidence}/100`}>
                 Confidence <span className="font-medium tabular-nums">{b.confidence}</span>/100
               </div>
+            </div>
+
+            {/* Methodology explanation */}
+            <div className="text-xs text-muted-foreground bg-muted/30 px-3 py-2 rounded-lg">
+              <strong className="text-foreground">How we calculate this:</strong> Score = Baseline (from 24-month EPA/OSHA/FEC/news history) + Recent window changes (weighted by source verification & recency). All scores 0-100, higher = better labor/environmental/governance practices.
             </div>
 
             {/* base → delta → now */}

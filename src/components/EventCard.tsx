@@ -471,29 +471,20 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                     <div className="flex items-start justify-between gap-2 text-xs pb-2 border-b">
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                        <p>AI summary from cited source.</p>
-                        {limitedDetails && (
-                          <Badge variant="outline" className="ml-1 h-5 px-2 text-[10px] bg-neutral-600/10 text-neutral-700 border-neutral-600/20">
-                            Limited details
-                          </Badge>
-                        )}
+                        <p>AI summary from cited source</p>
                       </div>
-                      {action?.href ? (
+                      {action?.href && (
                         <a
                           href={action.href}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
                           aria-label={action.label}
                         >
                           {action.label}
                           <ExternalLink className="h-3 w-3" />
                         </a>
-                      ) : linkKind === 'homepage' ? (
-                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                          Article pending
-                        </span>
-                      ) : null}
+                      )}
                     </div>
                     
                     <div>
@@ -563,23 +554,26 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
             </div>
           )}
 
-          {/* Impact chips */}
+          {/* Impact chips - PROMINENT */}
           {impactChips.length > 0 && (
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs text-[var(--muted)] font-medium">Impact:</span>
-              {impactChips.map(({ key, val }) => (
-                <Badge
-                  key={key}
-                  variant="outline"
-                  className={`text-xs font-medium ${scoreTone(val)}`}
-                >
-                  {val > 0 ? "+" : ""}{val} {key.charAt(0).toUpperCase() + key.slice(1)}
-                </Badge>
-              ))}
+            <div className="flex items-start gap-2 flex-wrap p-2 rounded-lg bg-muted/30 border">
+              <span className="text-xs text-muted-foreground font-medium">Score impact:</span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {impactChips.map(({ key, val }) => (
+                  <Badge
+                    key={key}
+                    variant="outline"
+                    className={`text-xs font-bold ${scoreTone(val)}`}
+                    title={`This event ${val > 0 ? 'increases' : 'decreases'} the ${key} score by ${Math.abs(val)} points`}
+                  >
+                    {val > 0 ? "+" : ""}{val} {key.charAt(0).toUpperCase() + key.slice(1)}
+                  </Badge>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* Primary source */}
+          {/* Primary source - ALWAYS VISIBLE */}
           {primarySource && (
             <div className="space-y-2 pt-2 border-t">
               {showFullDetails && primarySource.quote && (
@@ -588,42 +582,33 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                 </blockquote>
               )}
               
-              <div className="flex items-center justify-between gap-2">
-                <div 
-                  className="text-xs text-[var(--muted)] italic truncate" 
-                  title={sourceTooltip}
-                >
-                  {attributionLine}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div 
+                    className="text-xs text-muted-foreground truncate" 
+                    title={sourceTooltip}
+                  >
+                    Source: <span className="font-medium text-foreground">{primarySource.name}</span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {primarySource.url && (
+                  {(primarySource.url || primarySource.archive_url || primarySource.canonical_url) && (
                     <a
-                      href={primarySource.url}
+                      href={primarySource.url || primarySource.archive_url || primarySource.canonical_url || '#'}
                       target="_blank"
                       rel="noopener noreferrer nofollow"
-                      className="inline-flex items-center gap-1 text-xs text-blue-700 underline underline-offset-2 hover:no-underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
                       aria-label={`Open source: ${primarySource.name ?? 'external link'}`}
                       title={`View official source at ${primarySource.name}`}
                     >
                       View source
-                      <ExternalLink className="h-3 w-3 opacity-70 group-hover:opacity-100" />
+                      <ExternalLink className="h-3 w-3" />
                     </a>
                   )}
-                  {primarySource.archive_url && (
-                    <>
-                      <span className="text-xs text-muted-foreground" aria-hidden="true">·</span>
-                      <a
-                        href={primarySource.archive_url}
-                        target="_blank"
-                        rel="noopener noreferrer nofollow"
-                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 hover:no-underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                        aria-label="View archived version on Wayback Machine"
-                        title="Wayback Machine archive - permanent snapshot"
-                      >
-                        Archive
-                        <ExternalLink className="h-3 w-3 opacity-70" />
-                      </a>
-                    </>
+                  {!primarySource.url && !primarySource.archive_url && !primarySource.canonical_url && (
+                    <span className="text-xs text-muted-foreground italic">
+                      Database record
+                    </span>
                   )}
                 </div>
               </div>
