@@ -31,6 +31,7 @@ import { EventTimeline } from "@/components/EventTimeline";
 import { TrustIndicators } from "@/components/TrustIndicators";
 import { InsufficientDataBadge } from "@/components/InsufficientDataBadge";
 import { useBrandEnrichment } from "@/hooks/useBrandEnrichment";
+import { isVerifiedBrand } from "@/lib/realOnly";
 
 export const BrandDetail = () => {
   const { brandId } = useParams();
@@ -43,36 +44,28 @@ export const BrandDetail = () => {
   const [showParent, setShowParent] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
   
-  // Fetch brand data
+  // Fetch brand data from Edge API (real + cited only)
   const { data: brand, isLoading: brandLoading } = useQuery({
     queryKey: ['brand', brandId],
     queryFn: async () => {
       if (!brandId) throw new Error("Brand ID required");
       
-      // Get brand info including logo and description
-      const { data: brandData, error: brandError } = await supabase
+      // Use Edge API for verified-only data
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/v1-brands/brands/${brandId}`
+      );
+      
+      if (!response.ok) throw new Error('Failed to fetch brand');
+      const apiData = await response.json();
+      
+      // Get brand logo/website from brands table
+      const { data: brandMeta } = await supabase
         .from('brands')
-        .select('id, name, parent_company, updated_at, logo_url, logo_attribution, description, description_source, website, wikidata_qid')
+        .select('logo_url, logo_attribution, website, wikidata_qid, parent_company')
         .eq('id', brandId)
-        .single();
-      
-      if (brandError) throw brandError;
-      
-      // Get scores including breakdown
-      const { data: scores } = await supabase
-        .from('brand_scores')
-        .select('score_labor, score_environment, score_politics, score_social, last_updated, breakdown')
-        .eq('brand_id', brandId)
         .maybeSingle();
       
-      // Get coverage/confidence data
-      const { data: coverage } = await supabase
-        .from('brand_data_coverage')
-        .select('events_30d, events_365d, verified_rate, independent_sources, last_event_at')
-        .eq('brand_id', brandId)
-        .maybeSingle();
-      
-      // Get recent events (last 12 months)
+      // Fetch events for display (last 12 months)
       const twelveMonthsAgo = new Date();
       twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
       
@@ -128,36 +121,35 @@ export const BrandDetail = () => {
         raw_data: e.raw_data,
       }));
       
-      const overallScore = scores 
-        ? Math.round((scores.score_labor + scores.score_environment + scores.score_politics + scores.score_social) / 4)
-        : 50;
+      // Map API response to component format
+      const hasVerified = Boolean(apiData.last_event_at);
+      const overallScore = hasVerified && apiData.score != null ? apiData.score : null;
       
       return {
-        id: brandData.id,
-        name: brandData.name,
-        parent_company: brandData.parent_company || brandData.name,
-        logo_url: brandData.logo_url,
-        logo_attribution: brandData.logo_attribution,
-        description: brandData.description,
-        description_source: brandData.description_source,
-        website: brandData.website,
-        wikidata_qid: brandData.wikidata_qid,
+        id: brandId,
+        name: apiData.name,
+        parent_company: brandMeta?.parent_company || apiData.name,
+        logo_url: brandMeta?.logo_url,
+        logo_attribution: brandMeta?.logo_attribution,
+        description: null,
+        description_source: null,
+        website: brandMeta?.website,
+        wikidata_qid: brandMeta?.wikidata_qid,
         overall_score: overallScore,
-        last_updated: scores?.last_updated || brandData.updated_at,
-        breakdown: scores?.breakdown,
+        score: apiData.score,
+        score_confidence: apiData.score_confidence,
+        ai_summary_md: apiData.ai_summary_md,
+        last_updated: apiData.last_event_at,
+        breakdown: null,
         coverage: {
-          events_90d: coverage?.events_30d || 0,
-          events_365d: coverage?.events_365d || 0,
-          verified_rate: coverage?.verified_rate || 0,
-          independent_sources: coverage?.independent_sources || 0,
-          last_event_at: coverage?.last_event_at || null,
+          events_90d: apiData.events_30d || 0,
+          events_365d: apiData.events_365d || 0,
+          verified_rate: apiData.verified_rate || 0,
+          independent_sources: apiData.independent_sources || 0,
+          last_event_at: apiData.last_event_at,
         },
-        signals: {
-          labor: { score: scores?.score_labor || 50, risk_level: "low", recent_events: [] },
-          environment: { score: scores?.score_environment || 50, risk_level: "low", recent_events: [] },
-          politics: { score: scores?.score_politics || 50, risk_level: "low", recent_events: [] },
-          social: { score: scores?.score_social || 50, risk_level: "low", recent_events: [] },
-        },
+        evidence: apiData.evidence || [],
+        signals: null,
         events: normalizedEvents,
         trending: { velocity: "stable", sentiment_shift: 0 },
         community_insights: { percent_avoid: 0, trend_change: "0%" },
@@ -377,6 +369,36 @@ export const BrandDetail = () => {
     next.setUTCHours(7, 0, 0, 0);
     return next;
   };
+
+  // DEV: Detect baseline leaks
+  if (import.meta.env.DEV && brand) {
+    const leak = (brand.score != null || brand.ai_summary_md) && !isVerifiedBrand(brand);
+    if (leak) {
+      console.error('⚠️ BASELINE LEAK:', {
+        score: brand.score,
+        ai_summary: brand.ai_summary_md?.substring(0, 100),
+        last_event_at: brand.coverage?.last_event_at,
+        evidence_count: brand.evidence?.length,
+      });
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
+          <div className="max-w-2xl p-6 bg-destructive/10 text-destructive rounded-lg border border-destructive">
+            <h2 className="text-xl font-bold mb-2">⚠️ Baseline Leak Blocked</h2>
+            <p className="mb-4">This build only allows real + cited data. Score or summary present without verified evidence.</p>
+            <pre className="text-xs overflow-auto bg-background p-2 rounded max-h-64">
+              {JSON.stringify({ 
+                score: brand.score, 
+                ai_summary_md: brand.ai_summary_md?.substring(0, 100),
+                last_event_at: brand.coverage?.last_event_at,
+                evidence_count: brand.evidence?.length,
+                _real_only: (brand as any)._real_only,
+              }, null, 2)}
+            </pre>
+          </div>
+        </div>
+      );
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg)] pb-20">

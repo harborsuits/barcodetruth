@@ -79,16 +79,23 @@ serve(async (req) => {
       
       if (e2) throw e2;
 
-      // Enforce "real-only": if no verified event, hide score/summary and sources
-      const hasVerified = Boolean(standing.last_event_at);
-      const gated = {
-        ...standing,
-        score: hasVerified ? standing.score : null,
-        score_confidence: hasVerified ? standing.score_confidence : null,
-        ai_summary_md: hasVerified ? standing.ai_summary_md : null,
-      };
+      // Enforce "real-only": BOTH event AND evidence required
+      const hasEvent = Boolean(standing.last_event_at);
+      const hasEvidence = Array.isArray(evidence) && evidence.length > 0;
+      
+      let finalEvidence = evidence;
+      if (!hasEvent || !hasEvidence) {
+        standing.score = null;
+        standing.score_confidence = null;
+        standing.ai_summary_md = null;
+        finalEvidence = [];
+      }
 
-      return json({ ...gated, evidence: hasVerified ? (evidence || []) : [] });
+      return json({ 
+        ...standing, 
+        evidence: finalEvidence,
+        _real_only: { hasEvent, hasEvidence }
+      });
     }
 
     return notFound("Route not found");
