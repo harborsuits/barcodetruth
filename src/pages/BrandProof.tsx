@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import type { BrandProofResponse } from '@/types/evidence';
 import { TriggerIngestion } from '@/components/admin/TriggerIngestion';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { AttachSource } from '@/components/admin/AttachSource';
 
 export default function BrandProof() {
   const { id } = useParams<{ id: string }>();

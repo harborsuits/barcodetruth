@@ -169,6 +169,68 @@ export type Database = {
           },
         ]
       }
+      brand_data_mappings: {
+        Row: {
+          brand_id: string
+          created_at: string
+          external_id: string | null
+          id: string
+          label: string | null
+          query: string | null
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          label?: string | null
+          query?: string | null
+          source: string
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          label?: string | null
+          query?: string | null
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_data_mappings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_data_mappings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_data_mappings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_data_mappings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+        ]
+      }
       brand_events: {
         Row: {
           article_text: string | null

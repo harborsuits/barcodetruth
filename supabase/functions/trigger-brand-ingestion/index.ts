@@ -27,6 +27,15 @@ serve(async (req) => {
 
     console.log(`[trigger-brand-ingestion] Starting for brand_id=${brand_id}`);
 
+    // Load deterministic source mappings
+    const { data: mappings } = await supabase
+      .from('brand_data_mappings')
+      .select('source, external_id, query')
+      .eq('brand_id', brand_id);
+
+    const bySource = new Map<string, { external_id: string | null; query: string | null }>();
+    (mappings || []).forEach(m => bySource.set(m.source, { external_id: m.external_id || null, query: m.query || null }));
+
     const results = {
       osha: { success: false, error: null as string | null },
       epa: { success: false, error: null as string | null },
@@ -35,66 +44,77 @@ serve(async (req) => {
       news: { success: false, error: null as string | null },
     };
 
-    // Trigger OSHA ingestion
-    try {
-      const oshaRes = await supabase.functions.invoke('fetch-osha-events', {
-        body: { brand_id }
+    const fxBase = `${supabaseUrl}/functions/v1`;
+    const authHeader = { 'Authorization': `Bearer ${supabaseKey}` };
+
+    // Helper to build query string
+    const qs = (params: Record<string, string | undefined>) => {
+      const usp = new URLSearchParams();
+      Object.entries(params).forEach(([k,v]) => {
+        if (typeof v !== 'undefined' && v !== null) usp.set(k, v);
       });
-      if (oshaRes.error) throw oshaRes.error;
+      return `?${usp.toString()}`;
+    };
+
+    // OSHA
+    try {
+      const q = bySource.get('OSHA')?.query || undefined;
+      const url = `${fxBase}/fetch-osha-events${qs({ brand_id, query: q })}`;
+      const resp = await fetch(url, { method: 'POST', headers: { ...authHeader } });
+      if (!resp.ok) throw new Error(`OSHA ${resp.status}`);
       results.osha.success = true;
-      console.log('[OSHA] Success:', oshaRes.data);
+      console.log('[OSHA] triggered');
     } catch (e) {
       results.osha.error = e instanceof Error ? e.message : String(e);
       console.error('[OSHA] Error:', e);
     }
 
-    // Trigger EPA ingestion
+    // EPA
     try {
-      const epaRes = await supabase.functions.invoke('fetch-epa-events', {
-        body: { brand_id }
-      });
-      if (epaRes.error) throw epaRes.error;
+      const q = bySource.get('EPA')?.query || undefined;
+      const url = `${fxBase}/fetch-epa-events${qs({ brand_id, query: q })}`;
+      const resp = await fetch(url, { method: 'POST', headers: { ...authHeader } });
+      if (!resp.ok) throw new Error(`EPA ${resp.status}`);
       results.epa.success = true;
-      console.log('[EPA] Success:', epaRes.data);
+      console.log('[EPA] triggered');
     } catch (e) {
       results.epa.error = e instanceof Error ? e.message : String(e);
       console.error('[EPA] Error:', e);
     }
 
-    // Trigger FDA ingestion
+    // FDA (uses queryOverride)
     try {
-      const fdaRes = await supabase.functions.invoke('ingest-fda-recalls', {
-        body: { brand_id }
-      });
-      if (fdaRes.error) throw fdaRes.error;
+      const q = bySource.get('FDA')?.query || undefined;
+      const url = `${fxBase}/ingest-fda-recalls${qs({ brand_id, queryOverride: q })}`;
+      const resp = await fetch(url, { method: 'POST', headers: { ...authHeader } });
+      if (!resp.ok) throw new Error(`FDA ${resp.status}`);
       results.fda.success = true;
-      console.log('[FDA] Success:', fdaRes.data);
+      console.log('[FDA] triggered');
     } catch (e) {
       results.fda.error = e instanceof Error ? e.message : String(e);
       console.error('[FDA] Error:', e);
     }
 
-    // Trigger FEC ingestion
+    // FEC
     try {
-      const fecRes = await supabase.functions.invoke('fetch-fec-events', {
-        body: { brand_id }
-      });
-      if (fecRes.error) throw fecRes.error;
+      const q = bySource.get('FEC')?.query || undefined;
+      const url = `${fxBase}/fetch-fec-events${qs({ brand_id, query: q })}`;
+      const resp = await fetch(url, { method: 'POST', headers: { ...authHeader } });
+      if (!resp.ok) throw new Error(`FEC ${resp.status}`);
       results.fec.success = true;
-      console.log('[FEC] Success:', fecRes.data);
+      console.log('[FEC] triggered');
     } catch (e) {
       results.fec.error = e instanceof Error ? e.message : String(e);
       console.error('[FEC] Error:', e);
     }
 
-    // Trigger news ingestion
+    // News
     try {
-      const newsRes = await supabase.functions.invoke('fetch-news-events', {
-        body: { brand_id }
-      });
-      if (newsRes.error) throw newsRes.error;
+      const url = `${fxBase}/fetch-news-events${qs({ brand_id })}`;
+      const resp = await fetch(url, { method: 'POST', headers: { ...authHeader } });
+      if (!resp.ok) throw new Error(`News ${resp.status}`);
       results.news.success = true;
-      console.log('[News] Success:', newsRes.data);
+      console.log('[News] triggered');
     } catch (e) {
       results.news.error = e instanceof Error ? e.message : String(e);
       console.error('[News] Error:', e);
