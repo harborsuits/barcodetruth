@@ -134,8 +134,10 @@ const {
 - [x] Bounding box overlay working
 - [x] Error handling for unsupported features
 - [x] Integrated into Scan.tsx with controls
-- [x] Canvas overlay positioned correctly
-- [x] Aria-live status for accessibility
+- [x] Canvas overlay positioned correctly (z-10, pointer-events-none)
+- [x] Aria-live status for accessibility ("Scanning for barcode..." / "Scanning paused")
+- [x] Control bar with Flip/Pause/Resume/Torch/Stop buttons
+- [x] Mirror effect on front-facing camera (scale-x-[-1])
 - [ ] Test 3 sample UPCs scan <1s in normal light
 - [ ] Test torch toggle in low light
 - [ ] Test mirror/facing mode toggle

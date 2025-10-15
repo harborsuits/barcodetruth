@@ -466,14 +466,22 @@ export const Scan = () => {
         <Card>
           <CardContent className="pt-6">
             <div className="aspect-[4/3] bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
-              {scanResult === 'scanning' || scanResult === 'processing' ? (
+              {isScanning || scanResult === 'processing' ? (
                 <>
-                  <video 
-                    ref={videoRef} 
-                    className="absolute inset-0 w-full h-full object-cover"
-                    playsInline
-                    muted
-                  />
+                  {/* Video preview with overlay canvas for bounding boxes */}
+                  <div className="relative w-full h-full">
+                    <video 
+                      ref={videoRef} 
+                      className={`absolute inset-0 w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
+                      playsInline
+                      muted
+                    />
+                    <canvas 
+                      ref={canvasRef} 
+                      className="absolute inset-0 pointer-events-none z-10" 
+                    />
+                  </div>
+
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
                     {/* Scanning reticle with animated corners */}
                     <div className="w-64 h-48 relative">
@@ -487,8 +495,8 @@ export const Scan = () => {
                         <path d="M 0 168 L 0 192 L 24 192" stroke="hsl(var(--primary))" strokeWidth="4" fill="none" strokeLinecap="round"/>
                         {/* Bottom-right */}
                         <path d="M 232 192 L 256 192 L 256 168" stroke="hsl(var(--primary))" strokeWidth="4" fill="none" strokeLinecap="round"/>
-                        {/* Scanning line animation */}
-                        {scanResult === 'scanning' && (
+                        {/* Scanning line animation (hide when paused) */}
+                        {!isPaused && (
                           <line x1="0" y1="96" x2="256" y2="96" stroke="hsl(var(--primary))" strokeWidth="2" opacity="0.6" className="motion-reduce:hidden">
                             <animate attributeName="y1" values="20;172;20" dur="2s" repeatCount="indefinite"/>
                             <animate attributeName="y2" values="20;172;20" dur="2s" repeatCount="indefinite"/>
@@ -503,36 +511,75 @@ export const Scan = () => {
                       )}
                     </div>
                   </div>
-                  {scanResult === 'scanning' && (
-                    <>
-                      <Button
-                        onClick={stopScanner}
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-4 right-4 z-10"
-                        aria-label="Stop scanning"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                      {hasTorch && (
-                        <Button
-                          onClick={toggleTorch}
-                          variant={torchEnabled ? "default" : "outline"}
-                          size="icon"
-                          className="absolute top-4 left-4 z-10 bg-card/80 backdrop-blur"
-                          aria-label={torchEnabled ? "Turn flashlight off" : "Turn flashlight on"}
-                          aria-pressed={torchEnabled}
-                          title={torchEnabled ? "Turn flashlight off" : "Turn flashlight on"}
-                        >
-                          {torchEnabled ? (
-                            <Flashlight className="h-4 w-4" />
-                          ) : (
-                            <FlashlightOff className="h-4 w-4" />
-                          )}
-                        </Button>
+
+                  {/* Camera controls */}
+                  <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-20 pointer-events-auto px-4">
+                    <Button
+                      onClick={toggleFacingMode}
+                      variant="secondary"
+                      size="sm"
+                      className="bg-card/90 backdrop-blur"
+                      aria-label="Flip camera"
+                    >
+                      <FlipHorizontal className="h-4 w-4 mr-1" />
+                      Flip
+                    </Button>
+                    <Button
+                      onClick={togglePause}
+                      variant="secondary"
+                      size="sm"
+                      className="bg-card/90 backdrop-blur"
+                      aria-label={isPaused ? "Resume scanning" : "Pause scanning"}
+                    >
+                      {isPaused ? (
+                        <>
+                          <Play className="h-4 w-4 mr-1" />
+                          Resume
+                        </>
+                      ) : (
+                        <>
+                          <Pause className="h-4 w-4 mr-1" />
+                          Pause
+                        </>
                       )}
-                    </>
-                  )}
+                    </Button>
+                    {hasTorch && (
+                      <Button
+                        onClick={toggleTorch}
+                        variant="secondary"
+                        size="sm"
+                        className="bg-card/90 backdrop-blur"
+                        aria-label={torchEnabled ? "Turn torch off" : "Turn torch on"}
+                      >
+                        {torchEnabled ? (
+                          <>
+                            <FlashlightOff className="h-4 w-4 mr-1" />
+                            Torch
+                          </>
+                        ) : (
+                          <>
+                            <Flashlight className="h-4 w-4 mr-1" />
+                            Torch
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    <Button
+                      onClick={stopScanner}
+                      variant="ghost"
+                      size="sm"
+                      className="bg-card/90 backdrop-blur"
+                      aria-label="Stop scanning"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Stop
+                    </Button>
+                  </div>
+
+                  {/* Aria-live status for screen readers */}
+                  <div className="sr-only" aria-live="polite">
+                    {isPaused ? "Scanning paused" : "Scanning for barcode..."}
+                  </div>
                 </>
               ) : (
                 <>
@@ -648,14 +695,18 @@ export const Scan = () => {
               </div>
             )}
 
-            {scanResult === 'scanning' && (
+            {isScanning && (
               <div className="mt-6 space-y-4 text-center">
                 <div className="space-y-2">
-                  <h3 className="font-semibold">Fill the frame with the barcode</h3>
+                  <h3 className="font-semibold">
+                    {isPaused ? "Scanning paused" : "Fill the frame with the barcode"}
+                  </h3>
                   <p className="text-sm text-muted-foreground">
-                    {hasTorch 
-                      ? "Use the flashlight in low light • Scans automatically when detected"
-                      : "We'll automatically scan when detected • Works best in good lighting"
+                    {isPaused 
+                      ? "Press Resume to continue scanning"
+                      : hasTorch 
+                        ? "Use Flip to switch cameras • Torch for low light • Scans automatically"
+                        : "Use Flip to switch cameras • Scans automatically when detected"
                     }
                   </p>
                   <p className="mt-3 text-xs text-muted-foreground">
