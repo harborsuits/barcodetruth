@@ -79,7 +79,16 @@ serve(async (req) => {
       
       if (e2) throw e2;
 
-      return json({ ...standing, evidence: evidence || [] });
+      // Enforce "real-only": if no verified event, hide score/summary and sources
+      const hasVerified = Boolean(standing.last_event_at);
+      const gated = {
+        ...standing,
+        score: hasVerified ? standing.score : null,
+        score_confidence: hasVerified ? standing.score_confidence : null,
+        ai_summary_md: hasVerified ? standing.ai_summary_md : null,
+      };
+
+      return json({ ...gated, evidence: hasVerified ? (evidence || []) : [] });
     }
 
     return notFound("Route not found");
