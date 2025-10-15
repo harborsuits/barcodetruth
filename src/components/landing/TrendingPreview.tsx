@@ -128,8 +128,6 @@ export function TrendingPreview() {
     );
   }
 
-  if (!trending.length) return null;
-
   return (
     <section>
       <Card>
@@ -147,7 +145,15 @@ export function TrendingPreview() {
         </CardHeader>
 
         <CardContent className="space-y-3">
-          {trending.map((brand) => (
+          {!trending.length ? (
+            <div className="text-center py-8 px-4">
+              <Clock className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+              <h3 className="font-semibold mb-2">Building Trending Data</h3>
+              <p className="text-sm text-muted-foreground">
+                Brand scores and events are being processed. Check back soon to see trending brands.
+              </p>
+            </div>
+          ) : trending.map((brand) => (
             <div
               key={brand.brand_id}
               className="group rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 cursor-pointer transition-all duration-150 ease-[var(--ease)] hover:shadow-[var(--shadow-md)]"
