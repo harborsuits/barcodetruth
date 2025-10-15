@@ -19,17 +19,44 @@ const DEFAULT_WEIGHTS: UserWeights = {
   social: 0.25,
 };
 
+function normalizeWeights(raw: { labor: number; environment: number; politics: number; social: number }): UserWeights {
+  // Convert from 0-100 scale to normalized 0-1 scale
+  const total = raw.labor + raw.environment + raw.politics + raw.social;
+  if (total === 0) return DEFAULT_WEIGHTS;
+  
+  return {
+    labor: raw.labor / total,
+    environment: raw.environment / total,
+    politics: raw.politics / total,
+    social: raw.social / total,
+  };
+}
+
 export function getUserWeights(): UserWeights {
   if (typeof window === 'undefined') return DEFAULT_WEIGHTS;
   
-  const stored = localStorage.getItem('user_weights');
-  if (!stored) return DEFAULT_WEIGHTS;
-  
-  try {
-    return JSON.parse(stored);
-  } catch {
-    return DEFAULT_WEIGHTS;
+  // Try loading from Settings page format (0-100 scale)
+  const userValues = localStorage.getItem('userValues');
+  if (userValues) {
+    try {
+      const parsed = JSON.parse(userValues);
+      return normalizeWeights(parsed);
+    } catch {
+      // Continue to fallback
+    }
   }
+  
+  // Legacy fallback
+  const stored = localStorage.getItem('user_weights');
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch {
+      // Continue to fallback
+    }
+  }
+  
+  return DEFAULT_WEIGHTS;
 }
 
 export function setUserWeights(weights: UserWeights) {
