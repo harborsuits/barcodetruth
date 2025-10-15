@@ -161,7 +161,7 @@ serve(async (req) => {
         if (penalty > 0) description += `. Total penalty: $${penalty.toLocaleString()}`;
         description += '.';
 
-        // Insert event
+        // Insert event (sanitize raw_data to ensure JSON compatibility)
         const { data: newEvent, error: eventError } = await supabase
           .from('brand_events')
           .insert({
@@ -175,7 +175,7 @@ serve(async (req) => {
             occurred_at: occurredAt,
             event_date: occurredAt,
             impact_labor: impactLabor,
-            raw_data: inspection,
+            raw_data: JSON.parse(JSON.stringify(inspection)),
           })
           .select('event_id')
           .single();

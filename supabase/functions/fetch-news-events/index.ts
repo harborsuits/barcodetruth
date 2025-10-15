@@ -489,11 +489,11 @@ serve(async (req) => {
         orientation: 'negative',
         impact_social: article.category === 'social' ? -3 : -1,
         source_url: normalizedUrl,
-        raw_data: {
+        raw_data: JSON.parse(JSON.stringify({
           ...article.raw_data,
           relevance_score: relevanceScore,
           specific_facts: specificFacts
-        },
+        })),
       };
 
       if (dryrun) {
