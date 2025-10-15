@@ -94,3 +94,6 @@ verify_jwt = false
 
 [functions.trigger-brand-ingestion]
 verify_jwt = true
+
+[functions.v1-brands]
+verify_jwt = false

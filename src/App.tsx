@@ -20,6 +20,7 @@ const BrandRedirect = lazyNamed(() => import("./components/routes/BrandRedirect"
 // Lazy load heavy routes
 const Home = lazyNamed(() => import("./pages/Home"), "Home");
 const Search = lazyNamed(() => import("./pages/Search"), "default");
+const Discover = lazyNamed(() => import("./pages/Discover"), "default");
 const BrandDetail = lazyNamed(() => import("./pages/BrandDetail"), "BrandDetail");
 const BrandProfile = lazyNamed(() => import("./pages/BrandProfile"), "default");
 const BrandProof = lazyNamed(() => import("./pages/BrandProof"), "default");
@@ -79,6 +80,16 @@ const App = () => (
               <ProtectedRoute>
                 <Suspense fallback={<RouteFallback label="Loading search…" />}>
                   <Search />
+                </Suspense>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/discover"
+            element={
+              <ProtectedRoute>
+                <Suspense fallback={<RouteFallback label="Loading discover…" />}>
+                  <Discover />
                 </Suspense>
               </ProtectedRoute>
             }
