@@ -28,20 +28,6 @@ export const Scan = () => {
   const manualInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Handle barcode detection (defined before use in hook)
-  const handleBarcodeDetected = useCallback(async (barcode: string) => {
-    if (scanResult === 'processing') return;
-    
-    setScannedBarcode(barcode);
-    setScanResult('processing');
-    
-    console.log('[Analytics] scan_detect', { barcode, ts: Date.now() });
-    
-    // Haptic feedback
-    if ('vibrate' in navigator) {
-      navigator.vibrate(35);
-    }
-
   // Check HTTPS (except localhost)
   useEffect(() => {
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -115,7 +101,7 @@ export const Scan = () => {
     }
   };
 
-  const handleBarcodeDetected = async (barcode: string) => {
+  const handleBarcodeDetected = useCallback(async (barcode: string) => {
     if (scanResult === 'processing') return;
     
     setScannedBarcode(barcode);
@@ -224,24 +210,6 @@ export const Scan = () => {
       });
     }
   });
-        
-        toast({ 
-          title: "Product found!", 
-          description: `${data.product_name}${data.brand_name ? ` by ${data.brand_name}` : ''}`
-        });
-      } else {
-        setScanResult('not_found');
-      }
-    } catch (error: any) {
-      console.error('Scan error:', error);
-      setScanResult('not_found');
-      toast({ 
-        title: "Scan failed", 
-        description: error?.message || "Please try again",
-        variant: "destructive" 
-      });
-    }
-  };
 
   const startScanner = async () => {
     // Check scan limit before starting
@@ -294,31 +262,8 @@ export const Scan = () => {
     }
     
     try {
-      if (!scannerRef.current) {
-        console.log('Creating scanner instance...');
-        scannerRef.current = createScanner();
-      }
-      
-      console.log('Starting camera...');
-      await scannerRef.current.startScanning(
-        videoRef.current,
-        handleBarcodeDetected,
-        (err) => {
-          console.error('Scanner error callback:', err);
-          setError(err.message);
-          setScanResult('idle');
-        }
-      );
-
+      await startBarcodeScanner();
       console.log('Camera started successfully');
-      
-      // Check torch support after camera starts
-      setTimeout(() => {
-        if (scannerRef.current) {
-          setTorchSupported(scannerRef.current.isTorchSupported());
-        }
-      }, 500);
-      
     } catch (err: any) {
       console.error('Scanner start error:', err);
       const errorMsg = err?.message || 'Failed to access camera';
@@ -333,50 +278,22 @@ export const Scan = () => {
   };
 
   const stopScanner = () => {
-    if (scannerRef.current) {
-      scannerRef.current.stopScanning();
-    }
+    stopBarcodeScanner();
     setScanResult('idle');
-    setTorchEnabled(false);
-    setTorchSupported(false);
-  };
-
-  const toggleTorch = async () => {
-    if (!scannerRef.current) return;
-    
-    const success = await scannerRef.current.toggleTorch();
-    if (success) {
-      setTorchEnabled(scannerRef.current.isTorchEnabled());
-    } else {
-      toast({
-        title: "Torch not available",
-        description: "This device doesn't support flashlight control",
-        variant: "destructive"
-      });
-    }
   };
 
   // Stop scanner on visibility change
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.hidden && scanResult === 'scanning') {
-        console.log('Page hidden, pausing scanner');
+      if (document.hidden && isScanning) {
+        console.log('Page hidden, stopping scanner');
         stopScanner();
       }
     };
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [scanResult]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (scannerRef.current) {
-        scannerRef.current.stopScanning();
-      }
-    };
-  }, []);
+  }, [isScanning]);
 
   const onManualFallbackClick = () => {
     console.log('[Analytics] manual_fallback_click', { ts: Date.now(), scanResult });
@@ -597,7 +514,7 @@ export const Scan = () => {
                       >
                         <X className="h-4 w-4" />
                       </Button>
-                      {torchSupported && (
+                      {hasTorch && (
                         <Button
                           onClick={toggleTorch}
                           variant={torchEnabled ? "default" : "outline"}
@@ -736,7 +653,7 @@ export const Scan = () => {
                 <div className="space-y-2">
                   <h3 className="font-semibold">Fill the frame with the barcode</h3>
                   <p className="text-sm text-muted-foreground">
-                    {torchSupported 
+                    {hasTorch 
                       ? "Use the flashlight in low light • Scans automatically when detected"
                       : "We'll automatically scan when detected • Works best in good lighting"
                     }

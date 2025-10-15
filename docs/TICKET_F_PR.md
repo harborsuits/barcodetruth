@@ -133,6 +133,9 @@ const {
 - [x] All control methods implemented (torch, pause, mirror, resolution)
 - [x] Bounding box overlay working
 - [x] Error handling for unsupported features
+- [x] Integrated into Scan.tsx with controls
+- [x] Canvas overlay positioned correctly
+- [x] Aria-live status for accessibility
 - [ ] Test 3 sample UPCs scan <1s in normal light
 - [ ] Test torch toggle in low light
 - [ ] Test mirror/facing mode toggle
@@ -141,10 +144,4 @@ const {
 
 ---
 
-**Ready to integrate into Scan.tsx after acceptance tests pass.**
-
-### Integration Steps (Post-Merge)
-1. Update `src/pages/Scan.tsx` to use `useBarcodeScanner` hook
-2. Add UI buttons for pause, mirror, resolution (if desired)
-3. Position canvas overlay for bounding box
-4. Remove old `src/lib/barcodeScanner.ts` class (optional)
+**Ready for acceptance testing. Scanner hook fully integrated with UI controls.**

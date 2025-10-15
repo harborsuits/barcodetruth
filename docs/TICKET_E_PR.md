@@ -83,11 +83,12 @@ The migration tool flagged several pre-existing warnings:
 ## Merge Checklist
 - [x] Database migration applied successfully
 - [x] GIN indexes created
-- [x] RPC function deployed
-- [x] Search page implemented with debounce
+- [x] RPC function deployed with length check optimization
+- [x] Search page implemented with debounce and tabs
 - [x] Route configured in App.tsx
+- [x] Products prefer UPC link to /scan?upc=
 - [ ] Test queries "coca", "peps", "detergent" return results <300ms
-- [ ] UI navigation works (product → scan, brand → profile)
+- [ ] UI navigation works (product → scan with UPC, brand → profile)
 - [ ] No console errors on empty query or no results
 
 ---
