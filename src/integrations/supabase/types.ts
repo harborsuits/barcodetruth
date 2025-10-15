@@ -2514,6 +2514,21 @@ export type Database = {
       }
     }
     Functions: {
+      admin_add_evidence: {
+        Args: {
+          p_brand_id: string
+          p_category: string
+          p_event_date: string
+          p_notes?: string
+          p_source_url: string
+          p_title: string
+          p_verification: string
+        }
+        Returns: {
+          event_id: string
+          source_id: string
+        }[]
+      }
       admin_refresh_coverage: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -2553,6 +2568,14 @@ export type Database = {
       can_user_scan: {
         Args: { p_user_id: string }
         Returns: Json
+      }
+      canonicalize_source_url: {
+        Args: { p_url: string }
+        Returns: {
+          canonical_url: string
+          domain_owner: string
+          source_name: string
+        }[]
       }
       check_push_encryption_status: {
         Args: Record<PropertyKey, never>

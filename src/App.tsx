@@ -31,6 +31,7 @@ const Settings = lazyNamed(() => import("./pages/Settings"), "Settings");
 const AdminReview = lazyNamed(() => import("./pages/AdminReview"), "AdminReview");
 const AdminClaims = lazyNamed(() => import("./pages/AdminClaims"), "default");
 const AdminHealth = lazyNamed(() => import("./pages/AdminHealth"), "default");
+const AdminEvidence = lazyNamed(() => import("./pages/AdminEvidence"), "default");
 
 const queryClient = new QueryClient();
 
@@ -208,6 +209,20 @@ const App = () => (
                   <RouteErrorBoundary>
                     <Suspense fallback={<RouteFallback label="Loading system health…" />}>
                       <AdminHealth />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/evidence/new"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading evidence form…" />}>
+                      <AdminEvidence />
                     </Suspense>
                   </RouteErrorBoundary>
                 </AdminRoute>

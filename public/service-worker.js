@@ -1,10 +1,11 @@
-/* ShopSignals SW v2: App shell + snapshot cache + API fallback + scan queue */
+/* ShopSignals SW v3: App shell + snapshot cache + API fallback + scan queue + brand/profile caching */
 const APP_SHELL = [
   '/', '/index.html',
 ];
-const CACHE_APP = 'ss-app-v2';
-const CACHE_SNAPSHOTS = 'ss-snapshots-v2';
-const CACHE_FONTS = 'ss-fonts-v2';
+const CACHE_APP = 'ss-app-v3';
+const CACHE_SNAPSHOTS = 'ss-snapshots-v3';
+const CACHE_FONTS = 'ss-fonts-v3';
+const CACHE_RUNTIME = 'ss-runtime-v3'; // Brand profiles + scan results
 const SNAPSHOT_PREFIX = '/storage/v1/object/public/snapshots/';
 const API_PREFIX = '/functions/v1/';
 const OFFLINE_FALLBACK_HTML = '/index.html';
@@ -33,7 +34,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
     await Promise.all(keys.map((k) => {
-      if (![CACHE_APP, CACHE_SNAPSHOTS, CACHE_FONTS].includes(k)) {
+      if (![CACHE_APP, CACHE_SNAPSHOTS, CACHE_FONTS, CACHE_RUNTIME].includes(k)) {
         console.log('[SW] Deleting old cache:', k);
         return caches.delete(k);
       }
@@ -166,6 +167,15 @@ self.addEventListener('fetch', (event) => {
       return;
     }
 
+    // Brand profiles and scan results: stale-while-revalidate for instant perceived performance
+    const isBrandProfile = url.pathname.includes('/brand-profile-view');
+    const isScanProduct = url.pathname.includes('/scan-product');
+    
+    if ((isBrandProfile || isScanProduct) && request.method === 'POST') {
+      event.respondWith(staleWhileRevalidate(request, CACHE_RUNTIME));
+      return;
+    }
+
     if (request.method === 'GET') {
       event.respondWith(networkFirst(request, CACHE_APP));
       return;
@@ -248,28 +258,3 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// Flush scan queue on activation (iOS fallback)
-self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating service worker...');
-  event.waitUntil((async () => {
-    const keys = await caches.keys();
-    await Promise.all(keys.map((k) => {
-      if (![CACHE_APP, CACHE_SNAPSHOTS, CACHE_FONTS].includes(k)) {
-        console.log('[SW] Deleting old cache:', k);
-        return caches.delete(k);
-      }
-    }));
-    if (self.registration.navigationPreload) {
-      await self.registration.navigationPreload.enable();
-      console.log('[SW] Navigation preload enabled');
-    }
-    
-    // Flush any queued scans (iOS fallback)
-    if (navigator.onLine) {
-      await flushScanQueue();
-    }
-    
-    self.clients.claim();
-    console.log('[SW] Service worker activated');
-  })());
-});
