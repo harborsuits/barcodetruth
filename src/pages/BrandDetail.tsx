@@ -139,6 +139,7 @@ export const BrandDetail = () => {
         score: apiData.score,
         score_confidence: apiData.score_confidence,
         ai_summary_md: apiData.ai_summary_md,
+        last_event_at: apiData.last_event_at, // Fixed: use last_event_at to match isVerifiedBrand
         last_updated: apiData.last_event_at,
         breakdown: null,
         coverage: {
@@ -149,6 +150,7 @@ export const BrandDetail = () => {
           last_event_at: apiData.last_event_at,
         },
         evidence: apiData.evidence || [],
+        _real_only: apiData._real_only, // Pass through backend verification flag
         signals: null,
         events: normalizedEvents,
         trending: { velocity: "stable", sentiment_shift: 0 },

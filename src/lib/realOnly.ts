@@ -7,23 +7,32 @@
 
 export interface VerifiableBrand {
   last_event_at?: string | null;
+  last_updated?: string | null; // alternative field name
   evidence?: any[];
   score?: number | null;
+  _real_only?: { hasEvent: boolean; hasEvidence: boolean }; // backend verification flag
 }
 
 /**
  * Check if a brand has verified events with sources
  * Returns true only if:
- * 1. Brand has at least one verified event (last_event_at exists)
+ * 1. Brand has at least one verified event (last_event_at or last_updated exists)
  * 2. Brand has at least one evidence link
+ * 
+ * Trusts backend _real_only flag if present
  */
 export const isVerifiedBrand = (brand: VerifiableBrand | null | undefined): boolean => {
   if (!brand) return false;
-  return Boolean(
-    brand.last_event_at && 
-    Array.isArray(brand.evidence) && 
-    brand.evidence.length > 0
-  );
+  
+  // If backend provides _real_only verification, trust it
+  if (brand._real_only) {
+    return brand._real_only.hasEvent && brand._real_only.hasEvidence;
+  }
+  
+  // Otherwise check manually
+  const hasEvent = Boolean(brand.last_event_at || brand.last_updated);
+  const hasEvidence = Array.isArray(brand.evidence) && brand.evidence.length > 0;
+  return hasEvent && hasEvidence;
 };
 
 /**
