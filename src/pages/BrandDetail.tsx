@@ -224,7 +224,16 @@ export const BrandDetail = () => {
     queryFn: async () => {
       if (!brandId) return null;
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-brand-proof?brandId=${brandId}`;
-      const response = await fetch(url);
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+      
+      const response = await fetch(url, { headers });
       if (!response.ok) return null;
       return response.json();
     },

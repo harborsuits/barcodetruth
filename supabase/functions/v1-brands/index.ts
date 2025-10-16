@@ -13,14 +13,11 @@ serve(async (req) => {
   }
 
   const url = new URL(req.url);
-  const path = url.pathname.replace(/\/+$/,'');
+  // In Supabase Edge Functions, pathname is the path after the function name
+  // Remove trailing slashes for consistent matching
+  const routePath = url.pathname.replace(/\/+$/, '');
   
-  // Extract path after /functions/v1/v1-brands/
-  // e.g., /functions/v1/v1-brands/search -> /search
-  const functionBase = '/functions/v1/v1-brands';
-  const routePath = path.startsWith(functionBase) 
-    ? path.substring(functionBase.length) 
-    : path;
+  console.log('[v1-brands] Request:', { method: req.method, routePath });
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
