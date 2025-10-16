@@ -97,16 +97,20 @@ export default function ScanResult() {
       
       const data = await res.json();
       
+      // Skip brands without verified scores (no defaults!)
+      if (!data.score || !data.last_event_at) {
+        throw new Error('No verified score available');
+      }
+      
       // Convert Edge API response to expected format
-      const score = data.score || 50;
       return {
         id: data.brand_id,
         name: data.name,
         brand_scores: [{
-          score_labor: score,
-          score_environment: score,
-          score_politics: score,
-          score_social: score,
+          score_labor: data.score,
+          score_environment: data.score,
+          score_politics: data.score,
+          score_social: data.score,
         }]
       } as BrandWithScores;
     },
@@ -244,12 +248,16 @@ export default function ScanResult() {
       
       if (eventsError) throw eventsError;
       
-      const score = brandData.score || 50;
+      // Skip brands without verified scores
+      if (!brandData.score || !brandData.last_event_at) {
+        throw new Error('No verified score for comparison brand');
+      }
+      
       const scores = {
-        score_labor: score,
-        score_environment: score,
-        score_politics: score,
-        score_social: score,
+        score_labor: brandData.score,
+        score_environment: brandData.score,
+        score_politics: brandData.score,
+        score_social: brandData.score,
       };
       const valueFit = calculateValueFit(scores, weights);
       
@@ -258,10 +266,10 @@ export default function ScanResult() {
         brand_name: brandData.name,
         valueFit,
         scores: {
-          labor: score,
-          environment: score,
-          politics: score,
-          social: score,
+          labor: brandData.score,
+          environment: brandData.score,
+          politics: brandData.score,
+          social: brandData.score,
         },
         events: brandEvents as BrandEvent[],
       };
@@ -357,15 +365,15 @@ export default function ScanResult() {
     }
   };
 
-  const currentBrandData = brandData && {
+  const currentBrandData = brandData && brandData.brand_scores[0] && {
     brand_id: brandData.id,
     brand_name: brandData.name,
-    valueFit: brandData.brand_scores[0] ? calculateValueFit(brandData.brand_scores[0], getUserWeights()) : 50,
+    valueFit: calculateValueFit(brandData.brand_scores[0], getUserWeights()),
     scores: {
-      labor: brandData.brand_scores[0]?.score_labor ?? 50,
-      environment: brandData.brand_scores[0]?.score_environment ?? 50,
-      politics: brandData.brand_scores[0]?.score_politics ?? 50,
-      social: brandData.brand_scores[0]?.score_social ?? 50,
+      labor: brandData.brand_scores[0].score_labor,
+      environment: brandData.brand_scores[0].score_environment,
+      politics: brandData.brand_scores[0].score_politics,
+      social: brandData.brand_scores[0].score_social,
     },
     events: events ?? [],
   };

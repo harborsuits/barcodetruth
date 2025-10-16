@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface TrendingBrandData {
   id: string;
   name: string;
-  score: number;
+  score: number | null;
   events: BrandEvent[];
   isFollowing?: boolean;
   notificationsEnabled?: boolean;
@@ -66,7 +66,7 @@ export const Trending = () => {
           return {
             id: brand.brand_id,
             name: brand.name,
-            score: brand.score || 50,
+            score: brand.score ?? null,
             hasScore: brand.score != null,
             events: (events || []).map(e => ({
               event_id: e.event_id,
@@ -184,7 +184,8 @@ export const Trending = () => {
     );
   };
 
-  const getScoreColor = (score: number) => {
+  const getScoreColor = (score: number | null) => {
+    if (score == null) return "border-muted bg-muted/10 text-muted-foreground";
     if (score >= 70) return "bg-success/10 text-success border-success/20";
     if (score >= 40) return "bg-warning/10 text-warning border-warning/20";
     return "bg-danger/10 text-danger border-danger/20";
@@ -232,10 +233,17 @@ export const Trending = () => {
               <CardContent className="p-5">
                 <div className="flex items-start gap-4">
                   {/* Score Badge */}
-                  <div className={`flex flex-col items-center justify-center rounded-full border-2 w-16 h-16 shrink-0 ${getScoreColor(brand.score)}`}>
-                    <div className="text-2xl font-bold">{brand.score}</div>
-                    <div className="text-[10px] font-medium opacity-80">Score</div>
-                  </div>
+                  {brand.score != null ? (
+                    <div className={`flex flex-col items-center justify-center rounded-full border-2 w-16 h-16 shrink-0 ${getScoreColor(brand.score)}`}>
+                      <div className="text-2xl font-bold">{brand.score}</div>
+                      <div className="text-[10px] font-medium opacity-80">Score</div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center rounded-full border-2 w-16 h-16 shrink-0 border-muted bg-muted/10">
+                      <div className="text-2xl font-bold text-muted-foreground">—</div>
+                      <div className="text-[10px] font-medium opacity-80 text-muted-foreground">Score</div>
+                    </div>
+                  )}
 
                   {/* Content */}
                   <div className="flex-1 space-y-3">

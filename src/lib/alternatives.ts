@@ -64,12 +64,12 @@ export async function getAlternatives(
       // Skip if no verified events/evidence (realOnly gate)
       if (!brandData.last_event_at || !brandData.score) continue;
 
-      // Calculate value fit using verified score
+      // Calculate value fit using verified score (no defaults!)
       const scores: BrandScores = {
-        score_labor: brandData.score || 50,
-        score_environment: brandData.score || 50,
-        score_politics: brandData.score || 50,
-        score_social: brandData.score || 50,
+        score_labor: brandData.score,
+        score_environment: brandData.score,
+        score_politics: brandData.score,
+        score_social: brandData.score,
       };
       
       const valueFit = calculateValueFit(scores, userWeights);

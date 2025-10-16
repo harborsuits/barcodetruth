@@ -12,7 +12,7 @@ interface TrendingBrand {
   brand_id: string;
   brand_name: string;
   logo_url?: string;
-  overall_score: number;
+  overall_score: number | null;
   event_count?: number;
   confidence?: number;
   verified_rate?: number;
@@ -90,7 +90,7 @@ export function TrendingPreview() {
         brand_name: b.name,
         logo_url: logoMap[b.brand_id],
         event_count: b.events_30d || 0,
-        overall_score: b.score || 50,
+        overall_score: b.score ?? null,
         confidence: b.score_confidence || 0.5,
         verified_rate: b.verified_rate || 0,
         independent_sources: b.independent_sources || 0,
@@ -200,10 +200,16 @@ export function TrendingPreview() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className={`text-2xl font-bold ${getScoreColor(brand.overall_score)}`}>
-                    {brand.overall_score}
-                  </div>
-                  <div className="text-xs text-muted-foreground">/100</div>
+                  {brand.overall_score != null ? (
+                    <>
+                      <div className={`text-2xl font-bold ${getScoreColor(brand.overall_score)}`}>
+                        {brand.overall_score}
+                      </div>
+                      <div className="text-xs text-muted-foreground">/100</div>
+                    </>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">—</div>
+                  )}
                 </div>
               </div>
             </div>
