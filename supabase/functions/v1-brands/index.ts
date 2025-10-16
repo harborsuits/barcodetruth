@@ -100,7 +100,7 @@ serve(async (req) => {
       return json({ 
         ...standing, 
         evidence: finalEvidence,
-        _real_only: { hasEvent, hasEvidence }
+        _real_only: { hasEvent, hasEvidence, fn: "v1-brands" }
       });
     }
 
