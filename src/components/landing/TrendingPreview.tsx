@@ -91,7 +91,7 @@ export function TrendingPreview() {
         logo_url: logoMap[b.brand_id],
         event_count: b.events_30d || 0,
         overall_score: b.score ?? null,
-        confidence: b.score_confidence || 0.5,
+        confidence: b.score_confidence ?? null,
         verified_rate: b.verified_rate || 0,
         independent_sources: b.independent_sources || 0,
         last_event_at: b.last_event_at
