@@ -184,20 +184,20 @@ serve(async (req) => {
           continue;
         }
 
-        // Canonicalize URL
-        const canonicalUrl = (() => {
+        // Parse URL for registrable domain
+        const registrableDomain = (() => {
           try {
             const u = new URL(sourceUrl);
-            return `https://${u.hostname}${u.pathname}`;
+            return u.hostname.replace(/^www\./, '');
           } catch {
-            return sourceUrl;
+            return 'fda.gov';
           }
         })();
 
         const sourceTitle = (recall.product_description || recall.reason_for_recall || 'Recall').trim();
-        const safeTitle = sourceTitle.length >= 4 ? sourceTitle : 'FDA recall record';
+        const safeTitle = sourceTitle.length >= 4 ? `FDA: ${sourceTitle.substring(0, 100)}` : 'FDA recall record';
 
-        // Insert primary event source with full provenance
+        // Insert primary event source - database type requires canonical_url = NULL
         const { error: sourceError } = await supabase
           .from('event_sources')
           .upsert(
@@ -205,15 +205,16 @@ serve(async (req) => {
               event_id: newEvent.event_id,
               source_name: 'FDA',
               title: safeTitle,
-              canonical_url: canonicalUrl,
               source_url: uniqueUrl,
-              owner_domain: 'fda.gov',
+              domain_owner: 'U.S. Food and Drug Administration',
+              registrable_domain: registrableDomain,
+              domain_kind: 'official',
               source_date: occurredAt,
               is_primary: true,
               link_kind: 'database',
               article_snippet: `${classification || 'Recall'}: ${recall.reason_for_recall || 'Product safety issue'}`,
             },
-            { onConflict: 'event_id,canonical_url', ignoreDuplicates: true }
+            { onConflict: 'event_id,source_url', ignoreDuplicates: true }
           );
 
         if (sourceError) {

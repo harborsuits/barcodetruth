@@ -334,20 +334,20 @@ Deno.serve(async (req) => {
 
       console.log(`[FEC] Inserted event ${newEvent.event_id} with impact ${impact}`);
 
-      // Canonicalize URL
-      const canonicalUrl = (() => {
+      // Parse URL for registrable domain
+      const registrableDomain = (() => {
         try {
           const u = new URL(sourceUrl);
-          return `https://${u.hostname}${u.pathname}`;
+          return u.hostname.replace(/^www\./, '');
         } catch {
-          return sourceUrl;
+          return 'fec.gov';
         }
       })();
 
       const sourceTitle = `FEC filing for ${committee.name || cmteId}`;
       const safeTitle = sourceTitle.length >= 4 ? sourceTitle : 'FEC filing';
 
-      // Insert primary source attribution
+      // Insert source - database type requires canonical_url = NULL
       const { error: sourceError } = await supabase
         .from("event_sources")
         .upsert(
@@ -355,15 +355,16 @@ Deno.serve(async (req) => {
             event_id: newEvent.event_id,
             source_name: "FEC",
             title: safeTitle,
-            canonical_url: canonicalUrl,
             source_url: sourceUrl,
-            owner_domain: 'fec.gov',
+            domain_owner: 'Federal Election Commission',
+            registrable_domain: registrableDomain,
+            domain_kind: 'official',
             source_date: occurredAt,
             is_primary: true,
             link_kind: 'database',
             article_snippet: `${lean} tilt: ${tiltPct}% ($${Math.round(tiltAmt / 1000)}K of $${Math.round(total / 1000)}K)`
           },
-          { onConflict: 'event_id,canonical_url', ignoreDuplicates: true }
+          { onConflict: 'event_id,source_url', ignoreDuplicates: true }
         );
 
       if (sourceError) {

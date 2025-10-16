@@ -191,12 +191,21 @@ serve(async (req) => {
           continue;
         }
 
-        // Insert primary event source with full provenance
-        const ownerDomain = 'osha.gov';
+        // Parse URL for registrable domain
+        const registrableDomain = (() => {
+          try {
+            const u = new URL(sourceUrl);
+            return u.hostname.replace(/^www\./, '');
+          } catch {
+            return 'osha.gov';
+          }
+        })();
+
         const sourceTitle = inspection.case_name 
           || inspection.violation_type 
           || `OSHA Inspection #${activityNr}`;
         
+        // Insert source - database type requires canonical_url = NULL
         const { error: sourceError } = await supabase
           .from('event_sources')
           .upsert(
@@ -204,15 +213,16 @@ serve(async (req) => {
               event_id: newEvent.event_id,
               source_name: 'OSHA',
               title: sourceTitle,
-              canonical_url: sourceUrl,
               source_url: sourceUrl,
-              owner_domain: ownerDomain,
+              domain_owner: 'U.S. Department of Labor',
+              registrable_domain: registrableDomain,
+              domain_kind: 'official',
               source_date: occurredAt,
               is_primary: true,
               link_kind: 'database',
               article_snippet: `Inspection #${activityNr}: ${violationCount} violation(s), $${penalty.toLocaleString()} penalty`,
             },
-            { onConflict: 'event_id,canonical_url', ignoreDuplicates: true }
+            { onConflict: 'event_id,source_url', ignoreDuplicates: true }
           );
 
         if (sourceError) {

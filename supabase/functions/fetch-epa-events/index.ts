@@ -155,25 +155,20 @@ serve(async (req) => {
           continue;
         }
 
-        // Canonicalize URL
-        const canonicalUrl = (() => {
+        // Parse URL for registrable domain
+        const registrableDomain = (() => {
           try {
             const u = new URL(sourceUrl);
-            // Preserve EPA facility ID param
-            const params = new URLSearchParams();
-            for (const [k, v] of u.searchParams) {
-              if (/fid|id|facility|registry/i.test(k)) params.set(k, v);
-            }
-            return `https://${u.hostname}${u.pathname}${params.toString() ? `?${params}` : ''}`;
+            return u.hostname.replace(/^www\./, '');
           } catch {
-            return sourceUrl;
+            return 'epa.gov';
           }
         })();
 
         const sourceTitle = (facility.FacName || 'Facility').trim();
         const safeTitle = sourceTitle.length >= 4 ? `EPA action at ${sourceTitle}` : 'EPA enforcement record';
 
-        // Insert primary source with full provenance
+        // Insert source - database type requires canonical_url = NULL
         const { error: sourceError } = await supabase
           .from('event_sources')
           .upsert(
@@ -181,15 +176,16 @@ serve(async (req) => {
               event_id: eventData.event_id,
               source_name: 'EPA',
               title: safeTitle,
-              canonical_url: canonicalUrl,
               source_url: sourceUrl,
-              owner_domain: 'echo.epa.gov',
+              domain_owner: 'U.S. Environmental Protection Agency',
+              registrable_domain: registrableDomain,
+              domain_kind: 'official',
               source_date: new Date().toISOString(),
               is_primary: true,
               link_kind: 'database',
               article_snippet: `Facility: ${facility.FacName}, Registry ID: ${facility.RegistryID}`,
             },
-            { onConflict: 'event_id,canonical_url', ignoreDuplicates: true }
+            { onConflict: 'event_id,source_url', ignoreDuplicates: true }
           );
 
         if (sourceError) {

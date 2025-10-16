@@ -275,6 +275,8 @@ export type Database = {
       }
       brand_events: {
         Row: {
+          ai_model_version: string | null
+          ai_summary: string | null
           article_text: string | null
           brand_id: string
           category: Database["public"]["Enums"]["event_category"]
@@ -304,6 +306,8 @@ export type Database = {
           verified: boolean | null
         }
         Insert: {
+          ai_model_version?: string | null
+          ai_summary?: string | null
           article_text?: string | null
           brand_id: string
           category?: Database["public"]["Enums"]["event_category"]
@@ -335,6 +339,8 @@ export type Database = {
           verified?: boolean | null
         }
         Update: {
+          ai_model_version?: string | null
+          ai_summary?: string | null
           article_text?: string | null
           brand_id?: string
           category?: Database["public"]["Enums"]["event_category"]
