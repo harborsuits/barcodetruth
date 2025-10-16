@@ -97,3 +97,6 @@ verify_jwt = true
 
 [functions.v1-brands]
 verify_jwt = false
+
+[functions.trigger-enrichment]
+verify_jwt = true

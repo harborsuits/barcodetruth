@@ -58,10 +58,10 @@ export const BrandDetail = () => {
       if (!response.ok) throw new Error('Failed to fetch brand');
       const apiData = await response.json();
       
-      // Get brand logo/website from brands table
+      // Get brand logo/website/description from brands table
       const { data: brandMeta } = await supabase
         .from('brands')
-        .select('logo_url, logo_attribution, website, wikidata_qid, parent_company')
+        .select('logo_url, logo_attribution, website, wikidata_qid, parent_company, description, description_source')
         .eq('id', brandId)
         .maybeSingle();
       
@@ -131,8 +131,8 @@ export const BrandDetail = () => {
         parent_company: brandMeta?.parent_company || apiData.name,
         logo_url: brandMeta?.logo_url,
         logo_attribution: brandMeta?.logo_attribution,
-        description: null,
-        description_source: null,
+        description: brandMeta?.description,
+        description_source: brandMeta?.description_source,
         website: brandMeta?.website,
         wikidata_qid: brandMeta?.wikidata_qid,
         overall_score: overallScore,
