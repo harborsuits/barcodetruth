@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search as SearchIcon, ArrowLeft, Package } from "lucide-react";
+import { Search as SearchIcon, Home, Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -79,9 +79,10 @@ export default function Search() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate(-1)}
+              onClick={() => navigate("/")}
+              aria-label="Go to home"
             >
-              <ArrowLeft className="h-5 w-5" />
+              <Home className="h-5 w-5" />
             </Button>
             <div className="flex-1 relative">
               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
