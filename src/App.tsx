@@ -46,14 +46,28 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <OfflineIndicator />
-      <ServiceWorkerUpdate />
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
+const App = () => {
+  // Dev-mode baseline leak detector
+  if (import.meta.env.DEV) {
+    const oldFetch = window.fetch;
+    (window as any).fetch = function(...args: any[]) {
+      const url = String(args[0]);
+      if (/brand_scores|effective_named/.test(url)) {
+        console.error('🚫 Blocked baseline fetch:', url);
+        return Promise.reject(new Error('Baseline fetch blocked in dev mode'));
+      }
+      return oldFetch.apply(window, args as [RequestInfo | URL, RequestInit?]);
+    };
+  }
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <OfflineIndicator />
+        <ServiceWorkerUpdate />
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
         <Routes>
           <Route path="/onboarding" element={<Onboarding />} />
           <Route 
@@ -265,6 +279,7 @@ const App = () => (
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;

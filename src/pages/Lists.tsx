@@ -14,7 +14,7 @@ export const Lists = () => {
   const [activeTab, setActiveTab] = useState("following");
   const { toast } = useToast();
 
-  // Fetch user's followed brands
+  // Fetch user's followed brands from Edge API
   const { data: followedBrands, isLoading } = useQuery({
     queryKey: ["user-follows"],
     queryFn: async () => {
@@ -43,34 +43,42 @@ export const Lists = () => {
         return [];
       }
 
-      // Get brand details
-      const { data: brands } = await supabase
-        .from("brands")
-        .select("id, name")
-        .in("id", follows.map(f => f.brand_id));
+      // Fetch each brand from Edge API
+      const API = import.meta.env.VITE_SUPABASE_URL + "/functions/v1/v1-brands";
+      const brandDetails = await Promise.all(
+        follows.map(async (follow) => {
+          try {
+            const res = await fetch(`${API}/brands/${follow.brand_id}`);
+            if (!res.ok) {
+              return {
+                id: follow.brand_id,
+                name: "Unknown Brand",
+                score: null,
+                notifications: follow.notifications_enabled,
+                last_event_at: null,
+              };
+            }
+            const data = await res.json();
+            return {
+              id: follow.brand_id,
+              name: data.name || "Unknown Brand",
+              score: data.score,
+              notifications: follow.notifications_enabled,
+              last_event_at: data.last_event_at,
+            };
+          } catch {
+            return {
+              id: follow.brand_id,
+              name: "Unknown Brand",
+              score: null,
+              notifications: follow.notifications_enabled,
+              last_event_at: null,
+            };
+          }
+        })
+      );
 
-      // Get brand scores
-      const { data: scores } = await supabase
-        .from("brand_scores")
-        .select("brand_id, score_labor, score_environment, score_politics, score_social")
-        .in("brand_id", follows.map(f => f.brand_id));
-
-      // Merge all data
-      return follows.map(follow => {
-        const brand = brands?.find(b => b.id === follow.brand_id);
-        const brandScore = scores?.find(s => s.brand_id === follow.brand_id);
-        const overallScore = brandScore 
-          ? Math.round((brandScore.score_labor + brandScore.score_environment + 
-                       brandScore.score_politics + brandScore.score_social) / 4)
-          : 50;
-        
-        return {
-          id: follow.brand_id,
-          name: brand?.name || "Unknown Brand",
-          score: overallScore,
-          notifications: follow.notifications_enabled,
-        };
-      });
+      return brandDetails;
     },
   });
 
@@ -134,10 +142,16 @@ export const Lists = () => {
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className={`text-2xl font-bold ${getScoreColor(brand.score)}`}>
-                            {brand.score}
-                          </span>
-                          <span className="text-sm text-muted-foreground">/100</span>
+                          {brand.last_event_at && brand.score != null ? (
+                            <>
+                              <span className={`text-2xl font-bold ${getScoreColor(brand.score)}`}>
+                                {brand.score}
+                              </span>
+                              <span className="text-sm text-muted-foreground">/100</span>
+                            </>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">—</span>
+                          )}
                         </div>
                       </div>
                     </CardContent>

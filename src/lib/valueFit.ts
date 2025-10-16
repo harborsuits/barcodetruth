@@ -65,6 +65,12 @@ export function setUserWeights(weights: UserWeights) {
 }
 
 export function calculateValueFit(scores: BrandScores, weights: UserWeights): number {
+  // Verified-only: If any score is null/undefined, return neutral
+  if (scores.score_labor == null || scores.score_environment == null || 
+      scores.score_politics == null || scores.score_social == null) {
+    return 50;
+  }
+  
   return Math.round(
     scores.score_labor * weights.labor +
     scores.score_environment * weights.environment +

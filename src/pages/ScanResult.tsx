@@ -86,22 +86,28 @@ export default function ScanResult() {
     enabled: !!barcode,
   });
 
-  // Query brand + scores
+  // Query brand from Edge API
   const { data: brandData, isLoading: brandLoading } = useQuery({
     queryKey: ['brand-scores', product?.brand_id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('brands')
-        .select('id, name, brand_scores!inner(score_labor, score_environment, score_politics, score_social)')
-        .eq('id', product!.brand_id)
-        .single();
+      const API = import.meta.env.VITE_SUPABASE_URL + "/functions/v1/v1-brands";
+      const res = await fetch(`${API}/brands/${product!.brand_id}`);
       
-      if (error) throw error;
+      if (!res.ok) throw new Error('Failed to fetch brand data');
       
-      // Cast the nested brand_scores correctly
+      const data = await res.json();
+      
+      // Convert Edge API response to expected format
+      const score = data.score || 50;
       return {
-        ...data,
-        brand_scores: Array.isArray(data.brand_scores) ? data.brand_scores : [data.brand_scores]
+        id: data.brand_id,
+        name: data.name,
+        brand_scores: [{
+          score_labor: score,
+          score_environment: score,
+          score_politics: score,
+          score_social: score,
+        }]
       } as BrandWithScores;
     },
     enabled: !!product?.brand_id,
@@ -217,25 +223,17 @@ export default function ScanResult() {
     enabled: !!product?.brand_id,
   });
 
-  // Query compare brand data
+  // Query compare brand from Edge API
   const { data: compareBrand } = useQuery({
     queryKey: ['compare-brand', compareBrandId],
     queryFn: async () => {
+      const API = import.meta.env.VITE_SUPABASE_URL + "/functions/v1/v1-brands";
       const weights = getUserWeights();
       
-      const { data: brand, error: brandError } = await supabase
-        .from('brands')
-        .select('id, name, brand_scores!inner(score_labor, score_environment, score_politics, score_social)')
-        .eq('id', compareBrandId!)
-        .single();
+      const res = await fetch(`${API}/brands/${compareBrandId!}`);
+      if (!res.ok) throw new Error('Failed to fetch compare brand');
       
-      if (brandError) throw brandError;
-      
-      // Normalize brand_scores to array
-      const brandWithScores = {
-        ...brand,
-        brand_scores: Array.isArray(brand.brand_scores) ? brand.brand_scores : [brand.brand_scores]
-      } as BrandWithScores;
+      const brandData = await res.json();
       
       const { data: brandEvents, error: eventsError } = await supabase
         .from('brand_events')
@@ -246,18 +244,24 @@ export default function ScanResult() {
       
       if (eventsError) throw eventsError;
       
-      const scores = brandWithScores.brand_scores[0];
+      const score = brandData.score || 50;
+      const scores = {
+        score_labor: score,
+        score_environment: score,
+        score_politics: score,
+        score_social: score,
+      };
       const valueFit = calculateValueFit(scores, weights);
       
       return {
-        brand_id: brandWithScores.id,
-        brand_name: brandWithScores.name,
+        brand_id: brandData.brand_id,
+        brand_name: brandData.name,
         valueFit,
         scores: {
-          labor: scores.score_labor,
-          environment: scores.score_environment,
-          politics: scores.score_politics,
-          social: scores.score_social,
+          labor: score,
+          environment: score,
+          politics: score,
+          social: score,
         },
         events: brandEvents as BrandEvent[],
       };

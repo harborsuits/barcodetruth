@@ -22,6 +22,13 @@ export default tseslint.config(
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
       "no-duplicate-imports": "error",
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "CallExpression[callee.object.name='supabase'][callee.property.name='from'] Literal[value=/^brand_scores/]",
+          message: "Do not query brand_scores from the client. Use /functions/v1 endpoints.",
+        },
+      ],
     },
   },
 );

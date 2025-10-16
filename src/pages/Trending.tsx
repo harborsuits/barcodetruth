@@ -23,37 +23,18 @@ export const Trending = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Fetch trending brands with their data
+  // Fetch trending brands from Edge API
   const { data: trendingBrands, isLoading } = useQuery({
     queryKey: ["trending-brands"],
     queryFn: async () => {
-      // Get brands with recent events (last 3 months)
-      const threeMonthsAgo = new Date();
-      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+      const API = import.meta.env.VITE_SUPABASE_URL + "/functions/v1/v1-brands";
+      
+      // Fetch trending from Edge API (already filters for verified events)
+      const trendingRes = await fetch(`${API}/trending?limit=50`);
+      if (!trendingRes.ok) throw new Error("Failed to fetch trending brands");
+      const trending = await trendingRes.json();
 
-      const { data: brands, error: brandsError } = await supabase
-        .from("brands")
-        .select("id, name")
-        .limit(20);
-
-      if (brandsError) throw brandsError;
-      if (!brands || brands.length === 0) return [];
-
-      const brandIds = brands.map(b => b.id);
-
-      // Get scores
-      const { data: scores } = await supabase
-        .from("brand_scores")
-        .select("brand_id, score_labor, score_environment, score_politics, score_social")
-        .in("brand_id", brandIds);
-
-      // Get recent events
-      const { data: events } = await supabase
-        .from("brand_events")
-        .select("*")
-        .in("brand_id", brandIds)
-        .gte("event_date", threeMonthsAgo.toISOString())
-        .order("event_date", { ascending: false });
+      if (!trending || trending.length === 0) return [];
 
       // Get user follows
       const { data: { user } } = await supabase.auth.getUser();
@@ -66,24 +47,28 @@ export const Trending = () => {
         userFollows = data || [];
       }
 
-      // Combine data and filter for brands with meaningful activity
-      return brands
-        .map(brand => {
-          const brandScore = scores?.find(s => s.brand_id === brand.id);
-          const overallScore = brandScore 
-            ? Math.round((brandScore.score_labor + brandScore.score_environment + 
-                         brandScore.score_politics + brandScore.score_social) / 4)
-            : 50;
+      // Get recent events for each trending brand
+      const brandsWithEvents = await Promise.all(
+        trending.slice(0, 20).map(async (brand: any) => {
+          const threeMonthsAgo = new Date();
+          threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
-          const brandEvents = events?.filter(e => e.brand_id === brand.id).slice(0, 3) || [];
-          const userFollow = userFollows.find(f => f.brand_id === brand.id);
+          const { data: events } = await supabase
+            .from("brand_events")
+            .select("*")
+            .eq("brand_id", brand.brand_id)
+            .gte("event_date", threeMonthsAgo.toISOString())
+            .order("event_date", { ascending: false })
+            .limit(3);
+
+          const userFollow = userFollows.find(f => f.brand_id === brand.brand_id);
 
           return {
-            id: brand.id,
+            id: brand.brand_id,
             name: brand.name,
-            score: overallScore,
-            hasScore: !!brandScore,
-            events: brandEvents.map(e => ({
+            score: brand.score || 50,
+            hasScore: brand.score != null,
+            events: (events || []).map(e => ({
               event_id: e.event_id,
               brand_id: e.brand_id,
               category: e.category,
@@ -105,11 +90,12 @@ export const Trending = () => {
             notificationsEnabled: userFollow?.notifications_enabled || false,
           };
         })
-        .filter(b => {
-          // Only show brands with recent activity AND a score (not just default)
-          return b.events.length > 0 && b.hasScore;
-        })
-        .sort((a, b) => b.events.length - a.events.length) // Sort by activity
+      );
+
+      // Filter for brands with actual events and sort by activity
+      return brandsWithEvents
+        .filter(b => b.events.length > 0 && b.hasScore)
+        .sort((a, b) => b.events.length - a.events.length)
         .slice(0, 10);
     },
   });
