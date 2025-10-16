@@ -725,7 +725,7 @@ export const BrandDetail = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {Object.entries(brand.signals)
+            {brand.signals && Object.entries(brand.signals)
               .filter(([category]) => categoryFilter === "all" || category === categoryFilter)
               .map(([category, data]: [string, any]) => (
               <div key={category} className="space-y-2">
