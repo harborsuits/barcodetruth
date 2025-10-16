@@ -13,9 +13,18 @@ serve(async (req) => {
   }
 
   const url = new URL(req.url);
-  // In Supabase Edge Functions, pathname is the path after the function name
-  // Remove trailing slashes for consistent matching
-  const routePath = url.pathname.replace(/\/+$/, '');
+  // Normalize path and strip the function base prefix if present
+  const pathname = url.pathname.replace(/\/+$/, "");
+  const markers = ["/functions/v1/v1-brands", "/v1-brands"]; // handle both invocation styles
+  let base = pathname;
+  for (const m of markers) {
+    const i = base.indexOf(m);
+    if (i !== -1) {
+      base = base.substring(i + m.length);
+      break;
+    }
+  }
+  const routePath = (base || "/").replace(/\/+$/, "");
   
   console.log('[v1-brands] Request:', { method: req.method, routePath });
 
