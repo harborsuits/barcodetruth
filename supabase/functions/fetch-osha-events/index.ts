@@ -82,11 +82,16 @@ serve(async (req) => {
       
       console.log(`[fetch-osha-events] Fetching: ${oshaUrl}`);
       
-      const oshaResponse = await fetch(oshaUrl, {
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
+      const dolApiKey = Deno.env.get('DOL_API_KEY');
+      const headers: Record<string, string> = {
+        'Accept': 'application/json'
+      };
+      if (dolApiKey) {
+        headers['X-API-KEY'] = dolApiKey;
+        console.log('[fetch-osha-events] Using DOL API key');
+      }
+      
+      const oshaResponse = await fetch(oshaUrl, { headers });
 
       if (!oshaResponse.ok) {
         console.error(`[fetch-osha-events] OSHA API error: ${oshaResponse.status}`);
@@ -205,7 +210,7 @@ serve(async (req) => {
           || inspection.violation_type 
           || `OSHA Inspection #${activityNr}`;
         
-        // Insert source - database type requires canonical_url = NULL
+        // Insert source with canonical_url
         const { error: sourceError } = await supabase
           .from('event_sources')
           .upsert(
@@ -214,6 +219,7 @@ serve(async (req) => {
               source_name: 'OSHA',
               title: sourceTitle,
               source_url: sourceUrl,
+              canonical_url: sourceUrl,
               domain_owner: 'U.S. Department of Labor',
               registrable_domain: registrableDomain,
               domain_kind: 'official',

@@ -168,7 +168,7 @@ serve(async (req) => {
         const sourceTitle = (facility.FacName || 'Facility').trim();
         const safeTitle = sourceTitle.length >= 4 ? `EPA action at ${sourceTitle}` : 'EPA enforcement record';
 
-        // Insert source - database type requires canonical_url = NULL
+        // Insert source with canonical_url set
         const { error: sourceError } = await supabase
           .from('event_sources')
           .upsert(
@@ -177,6 +177,7 @@ serve(async (req) => {
               source_name: 'EPA',
               title: safeTitle,
               source_url: sourceUrl,
+              canonical_url: sourceUrl,
               domain_owner: 'U.S. Environmental Protection Agency',
               registrable_domain: registrableDomain,
               domain_kind: 'official',

@@ -147,9 +147,25 @@ serve(async (req) => {
         else if (classification === 'Class II') impactSocial = -3; // Moderate risk
         else if (classification === 'Class III') impactSocial = -1; // Minor risk
 
-        // Parse date
+        // Sanitize date with validation
+        const sanitizeDate = (dateStr: string | null | undefined): string => {
+          if (!dateStr) return new Date().toISOString();
+          try {
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) {
+              console.warn('[FDA] Invalid date:', dateStr, '- using current date');
+              return new Date().toISOString();
+            }
+            return date.toISOString();
+          } catch (err) {
+            console.warn('[FDA] Date parse error:', dateStr, err);
+            return new Date().toISOString();
+          }
+        };
+
+        // Parse date safely
         const recallDate = recall.recall_initiation_date || recall.report_date;
-        const occurredAt = recallDate ? new Date(recallDate).toISOString() : new Date().toISOString();
+        const occurredAt = sanitizeDate(recallDate);
 
         // Build event title and description
         const title = `FDA Recall: ${recall.product_description || 'Product recall'}`;
@@ -197,7 +213,7 @@ serve(async (req) => {
         const sourceTitle = (recall.product_description || recall.reason_for_recall || 'Recall').trim();
         const safeTitle = sourceTitle.length >= 4 ? `FDA: ${sourceTitle.substring(0, 100)}` : 'FDA recall record';
 
-        // Insert primary event source - database type requires canonical_url = NULL
+        // Insert primary event source with canonical_url
         const { error: sourceError } = await supabase
           .from('event_sources')
           .upsert(
@@ -206,6 +222,7 @@ serve(async (req) => {
               source_name: 'FDA',
               title: safeTitle,
               source_url: uniqueUrl,
+              canonical_url: uniqueUrl,
               domain_owner: 'U.S. Food and Drug Administration',
               registrable_domain: registrableDomain,
               domain_kind: 'official',
