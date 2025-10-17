@@ -175,6 +175,36 @@ Deno.serve(async (req) => {
           })
           .eq("id", brand.id);
 
+        // Auto-calculate brand score from historical events
+        if (data.totalInserted > 0) {
+          console.log(`[Batch Processor] Calculating score for ${brand.name} (${data.totalInserted} new events)`);
+          try {
+            const scoreResponse = await fetch(
+              `${supabaseUrl}/functions/v1/calculate-brand-score`,
+              {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${serviceKey}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  brand_id: brand.id,
+                  persist: true
+                })
+              }
+            );
+
+            if (scoreResponse.ok) {
+              const scoreData = await scoreResponse.json();
+              console.log(`[Batch Processor] Score calculated for ${brand.name}: ${scoreData.final?.score_labor || 'N/A'}`);
+            } else {
+              console.error(`[Batch Processor] Score calculation failed for ${brand.name}: ${scoreResponse.status}`);
+            }
+          } catch (scoreError) {
+            console.error(`[Batch Processor] Score calculation error for ${brand.name}:`, scoreError);
+          }
+        }
+
         // Mark queue item as completed and schedule next run
         const nextRun = calculateNextRun(brand.company_size, brand.ingestion_frequency);
         
