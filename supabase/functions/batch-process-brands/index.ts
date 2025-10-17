@@ -146,11 +146,11 @@ Deno.serve(async (req) => {
       try {
         // Extract categories from monitoring config or use defaults
         const categories = brand.monitoring_config?.categories || ['labor', 'environment'];
-        const maxSources = brand.company_size === 'fortune_500' ? 5 : 3;
+        const maxArticles = brand.company_size === 'fortune_500' ? 50 : 20;
 
-        // Call unified news orchestrator
+        // Call unified news orchestrator with correct params
         const response = await fetch(
-          `${supabaseUrl}/functions/v1/unified-news-orchestrator?brand_id=${brand.id}&categories=${categories.join(',')}&max_sources=${maxSources}`,
+          `${supabaseUrl}/functions/v1/unified-news-orchestrator?brand_id=${brand.id}&max=${maxArticles}`,
           {
             method: 'GET',
             headers: {
@@ -165,6 +165,7 @@ Deno.serve(async (req) => {
         }
 
         const data = await response.json();
+        console.log(`[Batch Processor] Orchestrator response for ${brand.name}:`, JSON.stringify(data));
 
         // Update brand with last ingestion time
         await supabase
@@ -175,34 +176,38 @@ Deno.serve(async (req) => {
           })
           .eq("id", brand.id);
 
-        // Auto-calculate brand score from historical events
-        if (data.totalInserted > 0) {
-          console.log(`[Batch Processor] Calculating score for ${brand.name} (${data.totalInserted} new events)`);
-          try {
-            const scoreResponse = await fetch(
-              `${supabaseUrl}/functions/v1/calculate-brand-score`,
-              {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${serviceKey}`,
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  brand_id: brand.id,
-                  persist: true
-                })
-              }
-            );
-
-            if (scoreResponse.ok) {
-              const scoreData = await scoreResponse.json();
-              console.log(`[Batch Processor] Score calculated for ${brand.name}: ${scoreData.final?.score_labor || 'N/A'}`);
-            } else {
-              console.error(`[Batch Processor] Score calculation failed for ${brand.name}: ${scoreResponse.status}`);
+        // ALWAYS calculate score after ingestion (even if 0 new events, for baseline refresh)
+        console.log(`[Batch Processor] Triggering score calculation for ${brand.name}...`);
+        try {
+          const scoreResponse = await fetch(
+            `${supabaseUrl}/functions/v1/calculate-brand-score`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${serviceKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                brand_id: brand.id,
+                persist: true
+              })
             }
-          } catch (scoreError) {
-            console.error(`[Batch Processor] Score calculation error for ${brand.name}:`, scoreError);
+          );
+
+          if (scoreResponse.ok) {
+            const scoreData = await scoreResponse.json();
+            console.log(`[Batch Processor] Score calculated for ${brand.name}:`, {
+              labor: scoreData.final?.score_labor,
+              environment: scoreData.final?.score_environment,
+              politics: scoreData.final?.score_politics,
+              social: scoreData.final?.score_social
+            });
+          } else {
+            const errorText = await scoreResponse.text();
+            console.error(`[Batch Processor] Score calculation failed for ${brand.name} (${scoreResponse.status}):`, errorText);
           }
+        } catch (scoreError) {
+          console.error(`[Batch Processor] Score calculation error for ${brand.name}:`, scoreError);
         }
 
         // Mark queue item as completed and schedule next run

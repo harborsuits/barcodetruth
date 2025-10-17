@@ -158,6 +158,8 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  console.log("[Orchestrator] Function invoked");
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -167,14 +169,36 @@ Deno.serve(async (req) => {
   const brandId = url.searchParams.get("brand_id");
   const max = parseInt(url.searchParams.get("max") || "20");
 
+  console.log(`[Orchestrator] Params - brandId: ${brandId}, max: ${max}`);
+
   try {
     let brands: Brand[] = [];
     if (brandId) {
-      const { data } = await supabase.from("brands").select("id,name").eq("id", brandId).limit(1);
+      console.log(`[Orchestrator] Fetching specific brand: ${brandId}`);
+      const { data, error: brandError } = await supabase.from("brands").select("id,name").eq("id", brandId).limit(1);
+      if (brandError) {
+        console.error("[Orchestrator] Brand fetch error:", brandError);
+        throw brandError;
+      }
       brands = data ?? [];
+      console.log(`[Orchestrator] Found brand: ${brands[0]?.name || 'none'}`);
     } else {
-      const { data } = await supabase.from("brands").select("id,name").eq("is_active", true).limit(10);
+      console.log("[Orchestrator] Fetching active brands (no specific brand_id)");
+      const { data, error: brandsError } = await supabase.from("brands").select("id,name").eq("is_active", true).limit(10);
+      if (brandsError) {
+        console.error("[Orchestrator] Brands fetch error:", brandsError);
+        throw brandsError;
+      }
       brands = data ?? [];
+      console.log(`[Orchestrator] Found ${brands.length} active brands`);
+    }
+
+    if (brands.length === 0) {
+      console.warn("[Orchestrator] No brands to process");
+      return new Response(
+        JSON.stringify({ ok: true, brands: 0, totalInserted: 0, totalSkipped: 0, message: "No brands found" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const guardianKey = Deno.env.get("GUARDIAN_API_KEY");
@@ -182,7 +206,7 @@ Deno.serve(async (req) => {
     const nytKey = Deno.env.get("NYT_API_KEY");
     const gnewsKey = Deno.env.get("GNEWS_API_KEY");
 
-    console.log(`[Unified Orchestrator] Processing ${brands.length} brands with all sources`);
+    console.log(`[Orchestrator] API Keys available - Guardian: ${!!guardianKey}, NewsAPI: ${!!newsApiKey}, NYT: ${!!nytKey}, GNews: ${!!gnewsKey}`);
 
     let totalInserted = 0;
     let totalSkipped = 0;
@@ -195,18 +219,18 @@ Deno.serve(async (req) => {
       try {
         const gdeltArticles = await fetchGDELT(b.name, max);
         allArticles.push(...gdeltArticles);
-        console.log(`[GDELT] Fetched ${gdeltArticles.length} articles`);
+        console.log(`[GDELT] Fetched ${gdeltArticles.length} articles for ${b.name}`);
       } catch (e) {
-        console.error("[GDELT] Error:", e);
+        console.error(`[GDELT] Error for ${b.name}:`, e);
       }
 
       if (guardianKey) {
         try {
           const guardianArticles = await fetchGuardian(guardianKey, b.name);
           allArticles.push(...guardianArticles);
-          console.log(`[Guardian] Fetched ${guardianArticles.length} articles`);
+          console.log(`[Guardian] Fetched ${guardianArticles.length} articles for ${b.name}`);
         } catch (e) {
-          console.error("[Guardian] Error:", e);
+          console.error(`[Guardian] Error for ${b.name}:`, e);
         }
       }
 
@@ -214,9 +238,9 @@ Deno.serve(async (req) => {
         try {
           const newsApiArticles = await fetchNewsAPI(newsApiKey, b.name);
           allArticles.push(...newsApiArticles);
-          console.log(`[NewsAPI] Fetched ${newsApiArticles.length} articles`);
+          console.log(`[NewsAPI] Fetched ${newsApiArticles.length} articles for ${b.name}`);
         } catch (e) {
-          console.error("[NewsAPI] Error:", e);
+          console.error(`[NewsAPI] Error for ${b.name}:`, e);
         }
       }
 
@@ -224,9 +248,9 @@ Deno.serve(async (req) => {
         try {
           const nytArticles = await fetchNYTimes(nytKey, b.name);
           allArticles.push(...nytArticles);
-          console.log(`[NYT] Fetched ${nytArticles.length} articles`);
+          console.log(`[NYT] Fetched ${nytArticles.length} articles for ${b.name}`);
         } catch (e) {
-          console.error("[NYT] Error:", e);
+          console.error(`[NYT] Error for ${b.name}:`, e);
         }
       }
 
@@ -234,13 +258,18 @@ Deno.serve(async (req) => {
         try {
           const gnewsArticles = await fetchGNews(gnewsKey, b.name);
           allArticles.push(...gnewsArticles);
-          console.log(`[GNews] Fetched ${gnewsArticles.length} articles`);
+          console.log(`[GNews] Fetched ${gnewsArticles.length} articles for ${b.name}`);
         } catch (e) {
-          console.error("[GNews] Error:", e);
+          console.error(`[GNews] Error for ${b.name}:`, e);
         }
       }
 
       console.log(`[Orchestrator] Total ${allArticles.length} articles fetched for ${b.name}`);
+
+      if (allArticles.length === 0) {
+        console.warn(`[Orchestrator] No articles found for ${b.name} - skipping insert loop`);
+        continue;
+      }
 
       for (const article of allArticles) {
         const urlCanon = canonicalize(article.url);
@@ -254,6 +283,7 @@ Deno.serve(async (req) => {
           .maybeSingle();
 
         if (existingSrc?.id) {
+          console.log(`[Orchestrator] Skipping duplicate URL: ${urlCanon.slice(0, 80)}`);
           totalSkipped++;
           continue;
         }
@@ -275,7 +305,7 @@ Deno.serve(async (req) => {
           });
 
         if (evErr) {
-          console.error("[Event] Insert error:", evErr);
+          console.error(`[Event] Insert error for ${b.name}:`, evErr);
           continue;
         }
 
@@ -295,8 +325,9 @@ Deno.serve(async (req) => {
 
         if (!srcErr) {
           totalInserted++;
+          console.log(`[Orchestrator] Inserted event: ${article.title.slice(0, 60)}...`);
         } else {
-          console.error("[Source] Insert error:", srcErr);
+          console.error(`[Source] Insert error for ${b.name}:`, srcErr);
         }
       }
     }
