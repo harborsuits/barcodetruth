@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, ExternalLink, AlertCircle } from 'lucide-react';
+import { ArrowLeft, ExternalLink, AlertCircle, Building2, Link as LinkIcon } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
+import { useQuery } from '@tanstack/react-query';
 
 type BrandProfile = {
   brand: { 
@@ -33,6 +34,21 @@ type BrandProfile = {
     independent_sources: number; 
     last_event_at?: string | null;
   } | null;
+  ownership?: {
+    upstream: Array<{
+      brand_id: string;
+      brand_name: string;
+      relationship: string;
+      confidence: number;
+      source: string;
+    }>;
+    downstream: Array<{
+      brand_id: string;
+      brand_name: string;
+      relationship: string;
+      confidence: number;
+    }>;
+  } | null;
   evidence: Array<{
     event_date: string; 
     title: string; 
@@ -51,6 +67,45 @@ export default function BrandProfile() {
   const [data, setData] = useState<BrandProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Get current user for personalized scoring
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data?.user);
+    });
+  }, []);
+
+  // Fetch personalized score if user is logged in
+  const { data: personalizedScore } = useQuery({
+    queryKey: ['personalized-score', actualId, user?.id],
+    queryFn: async () => {
+      if (!actualId || !user?.id) return null;
+      
+      // Use direct RPC call since types not yet updated
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/personalized_brand_score`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+          },
+          body: JSON.stringify({
+            p_brand_id: actualId,
+            p_user_id: user.id
+          })
+        }
+      );
+      
+      if (!response.ok) return null;
+      const result = await response.json();
+      return result?.[0] ?? null;
+    },
+    enabled: !!actualId && !!user?.id,
+  });
 
   useEffect(() => {
     if (!actualId) {
@@ -139,6 +194,8 @@ export default function BrandProfile() {
     );
   }
 
+  // Use personalized score if available, otherwise global score
+  const displayScore = personalizedScore?.personalized_score ?? data.score?.score ?? null;
   const score = data.score?.score ?? null;
   const coverage = data.coverage ?? {
     events_30d: 0,
@@ -184,6 +241,19 @@ export default function BrandProfile() {
               )}
               <div className="flex-1 min-w-0">
                 <h2 className="text-2xl font-bold truncate">{data.brand.name}</h2>
+                
+                {/* Ownership badges */}
+                {data.ownership?.upstream && data.ownership.upstream.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {data.ownership.upstream.map((o, i) => (
+                      <Badge key={i} variant="outline" className="text-xs gap-1">
+                        <Building2 className="h-3 w-3" />
+                        {o.relationship.replace('_', ' ')} {o.brand_name}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                
                 {data.brand.parent_company && (
                   <p className="text-sm text-muted-foreground mt-1">
                     Parent: {data.brand.parent_company}
@@ -199,25 +269,36 @@ export default function BrandProfile() {
                     Visit website <ExternalLink className="h-3 w-3" />
                   </a>
                 )}
+                
+                {/* Wikipedia description */}
                 {data.brand.description && (
-                  <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
-                    {data.brand.description}
+                  <div className="mt-3 text-sm text-muted-foreground leading-relaxed">
+                    <p>{data.brand.description}</p>
                     {data.brand.description_source === 'wikipedia' && (
-                      <span className="text-xs opacity-75 ml-2">
-                        (Source: Wikipedia)
-                      </span>
+                      <a
+                        href={`https://en.wikipedia.org/wiki/${encodeURIComponent(data.brand.name)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
+                      >
+                        Source: Wikipedia <ExternalLink className="h-3 w-3" />
+                      </a>
                     )}
-                  </p>
+                  </div>
                 )}
               </div>
               <div className="text-right flex-shrink-0">
                 <div className="text-5xl font-bold">
-                  {score !== null && score !== undefined ? Math.round(score) : '—'}
+                  {displayScore !== null && displayScore !== undefined ? Math.round(displayScore) : '—'}
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  {data.score?.updated_at 
-                    ? `Updated ${formatDistanceToNow(new Date(data.score.updated_at), { addSuffix: true })}`
-                    : 'Not scored yet'}
+                  {personalizedScore ? (
+                    <span className="text-primary font-medium">Your personalized score</span>
+                  ) : data.score?.updated_at ? (
+                    `Updated ${formatDistanceToNow(new Date(data.score.updated_at), { addSuffix: true })}`
+                  ) : (
+                    'Not scored yet'
+                  )}
                 </div>
               </div>
             </div>
@@ -284,24 +365,36 @@ export default function BrandProfile() {
                         <th className="text-left p-3 font-medium">Category</th>
                         <th className="text-left p-3 font-medium">Source</th>
                         <th className="text-left p-3 font-medium">Status</th>
-                        <th className="p-3"></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {(data.evidence ?? []).map((e, i) => (
+                       {(data.evidence ?? []).map((e, i) => (
                         <tr key={i} className="border-t hover:bg-muted/50">
                           <td className="p-3 whitespace-nowrap">
                             {new Date(e.event_date).toLocaleDateString()}
                           </td>
-                          <td className="p-3 max-w-xs truncate" title={e.title}>
-                            {e.title}
+                          <td className="p-3 max-w-xs">
+                            {e.canonical_url ? (
+                              <a 
+                                href={e.canonical_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline inline-flex items-center gap-1"
+                                title={e.title}
+                              >
+                                <span className="truncate">{e.title}</span>
+                                <LinkIcon className="h-3 w-3 flex-shrink-0" />
+                              </a>
+                            ) : (
+                              <span className="truncate" title={e.title}>{e.title}</span>
+                            )}
                           </td>
                           <td className="p-3">
                             <Badge variant="outline" className="text-xs">
                               {e.category || '—'}
                             </Badge>
                           </td>
-                          <td className="p-3 text-muted-foreground">
+                          <td className="p-3 text-muted-foreground text-xs">
                             {e.source_name ?? '—'}
                           </td>
                           <td className="p-3">
@@ -315,19 +408,6 @@ export default function BrandProfile() {
                             >
                               {e.verification ?? 'unverified'}
                             </Badge>
-                          </td>
-                          <td className="p-3 text-right">
-                            {e.canonical_url && (
-                              <a 
-                                href={e.canonical_url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                aria-label="Open source in new tab"
-                                className="text-primary hover:text-primary/80"
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                              </a>
-                            )}
                           </td>
                         </tr>
                       ))}

@@ -16,3 +16,49 @@ export async function getExcludeSameParent(): Promise<boolean> {
     return true;
   }
 }
+
+export async function getUserPreferences() {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    
+    if (error) throw error;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+export async function updateUserPreferences(preferences: {
+  w_labor?: number;
+  w_environment?: number;
+  w_politics?: number;
+  w_social?: number;
+  w_verified?: number;
+  exclude_same_parent?: boolean;
+}) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+    
+    const { error } = await supabase
+      .from('user_preferences')
+      .upsert({
+        user_id: user.id,
+        ...preferences,
+        updated_at: new Date().toISOString()
+      });
+    
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Failed to update preferences:', err);
+    return false;
+  }
+}
