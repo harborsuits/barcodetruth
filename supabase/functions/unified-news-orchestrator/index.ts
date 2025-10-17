@@ -49,9 +49,9 @@ function categorize(text: string): "social" | "general" {
   return socialKw.some(k => lower.includes(k)) ? "social" : "general";
 }
 
-async function fetchGDELT(brandName: string, max: number): Promise<NewsArticle[]> {
+async function fetchGDELT(brandName: string, max: number, daysBack = 7): Promise<NewsArticle[]> {
   const q = encodeURIComponent(`"${brandName}"`);
-  const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=ArtList&maxrecords=${max}&format=json&timelang=eng&timespan=7d`;
+  const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=ArtList&maxrecords=${max}&format=json&timelang=eng&timespan=${daysBack}d`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`GDELT: ${res.status}`);
   const gd = await res.json();
@@ -66,14 +66,17 @@ async function fetchGDELT(brandName: string, max: number): Promise<NewsArticle[]
   }));
 }
 
-async function fetchGuardian(apiKey: string, brandName: string): Promise<NewsArticle[]> {
+async function fetchGuardian(apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
   const searchQuery = `${brandName} AND (${QUERY_TERMS})`;
+  const fromDate = new Date();
+  fromDate.setDate(fromDate.getDate() - daysBack);
   const url = new URL("https://content.guardianapis.com/search");
   url.searchParams.set("q", searchQuery);
   url.searchParams.set("api-key", apiKey);
   url.searchParams.set("show-fields", "headline,trailText,bodyText");
   url.searchParams.set("page-size", "10");
   url.searchParams.set("order-by", "newest");
+  url.searchParams.set("from-date", fromDate.toISOString().split('T')[0]);
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`Guardian: ${res.status}`);
   const data = await res.json();
@@ -88,14 +91,17 @@ async function fetchGuardian(apiKey: string, brandName: string): Promise<NewsArt
   }));
 }
 
-async function fetchNewsAPI(apiKey: string, brandName: string): Promise<NewsArticle[]> {
+async function fetchNewsAPI(apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
   const searchQuery = `${brandName} AND (${QUERY_TERMS})`;
+  const fromDate = new Date();
+  fromDate.setDate(fromDate.getDate() - daysBack);
   const url = new URL("https://newsapi.org/v2/everything");
   url.searchParams.set("q", searchQuery);
   url.searchParams.set("apiKey", apiKey);
   url.searchParams.set("sortBy", "publishedAt");
   url.searchParams.set("pageSize", "10");
   url.searchParams.set("language", "en");
+  url.searchParams.set("from", fromDate.toISOString());
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`NewsAPI: ${res.status}`);
   const data = await res.json();
@@ -110,13 +116,16 @@ async function fetchNewsAPI(apiKey: string, brandName: string): Promise<NewsArti
   }));
 }
 
-async function fetchNYTimes(apiKey: string, brandName: string): Promise<NewsArticle[]> {
+async function fetchNYTimes(apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
   const searchQuery = `${brandName} AND (${QUERY_TERMS})`;
+  const fromDate = new Date();
+  fromDate.setDate(fromDate.getDate() - daysBack);
   const url = new URL("https://api.nytimes.com/svc/search/v2/articlesearch.json");
   url.searchParams.set("q", searchQuery);
   url.searchParams.set("api-key", apiKey);
   url.searchParams.set("sort", "newest");
   url.searchParams.set("fl", "headline,abstract,web_url,pub_date");
+  url.searchParams.set("begin_date", fromDate.toISOString().split('T')[0].replace(/-/g, ''));
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`NYT: ${res.status}`);
   const data = await res.json();
@@ -131,14 +140,17 @@ async function fetchNYTimes(apiKey: string, brandName: string): Promise<NewsArti
   }));
 }
 
-async function fetchGNews(apiKey: string, brandName: string): Promise<NewsArticle[]> {
+async function fetchGNews(apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
   const searchQuery = `${brandName} AND (${QUERY_TERMS})`;
+  const fromDate = new Date();
+  fromDate.setDate(fromDate.getDate() - daysBack);
   const url = new URL("https://gnews.io/api/v4/search");
   url.searchParams.set("q", searchQuery);
   url.searchParams.set("token", apiKey);
   url.searchParams.set("lang", "en");
   url.searchParams.set("max", "10");
   url.searchParams.set("sortby", "publishedAt");
+  url.searchParams.set("from", fromDate.toISOString());
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`GNews: ${res.status}`);
   const data = await res.json();
@@ -168,8 +180,9 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   const brandId = url.searchParams.get("brand_id");
   const max = parseInt(url.searchParams.get("max") || "20");
+  const daysBack = parseInt(url.searchParams.get("days_back") || "7");
 
-  console.log(`[Orchestrator] Params - brandId: ${brandId}, max: ${max}`);
+  console.log(`[Orchestrator] Params - brandId: ${brandId}, max: ${max}, daysBack: ${daysBack}`);
 
   try {
     let brands: Brand[] = [];
@@ -217,7 +230,7 @@ Deno.serve(async (req) => {
 
       // Fetch from all sources
       try {
-        const gdeltArticles = await fetchGDELT(b.name, max);
+        const gdeltArticles = await fetchGDELT(b.name, max, daysBack);
         allArticles.push(...gdeltArticles);
         console.log(`[GDELT] Fetched ${gdeltArticles.length} articles for ${b.name}`);
       } catch (e) {
@@ -226,7 +239,7 @@ Deno.serve(async (req) => {
 
       if (guardianKey) {
         try {
-          const guardianArticles = await fetchGuardian(guardianKey, b.name);
+          const guardianArticles = await fetchGuardian(guardianKey, b.name, daysBack);
           allArticles.push(...guardianArticles);
           console.log(`[Guardian] Fetched ${guardianArticles.length} articles for ${b.name}`);
         } catch (e) {
@@ -236,7 +249,7 @@ Deno.serve(async (req) => {
 
       if (newsApiKey) {
         try {
-          const newsApiArticles = await fetchNewsAPI(newsApiKey, b.name);
+          const newsApiArticles = await fetchNewsAPI(newsApiKey, b.name, daysBack);
           allArticles.push(...newsApiArticles);
           console.log(`[NewsAPI] Fetched ${newsApiArticles.length} articles for ${b.name}`);
         } catch (e) {
@@ -246,7 +259,7 @@ Deno.serve(async (req) => {
 
       if (nytKey) {
         try {
-          const nytArticles = await fetchNYTimes(nytKey, b.name);
+          const nytArticles = await fetchNYTimes(nytKey, b.name, daysBack);
           allArticles.push(...nytArticles);
           console.log(`[NYT] Fetched ${nytArticles.length} articles for ${b.name}`);
         } catch (e) {
@@ -256,7 +269,7 @@ Deno.serve(async (req) => {
 
       if (gnewsKey) {
         try {
-          const gnewsArticles = await fetchGNews(gnewsKey, b.name);
+          const gnewsArticles = await fetchGNews(gnewsKey, b.name, daysBack);
           allArticles.push(...gnewsArticles);
           console.log(`[GNews] Fetched ${gnewsArticles.length} articles for ${b.name}`);
         } catch (e) {

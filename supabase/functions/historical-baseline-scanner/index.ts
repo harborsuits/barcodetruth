@@ -51,6 +51,9 @@ Deno.serve(async (req) => {
 
     console.log(`[BaselineScanner] Scanning ${brands.length} brands`);
 
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
     for (const brand of brands) {
       console.log(`[BaselineScanner] Processing ${brand.name}`);
 
@@ -61,7 +64,27 @@ Deno.serve(async (req) => {
         baseline_complete: false
       }, { onConflict: "brand_id" });
 
-      // 1. Fetch historical events (90 days)
+      // 1. FIRST: Backfill 90 days of historical news data
+      console.log(`[BaselineScanner] Fetching 90 days of news for ${brand.name}`);
+      
+      const orchestratorUrl = `${supabaseUrl}/functions/v1/unified-news-orchestrator?brand_id=${brand.id}&days_back=90&max=50`;
+      const orchestratorResponse = await fetch(orchestratorUrl, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${serviceKey}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (!orchestratorResponse.ok) {
+        console.error(`[BaselineScanner] Failed to fetch historical data for ${brand.name}`);
+        continue;
+      }
+
+      const orchestratorResult = await orchestratorResponse.json();
+      console.log(`[BaselineScanner] Orchestrator inserted ${orchestratorResult.totalInserted} articles for ${brand.name}`);
+
+      // 2. NOW: Fetch the historical events we just inserted
       const ninetyDaysAgo = new Date();
       ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
@@ -73,7 +96,7 @@ Deno.serve(async (req) => {
         .order("event_date", { ascending: false });
 
       if (!events || events.length === 0) {
-        // No historical data - set neutral baseline
+        // Still no data after ingestion - set neutral baseline
         await supabase.from("brand_baselines").upsert({
           brand_id: brand.id,
           articles_per_week: 0,
@@ -82,7 +105,7 @@ Deno.serve(async (req) => {
           baseline_complete: true,
           scan_completed_at: new Date().toISOString()
         }, { onConflict: "brand_id" });
-        console.log(`[BaselineScanner] ${brand.name}: No historical data, neutral baseline set`);
+        console.log(`[BaselineScanner] ${brand.name}: No historical data found after ingestion, neutral baseline set`);
         continue;
       }
 
