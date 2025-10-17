@@ -19,7 +19,54 @@ serve(async (req) => {
 
     const url = new URL(req.url);
     const brandId = url.searchParams.get('brand_id');
+    const mode = url.searchParams.get('mode'); // 'missing' for batch mode
     
+    // Batch mode: process brands missing descriptions
+    if (mode === 'missing') {
+      console.log('[enrich-brand-wiki] Batch mode: processing brands missing descriptions');
+      
+      const { data: brands, error: fetchError } = await supabase
+        .from('brands')
+        .select('id, name')
+        .is('description', null)
+        .eq('is_active', true)
+        .limit(10);
+      
+      if (fetchError || !brands || brands.length === 0) {
+        console.log('[enrich-brand-wiki] No brands to enrich');
+        return new Response(
+          JSON.stringify({ success: true, processed: 0, note: 'No brands missing descriptions' }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      console.log(`[enrich-brand-wiki] Found ${brands.length} brands to enrich`);
+      let processed = 0;
+      
+      for (const brand of brands) {
+        try {
+          // Call self recursively for each brand
+          const enrichUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/enrich-brand-wiki?brand_id=${brand.id}`;
+          await fetch(enrichUrl, {
+            headers: {
+              'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`
+            }
+          });
+          processed++;
+          // Small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } catch (e) {
+          console.error(`[enrich-brand-wiki] Failed to enrich ${brand.name}:`, e);
+        }
+      }
+      
+      return new Response(
+        JSON.stringify({ success: true, processed, total: brands.length }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    // Single brand mode
     if (!brandId) {
       return new Response(
         JSON.stringify({ error: "brand_id is required" }),

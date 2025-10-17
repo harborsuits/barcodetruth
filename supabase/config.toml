@@ -43,6 +43,9 @@ verify_jwt = false
 [functions.enrich-ownership]
 verify_jwt = false
 
+[functions.enrich-brand-wiki]
+verify_jwt = false
+
 [functions.calculate-baselines]
 verify_jwt = false
 
