@@ -35,6 +35,7 @@ const AdminHealth = lazyNamed(() => import("./pages/AdminHealth"), "default");
 const AdminEvidence = lazyNamed(() => import("./pages/AdminEvidence"), "default");
 const AdminTriggers = lazyNamed(() => import("./pages/AdminTriggers"), "AdminTriggers");
 const AdminIngestion = lazyNamed(() => import("./pages/AdminIngestion"), "AdminIngestion");
+const AdminNewsTest = lazyNamed(() => import("./pages/AdminNewsTest"), "default");
 
 const queryClient = new QueryClient();
 
@@ -278,6 +279,20 @@ const App = () => {
                   <RouteErrorBoundary>
                     <Suspense fallback={<RouteFallback label="Loading ingestion control…" />}>
                       <AdminIngestion />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/news-test"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading news test…" />}>
+                      <AdminNewsTest />
                     </Suspense>
                   </RouteErrorBoundary>
                 </AdminRoute>
