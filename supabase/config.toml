@@ -100,3 +100,12 @@ verify_jwt = false
 
 [functions.trigger-enrichment]
 verify_jwt = true
+
+[functions.batch-process-brands]
+verify_jwt = false
+
+[functions.unified-news-orchestrator]
+verify_jwt = false
+
+[functions.bulk-calculate-scores]
+verify_jwt = false
