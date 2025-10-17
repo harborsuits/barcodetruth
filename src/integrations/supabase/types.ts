@@ -951,6 +951,7 @@ export type Database = {
           archive_url: string | null
           article_snippet: string | null
           canonical_url: string | null
+          canonical_url_hash: string | null
           created_at: string
           credibility_tier: string | null
           day_bucket: string | null
@@ -978,6 +979,7 @@ export type Database = {
           archive_url?: string | null
           article_snippet?: string | null
           canonical_url?: string | null
+          canonical_url_hash?: string | null
           created_at?: string
           credibility_tier?: string | null
           day_bucket?: string | null
@@ -1005,6 +1007,7 @@ export type Database = {
           archive_url?: string | null
           article_snippet?: string | null
           canonical_url?: string | null
+          canonical_url_hash?: string | null
           created_at?: string
           credibility_tier?: string | null
           day_bucket?: string | null
