@@ -861,14 +861,20 @@ export type Database = {
       }
       brands: {
         Row: {
+          company_size: string | null
           created_at: string
           description: string | null
           description_lang: string | null
           description_source: string | null
           id: string
+          ingestion_frequency: string | null
+          is_active: boolean | null
           is_test: boolean
+          last_ingestion_status: string | null
+          last_news_ingestion: string | null
           logo_attribution: string | null
           logo_url: string | null
+          monitoring_config: Json | null
           name: string
           parent_company: string | null
           push_paused: boolean
@@ -877,14 +883,20 @@ export type Database = {
           wikidata_qid: string | null
         }
         Insert: {
+          company_size?: string | null
           created_at?: string
           description?: string | null
           description_lang?: string | null
           description_source?: string | null
           id?: string
+          ingestion_frequency?: string | null
+          is_active?: boolean | null
           is_test?: boolean
+          last_ingestion_status?: string | null
+          last_news_ingestion?: string | null
           logo_attribution?: string | null
           logo_url?: string | null
+          monitoring_config?: Json | null
           name: string
           parent_company?: string | null
           push_paused?: boolean
@@ -893,14 +905,20 @@ export type Database = {
           wikidata_qid?: string | null
         }
         Update: {
+          company_size?: string | null
           created_at?: string
           description?: string | null
           description_lang?: string | null
           description_source?: string | null
           id?: string
+          ingestion_frequency?: string | null
+          is_active?: boolean | null
           is_test?: boolean
+          last_ingestion_status?: string | null
+          last_news_ingestion?: string | null
           logo_attribution?: string | null
           logo_url?: string | null
+          monitoring_config?: Json | null
           name?: string
           parent_company?: string | null
           push_paused?: boolean
@@ -1494,6 +1512,88 @@ export type Database = {
             foreignKeyName: "pilot_brands_brand_id_fkey"
             columns: ["brand_id"]
             isOneToOne: true
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+        ]
+      }
+      processing_queue: {
+        Row: {
+          brand_id: string
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: number
+          priority: number
+          process_type: string
+          scheduled_for: string
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          brand_id: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: number
+          priority?: number
+          process_type?: string
+          scheduled_for?: string
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          brand_id?: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: number
+          priority?: number
+          process_type?: string
+          scheduled_for?: string
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processing_queue_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "processing_queue_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_standings"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "processing_queue_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_trending"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "processing_queue_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processing_queue_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "processing_queue_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
           },

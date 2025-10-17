@@ -12,12 +12,14 @@ import { subscribeToPush, unsubscribeFromPush, isPushSubscribed } from "@/lib/pu
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 type ValuePreset = "balanced" | "worker-first" | "green-first" | "politics-light" | "custom";
 
 export const Settings = () => {
   const navigate = useNavigate();
   const { subscribed, subscription_end, loading, startCheckout, manageSubscription } = useSubscription();
+  const isAdmin = useIsAdmin();
   const [values, setValues] = useState({
     labor: 50,
     environment: 50,
@@ -648,6 +650,37 @@ export const Settings = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Admin Section - Only show to admins */}
+        {isAdmin && (
+          <Card className="border-primary/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Crown className="h-5 w-5 text-primary" />
+                Admin Tools
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Access admin-only features for managing brand data and news ingestion.
+              </p>
+              <Button 
+                onClick={() => navigate('/admin/ingestion')}
+                variant="outline"
+                className="w-full"
+              >
+                News Ingestion Control
+              </Button>
+              <Button 
+                onClick={() => navigate('/admin/health')}
+                variant="outline"
+                className="w-full"
+              >
+                System Health
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         <Button onClick={handleSave} className="w-full" size="lg">
           Save Changes
