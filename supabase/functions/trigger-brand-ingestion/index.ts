@@ -108,7 +108,27 @@ serve(async (req) => {
       console.error('[FEC] Error:', e);
     }
 
-    // News
+    // Guardian News - Labor
+    try {
+      const url = `${fxBase}/fetch-guardian-news${qs({ brand_id, category: 'labor' })}`;
+      const resp = await fetch(url, { method: 'POST', headers: { ...authHeader } });
+      if (!resp.ok) throw new Error(`Guardian Labor ${resp.status}`);
+      console.log('[Guardian Labor] triggered');
+    } catch (e) {
+      console.error('[Guardian Labor] Error:', e);
+    }
+
+    // Guardian News - Environment
+    try {
+      const url = `${fxBase}/fetch-guardian-news${qs({ brand_id, category: 'environment' })}`;
+      const resp = await fetch(url, { method: 'POST', headers: { ...authHeader } });
+      if (!resp.ok) throw new Error(`Guardian Environment ${resp.status}`);
+      console.log('[Guardian Environment] triggered');
+    } catch (e) {
+      console.error('[Guardian Environment] Error:', e);
+    }
+
+    // Legacy News endpoint (if exists)
     try {
       const url = `${fxBase}/fetch-news-events${qs({ brand_id })}`;
       const resp = await fetch(url, { method: 'POST', headers: { ...authHeader } });
