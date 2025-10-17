@@ -43,6 +43,12 @@ async function sha1(input: string): Promise<string> {
     .join("");
 }
 
+// Convert SHA-1 hash to UUID format for Postgres compatibility
+function hashToUuid(hash: string): string {
+  // Take first 32 hex chars and format as UUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
+}
+
 function categorize(text: string): "social" | "general" {
   const lower = text.toLowerCase();
   const socialKw = ["lawsuit", "recall", "boycott", "protest", "scandal", "controversy", "discrimination"];
@@ -56,14 +62,27 @@ async function fetchGDELT(brandName: string, max: number, daysBack = 7): Promise
   if (!res.ok) throw new Error(`GDELT: ${res.status}`);
   const gd = await res.json();
   const items: GdeltItem[] = gd?.articles ?? [];
-  return items.map(i => ({
-    title: i.title ?? `News: ${brandName}`,
-    summary: "",
-    url: i.url,
-    published_at: i.seendate ? new Date(i.seendate).toISOString() : new Date().toISOString(),
-    source_name: i.domain ?? new URL(i.url).hostname,
-    category: "general" as const
-  }));
+  return items.map(i => {
+    // Parse GDELT date format: YYYYMMDDHHMMSS
+    let publishedAt = new Date().toISOString();
+    if (i.seendate && /^\d{14}$/.test(i.seendate)) {
+      const y = i.seendate.slice(0, 4);
+      const m = i.seendate.slice(4, 6);
+      const d = i.seendate.slice(6, 8);
+      const h = i.seendate.slice(8, 10);
+      const min = i.seendate.slice(10, 12);
+      const s = i.seendate.slice(12, 14);
+      publishedAt = `${y}-${m}-${d}T${h}:${min}:${s}Z`;
+    }
+    return {
+      title: i.title ?? `News: ${brandName}`,
+      summary: "",
+      url: i.url,
+      published_at: publishedAt,
+      source_name: i.domain ?? new URL(i.url).hostname,
+      category: "general" as const
+    };
+  });
 }
 
 async function fetchGuardian(apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
@@ -289,9 +308,10 @@ Deno.serve(async (req) => {
         const urlHash = await sha1(urlCanon);
         
         // Deterministic event_id from brand + url so re-runs are idempotent
-        const eventId = await sha1(`${b.id}:${urlHash}`);
+        const eventIdHash = await sha1(`${b.id}:${urlHash}`);
+        const eventId = hashToUuid(eventIdHash);
 
-        console.log(`[Orchestrator] Processing article for ${b.name}: ${article.title.slice(0, 50)}... eventId=${eventId.slice(0, 8)}`);
+        console.log(`[Orchestrator] Processing article for ${b.name}: ${article.title.slice(0, 50)}... eventId=${eventId}`);
 
         // 1) Upsert brand_events first (so FK exists)
         const { error: evErr } = await supabase
