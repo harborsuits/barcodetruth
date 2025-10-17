@@ -347,7 +347,7 @@ Deno.serve(async (req) => {
       const sourceTitle = `FEC filing for ${committee.name || cmteId}`;
       const safeTitle = sourceTitle.length >= 4 ? sourceTitle : 'FEC filing';
 
-      // Insert source - database type requires canonical_url = NULL
+      // Insert source with canonical_url
       const { error: sourceError } = await supabase
         .from("event_sources")
         .upsert(
@@ -356,6 +356,7 @@ Deno.serve(async (req) => {
             source_name: "FEC",
             title: safeTitle,
             source_url: sourceUrl,
+            canonical_url: sourceUrl,
             domain_owner: 'Federal Election Commission',
             registrable_domain: registrableDomain,
             domain_kind: 'official',
