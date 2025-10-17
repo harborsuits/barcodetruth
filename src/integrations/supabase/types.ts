@@ -29,6 +29,27 @@ export type Database = {
         }
         Relationships: []
       }
+      api_rate_limits: {
+        Row: {
+          call_count: number
+          source: string
+          updated_at: string
+          window_start: string
+        }
+        Insert: {
+          call_count?: number
+          source: string
+          updated_at?: string
+          window_start: string
+        }
+        Update: {
+          call_count?: number
+          source?: string
+          updated_at?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       app_config: {
         Row: {
           key: string

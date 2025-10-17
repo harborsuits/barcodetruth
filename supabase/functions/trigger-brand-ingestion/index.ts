@@ -108,36 +108,20 @@ serve(async (req) => {
       console.error('[FEC] Error:', e);
     }
 
-    // Guardian News - Labor
+    // Unified News Orchestrator - handles all news sources intelligently
     try {
-      const url = `${fxBase}/fetch-guardian-news${qs({ brand_id, category: 'labor' })}`;
-      const resp = await fetch(url, { method: 'POST', headers: { ...authHeader } });
-      if (!resp.ok) throw new Error(`Guardian Labor ${resp.status}`);
-      console.log('[Guardian Labor] triggered');
-    } catch (e) {
-      console.error('[Guardian Labor] Error:', e);
-    }
-
-    // Guardian News - Environment
-    try {
-      const url = `${fxBase}/fetch-guardian-news${qs({ brand_id, category: 'environment' })}`;
-      const resp = await fetch(url, { method: 'POST', headers: { ...authHeader } });
-      if (!resp.ok) throw new Error(`Guardian Environment ${resp.status}`);
-      console.log('[Guardian Environment] triggered');
-    } catch (e) {
-      console.error('[Guardian Environment] Error:', e);
-    }
-
-    // Legacy News endpoint (if exists)
-    try {
-      const url = `${fxBase}/fetch-news-events${qs({ brand_id })}`;
-      const resp = await fetch(url, { method: 'POST', headers: { ...authHeader } });
-      if (!resp.ok) throw new Error(`News ${resp.status}`);
+      const url = `${fxBase}/unified-news-orchestrator${qs({ 
+        brand_id, 
+        categories: 'labor,environment',
+        max_sources: '5'
+      })}`;
+      const resp = await fetch(url, { method: 'GET', headers: { ...authHeader } });
+      if (!resp.ok) throw new Error(`Unified News ${resp.status}`);
       results.news.success = true;
-      console.log('[News] triggered');
+      console.log('[Unified News] triggered - orchestrating Guardian, NewsAPI, NYT, GNews');
     } catch (e) {
       results.news.error = e instanceof Error ? e.message : String(e);
-      console.error('[News] Error:', e);
+      console.error('[Unified News] Error:', e);
     }
 
     // Recompute scores after ingestion
