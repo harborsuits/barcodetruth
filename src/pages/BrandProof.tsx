@@ -29,8 +29,15 @@ export default function BrandProof() {
     const fetchProof = async () => {
       try {
         setLoading(true);
+        
+        // Get current user for personalized scoring
+        const { data: { user } } = await supabase.auth.getUser();
+        
         const { data: result, error: fnError } = await supabase.functions.invoke('get-brand-proof', {
-          body: { brandId: id },
+          body: { 
+            brandId: id,
+            userId: user?.id || null  // Pass userId for personalized base scores
+          },
         });
 
         if (fnError) throw fnError;

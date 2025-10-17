@@ -11,14 +11,34 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
     let brandId = url.searchParams.get('brandId');
+    let userId: string | null = null;
     
     // If not in query params, check POST body
     if (!brandId && req.method === 'POST') {
       try {
         const body = await req.json();
         brandId = body.brandId;
+        userId = body.userId; // Get userId from body
       } catch {
         // Invalid JSON, continue
+      }
+    }
+    
+    // Try to get user from Authorization header if not in body
+    if (!userId) {
+      const authHeader = req.headers.get('Authorization');
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        try {
+          const supabaseTemp = createClient(
+            Deno.env.get('SUPABASE_URL')!,
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+          );
+          const { data: { user } } = await supabaseTemp.auth.getUser(token);
+          userId = user?.id || null;
+        } catch {
+          // No valid user, continue without personalization
+        }
       }
     }
     
@@ -68,10 +88,45 @@ Deno.serve(async (req) => {
     const breakdown = (scoreRow.breakdown as any) || {};
     const components = ['labor', 'environment', 'politics', 'social'];
     
-    // Calculate total score (weighted average)
-    const totalScore = Math.round(
-      (scoreRow.score_labor + scoreRow.score_environment + scoreRow.score_politics + scoreRow.score_social) / 4
+    // Get user preferences if userId available
+    let userWeights: Record<string, number> = {
+      labor: 1.0,
+      environment: 1.0,
+      politics: 1.0,
+      social: 1.0
+    };
+    
+    if (userId) {
+      const { data: prefs } = await supabase
+        .from('user_preferences')
+        .select('w_labor, w_environment, w_politics, w_social')
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      if (prefs) {
+        userWeights = {
+          labor: prefs.w_labor || 1.0,
+          environment: prefs.w_environment || 1.0,
+          politics: prefs.w_politics || 1.0,
+          social: prefs.w_social || 1.0
+        };
+      }
+    }
+    
+    // Calculate weighted scores per component
+    const componentScores: Record<string, number> = {
+      labor: scoreRow.score_labor,
+      environment: scoreRow.score_environment,
+      politics: scoreRow.score_politics,
+      social: scoreRow.score_social
+    };
+    
+    // Apply user weights to calculate personalized total
+    const weightedSum = components.reduce((sum, comp) => 
+      sum + (componentScores[comp] * userWeights[comp]), 0
     );
+    const totalWeight = Object.values(userWeights).reduce((a, b) => a + b, 0);
+    const totalScore = Math.round(weightedSum / totalWeight);
 
     // Fetch BOTH full and deduplicated evidence
     const { data: fullEvidence } = await supabase
@@ -159,11 +214,23 @@ Deno.serve(async (req) => {
       // Proof gate: large delta needs ≥2 independent owners (or 1 if official present)
       const needsIndependence = Math.abs(delta) > 5 && independentOwners < 2 && !hasOfficial;
       const proofRequired = Math.abs(delta) > 5 && (verifiedCount === 0 || needsIndependence);
+      
+      // Apply user weight to adjust perceived importance
+      const rawBase = catData.base || 50;
+      const userWeight = userWeights[comp] || 1.0;
+      
+      // User weight affects how much this category matters in the display
+      // Higher weight = more emphasis on deviations from neutral (50)
+      const personalizedBase = userWeight !== 1.0 
+        ? Math.round(50 + ((rawBase - 50) * userWeight))
+        : rawBase;
 
       return {
         component: comp,
-        base: catData.base || 50,
-        base_reason: catData.base_reason || 'Default baseline',
+        base: personalizedBase,
+        base_reason: userWeight !== 1.0 
+          ? `${catData.base_reason || 'Default baseline'} (adjusted for your preferences)`
+          : (catData.base_reason || 'Default baseline'),
         window_delta: delta,
         value: scoreRow[`score_${comp}` as keyof typeof scoreRow] as number,
         confidence: catData.confidence || 50,
@@ -172,6 +239,7 @@ Deno.serve(async (req) => {
         independent_owners: independentOwners,
         proof_required: proofRequired,
         syndicated_hidden_count: Math.max(0, evidenceFull.length - evidenceDedup.length),
+        user_weight: userWeight
       };
     });
 
