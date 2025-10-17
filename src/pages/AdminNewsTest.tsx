@@ -22,7 +22,35 @@ export default function AdminNewsTest() {
     setResults(null);
 
     try {
-      // 1. Call orchestrator
+      // 1. Check if baseline exists
+      console.log('[Test] Checking baseline for brand:', brandId);
+      const { data: baseline } = await supabase
+        .from('brand_baselines')
+        .select('baseline_complete, articles_analyzed, baseline_labor')
+        .eq('brand_id', brandId)
+        .maybeSingle();
+
+      if (!baseline?.baseline_complete) {
+        toast({
+          title: 'Warning',
+          description: 'No baseline found - running baseline scan first...',
+          duration: 5000
+        });
+
+        // Run baseline scan
+        console.log('[Test] Running baseline scanner...');
+        const { data: baselineData, error: baselineError } = await supabase.functions.invoke(
+          'historical-baseline-scanner',
+          { body: { brand_id: brandId } }
+        );
+
+        if (baselineError) throw baselineError;
+        console.log('[Test] Baseline scan result:', baselineData);
+      } else {
+        console.log('[Test] Baseline exists:', baseline);
+      }
+
+      // 2. Call orchestrator
       console.log('[Test] Calling orchestrator for brand:', brandId);
       const { data: ingestData, error: ingestError } = await supabase.functions.invoke(
         'unified-news-orchestrator',
@@ -35,7 +63,7 @@ export default function AdminNewsTest() {
 
       console.log('[Test] Ingestion result:', ingestData);
 
-      // 2. Call scorer
+      // 3. Call scorer
       console.log('[Test] Calling scorer for brand:', brandId);
       const { data: scoreData, error: scoreError } = await supabase.functions.invoke(
         'calculate-brand-score',
@@ -48,7 +76,7 @@ export default function AdminNewsTest() {
 
       console.log('[Test] Scoring result:', scoreData);
 
-      // 3. Fetch actual data from DB
+      // 4. Fetch actual data from DB
       const { data: events } = await supabase
         .from('brand_events')
         .select('event_id, title, event_date, category, verification')
@@ -70,6 +98,12 @@ export default function AdminNewsTest() {
         .limit(1)
         .single();
 
+      const { data: baselineData } = await supabase
+        .from('brand_baselines')
+        .select('*')
+        .eq('brand_id', brandId)
+        .maybeSingle();
+
       setResults({
         ingest: ingestData,
         score: scoreData,
@@ -77,7 +111,8 @@ export default function AdminNewsTest() {
         sourcesCount: sources?.length || 0,
         events: events || [],
         sources: sources || [],
-        scoreRow: score
+        scoreRow: score,
+        baseline: baselineData
       });
 
       toast({
@@ -197,6 +232,41 @@ export default function AdminNewsTest() {
               </div>
               <div className="mt-4 text-sm text-muted-foreground">
                 Updated: {new Date(results.scoreRow.last_updated).toLocaleString()}
+              </div>
+            </Card>
+          )}
+
+          {results.baseline && (
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Baseline Metrics (90-Day)</h2>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Articles/Week:</span>
+                  <span className="font-mono">{Number(results.baseline.articles_per_week).toFixed(1)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Articles Analyzed:</span>
+                  <span className="font-mono">{results.baseline.articles_analyzed}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Baseline Labor:</span>
+                  <span className="font-mono">{results.baseline.baseline_labor}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Baseline Environment:</span>
+                  <span className="font-mono">{results.baseline.baseline_environment}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Baseline Politics:</span>
+                  <span className="font-mono">{results.baseline.baseline_politics}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Baseline Social:</span>
+                  <span className="font-mono">{results.baseline.baseline_social}</span>
+                </div>
+              </div>
+              <div className="mt-4 text-sm text-muted-foreground">
+                Completed: {new Date(results.baseline.scan_completed_at).toLocaleString()}
               </div>
             </Card>
           )}

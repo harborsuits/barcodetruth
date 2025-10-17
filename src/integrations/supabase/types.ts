@@ -218,6 +218,118 @@ export type Database = {
           },
         ]
       }
+      brand_baselines: {
+        Row: {
+          articles_analyzed: number
+          articles_per_week: number
+          avg_sources_per_article: number
+          baseline_complete: boolean
+          baseline_environment: number
+          baseline_labor: number
+          baseline_politics: number
+          baseline_social: number
+          brand_id: string
+          common_categories: Json
+          created_at: string
+          environment_frequency: number
+          labor_frequency: number
+          median_sentiment: number
+          politics_frequency: number
+          scan_completed_at: string | null
+          scan_started_at: string | null
+          social_frequency: number
+          unique_domains: number
+          updated_at: string
+        }
+        Insert: {
+          articles_analyzed?: number
+          articles_per_week?: number
+          avg_sources_per_article?: number
+          baseline_complete?: boolean
+          baseline_environment?: number
+          baseline_labor?: number
+          baseline_politics?: number
+          baseline_social?: number
+          brand_id: string
+          common_categories?: Json
+          created_at?: string
+          environment_frequency?: number
+          labor_frequency?: number
+          median_sentiment?: number
+          politics_frequency?: number
+          scan_completed_at?: string | null
+          scan_started_at?: string | null
+          social_frequency?: number
+          unique_domains?: number
+          updated_at?: string
+        }
+        Update: {
+          articles_analyzed?: number
+          articles_per_week?: number
+          avg_sources_per_article?: number
+          baseline_complete?: boolean
+          baseline_environment?: number
+          baseline_labor?: number
+          baseline_politics?: number
+          baseline_social?: number
+          brand_id?: string
+          common_categories?: Json
+          created_at?: string
+          environment_frequency?: number
+          labor_frequency?: number
+          median_sentiment?: number
+          politics_frequency?: number
+          scan_completed_at?: string | null
+          scan_started_at?: string | null
+          social_frequency?: number
+          unique_domains?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_baselines_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_baselines_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brand_standings"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_baselines_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brand_trending"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_baselines_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_baselines_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_baselines_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+        ]
+      }
       brand_data_mappings: {
         Row: {
           brand_id: string

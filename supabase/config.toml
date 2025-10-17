@@ -112,3 +112,6 @@ verify_jwt = false
 
 [functions.bulk-calculate-scores]
 verify_jwt = false
+
+[functions.historical-baseline-scanner]
+verify_jwt = false
