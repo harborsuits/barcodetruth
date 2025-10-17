@@ -274,25 +274,16 @@ Deno.serve(async (req) => {
       for (const article of allArticles) {
         const urlCanon = canonicalize(article.url);
         const urlHash = await sha1(urlCanon);
+        
+        // Deterministic event_id from brand + url so re-runs are idempotent
+        const eventId = await sha1(`${b.id}:${urlHash}`);
 
-        // Check for duplicate URL
-        const { data: existingSrc } = await supabase
-          .from("event_sources")
-          .select("id,event_id")
-          .eq("canonical_url_hash", urlHash)
-          .maybeSingle();
+        console.log(`[Orchestrator] Processing article for ${b.name}: ${article.title.slice(0, 50)}... eventId=${eventId.slice(0, 8)}`);
 
-        if (existingSrc?.id) {
-          console.log(`[Orchestrator] Skipping duplicate URL: ${urlCanon.slice(0, 80)}`);
-          totalSkipped++;
-          continue;
-        }
-
-        // Insert event first
-        const eventId = crypto.randomUUID();
+        // 1) Upsert brand_events first (so FK exists)
         const { error: evErr } = await supabase
           .from("brand_events")
-          .insert({
+          .upsert({
             event_id: eventId,
             brand_id: b.id,
             event_date: article.published_at,
@@ -302,32 +293,32 @@ Deno.serve(async (req) => {
             title: article.title.slice(0, 512),
             description: article.summary.slice(0, 1000),
             is_test: false
-          });
+          }, { onConflict: 'event_id' });
 
         if (evErr) {
-          console.error(`[Event] Insert error for ${b.name}:`, evErr);
+          console.error(`[Event] Upsert error for ${b.name}:`, evErr);
           continue;
         }
 
-        // Then insert source
-        const { error: srcErr } = await supabase
+        // 2) Upsert event_sources and link it via event_id
+        const { error: srcErr, data: srcData } = await supabase
           .from("event_sources")
-          .insert({
-            event_id: eventId,
+          .upsert({
             canonical_url: urlCanon,
             canonical_url_hash: urlHash,
             source_name: article.source_name,
             registrable_domain: new URL(urlCanon).hostname,
             title: article.title,
             source_date: article.published_at,
-            is_primary: true
-          });
+            is_primary: true,
+            event_id: eventId  // THE CRITICAL LINK
+          }, { onConflict: 'canonical_url_hash' });
 
-        if (!srcErr) {
-          totalInserted++;
-          console.log(`[Orchestrator] Inserted event: ${article.title.slice(0, 60)}...`);
+        if (srcErr) {
+          console.error(`[Source] Upsert error for ${b.name}:`, srcErr);
         } else {
-          console.error(`[Source] Insert error for ${b.name}:`, srcErr);
+          totalInserted++;
+          console.log(`[Orchestrator] Linked source to event: ${article.title.slice(0, 60)}... (eventId=${eventId.slice(0, 8)})`);
         }
       }
     }
