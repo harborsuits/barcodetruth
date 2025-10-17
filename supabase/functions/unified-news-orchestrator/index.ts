@@ -300,7 +300,7 @@ Deno.serve(async (req) => {
             event_id: eventId,
             brand_id: b.id,
             event_date: article.published_at,
-            occurred_at: article.published_at,
+            // occurred_at is auto-generated from event_date
             category: article.category,
             verification: "corroborated",
             title: article.title.slice(0, 512),
