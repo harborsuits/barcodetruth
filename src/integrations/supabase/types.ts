@@ -2858,6 +2858,7 @@ export type Database = {
         Row: {
           brand_id: string | null
           events_30d: number | null
+          events_365d: number | null
           events_7d: number | null
           independent_sources: number | null
           last_event_at: string | null
