@@ -591,8 +591,8 @@ export const BrandDetail = () => {
                 )}
               </div>
               
-              {/* Trust Indicators */}
-              {proofData?.breakdown && (
+              {/* Trust Indicators - only show for verified brands */}
+              {proofData?.breakdown && isVerifiedBrand(brand) && (
                 <div className="pt-4 border-t">
                   <TrustIndicators
                     confidence={proofData.totals.confidence}
@@ -632,8 +632,8 @@ export const BrandDetail = () => {
           </CardContent>
         </Card>
 
-        {/* Score Breakdown with transparency */}
-        {proofData?.breakdown && (
+        {/* Score Breakdown - only show for verified brands with real data */}
+        {proofData?.breakdown && isVerifiedBrand(brand) ? (
           <>
             {showParent && parentRollup?.parent && (
               <Card className="border-primary/50">
@@ -681,6 +681,20 @@ export const BrandDetail = () => {
               blocks={proofData.breakdown} 
             />
           </>
+        ) : (
+          <Card>
+            <CardContent className="py-8 text-center space-y-3">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted">
+                <AlertCircle className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="font-semibold">No verified data yet</h3>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                  This brand is being monitored but hasn't accumulated sufficient verified evidence from official sources yet. Check back soon for detailed scores.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Recent events timeline */}
