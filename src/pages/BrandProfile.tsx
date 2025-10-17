@@ -246,9 +246,29 @@ export default function BrandProfile() {
                 {data.ownership?.upstream && data.ownership.upstream.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
                     {data.ownership.upstream.map((o, i) => (
-                      <Badge key={i} variant="outline" className="text-xs gap-1">
+                      <Badge 
+                        key={i} 
+                        variant="outline" 
+                        className="text-xs gap-1 cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => navigate(`/brand/${o.brand_id}`)}
+                      >
                         <Building2 className="h-3 w-3" />
-                        {o.relationship.replace('_', ' ')} {o.brand_name}
+                        {o.relationship.replace('_', ' ')} • {o.brand_name || o.brand_id.slice(0, 8)}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                {data.ownership?.downstream && data.ownership.downstream.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {data.ownership.downstream.map((o, i) => (
+                      <Badge 
+                        key={i} 
+                        variant="secondary" 
+                        className="text-xs gap-1 cursor-pointer hover:bg-muted transition-colors"
+                        onClick={() => navigate(`/brand/${o.brand_id}`)}
+                      >
+                        <Building2 className="h-3 w-3" />
+                        owns • {o.brand_name || o.brand_id.slice(0, 8)}
                       </Badge>
                     ))}
                   </div>
@@ -271,7 +291,7 @@ export default function BrandProfile() {
                 )}
                 
                 {/* Wikipedia description */}
-                {data.brand.description && (
+                {data.brand.description ? (
                   <div className="mt-3 text-sm text-muted-foreground leading-relaxed">
                     <p>{data.brand.description}</p>
                     {data.brand.description_source === 'wikipedia' && (
@@ -285,19 +305,32 @@ export default function BrandProfile() {
                       </a>
                     )}
                   </div>
+                ) : (
+                  <div className="mt-3 text-sm text-muted-foreground italic flex items-center gap-2">
+                    <div className="animate-pulse">●</div>
+                    <span>Auto-enriching summary from Wikipedia...</span>
+                  </div>
                 )}
               </div>
               <div className="text-right flex-shrink-0">
                 <div className="text-5xl font-bold">
                   {displayScore !== null && displayScore !== undefined ? Math.round(displayScore) : '—'}
                 </div>
-                <div className="text-xs text-muted-foreground mt-1">
+                <div className="text-xs text-muted-foreground mt-1 flex flex-col gap-1">
                   {personalizedScore ? (
                     <span className="text-primary font-medium">Your personalized score</span>
                   ) : data.score?.updated_at ? (
                     `Updated ${formatDistanceToNow(new Date(data.score.updated_at), { addSuffix: true })}`
                   ) : (
                     'Not scored yet'
+                  )}
+                  {/* Trend indicators */}
+                  {coverage.events_30d > 0 && coverage.events_90d > 0 && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground">
+                        Trend: {coverage.events_30d} (30d) • {coverage.events_90d - coverage.events_30d} (60-90d)
+                      </span>
+                    </div>
                   )}
                 </div>
               </div>

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Activity, AlertTriangle, Clock, XCircle, CheckCircle } from "lucide-react";
 import { Helmet } from "react-helmet";
+import { formatDistanceToNow } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -76,6 +77,14 @@ interface HealthMetrics {
   };
 }
 
+interface QueueHealth {
+  ready_to_process: number;
+  total_pending: number;
+  currently_processing: number;
+  failed_last_hour: number;
+  oldest_pending: string | null;
+}
+
 export default function AdminHealth() {
   const [loading, setLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -84,6 +93,7 @@ export default function AdminHealth() {
   const [showQaModal, setShowQaModal] = useState(false);
   const [healthMetrics, setHealthMetrics] = useState<HealthMetrics | null>(null);
   const [healthLoading, setHealthLoading] = useState(false);
+  const [queueHealth, setQueueHealth] = useState<QueueHealth | null>(null);
 
   useEffect(() => {
     checkAdminAndFetch();
@@ -113,6 +123,16 @@ export default function AdminHealth() {
 
       if (error) throw error;
       setData(data);
+
+      // Fetch queue health using raw query (view not in types yet)
+      const { data: queueRows, error: queueError } = await supabase
+        .from('queue_health' as any)
+        .select('*')
+        .limit(1);
+      
+      if (!queueError && queueRows && queueRows.length > 0) {
+        setQueueHealth(queueRows[0] as unknown as QueueHealth);
+      }
     } catch (e: any) {
       console.error("Health fetch error:", e);
       toast.error(e.message || "Failed to load health data");
@@ -384,6 +404,47 @@ export default function AdminHealth() {
             </>
           )}
         </Card>
+
+        {/* Queue Health Status */}
+        {queueHealth && (
+          <Card className="p-6 border-2">
+            <h3 className="text-lg font-semibold mb-4">Background Queue</h3>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-green-600 dark:text-green-400">
+                  {queueHealth.ready_to_process}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">Ready to Process</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                  {queueHealth.total_pending}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">Total Pending</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
+                  {queueHealth.currently_processing}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">Processing Now</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-red-600 dark:text-red-400">
+                  {queueHealth.failed_last_hour}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">Failed (1h)</div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm font-mono text-muted-foreground">
+                  {queueHealth.oldest_pending 
+                    ? formatDistanceToNow(new Date(queueHealth.oldest_pending), { addSuffix: true })
+                    : '—'}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">Oldest Pending</div>
+              </div>
+            </div>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="p-6">
