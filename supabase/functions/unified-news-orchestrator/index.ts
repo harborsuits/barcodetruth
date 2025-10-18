@@ -49,6 +49,34 @@ function hashToUuid(hash: string): string {
   return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
 }
 
+// Orientation & impact calculation (-5 to +5)
+function orientationImpact(title: string, category: string): number {
+  const t = title.toLowerCase();
+  const bad = /\b(violation|lawsuit|fine|penalty|recall|toxic|spill|boycott|strike|layoff|probe|investigation|ban|citation|sued|charged|complaint|illegal|unsafe)\b/;
+  const good = /\b(award|recognition|certification|sustainab|donation|volunteer|partnership|initiative|improv(e|ement)|honored|commend|praised)\b/;
+  if (bad.test(t)) return -3;
+  if (good.test(t)) return +2;
+  return 0; // mixed/unknown
+}
+
+// Verification weight multiplier
+function verificationWeight(v?: string): number {
+  if (v === 'official') return 1.4;
+  if (v === 'corroborated') return 1.15;
+  return 1.0; // reported/unverified
+}
+
+// Recency weight multiplier
+function recencyWeight(isoDate: string): number {
+  const d = new Date(isoDate).getTime();
+  const age = Date.now() - d;
+  const day = 86400000;
+  if (age <= 30*day)  return 1.0;
+  if (age <= 90*day)  return 0.7;
+  if (age <= 365*day) return 0.4;
+  return 0.2;
+}
+
 // Enhanced categorization with priority: labor > environment > politics > social
 function categorize(title: string, text: string, urlPath: string): "labor" | "environment" | "politics" | "social" {
   const combined = `${title} ${text} ${urlPath}`.toLowerCase();
@@ -555,6 +583,19 @@ Deno.serve(async (req) => {
 
         console.log(`[Orchestrator] Processing article for ${b.name}: ${article.title.slice(0, 50)}... eventId=${eventId.slice(0, 8)}, relevance=${relevance.score}`);
 
+        // Calculate impact for this article
+        const baseImpact = orientationImpact(article.title, article.category);
+        const vWeight = verificationWeight('reported'); // Start as reported, upgrade after corroboration
+        const rWeight = recencyWeight(article.published_at);
+        const finalImpact = Math.round(baseImpact * vWeight * rWeight);
+        const confidence = Math.round(70 * rWeight * (vWeight / 1.4));
+        
+        // Determine if it's a press release
+        const isPressRelease = b.newsroom_domains?.some(d => domain.includes(d)) || false;
+        
+        // Determine orientation from impact
+        const orientation = baseImpact < -1 ? 'negative' : (baseImpact > 1 ? 'positive' : 'mixed');
+
         // 1) Upsert brand_events first (so FK exists)
         const { error: evErr } = await supabase
           .from("brand_events")
@@ -563,12 +604,20 @@ Deno.serve(async (req) => {
             brand_id: b.id,
             event_date: article.published_at,
             category: article.category,
-            verification: "corroborated",
+            verification: "reported",
             title: article.title.slice(0, 512),
             description: article.summary.slice(0, 1000),
             relevance_score: relevance.score,
             disambiguation_reason: relevance.reason || null,
-            is_test: false
+            is_test: false,
+            orientation: orientation,
+            impact_confidence: confidence,
+            is_press_release: isPressRelease,
+            // Set impact for the specific category
+            impact_labor: article.category === 'labor' ? finalImpact : 0,
+            impact_environment: article.category === 'environment' ? finalImpact : 0,
+            impact_politics: article.category === 'politics' ? finalImpact : 0,
+            impact_social: article.category === 'social' ? finalImpact : 0,
           }, { onConflict: 'event_id' });
 
         if (evErr) {

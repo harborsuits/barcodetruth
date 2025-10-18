@@ -421,10 +421,12 @@ export type Database = {
           disambiguation_reason: string | null
           event_date: string | null
           event_id: string
+          impact_confidence: number | null
           impact_environment: number | null
           impact_labor: number | null
           impact_politics: number | null
           impact_social: number | null
+          is_press_release: boolean | null
           is_test: boolean
           jurisdiction: string | null
           occurred_at: string | null
@@ -454,10 +456,12 @@ export type Database = {
           disambiguation_reason?: string | null
           event_date?: string | null
           event_id?: string
+          impact_confidence?: number | null
           impact_environment?: number | null
           impact_labor?: number | null
           impact_politics?: number | null
           impact_social?: number | null
+          is_press_release?: boolean | null
           is_test?: boolean
           jurisdiction?: string | null
           occurred_at?: string | null
@@ -489,10 +493,12 @@ export type Database = {
           disambiguation_reason?: string | null
           event_date?: string | null
           event_id?: string
+          impact_confidence?: number | null
           impact_environment?: number | null
           impact_labor?: number | null
           impact_politics?: number | null
           impact_social?: number | null
+          is_press_release?: boolean | null
           is_test?: boolean
           jurisdiction?: string | null
           occurred_at?: string | null
@@ -3427,6 +3433,17 @@ export type Database = {
       cleanup_old_notification_logs: {
         Args: Record<PropertyKey, never>
         Returns: number
+      }
+      compute_brand_score: {
+        Args: { p_brand: string }
+        Returns: {
+          brand_id: string
+          score: number
+          score_environment: number
+          score_labor: number
+          score_politics: number
+          score_social: number
+        }[]
       }
       get_brands_needing_scores: {
         Args: Record<PropertyKey, never>
