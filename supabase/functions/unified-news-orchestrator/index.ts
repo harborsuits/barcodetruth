@@ -58,15 +58,50 @@ function nonAsciiRatio(s: string): number {
 function scoreRelevance(title: string, body: string, brand: Brand): number {
   const ALIASES = [brand.name, ...(brand.aliases ?? [])];
   const aliasREs = ALIASES.map(n => new RegExp(`\\b${n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\b`, 'i'));
+  
+  // Hard exclusions for disambiguation
   const NEGATE = [
-    /\bAttorney General Mills\b/i,
-    /\bGeneral Mill(s)?\b(?!\s(Inc|Foods|Company))/i
+    /\bAttorney General Mills?\b/i,
+    /\bGeneral Mills?\b(?!\s*(Inc|Foods|Company|brand|cereal))/i,
+    /\bGeneral\s+of\s+the\s+Army\s+Mills?\b/i,
+    /\bGovernor\s+Mills?\b/i,
+    /\bMills?\s+College\b/i,
+    /\bMills?\s+University\b/i
   ];
+  
+  // Business context cues (requires at least one)
+  const BUSINESS_CONTEXT = /\b(company|brand|factory|plant|cereal|yogurt|Cheerios|food|product|earnings|stock|CEO|revenue|partnership|acquisition|recall|supply|manufacturer|corporation|business|industry|market|sales|profit)\b/i;
+  
+  // Corporate domain whitelist
+  const CORPORATE_DOMAINS = ['reuters', 'bloomberg', 'yahoo', 'cnbc', 'foodbusinessnews', 'marketwatch', 'guardian', 'wsj', 'ft.com', 'businessinsider'];
+  
+  // Check for hard negations first
+  if (NEGATE.some(re => re.test(title + ' ' + body))) {
+    return 0;
+  }
 
   let s = 0;
   if (aliasREs.some(re => re.test(title))) s += 8;                  // title hit
   if (aliasREs.some(re => re.test(body.slice(0, 300)))) s += 5;     // early body hit
-  if (NEGATE.some(re => re.test(title + ' ' + body))) s -= 8;        // disambig
+  
+  // Bonus for business context
+  if (BUSINESS_CONTEXT.test(title + ' ' + body)) {
+    s += 4;
+  } else {
+    // Heavy penalty if no business context
+    s -= 6;
+  }
+  
+  // Small bonus for corporate domains
+  try {
+    const url = new URL(title.includes('http') ? title : body);
+    if (CORPORATE_DOMAINS.some(d => url.hostname.includes(d))) {
+      s += 1;
+    }
+  } catch {
+    // Ignore URL parsing errors
+  }
+  
   return Math.max(0, Math.min(20, s));
 }
 
@@ -503,7 +538,7 @@ Deno.serve(async (req) => {
         
         // Score relevance and filter noise
         const rel = scoreRelevance(title, body, b);
-        if (rel < 6) {
+        if (rel < 8) {
           console.log(`[orchestrator] Skipping low-relevance article (rel=${rel}): ${title.slice(0, 80)}`);
           totalSkipped++;
           continue; // DROP low relevance noise
