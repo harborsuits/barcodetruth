@@ -49,6 +49,11 @@ function hashToUuid(hash: string): string {
   return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
 }
 
+// Language filter: detect non-English by character ratio
+function nonAsciiRatio(s: string): number {
+  return (s.match(/[^\x00-\x7F]/g)?.length ?? 0) / Math.max(1, s.length);
+}
+
 // ---- relevance -------------------------------------------------------------
 function scoreRelevance(title: string, body: string, brand: Brand): number {
   const ALIASES = [brand.name, ...(brand.aliases ?? [])];
@@ -68,8 +73,8 @@ function scoreRelevance(title: string, body: string, brand: Brand): number {
 // ---- category --------------------------------------------------------------
 const CAT = {
   labor:       /\b(strike|walkout|union|organizing|collective\s+bargain|overtime|wage|layoff|retention|harass|discrimin|OSHA)\b/i,
-  environment: /\b(EPA|emission|methane|spill|toxic|recall|contaminat|pollut|sustainab|carbon|deforest|waste|water|air)\b/i,
-  politics:    /\b(FTC|DOJ|SEC|Congress|Senate|tariff|sanction|attorney\s+general|bill|rulemaking|regulat)\b/i,
+  environment: /\b(EPA|emission|methane|spill|toxic|recall|contaminat|pollut|sustainab|carbon|deforest|waste|water|air|recall(s)?\b.*(lot|batch|product|device|drug|food)|fda|class\s*i+|medical device report|adverse event)\b/i,
+  politics:    /\b(FTC|DOJ|SEC|Congress|Senate|tariff|sanction|attorney\s+general|bill|rulemaking|regulat|settlement|class action|jury verdict|multidistrict litigation|mdL)\b/i,
   social:      /\b(ad\s+campaign|marketing|donation|community|partnership|award|sponsor|launch|recipe|taste\s+test)\b/i,
 };
 
@@ -489,6 +494,13 @@ Deno.serve(async (req) => {
         const urlCanon = canonicalize(article.url);
         const urlHash = await sha1(urlCanon);
         
+        // Language filter: skip non-English articles
+        if (nonAsciiRatio(title) > 0.35) {
+          totalSkipped++;
+          console.log(`[orchestrator] Skipped non-English: ${title.substring(0, 60)}`);
+          continue;
+        }
+        
         // Score relevance and filter noise
         const rel = scoreRelevance(title, body, b);
         if (rel < 6) {
@@ -509,7 +521,14 @@ Deno.serve(async (req) => {
         const baseImpact = orientationImpact(title);
         const vW = verificationWeight('unverified');
         const rW = recencyWeight(occurred);
-        const finalImpact = Math.round(baseImpact * vW * rW);
+        let finalImpact = Math.round(baseImpact * vW * rW);
+        const isPressRelease = /(^|\.)generalmills\.com$/i.test(url.hostname);
+        
+        // Dampen press releases: cap positive impact
+        if (isPressRelease && finalImpact > 1) {
+          finalImpact = 1;
+        }
+        
         const confidence = Math.round(70 * rW * (vW / 1.4));
         
         // Determine orientation
@@ -534,7 +553,7 @@ Deno.serve(async (req) => {
             orientation,
             relevance_score: rel,
             impact_confidence: confidence,
-            is_press_release: /(^|\.)generalmills\.com$/i.test(url.hostname),
+            is_press_release: isPressRelease,
             impact_labor:       category === 'labor'       ? finalImpact : 0,
             impact_environment: category === 'environment' ? finalImpact : 0,
             impact_politics:    category === 'politics'    ? finalImpact : 0,

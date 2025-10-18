@@ -140,18 +140,15 @@ function getVerificationBadge(v?: Verification, verified?: boolean) {
   if (v === "corroborated") {
     return {
       label: "Corroborated",
-      className: "bg-blue-600/10 text-blue-700 border border-blue-600/20",
-      tooltip: "Corroborated: Reported by ≥2 credible, independent sources"
+      className: "bg-blue-600 text-white",
+      tooltip: "Corroborated: Reported by 2+ independent sources"
     };
   }
-  if (v === "unverified") {
-    return {
-      label: "Reported",
-      className: "bg-neutral-600/10 text-neutral-700 border border-neutral-600/20",
-      tooltip: "Reported: Sourced from a reputable news outlet; awaiting agency confirmation or corroboration"
-    };
-  }
-  return null;
+  return {
+    label: "Unverified",
+    className: "bg-gray-500 text-white",
+    tooltip: "Unverified: From a single source, not yet corroborated"
+  };
 }
 
 interface EventCardProps {
