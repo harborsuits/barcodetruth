@@ -21,7 +21,6 @@ const BrandRedirect = lazyNamed(() => import("./components/routes/BrandRedirect"
 const Home = lazyNamed(() => import("./pages/Home"), "Home");
 const Search = lazyNamed(() => import("./pages/Search"), "default");
 const Discover = lazyNamed(() => import("./pages/Discover"), "default");
-const BrandDetail = lazyNamed(() => import("./pages/BrandDetail"), "BrandDetail");
 const BrandProfile = lazyNamed(() => import("./pages/BrandProfile"), "default");
 const BrandProof = lazyNamed(() => import("./pages/BrandProof"), "default");
 const Scan = lazyNamed(() => import("./pages/Scan"), "Scan");
@@ -117,7 +116,7 @@ const App = () => {
               <ProtectedRoute>
                 <RouteErrorBoundary>
                   <Suspense fallback={<RouteFallback label="Loading brand…" />}>
-                    <BrandDetail />
+                    <BrandProfile />
                   </Suspense>
                 </RouteErrorBoundary>
               </ProtectedRoute>

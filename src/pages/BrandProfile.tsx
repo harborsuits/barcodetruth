@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { BrandWikiEnrichment } from '@/components/BrandWikiEnrichment';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -211,6 +212,7 @@ export default function BrandProfile() {
 
   return (
     <div className="min-h-screen bg-background">
+      <BrandWikiEnrichment brandId={actualId!} hasDescription={!!data.brand.description} />
       <header className="sticky top-0 z-10 bg-card border-b">
         <div className="container max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
