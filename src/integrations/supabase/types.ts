@@ -2536,11 +2536,13 @@ export type Database = {
           domain_owner: string | null
           event_id: string | null
           id: string | null
+          occurred_at: string | null
           registrable_domain: string | null
           snippet: string | null
           source_date: string | null
           source_name: string | null
           source_url: string | null
+          title: string | null
           verification: string | null
         }
         Relationships: [
@@ -2625,11 +2627,13 @@ export type Database = {
           domain_owner: string | null
           event_id: string | null
           id: string | null
+          occurred_at: string | null
           registrable_domain: string | null
           snippet: string | null
           source_date: string | null
           source_name: string | null
           source_url: string | null
+          title: string | null
           verification: string | null
         }
         Relationships: [

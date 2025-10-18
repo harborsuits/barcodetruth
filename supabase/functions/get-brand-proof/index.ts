@@ -97,19 +97,22 @@ Deno.serve(async (req) => {
     };
     
     if (userId) {
-      const { data: prefs } = await supabase
-        .from('user_preferences')
-        .select('w_labor, w_environment, w_politics, w_social')
-        .eq('user_id', userId)
-        .maybeSingle();
-      
-      if (prefs) {
-        userWeights = {
-          labor: prefs.w_labor || 1.0,
-          environment: prefs.w_environment || 1.0,
-          politics: prefs.w_politics || 1.0,
-          social: prefs.w_social || 1.0
-        };
+      try {
+        const { data: prefs } = await supabase
+          .from('user_preferences')
+          .select('w_labor, w_environment, w_politics, w_social')
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (prefs) {
+          userWeights = {
+            labor: prefs.w_labor || 1.0,
+            environment: prefs.w_environment || 1.0,
+            politics: prefs.w_politics || 1.0,
+            social: prefs.w_social || 1.0
+          };
+        }
+      } catch (_) {
+        // preferences not available; keep defaults
       }
     }
     
@@ -133,7 +136,7 @@ Deno.serve(async (req) => {
       .from('brand_evidence_view')
       .select('*')
       .eq('brand_id', brandId)
-      .in('score_component', components)
+      .in('category', components)
       .limit(500);
 
     const { data: dedupEvidence } = await supabase
@@ -157,12 +160,12 @@ Deno.serve(async (req) => {
       id: row.evidence_id ?? row.id,
       event_id: row.event_id,
       brand_id: row.brand_id,
-      category: row.category ?? row.score_component,
+      category: row.category,
       title: row.title || 'Untitled event',
       occurred_at: row.occurred_at,
       source_name: row.source_name || 'Unknown Source',
       source_url: row.source_url,
-      canonical_url: row.canonical_url,
+      canonical_url: row.source_url,
       archive_url: row.archive_url,
       source_date: row.source_date,
       snippet: row.snippet,
@@ -179,7 +182,7 @@ Deno.serve(async (req) => {
       social: [] 
     };
     (fullEvidence || []).forEach((row: any) => {
-      const comp = row.score_component;
+      const comp = row.category;
       if (fullByCat[comp]) fullByCat[comp].push(toItem(row));
     });
 
