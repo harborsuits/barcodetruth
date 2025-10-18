@@ -327,16 +327,17 @@ Deno.serve(async (req) => {
 
     if (histErr) console.warn("[baseline] Could not fetch historical events:", histErr);
 
-    // Per-category baseline logic
+    // Per-category baseline logic - default to neutral 50
     const cats: Cat[] = ["labor","environment","politics","social"];
     const baselines: Record<Cat, { value: number; reason: string }> = {
-      labor: { value: 50, reason: "No historical labor data" },
-      environment: { value: 50, reason: "No historical environment data" },
-      politics: { value: 50, reason: "No historical politics data" },
-      social: { value: 50, reason: "No historical social data" }
+      labor: { value: 50, reason: "Default baseline (insufficient historical data)" },
+      environment: { value: 50, reason: "Default baseline (insufficient historical data)" },
+      politics: { value: 50, reason: "Default baseline (insufficient historical data)" },
+      social: { value: 50, reason: "Default baseline (insufficient historical data)" }
     };
 
-    if (histEvents && histEvents.length > 0) {
+    // Only adjust baselines if we have meaningful historical data
+    if (histEvents && histEvents.length > 2) {
       // Politics: FEC party tilt (actual donor breakdown)
       baselines.politics = politicsBaselineFromFEC(histEvents);
 
@@ -372,12 +373,20 @@ Deno.serve(async (req) => {
       }
     }
     
-    // Social: GDELT tone baseline (fetch once, reuse for monitoring)
+    // Social: GDELT tone baseline (optional - fail gracefully)
     let gdeltDocCount = 0;
-    const gdeltData = await fetchGdeltTone(brandName);
-    gdeltDocCount = gdeltData.docCount;
-    baselines.social = socialBaselineFromGdelt(gdeltData.medianTone, gdeltData.docCount);
-    console.info('[gdelt]', { brand: brandName, medianTone: gdeltData.medianTone, docCount: gdeltData.docCount, mappedScore: baselines.social.value });
+    try {
+      const gdeltData = await fetchGdeltTone(brandName);
+      gdeltDocCount = gdeltData.docCount;
+      const gdeltBaseline = socialBaselineFromGdelt(gdeltData.medianTone, gdeltData.docCount);
+      // Only use GDELT if we have sufficient data
+      if (gdeltData.docCount >= 30) {
+        baselines.social = gdeltBaseline;
+      }
+      console.info('[gdelt]', { brand: brandName, medianTone: gdeltData.medianTone, docCount: gdeltData.docCount, mappedScore: gdeltBaseline.value });
+    } catch (e) {
+      console.warn('[gdelt] Failed to fetch GDELT data, using default baseline:', e);
+    }
 
     // Initialize per-category scores from calculated baselines
     const totals: Record<Cat, number> = {

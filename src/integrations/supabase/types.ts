@@ -2298,6 +2298,11 @@ export type Database = {
           updated_at: string
           user_id: string
           value_weights: Json | null
+          w_environment: number | null
+          w_labor: number | null
+          w_politics: number | null
+          w_social: number | null
+          w_verified: number | null
         }
         Insert: {
           created_at?: string
@@ -2310,6 +2315,11 @@ export type Database = {
           updated_at?: string
           user_id: string
           value_weights?: Json | null
+          w_environment?: number | null
+          w_labor?: number | null
+          w_politics?: number | null
+          w_social?: number | null
+          w_verified?: number | null
         }
         Update: {
           created_at?: string
@@ -2322,6 +2332,11 @@ export type Database = {
           updated_at?: string
           user_id?: string
           value_weights?: Json | null
+          w_environment?: number | null
+          w_labor?: number | null
+          w_politics?: number | null
+          w_social?: number | null
+          w_verified?: number | null
         }
         Relationships: []
       }
