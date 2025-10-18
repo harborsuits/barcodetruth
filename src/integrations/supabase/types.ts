@@ -3413,6 +3413,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
+      get_brands_needing_scores: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          event_count: number
+          id: string
+          name: string
+        }[]
+      }
       get_corroboration_clusters: {
         Args: {
           min_credibility?: number
