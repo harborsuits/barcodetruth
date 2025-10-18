@@ -314,6 +314,64 @@ async function fetchGNews(apiKey: string, brandName: string, daysBack = 7): Prom
   });
 }
 
+async function fetchMediastack(apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
+  const searchQuery = `${brandName} ${QUERY_TERMS}`;
+  const fromDate = new Date();
+  fromDate.setDate(fromDate.getDate() - daysBack);
+  const url = new URL("http://api.mediastack.com/v1/news");
+  url.searchParams.set("access_key", apiKey);
+  url.searchParams.set("keywords", searchQuery);
+  url.searchParams.set("languages", "en");
+  url.searchParams.set("sort", "published_desc");
+  url.searchParams.set("limit", "10");
+  url.searchParams.set("date", fromDate.toISOString().split('T')[0]);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Mediastack: ${res.status}`);
+  const data = await res.json();
+  const articles = data.data || [];
+  return articles.map((a: any) => {
+    const urlObj = new URL(a.url);
+    const title = a.title;
+    const text = a.description || "";
+    return {
+      title,
+      summary: text,
+      url: a.url,
+      published_at: a.published_at,
+      source_name: a.source || "Mediastack",
+      category: categorize(title, text, urlObj.pathname)
+    };
+  });
+}
+
+async function fetchCurrents(apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
+  const searchQuery = `${brandName} ${QUERY_TERMS}`;
+  const fromDate = new Date();
+  fromDate.setDate(fromDate.getDate() - daysBack);
+  const url = new URL("https://api.currentsapi.services/v1/search");
+  url.searchParams.set("apiKey", apiKey);
+  url.searchParams.set("keywords", searchQuery);
+  url.searchParams.set("language", "en");
+  url.searchParams.set("start_date", fromDate.toISOString());
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Currents: ${res.status}`);
+  const data = await res.json();
+  const articles = data.news || [];
+  return articles.map((a: any) => {
+    const urlObj = new URL(a.url);
+    const title = a.title;
+    const text = a.description || "";
+    return {
+      title,
+      summary: text,
+      url: a.url,
+      published_at: a.published,
+      source_name: a.author || "Currents",
+      category: categorize(title, text, urlObj.pathname)
+    };
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -387,8 +445,10 @@ Deno.serve(async (req) => {
     const newsApiKey = Deno.env.get("NEWSAPI_KEY");
     const nytKey = Deno.env.get("NYT_API_KEY");
     const gnewsKey = Deno.env.get("GNEWS_API_KEY");
+    const mediastackKey = Deno.env.get("MEDIASTACK_API_KEY");
+    const currentsKey = Deno.env.get("CURRENTS_API_KEY");
 
-    console.log(`[Orchestrator] API Keys available - Guardian: ${!!guardianKey}, NewsAPI: ${!!newsApiKey}, NYT: ${!!nytKey}, GNews: ${!!gnewsKey}`);
+    console.log(`[Orchestrator] API Keys available - Guardian: ${!!guardianKey}, NewsAPI: ${!!newsApiKey}, NYT: ${!!nytKey}, GNews: ${!!gnewsKey}, Mediastack: ${!!mediastackKey}, Currents: ${!!currentsKey}`);
 
     let totalInserted = 0;
     let totalSkipped = 0;
@@ -443,6 +503,26 @@ Deno.serve(async (req) => {
           console.log(`[GNews] Fetched ${gnewsArticles.length} articles for ${b.name}`);
         } catch (e) {
           console.error(`[GNews] Error for ${b.name}:`, e);
+        }
+      }
+
+      if (mediastackKey) {
+        try {
+          const mediastackArticles = await fetchMediastack(mediastackKey, b.name, daysBack);
+          allArticles.push(...mediastackArticles);
+          console.log(`[Mediastack] Fetched ${mediastackArticles.length} articles for ${b.name}`);
+        } catch (e) {
+          console.error(`[Mediastack] Error for ${b.name}:`, e);
+        }
+      }
+
+      if (currentsKey) {
+        try {
+          const currentsArticles = await fetchCurrents(currentsKey, b.name, daysBack);
+          allArticles.push(...currentsArticles);
+          console.log(`[Currents] Fetched ${currentsArticles.length} articles for ${b.name}`);
+        } catch (e) {
+          console.error(`[Currents] Error for ${b.name}:`, e);
         }
       }
 

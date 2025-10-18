@@ -1,7 +1,7 @@
 # News Ingestion Setup
 
 ## Overview
-The news ingestion system fetches articles from 4 sources (Guardian, NewsAPI, NYT, GNews) and creates events in `brand_events` with automatic deduplication, severity scoring, and push notifications.
+The news ingestion system fetches articles from 6 sources (Guardian, NewsAPI, NYT, GNews, Mediastack, Currents API) and creates events in `brand_events` with automatic deduplication, severity scoring, and push notifications.
 
 ## Edge Function
 
@@ -26,6 +26,8 @@ All stored as Supabase secrets:
 - `NEWSAPI_KEY` - NewsAPI.org (100 calls/day free, 24h delay)
 - `NYT_API_KEY` - NYT Developer API (500 calls/day free)
 - `GNEWS_API_KEY` - GNews.io (100 calls/day free, 12h delay)
+- `MEDIASTACK_API_KEY` - Mediastack.com (500 calls/month free tier)
+- `CURRENTS_API_KEY` - CurrentsAPI.services (600 calls/month free tier)
 
 ## Cron Scheduling
 
@@ -82,6 +84,8 @@ Expected output:
 - NewsAPI: 100/day ÷ 24 = ~4/hour → 4 brands max
 - NYT: 500/day ÷ 24 = ~20/hour → 20 brands max
 - GNews: 100/day ÷ 24 = ~4/hour → 4 brands max
+- Mediastack: 500/month ÷ 720 = ~0.7/hour → 1-2 brands max (free tier)
+- Currents: 600/month ÷ 720 = ~0.8/hour → 1-2 brands max (free tier)
 
 **Recommended**: Start with 2 brands, then scale based on API response times and quota consumption.
 

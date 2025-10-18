@@ -286,6 +286,96 @@ async function fetchGNews(apiKey: string, brandName: string): Promise<NewsArticl
   });
 }
 
+async function fetchMediastack(apiKey: string, brandName: string): Promise<NewsArticle[]> {
+  const query = [
+    "OSHA", "violation", "safety", "workplace", "worker", "union", "wage", "discrimination", 
+    "harassment", "injury", "fatality", "labor", "employee", "fired", "layoff",
+    "EPA", "pollution", "emissions", "environmental", "toxic", "waste", "spill", 
+    "contamination", "climate", "sustainability", "fine", "penalty",
+    "lawsuit", "recall", "boycott", "scandal", "fraud", "deceptive", "settlement",
+    "consumer", "data breach", "privacy", "investigation",
+    "FEC", "donation", "lobbying", "PAC", "campaign", "political",
+    "allegation", "charged", "accused", "complaint", "regulatory"
+  ].join(" OR ");
+  
+  const searchQuery = `${brandName} ${query}`;
+  const url = new URL("http://api.mediastack.com/v1/news");
+  url.searchParams.set("access_key", apiKey);
+  url.searchParams.set("keywords", searchQuery);
+  url.searchParams.set("languages", "en");
+  url.searchParams.set("sort", "published_desc");
+  url.searchParams.set("limit", "10");
+
+  const response = await fetchWithTimeout(url.toString(), 8000);
+  if (!response.ok) {
+    if (response.status === 429) throw new Error("Mediastack rate limit exceeded");
+    throw new Error(`Mediastack API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const articles = data.data || [];
+
+  return articles.map((article: any) => {
+    const text = `${article.title} ${article.description || ""}`.toLowerCase();
+    const socialKeywords = ["lawsuit", "recall", "boycott", "protest", "scandal", "controversy", "discrimination"];
+    const category = socialKeywords.some(kw => text.includes(kw)) ? "social" : "general";
+
+    return {
+      title: article.title,
+      summary: article.description || "",
+      url: article.url,
+      published_at: article.published_at,
+      source_name: article.source || "Mediastack",
+      category,
+      raw_data: article,
+    };
+  });
+}
+
+async function fetchCurrents(apiKey: string, brandName: string): Promise<NewsArticle[]> {
+  const query = [
+    "OSHA", "violation", "safety", "workplace", "worker", "union", "wage", "discrimination", 
+    "harassment", "injury", "fatality", "labor", "employee", "fired", "layoff",
+    "EPA", "pollution", "emissions", "environmental", "toxic", "waste", "spill", 
+    "contamination", "climate", "sustainability", "fine", "penalty",
+    "lawsuit", "recall", "boycott", "scandal", "fraud", "deceptive", "settlement",
+    "consumer", "data breach", "privacy", "investigation",
+    "FEC", "donation", "lobbying", "PAC", "campaign", "political",
+    "allegation", "charged", "accused", "complaint", "regulatory"
+  ].join(" OR ");
+  
+  const searchQuery = `${brandName} ${query}`;
+  const url = new URL("https://api.currentsapi.services/v1/search");
+  url.searchParams.set("apiKey", apiKey);
+  url.searchParams.set("keywords", searchQuery);
+  url.searchParams.set("language", "en");
+
+  const response = await fetchWithTimeout(url.toString(), 8000);
+  if (!response.ok) {
+    if (response.status === 429) throw new Error("Currents API rate limit exceeded");
+    throw new Error(`Currents API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const articles = data.news || [];
+
+  return articles.map((article: any) => {
+    const text = `${article.title} ${article.description || ""}`.toLowerCase();
+    const socialKeywords = ["lawsuit", "recall", "boycott", "protest", "scandal", "controversy", "discrimination"];
+    const category = socialKeywords.some(kw => text.includes(kw)) ? "social" : "general";
+
+    return {
+      title: article.title,
+      summary: article.description || "",
+      url: article.url,
+      published_at: article.published,
+      source_name: article.author || "Currents",
+      category,
+      raw_data: article,
+    };
+  });
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -353,8 +443,10 @@ serve(async (req) => {
     const newsApiKey = Deno.env.get("NEWSAPI_KEY");
     const nytKey = Deno.env.get("NYT_API_KEY");
     const gnewsKey = Deno.env.get("GNEWS_API_KEY");
+    const mediastackKey = Deno.env.get("MEDIASTACK_API_KEY");
+    const currentsKey = Deno.env.get("CURRENTS_API_KEY");
 
-    if (!guardianKey && !newsApiKey && !nytKey && !gnewsKey) {
+    if (!guardianKey && !newsApiKey && !nytKey && !gnewsKey && !mediastackKey && !currentsKey) {
       return new Response(
         JSON.stringify({ error: "No news API keys configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -408,15 +500,27 @@ serve(async (req) => {
       }
     }
 
-    if (gnewsKey && !shouldSkipSource('gnews')) {
+    if (mediastackKey && !shouldSkipSource('mediastack')) {
       try {
-        const articles = await fetchGNews(gnewsKey, brand.name);
+        const articles = await fetchMediastack(mediastackKey, brand.name);
         const capped = articles.slice(0, MAX_PER_SOURCE);
         allArticles.push(...capped);
-        console.log(`[fetch-news-events] Fetched ${capped.length} from GNews${articles.length > MAX_PER_SOURCE ? ` (capped from ${articles.length})` : ''}`);
+        console.log(`[fetch-news-events] Fetched ${capped.length} from Mediastack${articles.length > MAX_PER_SOURCE ? ` (capped from ${articles.length})` : ''}`);
       } catch (err) {
-        incFail('gnews');
-        console.error(`[fetch-news-events] GNews error (${failures.get('gnews')} fails):`, err);
+        incFail('mediastack');
+        console.error(`[fetch-news-events] Mediastack error (${failures.get('mediastack')} fails):`, err);
+      }
+    }
+
+    if (currentsKey && !shouldSkipSource('currents')) {
+      try {
+        const articles = await fetchCurrents(currentsKey, brand.name);
+        const capped = articles.slice(0, MAX_PER_SOURCE);
+        allArticles.push(...capped);
+        console.log(`[fetch-news-events] Fetched ${capped.length} from Currents${articles.length > MAX_PER_SOURCE ? ` (capped from ${articles.length})` : ''}`);
+      } catch (err) {
+        incFail('currents');
+        console.error(`[fetch-news-events] Currents error (${failures.get('currents')} fails):`, err);
       }
     }
 

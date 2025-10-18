@@ -200,12 +200,108 @@ export class GNewsAdapter implements NewsSourceAdapter {
   }
 }
 
+// Mediastack adapter
+export class MediastackAdapter implements NewsSourceAdapter {
+  name = "Mediastack";
+  private apiKey: string;
+  private baseUrl = "http://api.mediastack.com/v1/news";
+
+  constructor(apiKey: string) {
+    this.apiKey = apiKey;
+  }
+
+  async fetch(query: string, brandName: string): Promise<NewsArticle[]> {
+    const searchQuery = `${brandName} ${query}`;
+    const url = new URL(this.baseUrl);
+    url.searchParams.set("access_key", this.apiKey);
+    url.searchParams.set("keywords", searchQuery);
+    url.searchParams.set("languages", "en");
+    url.searchParams.set("sort", "published_desc");
+    url.searchParams.set("limit", "10");
+
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+      if (response.status === 429) {
+        throw new Error("Mediastack rate limit exceeded");
+      }
+      throw new Error(`Mediastack API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const articles = data.data || [];
+
+    return articles.map((article: any) => ({
+      title: article.title,
+      summary: article.description || "",
+      url: article.url,
+      published_at: article.published_at,
+      source_name: article.source || "Mediastack",
+      category: this.categorizeArticle(article),
+      raw_data: article,
+    }));
+  }
+
+  private categorizeArticle(article: any): "social" | "general" {
+    const text = `${article.title} ${article.description || ""}`.toLowerCase();
+    const socialKeywords = ["lawsuit", "recall", "boycott", "protest", "scandal", "controversy", "discrimination"];
+    return socialKeywords.some(kw => text.includes(kw)) ? "social" : "general";
+  }
+}
+
+// Currents API adapter
+export class CurrentsAdapter implements NewsSourceAdapter {
+  name = "Currents";
+  private apiKey: string;
+  private baseUrl = "https://api.currentsapi.services/v1/search";
+
+  constructor(apiKey: string) {
+    this.apiKey = apiKey;
+  }
+
+  async fetch(query: string, brandName: string): Promise<NewsArticle[]> {
+    const searchQuery = `${brandName} ${query}`;
+    const url = new URL(this.baseUrl);
+    url.searchParams.set("apiKey", this.apiKey);
+    url.searchParams.set("keywords", searchQuery);
+    url.searchParams.set("language", "en");
+
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+      if (response.status === 429) {
+        throw new Error("Currents API rate limit exceeded");
+      }
+      throw new Error(`Currents API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const articles = data.news || [];
+
+    return articles.map((article: any) => ({
+      title: article.title,
+      summary: article.description || "",
+      url: article.url,
+      published_at: article.published,
+      source_name: article.author || "Currents",
+      category: this.categorizeArticle(article),
+      raw_data: article,
+    }));
+  }
+
+  private categorizeArticle(article: any): "social" | "general" {
+    const text = `${article.title} ${article.description || ""}`.toLowerCase();
+    const socialKeywords = ["lawsuit", "recall", "boycott", "protest", "scandal", "controversy", "discrimination"];
+    return socialKeywords.some(kw => text.includes(kw)) ? "social" : "general";
+  }
+}
+
 // Factory to create adapters
 export function createNewsAdapters(
   guardianKey?: string, 
   newsApiKey?: string, 
   nytKey?: string, 
-  gnewsKey?: string
+  gnewsKey?: string,
+  mediastackKey?: string,
+  currentsKey?: string
 ): NewsSourceAdapter[] {
   const adapters: NewsSourceAdapter[] = [];
   
@@ -223,6 +319,14 @@ export function createNewsAdapters(
   
   if (gnewsKey) {
     adapters.push(new GNewsAdapter(gnewsKey));
+  }
+
+  if (mediastackKey) {
+    adapters.push(new MediastackAdapter(mediastackKey));
+  }
+
+  if (currentsKey) {
+    adapters.push(new CurrentsAdapter(currentsKey));
   }
   
   return adapters;
