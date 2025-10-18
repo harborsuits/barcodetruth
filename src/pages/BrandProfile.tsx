@@ -28,7 +28,9 @@ type BrandProfile = {
     reason_json?: any | null 
   } | null;
   coverage?: {
-    events_30d: number; 
+    events_7d?: number;
+    events_30d: number;
+    events_90d?: number;
     events_365d: number;
     verified_rate: number; 
     independent_sources: number; 
@@ -196,9 +198,10 @@ export default function BrandProfile() {
 
   // Use personalized score if available, otherwise global score
   const displayScore = personalizedScore?.personalized_score ?? data.score?.score ?? null;
-  const score = data.score?.score ?? null;
   const coverage = data.coverage ?? {
+    events_7d: 0,
     events_30d: 0,
+    events_90d: 0,
     events_365d: 0,
     verified_rate: 0,
     independent_sources: 0,
@@ -341,13 +344,19 @@ export default function BrandProfile() {
         {/* Coverage chips */}
         <section className="flex flex-wrap gap-2">
           <Badge variant="outline" className="text-sm px-3 py-1">
+            7d: {coverage.events_7d ?? 0}
+          </Badge>
+          <Badge variant="outline" className="text-sm px-3 py-1">
             30d: {coverage.events_30d}
+          </Badge>
+          <Badge variant="outline" className="text-sm px-3 py-1">
+            90d: {coverage.events_90d ?? 0}
           </Badge>
           <Badge variant="outline" className="text-sm px-3 py-1">
             365d: {coverage.events_365d}
           </Badge>
           <Badge variant="outline" className="text-sm px-3 py-1">
-            Verified: {Math.round(coverage.verified_rate * 100)}%
+            Verified: {Math.round(coverage.verified_rate)}%
           </Badge>
           <Badge variant="outline" className="text-sm px-3 py-1">
             Sources: {coverage.independent_sources}

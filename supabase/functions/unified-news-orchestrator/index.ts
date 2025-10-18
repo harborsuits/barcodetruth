@@ -7,9 +7,9 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
-type Brand = { id: string; name: string };
+type Brand = { id: string; name: string; aliases: string[]; ticker: string | null; newsroom_domains: string[] };
 type GdeltItem = { url: string; title: string; seendate: string; domain?: string };
-type NewsArticle = { title: string; summary: string; url: string; published_at: string; source_name: string; category: "social" | "general" };
+type NewsArticle = { title: string; summary: string; url: string; published_at: string; source_name: string; category: "labor" | "environment" | "politics" | "social" };
 
 const QUERY_TERMS = [
   "OSHA", "violation", "safety", "workplace", "worker", "union", "wage", "discrimination",
@@ -49,24 +49,140 @@ function hashToUuid(hash: string): string {
   return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
 }
 
-// Categorize article into one of the 4 scored categories
-function categorize(text: string): "labor" | "environment" | "politics" | "social" {
-  const lower = text.toLowerCase();
+// Enhanced categorization with priority: labor > environment > politics > social
+function categorize(title: string, text: string, urlPath: string): "labor" | "environment" | "politics" | "social" {
+  const combined = `${title} ${text} ${urlPath}`.toLowerCase();
   
-  // Labor: workers, unions, wages, safety, OSHA
-  const laborKw = ["worker", "union", "wage", "salary", "osha", "labor", "employee", "strike", "overtime", "workplace safety", "injury", "fatality"];
-  if (laborKw.some(kw => lower.includes(kw))) return "labor";
+  // Labor: highest priority - worker safety, wages, unions, OSHA violations
+  const laborKw = [
+    /\b(strike|walkout|union|organizing|collective bargaining)\b/i,
+    /\b(wage|overtime|layoff|discrimination|harassment)\b/i,
+    /\b(osha|workplace safety|worker injury|labor violation)\b/i,
+    /\b(fired|terminated|wrongful termination|retaliation)\b/i
+  ];
+  if (laborKw.some(re => re.test(combined))) return "labor";
   
-  // Environment: pollution, emissions, EPA, climate, waste
-  const envKw = ["pollution", "epa", "emission", "climate", "waste", "toxic", "spill", "contamination", "environmental", "carbon", "green"];
-  if (envKw.some(kw => lower.includes(kw))) return "environment";
+  // Environment: second priority - EPA, pollution, emissions, recalls
+  const envKw = [
+    /\b(epa|emission|pollution|toxic|spill|contamination)\b/i,
+    /\b(environmental violation|carbon|methane|deforestation)\b/i,
+    /\b(recall.*(food|product)|sustainab|green energy)\b/i
+  ];
+  if (envKw.some(re => re.test(combined))) return "environment";
   
-  // Politics: donation, lobby, PAC, campaign, political
-  const polKw = ["donation", "lobby", "pac", "campaign", "political", "election", "congress", "senate", "fec"];
-  if (polKw.some(kw => lower.includes(kw))) return "politics";
+  // Politics: third priority - lobbying, donations, regulatory
+  const polKw = [
+    /\b(congress|senate|regulator|ftc|doj|bill|law)\b/i,
+    /\b(donation|lobby|pac|campaign|political contribution)\b/i,
+    /\b(tariff|sanction|attorney general|governor)\b/i
+  ];
+  if (polKw.some(re => re.test(combined))) return "politics";
   
-  // Social: lawsuit, recall, boycott, discrimination, scandal (default for most news)
+  // Social: default - general news, marketing, product launches
   return "social";
+}
+
+// Relevance scoring to filter out unrelated articles
+function wordBoundary(name: string): RegExp {
+  // Escape special regex characters in brand name
+  const escaped = name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  return new RegExp(`\\b${escaped}\\b`, 'i');
+}
+
+function scoreRelevance(
+  brand: Brand,
+  title: string,
+  text: string,
+  domain: string
+): { score: number; reason: string } {
+  let score = 0;
+  const reasons: string[] = [];
+  
+  // Build regex for brand name and aliases
+  const nameRE = wordBoundary(brand.name);
+  const aliasREs = (brand.aliases || []).map(a => wordBoundary(a));
+  const allREs = [nameRE, ...aliasREs];
+  
+  // Exact match in title (highest weight)
+  if (title && allREs.some(re => re.test(title))) {
+    score += 5;
+    reasons.push('title_match');
+  }
+  
+  // Match in first 300 chars (article lead)
+  const lead = text.slice(0, 300);
+  if (lead && allREs.some(re => re.test(lead))) {
+    score += 3;
+    reasons.push('lead_match');
+  }
+  
+  // Ticker mention alongside brand name
+  if (brand.ticker && text) {
+    const tickerRE = new RegExp(`\\b${brand.ticker}\\b`, 'i');
+    if (tickerRE.test(text) && allREs.some(re => re.test(text))) {
+      score += 2;
+      reasons.push('ticker_mention');
+    }
+  }
+  
+  // Brand's own newsroom domain (press release)
+  if (brand.newsroom_domains && brand.newsroom_domains.length > 0) {
+    if (brand.newsroom_domains.some(d => domain.includes(d))) {
+      score += 2;
+      reasons.push('newsroom_domain');
+    }
+  }
+  
+  // Major news outlets get slight boost if brand mentioned
+  const majorOutlets = ['reuters', 'bloomberg', 'wsj', 'nytimes', 'guardian', 'ft.com', 'apnews'];
+  if (majorOutlets.some(o => domain.includes(o)) && allREs.some(re => re.test(title + text))) {
+    score += 1;
+    reasons.push('major_outlet');
+  }
+  
+  // Negative disambiguation patterns
+  const negativePatterns = [
+    { re: /\battorney general\s+[a-z]+\s+mills?\b/i, reason: 'attorney_general_mills' },
+    { re: /\bgeneral mill\b(?!\s*(inc|foods|company))/i, reason: 'singular_mill' },
+    { re: /\bmills?\s+college\b/i, reason: 'mills_college' },
+    { re: /\bmills?\s+university\b/i, reason: 'mills_university' }
+  ];
+  
+  for (const { re, reason } of negativePatterns) {
+    if (re.test(title + ' ' + text)) {
+      score -= 3;
+      reasons.push(`neg_${reason}`);
+    }
+  }
+  
+  return { score, reason: reasons.join(',') };
+}
+
+// Convert GDELT date format and categorize
+function parseGdeltArticle(i: GdeltItem, brandName: string): NewsArticle {
+  let publishedAt = new Date().toISOString();
+  if (i.seendate && /^\d{14}$/.test(i.seendate)) {
+    const y = i.seendate.slice(0, 4);
+    const m = i.seendate.slice(4, 6);
+    const d = i.seendate.slice(6, 8);
+    const h = i.seendate.slice(8, 10);
+    const min = i.seendate.slice(10, 12);
+    const s = i.seendate.slice(12, 14);
+    publishedAt = `${y}-${m}-${d}T${h}:${min}:${s}Z`;
+  }
+  
+  const urlObj = new URL(i.url);
+  const title = i.title ?? `News: ${brandName}`;
+  const category = categorize(title, "", urlObj.pathname);
+  
+  return {
+    title,
+    summary: "",
+    url: i.url,
+    published_at: publishedAt,
+    source_name: i.domain ?? urlObj.hostname,
+    category
+  };
 }
 
 async function fetchGDELT(brandName: string, max: number, daysBack = 7): Promise<NewsArticle[]> {
@@ -76,27 +192,7 @@ async function fetchGDELT(brandName: string, max: number, daysBack = 7): Promise
   if (!res.ok) throw new Error(`GDELT: ${res.status}`);
   const gd = await res.json();
   const items: GdeltItem[] = gd?.articles ?? [];
-  return items.map(i => {
-    // Parse GDELT date format: YYYYMMDDHHMMSS
-    let publishedAt = new Date().toISOString();
-    if (i.seendate && /^\d{14}$/.test(i.seendate)) {
-      const y = i.seendate.slice(0, 4);
-      const m = i.seendate.slice(4, 6);
-      const d = i.seendate.slice(6, 8);
-      const h = i.seendate.slice(8, 10);
-      const min = i.seendate.slice(10, 12);
-      const s = i.seendate.slice(12, 14);
-      publishedAt = `${y}-${m}-${d}T${h}:${min}:${s}Z`;
-    }
-    return {
-      title: i.title ?? `News: ${brandName}`,
-      summary: "",
-      url: i.url,
-      published_at: publishedAt,
-      source_name: i.domain ?? new URL(i.url).hostname,
-      category: "general" as const
-    };
-  });
+  return items.map(i => parseGdeltArticle(i, brandName));
 }
 
 async function fetchGuardian(apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
@@ -114,14 +210,19 @@ async function fetchGuardian(apiKey: string, brandName: string, daysBack = 7): P
   if (!res.ok) throw new Error(`Guardian: ${res.status}`);
   const data = await res.json();
   const results = data.response?.results || [];
-  return results.map((a: any) => ({
-    title: a.fields?.headline || a.webTitle,
-    summary: a.fields?.trailText || a.fields?.bodyText?.slice(0, 300) || "",
-    url: a.webUrl,
-    published_at: a.webPublicationDate,
-    source_name: "The Guardian",
-    category: categorize(`${a.webTitle} ${a.fields?.trailText || ""}`)
-  }));
+  return results.map((a: any) => {
+    const urlObj = new URL(a.webUrl);
+    const title = a.fields?.headline || a.webTitle;
+    const text = a.fields?.trailText || a.fields?.bodyText?.slice(0, 300) || "";
+    return {
+      title,
+      summary: text,
+      url: a.webUrl,
+      published_at: a.webPublicationDate,
+      source_name: "The Guardian",
+      category: categorize(title, text, urlObj.pathname)
+    };
+  });
 }
 
 async function fetchNewsAPI(apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
@@ -139,14 +240,19 @@ async function fetchNewsAPI(apiKey: string, brandName: string, daysBack = 7): Pr
   if (!res.ok) throw new Error(`NewsAPI: ${res.status}`);
   const data = await res.json();
   const articles = data.articles || [];
-  return articles.map((a: any) => ({
-    title: a.title,
-    summary: a.description || a.content?.slice(0, 300) || "",
-    url: a.url,
-    published_at: a.publishedAt,
-    source_name: a.source?.name || "NewsAPI",
-    category: categorize(`${a.title} ${a.description || ""}`)
-  }));
+  return articles.map((a: any) => {
+    const urlObj = new URL(a.url);
+    const title = a.title;
+    const text = a.description || a.content?.slice(0, 300) || "";
+    return {
+      title,
+      summary: text,
+      url: a.url,
+      published_at: a.publishedAt,
+      source_name: a.source?.name || "NewsAPI",
+      category: categorize(title, text, urlObj.pathname)
+    };
+  });
 }
 
 async function fetchNYTimes(apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
@@ -163,14 +269,19 @@ async function fetchNYTimes(apiKey: string, brandName: string, daysBack = 7): Pr
   if (!res.ok) throw new Error(`NYT: ${res.status}`);
   const data = await res.json();
   const docs = data.response?.docs || [];
-  return docs.map((a: any) => ({
-    title: a.headline?.main || "",
-    summary: a.abstract || "",
-    url: a.web_url,
-    published_at: a.pub_date,
-    source_name: "The New York Times",
-    category: categorize(`${a.headline?.main || ""} ${a.abstract || ""}`)
-  }));
+  return docs.map((a: any) => {
+    const urlObj = new URL(a.web_url);
+    const title = a.headline?.main || "";
+    const text = a.abstract || "";
+    return {
+      title,
+      summary: text,
+      url: a.web_url,
+      published_at: a.pub_date,
+      source_name: "The New York Times",
+      category: categorize(title, text, urlObj.pathname)
+    };
+  });
 }
 
 async function fetchGNews(apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
@@ -188,14 +299,19 @@ async function fetchGNews(apiKey: string, brandName: string, daysBack = 7): Prom
   if (!res.ok) throw new Error(`GNews: ${res.status}`);
   const data = await res.json();
   const articles = data.articles || [];
-  return articles.map((a: any) => ({
-    title: a.title,
-    summary: a.description || a.content?.slice(0, 300) || "",
-    url: a.url,
-    published_at: a.publishedAt,
-    source_name: a.source?.name || "GNews",
-    category: categorize(`${a.title} ${a.description || ""}`)
-  }));
+  return articles.map((a: any) => {
+    const urlObj = new URL(a.url);
+    const title = a.title;
+    const text = a.description || a.content?.slice(0, 300) || "";
+    return {
+      title,
+      summary: text,
+      url: a.url,
+      published_at: a.publishedAt,
+      source_name: a.source?.name || "GNews",
+      category: categorize(title, text, urlObj.pathname)
+    };
+  });
 }
 
 Deno.serve(async (req) => {
@@ -221,21 +337,41 @@ Deno.serve(async (req) => {
     let brands: Brand[] = [];
     if (brandId) {
       console.log(`[Orchestrator] Fetching specific brand: ${brandId}`);
-      const { data, error: brandError } = await supabase.from("brands").select("id,name").eq("id", brandId).limit(1);
+      const { data, error: brandError } = await supabase
+        .from("brands")
+        .select("id,name,aliases,ticker,newsroom_domains")
+        .eq("id", brandId)
+        .limit(1);
       if (brandError) {
         console.error("[Orchestrator] Brand fetch error:", brandError);
         throw brandError;
       }
-      brands = data ?? [];
+      brands = (data ?? []).map(b => ({
+        id: b.id,
+        name: b.name,
+        aliases: b.aliases || [],
+        ticker: b.ticker || null,
+        newsroom_domains: b.newsroom_domains || []
+      }));
       console.log(`[Orchestrator] Found brand: ${brands[0]?.name || 'none'}`);
     } else {
       console.log("[Orchestrator] Fetching active brands (no specific brand_id)");
-      const { data, error: brandsError } = await supabase.from("brands").select("id,name").eq("is_active", true).limit(10);
+      const { data, error: brandsError } = await supabase
+        .from("brands")
+        .select("id,name,aliases,ticker,newsroom_domains")
+        .eq("is_active", true)
+        .limit(10);
       if (brandsError) {
         console.error("[Orchestrator] Brands fetch error:", brandsError);
         throw brandsError;
       }
-      brands = data ?? [];
+      brands = (data ?? []).map(b => ({
+        id: b.id,
+        name: b.name,
+        aliases: b.aliases || [],
+        ticker: b.ticker || null,
+        newsroom_domains: b.newsroom_domains || []
+      }));
       console.log(`[Orchestrator] Found ${brands.length} active brands`);
     }
 
@@ -321,11 +457,23 @@ Deno.serve(async (req) => {
         const urlCanon = canonicalize(article.url);
         const urlHash = await sha1(urlCanon);
         
+        // Score relevance and filter out noise
+        const urlObj = new URL(urlCanon);
+        const domain = urlObj.hostname;
+        const relevance = scoreRelevance(b, article.title, article.summary, domain);
+        
+        // Drop articles with low relevance score
+        if (relevance.score < 5) {
+          console.log(`[Relevance] Dropping low-score article (${relevance.score}): ${article.title.slice(0, 60)}...`);
+          totalSkipped++;
+          continue;
+        }
+        
         // Deterministic event_id from brand + url so re-runs are idempotent
         const eventIdHash = await sha1(`${b.id}:${urlHash}`);
         const eventId = hashToUuid(eventIdHash);
 
-        console.log(`[Orchestrator] Processing article for ${b.name}: ${article.title.slice(0, 50)}... eventId=${eventId}`);
+        console.log(`[Orchestrator] Processing article for ${b.name}: ${article.title.slice(0, 50)}... eventId=${eventId.slice(0, 8)}, relevance=${relevance.score}`);
 
         // 1) Upsert brand_events first (so FK exists)
         const { error: evErr } = await supabase
@@ -334,11 +482,12 @@ Deno.serve(async (req) => {
             event_id: eventId,
             brand_id: b.id,
             event_date: article.published_at,
-            // occurred_at is auto-generated from event_date
             category: article.category,
             verification: "corroborated",
             title: article.title.slice(0, 512),
             description: article.summary.slice(0, 1000),
+            relevance_score: relevance.score,
+            disambiguation_reason: relevance.reason || null,
             is_test: false
           }, { onConflict: 'event_id' });
 
@@ -354,7 +503,7 @@ Deno.serve(async (req) => {
             canonical_url: urlCanon,
             canonical_url_hash: urlHash,
             source_name: article.source_name,
-            registrable_domain: new URL(urlCanon).hostname,
+            registrable_domain: domain,
             title: article.title,
             source_date: article.published_at,
             is_primary: true,

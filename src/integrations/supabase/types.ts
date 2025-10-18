@@ -418,6 +418,7 @@ export type Database = {
           company_response_url: string | null
           created_at: string
           description: string
+          disambiguation_reason: string | null
           event_date: string | null
           event_id: string
           impact_environment: number | null
@@ -429,6 +430,7 @@ export type Database = {
           occurred_at: string | null
           orientation: Database["public"]["Enums"]["event_orientation"] | null
           raw_data: Json | null
+          relevance_score: number | null
           resolved: boolean | null
           severity: string | null
           source_url: string | null
@@ -449,6 +451,7 @@ export type Database = {
           company_response_url?: string | null
           created_at?: string
           description: string
+          disambiguation_reason?: string | null
           event_date?: string | null
           event_id?: string
           impact_environment?: number | null
@@ -460,6 +463,7 @@ export type Database = {
           occurred_at?: string | null
           orientation?: Database["public"]["Enums"]["event_orientation"] | null
           raw_data?: Json | null
+          relevance_score?: number | null
           resolved?: boolean | null
           severity?: string | null
           source_url?: string | null
@@ -482,6 +486,7 @@ export type Database = {
           company_response_url?: string | null
           created_at?: string
           description?: string
+          disambiguation_reason?: string | null
           event_date?: string | null
           event_id?: string
           impact_environment?: number | null
@@ -493,6 +498,7 @@ export type Database = {
           occurred_at?: string | null
           orientation?: Database["public"]["Enums"]["event_orientation"] | null
           raw_data?: Json | null
+          relevance_score?: number | null
           resolved?: boolean | null
           severity?: string | null
           source_url?: string | null
@@ -973,6 +979,7 @@ export type Database = {
       }
       brands: {
         Row: {
+          aliases: string[] | null
           company_size: string | null
           created_at: string
           description: string | null
@@ -988,13 +995,16 @@ export type Database = {
           logo_url: string | null
           monitoring_config: Json | null
           name: string
+          newsroom_domains: string[] | null
           parent_company: string | null
           push_paused: boolean
+          ticker: string | null
           updated_at: string
           website: string | null
           wikidata_qid: string | null
         }
         Insert: {
+          aliases?: string[] | null
           company_size?: string | null
           created_at?: string
           description?: string | null
@@ -1010,13 +1020,16 @@ export type Database = {
           logo_url?: string | null
           monitoring_config?: Json | null
           name: string
+          newsroom_domains?: string[] | null
           parent_company?: string | null
           push_paused?: boolean
+          ticker?: string | null
           updated_at?: string
           website?: string | null
           wikidata_qid?: string | null
         }
         Update: {
+          aliases?: string[] | null
           company_size?: string | null
           created_at?: string
           description?: string | null
@@ -1032,8 +1045,10 @@ export type Database = {
           logo_url?: string | null
           monitoring_config?: Json | null
           name?: string
+          newsroom_domains?: string[] | null
           parent_company?: string | null
           push_paused?: boolean
+          ticker?: string | null
           updated_at?: string
           website?: string | null
           wikidata_qid?: string | null
