@@ -76,21 +76,53 @@ function windowHit(text: string, brandRE: RegExp, windowTokens = 8) {
 
 function hardExclude(brand: Brand, title: string, body: string, url: URL): boolean {
   const txt = `${title}\n${body}`;
-  const NEGATE: RegExp[] = [
-    /\bAttorney General Mills?\b/i,
-    /\bGovernor Mills?\b/i,
-    /\bMills?\s+(College|University)\b/i,
-    /\bGeneral Mill(s)?\b(?!\s*(Inc|Foods|Company|brand|cereal))/i
-  ];
-  if (NEGATE.some((re) => re.test(txt))) return true;
-
-  // Guardian section guardrails
-  const path = url.pathname.toLowerCase();
-  const nonBizSections = [/\/sport\//, /\/football\//, /\/culture\//, /\/world\//, /\/us-news\/live\//, /\/live\//, /\/opinion\//, /\/commentisfree\//];
-  const allowBiz = [/\/business\//, /\/money\//, /\/food\//, /\/companies?\//];
-  if (url.hostname.endsWith('theguardian.com')) {
-    if (!allowBiz.some((r) => r.test(path)) && nonBizSections.some((r) => r.test(path))) return true;
+  
+  // Per-brand custom exclusions via monitoring_config
+  const cfg = brand.monitoring_config || {};
+  if (Array.isArray(cfg.exclude_regex) && cfg.exclude_regex.length > 0) {
+    if (cfg.exclude_regex.some((pat: string) => new RegExp(pat, 'i').test(txt))) return true;
   }
+
+  // Universal non-business section guardrails (all news sources)
+  const path = url.pathname.toLowerCase();
+  const hostname = url.hostname.toLowerCase();
+  
+  // Non-business sections (sports, politics live blogs, opinion, culture)
+  const nonBizSections = [
+    /\/sport\//,
+    /\/football\//,
+    /\/basketball\//,
+    /\/culture\//,
+    /\/world\//,
+    /\/us-news\/live\//,
+    /\/politics\/live\//,
+    /\/live\//,
+    /\/opinion\//,
+    /\/commentisfree\//,
+    /\/lifestyle\//,
+    /\/entertainment\//
+  ];
+  
+  // Business/financial sections (allow-list)
+  const allowBiz = [
+    /\/business\//,
+    /\/money\//,
+    /\/food\//,
+    /\/companies?\//,
+    /\/finance\//,
+    /\/markets?\//,
+    /\/economy\//,
+    /\/commerce\//
+  ];
+  
+  // Apply section filtering to major news sites
+  const newsHosts = ['theguardian.com', 'nytimes.com', 'washingtonpost.com', 'bbc.com', 'bbc.co.uk', 'cnn.com'];
+  if (newsHosts.some(h => hostname.endsWith(h))) {
+    if (!allowBiz.some((r) => r.test(path)) && nonBizSections.some((r) => r.test(path))) {
+      return true;
+    }
+  }
+  
   return false;
 }
 
