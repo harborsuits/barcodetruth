@@ -49,141 +49,62 @@ function hashToUuid(hash: string): string {
   return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
 }
 
-// Orientation & impact calculation (-5 to +5)
-function orientationImpact(title: string, category: string): number {
-  const t = title.toLowerCase();
-  const bad = /\b(violation|lawsuit|fine|penalty|recall|toxic|spill|boycott|strike|layoff|probe|investigation|ban|citation|sued|charged|complaint|illegal|unsafe)\b/;
-  const good = /\b(award|recognition|certification|sustainab|donation|volunteer|partnership|initiative|improv(e|ement)|honored|commend|praised)\b/;
-  if (bad.test(t)) return -3;
-  if (good.test(t)) return +2;
-  return 0; // mixed/unknown
+// ---- relevance -------------------------------------------------------------
+function scoreRelevance(title: string, body: string, brand: Brand): number {
+  const ALIASES = [brand.name, ...(brand.aliases ?? [])];
+  const aliasREs = ALIASES.map(n => new RegExp(`\\b${n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\b`, 'i'));
+  const NEGATE = [
+    /\bAttorney General Mills\b/i,
+    /\bGeneral Mill(s)?\b(?!\s(Inc|Foods|Company))/i
+  ];
+
+  let s = 0;
+  if (aliasREs.some(re => re.test(title))) s += 8;                  // title hit
+  if (aliasREs.some(re => re.test(body.slice(0, 300)))) s += 5;     // early body hit
+  if (NEGATE.some(re => re.test(title + ' ' + body))) s -= 8;        // disambig
+  return Math.max(0, Math.min(20, s));
 }
 
-// Verification weight multiplier
+// ---- category --------------------------------------------------------------
+const CAT = {
+  labor:       /\b(strike|walkout|union|organizing|collective\s+bargain|overtime|wage|layoff|retention|harass|discrimin|OSHA)\b/i,
+  environment: /\b(EPA|emission|methane|spill|toxic|recall|contaminat|pollut|sustainab|carbon|deforest|waste|water|air)\b/i,
+  politics:    /\b(FTC|DOJ|SEC|Congress|Senate|tariff|sanction|attorney\s+general|bill|rulemaking|regulat)\b/i,
+  social:      /\b(ad\s+campaign|marketing|donation|community|partnership|award|sponsor|launch|recipe|taste\s+test)\b/i,
+};
+
+function classifyCategory(title: string, path: string): 'labor'|'environment'|'politics'|'social' {
+  const t = `${title} ${path}`;
+  if (CAT.labor.test(t)) return 'labor';
+  if (CAT.environment.test(t)) return 'environment';
+  if (CAT.politics.test(t)) return 'politics';
+  return 'social';
+}
+
+// ---- orientation & impact  (-5..+5) ---------------------------------------
+function orientationImpact(title: string): number {
+  const t = title.toLowerCase();
+  const bad = /\b(violation|lawsuit|fine|penalty|recall|toxic|spill|boycott|strike|layoff|probe|investigation|ban)\b/;
+  const good = /\b(award|recognition|certification|sustainab|donation|volunteer|partnership|initiative|improv(e|ement))\b/;
+  if (bad.test(t)) return -3;
+  if (good.test(t)) return +2;
+  return 0;
+}
+
 function verificationWeight(v?: string): number {
   if (v === 'official') return 1.4;
   if (v === 'corroborated') return 1.15;
-  return 1.0; // reported/unverified
+  return 1.0;
 }
 
-// Recency weight multiplier
 function recencyWeight(isoDate: string): number {
   const d = new Date(isoDate).getTime();
   const age = Date.now() - d;
   const day = 86400000;
-  if (age <= 30*day)  return 1.0;
-  if (age <= 90*day)  return 0.7;
+  if (age <= 30*day) return 1.0;
+  if (age <= 90*day) return 0.7;
   if (age <= 365*day) return 0.4;
   return 0.2;
-}
-
-// Enhanced categorization with priority: labor > environment > politics > social
-function categorize(title: string, text: string, urlPath: string): "labor" | "environment" | "politics" | "social" {
-  const combined = `${title} ${text} ${urlPath}`.toLowerCase();
-  
-  // Labor: highest priority - worker safety, wages, unions, OSHA violations
-  const laborKw = [
-    /\b(strike|walkout|union|organizing|collective bargaining)\b/i,
-    /\b(wage|overtime|layoff|discrimination|harassment)\b/i,
-    /\b(osha|workplace safety|worker injury|labor violation)\b/i,
-    /\b(fired|terminated|wrongful termination|retaliation)\b/i
-  ];
-  if (laborKw.some(re => re.test(combined))) return "labor";
-  
-  // Environment: second priority - EPA, pollution, emissions, recalls
-  const envKw = [
-    /\b(epa|emission|pollution|toxic|spill|contamination)\b/i,
-    /\b(environmental violation|carbon|methane|deforestation)\b/i,
-    /\b(recall.*(food|product)|sustainab|green energy)\b/i
-  ];
-  if (envKw.some(re => re.test(combined))) return "environment";
-  
-  // Politics: third priority - lobbying, donations, regulatory
-  const polKw = [
-    /\b(congress|senate|regulator|ftc|doj|bill|law)\b/i,
-    /\b(donation|lobby|pac|campaign|political contribution)\b/i,
-    /\b(tariff|sanction|attorney general|governor)\b/i
-  ];
-  if (polKw.some(re => re.test(combined))) return "politics";
-  
-  // Social: default - general news, marketing, product launches
-  return "social";
-}
-
-// Relevance scoring to filter out unrelated articles
-function wordBoundary(name: string): RegExp {
-  // Escape special regex characters in brand name
-  const escaped = name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-  return new RegExp(`\\b${escaped}\\b`, 'i');
-}
-
-function scoreRelevance(
-  brand: Brand,
-  title: string,
-  text: string,
-  domain: string
-): { score: number; reason: string } {
-  let score = 0;
-  const reasons: string[] = [];
-  
-  // Build regex for brand name and aliases
-  const nameRE = wordBoundary(brand.name);
-  const aliasREs = (brand.aliases || []).map(a => wordBoundary(a));
-  const allREs = [nameRE, ...aliasREs];
-  
-  // Exact match in title (highest weight)
-  if (title && allREs.some(re => re.test(title))) {
-    score += 5;
-    reasons.push('title_match');
-  }
-  
-  // Match in first 300 chars (article lead)
-  const lead = text.slice(0, 300);
-  if (lead && allREs.some(re => re.test(lead))) {
-    score += 3;
-    reasons.push('lead_match');
-  }
-  
-  // Ticker mention alongside brand name
-  if (brand.ticker && text) {
-    const tickerRE = new RegExp(`\\b${brand.ticker}\\b`, 'i');
-    if (tickerRE.test(text) && allREs.some(re => re.test(text))) {
-      score += 2;
-      reasons.push('ticker_mention');
-    }
-  }
-  
-  // Brand's own newsroom domain (press release)
-  if (brand.newsroom_domains && brand.newsroom_domains.length > 0) {
-    if (brand.newsroom_domains.some(d => domain.includes(d))) {
-      score += 2;
-      reasons.push('newsroom_domain');
-    }
-  }
-  
-  // Major news outlets get slight boost if brand mentioned
-  const majorOutlets = ['reuters', 'bloomberg', 'wsj', 'nytimes', 'guardian', 'ft.com', 'apnews'];
-  if (majorOutlets.some(o => domain.includes(o)) && allREs.some(re => re.test(title + text))) {
-    score += 1;
-    reasons.push('major_outlet');
-  }
-  
-  // Negative disambiguation patterns
-  const negativePatterns = [
-    { re: /\battorney general\s+[a-z]+\s+mills?\b/i, reason: 'attorney_general_mills' },
-    { re: /\bgeneral mill\b(?!\s*(inc|foods|company))/i, reason: 'singular_mill' },
-    { re: /\bmills?\s+college\b/i, reason: 'mills_college' },
-    { re: /\bmills?\s+university\b/i, reason: 'mills_university' }
-  ];
-  
-  for (const { re, reason } of negativePatterns) {
-    if (re.test(title + ' ' + text)) {
-      score -= 3;
-      reasons.push(`neg_${reason}`);
-    }
-  }
-  
-  return { score, reason: reasons.join(',') };
 }
 
 // Convert GDELT date format and categorize
@@ -201,7 +122,7 @@ function parseGdeltArticle(i: GdeltItem, brandName: string): NewsArticle {
   
   const urlObj = new URL(i.url);
   const title = i.title ?? `News: ${brandName}`;
-  const category = categorize(title, "", urlObj.pathname);
+  const category = classifyCategory(title, urlObj.pathname);
   
   return {
     title,
@@ -248,7 +169,7 @@ async function fetchGuardian(apiKey: string, brandName: string, daysBack = 7): P
       url: a.webUrl,
       published_at: a.webPublicationDate,
       source_name: "The Guardian",
-      category: categorize(title, text, urlObj.pathname)
+      category: classifyCategory(title, urlObj.pathname)
     };
   });
 }
@@ -278,7 +199,7 @@ async function fetchNewsAPI(apiKey: string, brandName: string, daysBack = 7): Pr
       url: a.url,
       published_at: a.publishedAt,
       source_name: a.source?.name || "NewsAPI",
-      category: categorize(title, text, urlObj.pathname)
+      category: classifyCategory(title, urlObj.pathname)
     };
   });
 }
@@ -307,7 +228,7 @@ async function fetchNYTimes(apiKey: string, brandName: string, daysBack = 7): Pr
       url: a.web_url,
       published_at: a.pub_date,
       source_name: "The New York Times",
-      category: categorize(title, text, urlObj.pathname)
+      category: classifyCategory(title, urlObj.pathname)
     };
   });
 }
@@ -337,7 +258,7 @@ async function fetchGNews(apiKey: string, brandName: string, daysBack = 7): Prom
       url: a.url,
       published_at: a.publishedAt,
       source_name: a.source?.name || "GNews",
-      category: categorize(title, text, urlObj.pathname)
+      category: classifyCategory(title, urlObj.pathname)
     };
   });
 }
@@ -367,7 +288,7 @@ async function fetchMediastack(apiKey: string, brandName: string, daysBack = 7):
       url: a.url,
       published_at: a.published_at,
       source_name: a.source || "Mediastack",
-      category: categorize(title, text, urlObj.pathname)
+      category: classifyCategory(title, urlObj.pathname)
     };
   });
 }
@@ -395,7 +316,7 @@ async function fetchCurrents(apiKey: string, brandName: string, daysBack = 7): P
       url: a.url,
       published_at: a.published,
       source_name: a.author || "Currents",
-      category: categorize(title, text, urlObj.pathname)
+      category: classifyCategory(title, urlObj.pathname)
     };
   });
 }
@@ -562,39 +483,41 @@ Deno.serve(async (req) => {
       }
 
       for (const article of allArticles) {
+        const title = article.title ?? '';
+        const body = article.summary ?? '';
+        const occurred = article.published_at;
         const urlCanon = canonicalize(article.url);
         const urlHash = await sha1(urlCanon);
         
-        // Score relevance and filter out noise
-        const urlObj = new URL(urlCanon);
-        const domain = urlObj.hostname;
-        const relevance = scoreRelevance(b, article.title, article.summary, domain);
-        
-        // Drop articles with low relevance score
-        if (relevance.score < 5) {
-          console.log(`[Relevance] Dropping low-score article (${relevance.score}): ${article.title.slice(0, 60)}...`);
+        // Score relevance and filter noise
+        const rel = scoreRelevance(title, body, b);
+        if (rel < 6) {
+          console.log(`[orchestrator] Skipping low-relevance article (rel=${rel}): ${title.slice(0, 80)}`);
           totalSkipped++;
-          continue;
+          continue; // DROP low relevance noise
         }
         
         // Deterministic event_id from brand + url so re-runs are idempotent
         const eventIdHash = await sha1(`${b.id}:${urlHash}`);
         const eventId = hashToUuid(eventIdHash);
-
-        console.log(`[Orchestrator] Processing article for ${b.name}: ${article.title.slice(0, 50)}... eventId=${eventId.slice(0, 8)}, relevance=${relevance.score}`);
-
-        // Calculate impact for this article
-        const baseImpact = orientationImpact(article.title, article.category);
-        const vWeight = verificationWeight('reported'); // Start as reported, upgrade after corroboration
-        const rWeight = recencyWeight(article.published_at);
-        const finalImpact = Math.round(baseImpact * vWeight * rWeight);
-        const confidence = Math.round(70 * rWeight * (vWeight / 1.4));
+        const url = new URL(urlCanon);
         
-        // Determine if it's a press release
-        const isPressRelease = b.newsroom_domains?.some(d => domain.includes(d)) || false;
+        // Classify category from title + URL
+        const category = classifyCategory(title, url.pathname);
         
-        // Determine orientation from impact
-        const orientation = baseImpact < -1 ? 'negative' : (baseImpact > 1 ? 'positive' : 'mixed');
+        // Calculate impact and confidence
+        const baseImpact = orientationImpact(title);
+        const vW = verificationWeight('unverified');
+        const rW = recencyWeight(occurred);
+        const finalImpact = Math.round(baseImpact * vW * rW);
+        const confidence = Math.round(70 * rW * (vW / 1.4));
+        
+        // Determine orientation
+        let orientation: 'positive' | 'negative' | 'mixed' = 'mixed';
+        if (baseImpact < -1) orientation = 'negative';
+        else if (baseImpact > 1) orientation = 'positive';
+
+        console.log(`[Orchestrator] Processing ${b.name}: ${title.slice(0, 50)}... (rel=${rel}, cat=${category}, impact=${finalImpact})`);
 
         // 1) Upsert brand_events first (so FK exists)
         const { error: evErr } = await supabase
@@ -602,22 +525,20 @@ Deno.serve(async (req) => {
           .upsert({
             event_id: eventId,
             brand_id: b.id,
-            event_date: article.published_at,
-            category: article.category,
-            verification: "reported",
-            title: article.title.slice(0, 512),
-            description: article.summary.slice(0, 1000),
-            relevance_score: relevance.score,
-            disambiguation_reason: relevance.reason || null,
-            is_test: false,
-            orientation: orientation,
+            title: title.slice(0, 512),
+            event_date: occurred,
+            occurred_at: occurred,
+            source_url: urlCanon,
+            category,
+            verification: 'unverified',
+            orientation,
+            relevance_score: rel,
             impact_confidence: confidence,
-            is_press_release: isPressRelease,
-            // Set impact for the specific category
-            impact_labor: article.category === 'labor' ? finalImpact : 0,
-            impact_environment: article.category === 'environment' ? finalImpact : 0,
-            impact_politics: article.category === 'politics' ? finalImpact : 0,
-            impact_social: article.category === 'social' ? finalImpact : 0,
+            is_press_release: /(^|\.)generalmills\.com$/i.test(url.hostname),
+            impact_labor:       category === 'labor'       ? finalImpact : 0,
+            impact_environment: category === 'environment' ? finalImpact : 0,
+            impact_politics:    category === 'politics'    ? finalImpact : 0,
+            impact_social:      category === 'social'      ? finalImpact : 0,
           }, { onConflict: 'event_id' });
 
         if (evErr) {
@@ -626,6 +547,7 @@ Deno.serve(async (req) => {
         }
 
         // 2) Upsert event_sources and link it via event_id
+        const domain = url.hostname;
         const { error: srcErr, data: srcData } = await supabase
           .from("event_sources")
           .upsert({
@@ -633,8 +555,8 @@ Deno.serve(async (req) => {
             canonical_url_hash: urlHash,
             source_name: article.source_name,
             registrable_domain: domain,
-            title: article.title,
-            source_date: article.published_at,
+            title: title,
+            source_date: occurred,
             is_primary: true,
             event_id: eventId  // THE CRITICAL LINK
           }, { onConflict: 'canonical_url_hash' });
