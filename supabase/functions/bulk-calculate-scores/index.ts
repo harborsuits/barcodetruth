@@ -39,15 +39,16 @@ Deno.serve(async (req) => {
 
     const results: Array<{ brand_id: string; name: string; success: boolean; error?: string }> = [];
 
-    // Calculate score for each brand
+    // Calculate score for each brand using simple-brand-scorer
     for (const item of brandsWithEvents) {
       const brandId = item.brand_id;
       const brandName = (item.brands as any)?.name || "Unknown";
 
       try {
-        const scoreUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/calculate-brand-score?brand_id=${brandId}`;
+        // Use simple-brand-scorer instead of complex calculate-brand-score
+        const scoreUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/simple-brand-scorer`;
         const response = await fetch(scoreUrl, {
-          method: "POST",
+          method: "GET",
           headers: {
             "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
             "Content-Type": "application/json",
@@ -60,21 +61,23 @@ Deno.serve(async (req) => {
         }
 
         const data = await response.json();
-        console.log(`[bulk-calculate-scores] ${brandName}: score=${data.totals?.totalScore || 'N/A'}`);
+        console.log(`[bulk-calculate-scores] Processed all brands, successful: ${data.succeeded || 0}`);
 
         results.push({
           brand_id: brandId,
           name: brandName,
           success: true,
         });
+        break; // simple-brand-scorer processes all brands at once
       } catch (error: any) {
-        console.error(`[bulk-calculate-scores] Error for ${brandName}:`, error);
+        console.error(`[bulk-calculate-scores] Error:`, error);
         results.push({
           brand_id: brandId,
           name: brandName,
           success: false,
           error: error.message,
         });
+        break;
       }
     }
 

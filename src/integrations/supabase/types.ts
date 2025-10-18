@@ -3477,6 +3477,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      personalized_brand_score: {
+        Args: { p_brand_id: string; p_user_id: string }
+        Returns: Json
+      }
       refresh_brand_coverage: {
         Args: Record<PropertyKey, never>
         Returns: undefined

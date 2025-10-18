@@ -29,7 +29,6 @@ type BrandProfile = {
   } | null;
   coverage?: {
     events_30d: number; 
-    events_90d: number; 
     events_365d: number;
     verified_rate: number; 
     independent_sources: number; 
@@ -200,7 +199,6 @@ export default function BrandProfile() {
   const score = data.score?.score ?? null;
   const coverage = data.coverage ?? {
     events_30d: 0,
-    events_90d: 0,
     events_365d: 0,
     verified_rate: 0,
     independent_sources: 0,
@@ -326,11 +324,11 @@ export default function BrandProfile() {
                   ) : (
                     'Not scored yet'
                   )}
-                  {/* Trend indicators */}
-                  {coverage.events_30d > 0 && coverage.events_90d > 0 && (
+                   {/* Trend indicators */}
+                  {coverage.events_30d > 0 && (
                     <div className="flex items-center gap-2 text-xs">
                       <span className="text-muted-foreground">
-                        Trend: {coverage.events_30d} (30d) • {coverage.events_90d - coverage.events_30d} (60-90d)
+                        {coverage.events_30d} events (30d)
                       </span>
                     </div>
                   )}
@@ -344,9 +342,6 @@ export default function BrandProfile() {
         <section className="flex flex-wrap gap-2">
           <Badge variant="outline" className="text-sm px-3 py-1">
             30d: {coverage.events_30d}
-          </Badge>
-          <Badge variant="outline" className="text-sm px-3 py-1">
-            90d: {coverage.events_90d}
           </Badge>
           <Badge variant="outline" className="text-sm px-3 py-1">
             365d: {coverage.events_365d}
