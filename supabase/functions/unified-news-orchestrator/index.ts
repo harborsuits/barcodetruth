@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
-type Brand = { id: string; name: string; aliases: string[]; ticker: string | null; newsroom_domains: string[] };
+type Brand = { id: string; name: string; aliases: string[]; ticker: string | null; newsroom_domains: string[]; monitoring_config?: any };
 type GdeltItem = { url: string; title: string; seendate: string; domain?: string };
 type NewsArticle = { title: string; summary: string; url: string; published_at: string; source_name: string; category: "labor" | "environment" | "politics" | "social" };
 
@@ -54,55 +54,79 @@ function nonAsciiRatio(s: string): number {
   return (s.match(/[^\x00-\x7F]/g)?.length ?? 0) / Math.max(1, s.length);
 }
 
-// ---- relevance -------------------------------------------------------------
-function scoreRelevance(title: string, body: string, brand: Brand): number {
-  const ALIASES = [brand.name, ...(brand.aliases ?? [])];
-  const aliasREs = ALIASES.map(n => new RegExp(`\\b${n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\b`, 'i'));
-  
-  // Hard exclusions for disambiguation
-  const NEGATE = [
-    /\bAttorney General Mills?\b/i,
-    /\bGeneral Mills?\b(?!\s*(Inc|Foods|Company|brand|cereal))/i,
-    /\bGeneral\s+of\s+the\s+Army\s+Mills?\b/i,
-    /\bGovernor\s+Mills?\b/i,
-    /\bMills?\s+College\b/i,
-    /\bMills?\s+University\b/i
-  ];
-  
-  // Business context cues (requires at least one)
-  const BUSINESS_CONTEXT = /\b(company|brand|factory|plant|cereal|yogurt|Cheerios|food|product|earnings|stock|CEO|revenue|partnership|acquisition|recall|supply|manufacturer|corporation|business|industry|market|sales|profit)\b/i;
-  
-  // Corporate domain whitelist
-  const CORPORATE_DOMAINS = ['reuters', 'bloomberg', 'yahoo', 'cnbc', 'foodbusinessnews', 'marketwatch', 'guardian', 'wsj', 'ft.com', 'businessinsider'];
-  
-  // Check for hard negations first
-  if (NEGATE.some(re => re.test(title + ' ' + body))) {
-    return 0;
+// ---- relevance & filtering -------------------------------------------------
+const ESC = (s: string) => s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+
+// Business context cues
+const BUSINESS = /\b(company|brand|factory|plant|facility|product|recall|device|drug|food|cereal|earnings?|revenue|profit|ceo|acquisition|merger|lawsuit|settlement|regulator|os(h|ha)|epa|fda|sec)\b/i;
+
+function windowHit(text: string, brandRE: RegExp, windowTokens = 8) {
+  const tokens = text.split(/\s+/);
+  for (let i = 0; i < tokens.length; i++) {
+    if (brandRE.test(tokens[i])) {
+      const start = Math.max(0, i - windowTokens);
+      const end = Math.min(tokens.length - 1, i + windowTokens);
+      for (let j = start; j <= end; j++) {
+        if (BUSINESS.test(tokens[j])) return true;
+      }
+    }
   }
+  return false;
+}
+
+function hardExclude(brand: Brand, title: string, body: string, url: URL): boolean {
+  const txt = `${title}\n${body}`;
+  const NEGATE: RegExp[] = [
+    /\bAttorney General Mills?\b/i,
+    /\bGovernor Mills?\b/i,
+    /\bMills?\s+(College|University)\b/i,
+    /\bGeneral Mill(s)?\b(?!\s*(Inc|Foods|Company|brand|cereal))/i
+  ];
+  if (NEGATE.some((re) => re.test(txt))) return true;
+
+  // Guardian section guardrails
+  const path = url.pathname.toLowerCase();
+  const nonBizSections = [/\/sport\//, /\/football\//, /\/culture\//, /\/world\//, /\/us-news\/live\//, /\/live\//, /\/opinion\//, /\/commentisfree\//];
+  const allowBiz = [/\/business\//, /\/money\//, /\/food\//, /\/companies?\//];
+  if (url.hostname.endsWith('theguardian.com')) {
+    if (!allowBiz.some((r) => r.test(path)) && nonBizSections.some((r) => r.test(path))) return true;
+  }
+  return false;
+}
+
+function brandConfigPass(brand: Brand, title: string, body: string): boolean {
+  const cfg = (brand as any).monitoring_config || {};
+  const hay = (title + ' ' + body).toLowerCase();
+  if (Array.isArray(cfg.exclude_regex) && cfg.exclude_regex.some((pat: string) => new RegExp(pat, 'i').test(hay))) return false;
+  if (Array.isArray(cfg.require_terms) && cfg.require_terms.length > 0) {
+    if (!cfg.require_terms.some((t: string) => hay.includes(String(t).toLowerCase()))) return false;
+  }
+  return true;
+}
+
+function scoreRelevanceStrict(brand: Brand, title: string, body: string, url: URL): { score: number; flags: string[] } {
+  if (hardExclude(brand, title, body, url)) return { score: 0, flags: [] };
+
+  const aliases = [brand.name, ...(brand.aliases ?? [])].map((a) => new RegExp(`\\b${ESC(a)}\\b`, 'i'));
+  const textLead = body.slice(0, 500);
 
   let s = 0;
-  if (aliasREs.some(re => re.test(title))) s += 8;                  // title hit
-  if (aliasREs.some(re => re.test(body.slice(0, 300)))) s += 5;     // early body hit
-  
-  // Bonus for business context
-  if (BUSINESS_CONTEXT.test(title + ' ' + body)) {
-    s += 4;
-  } else {
-    // Heavy penalty if no business context
-    s -= 6;
-  }
-  
-  // Small bonus for corporate domains
-  try {
-    const url = new URL(title.includes('http') ? title : body);
-    if (CORPORATE_DOMAINS.some(d => url.hostname.includes(d))) {
-      s += 1;
-    }
-  } catch {
-    // Ignore URL parsing errors
-  }
-  
-  return Math.max(0, Math.min(20, s));
+  const titleHit = aliases.some((re) => re.test(title));
+  const leadHit = aliases.some((re) => re.test(textLead));
+  const context = BUSINESS.test(title) || BUSINESS.test(textLead);
+  const proxHit = aliases.some((re) => windowHit(`${title} ${textLead}`, re, 8));
+
+  if (titleHit) s += 7;
+  if (leadHit) s += 4;
+  if (context) s += 3;
+  if (proxHit) s += 3;
+  if ((titleHit || leadHit) && !context) s -= 6;
+
+  const score = Math.max(0, Math.min(20, s));
+  const flags: string[] = [];
+  if (context) flags.push('business_context');
+  if (proxHit) flags.push('proximity_8');
+  return { score, flags };
 }
 
 // ---- category --------------------------------------------------------------
@@ -386,7 +410,7 @@ Deno.serve(async (req) => {
       console.log(`[Orchestrator] Fetching specific brand: ${brandId}`);
       const { data, error: brandError } = await supabase
         .from("brands")
-        .select("id,name,aliases,ticker,newsroom_domains")
+        .select("id,name,aliases,ticker,newsroom_domains,monitoring_config")
         .eq("id", brandId)
         .limit(1);
       if (brandError) {
@@ -398,14 +422,15 @@ Deno.serve(async (req) => {
         name: b.name,
         aliases: b.aliases || [],
         ticker: b.ticker || null,
-        newsroom_domains: b.newsroom_domains || []
+        newsroom_domains: b.newsroom_domains || [],
+        monitoring_config: (b as any).monitoring_config || null
       }));
       console.log(`[Orchestrator] Found brand: ${brands[0]?.name || 'none'}`);
     } else {
       console.log("[Orchestrator] Fetching active brands (no specific brand_id)");
       const { data, error: brandsError } = await supabase
         .from("brands")
-        .select("id,name,aliases,ticker,newsroom_domains")
+        .select("id,name,aliases,ticker,newsroom_domains,monitoring_config")
         .eq("is_active", true)
         .limit(10);
       if (brandsError) {
@@ -417,7 +442,8 @@ Deno.serve(async (req) => {
         name: b.name,
         aliases: b.aliases || [],
         ticker: b.ticker || null,
-        newsroom_domains: b.newsroom_domains || []
+        newsroom_domains: b.newsroom_domains || [],
+        monitoring_config: (b as any).monitoring_config || null
       }));
       console.log(`[Orchestrator] Found ${brands.length} active brands`);
     }
@@ -528,6 +554,7 @@ Deno.serve(async (req) => {
         const occurred = article.published_at;
         const urlCanon = canonicalize(article.url);
         const urlHash = await sha1(urlCanon);
+        const urlObj = new URL(urlCanon);
         
         // Language filter: skip non-English articles
         if (nonAsciiRatio(title) > 0.35) {
@@ -536,9 +563,15 @@ Deno.serve(async (req) => {
           continue;
         }
         
-        // Score relevance and filter noise
-        const rel = scoreRelevance(title, body, b);
-        if (rel < 8) {
+        // Per-brand config (require/exclude terms)
+        if (!brandConfigPass(b, title, body)) {
+          totalSkipped++;
+          continue;
+        }
+        
+        // Score relevance (context + proximity + section-aware)
+        const { score: rel, flags } = scoreRelevanceStrict(b, title, body, urlObj);
+        if (rel < 9) {
           console.log(`[orchestrator] Skipping low-relevance article (rel=${rel}): ${title.slice(0, 80)}`);
           totalSkipped++;
           continue; // DROP low relevance noise
@@ -586,6 +619,7 @@ Deno.serve(async (req) => {
             category,
             verification: 'unverified',
             orientation,
+            disambiguation_reason: (typeof flags !== 'undefined' && flags.length ? flags.join('|') : null),
             relevance_score: rel,
             impact_confidence: confidence,
             is_press_release: isPressRelease,
