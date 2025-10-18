@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { BrandWikiEnrichment } from '@/components/BrandWikiEnrichment';
+import CategoryFilter from '@/components/CategoryFilter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -72,6 +73,7 @@ export default function BrandProfile() {
 
   // Get current user for personalized scoring
   const [user, setUser] = useState<any>(null);
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'labor' | 'environment' | 'politics' | 'social'>('all');
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -390,76 +392,90 @@ export default function BrandProfile() {
         {/* Evidence table */}
         <Card>
           <CardHeader>
-            <h3 className="text-lg font-semibold">Latest evidence</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Latest evidence</h3>
+              <CategoryFilter value={categoryFilter} onChange={setCategoryFilter} />
+            </div>
           </CardHeader>
           <CardContent>
-            {(data.evidence ?? []).length > 0 ? (
-              <div className="border rounded-lg overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted">
-                      <tr>
-                        <th className="text-left p-3 font-medium">Date</th>
-                        <th className="text-left p-3 font-medium">Title</th>
-                        <th className="text-left p-3 font-medium">Category</th>
-                        <th className="text-left p-3 font-medium">Source</th>
-                        <th className="text-left p-3 font-medium">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                       {(data.evidence ?? []).map((e, i) => (
-                        <tr key={i} className="border-t hover:bg-muted/50">
-                          <td className="p-3 whitespace-nowrap">
-                            {new Date(e.event_date).toLocaleDateString()}
-                          </td>
-                          <td className="p-3 max-w-xs">
-                            {e.canonical_url ? (
-                              <a 
-                                href={e.canonical_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary hover:underline inline-flex items-center gap-1"
-                                title={e.title}
-                              >
-                                <span className="truncate">{e.title}</span>
-                                <LinkIcon className="h-3 w-3 flex-shrink-0" />
-                              </a>
-                            ) : (
-                              <span className="truncate" title={e.title}>{e.title}</span>
-                            )}
-                          </td>
-                          <td className="p-3">
-                            <Badge variant="outline" className="text-xs">
-                              {e.category || '—'}
-                            </Badge>
-                          </td>
-                          <td className="p-3 text-muted-foreground text-xs">
-                            {e.source_name ?? '—'}
-                          </td>
-                          <td className="p-3">
-                            <Badge 
-                              variant={
-                                e.verification === 'official' ? 'default' :
-                                e.verification === 'corroborated' ? 'secondary' : 
-                                'outline'
-                              }
-                              className="text-xs"
-                            >
-                              {e.verification ?? 'unverified'}
-                            </Badge>
-                          </td>
+            {(() => {
+              const filteredEvidence = categoryFilter === 'all' 
+                ? (data.evidence ?? [])
+                : (data.evidence ?? []).filter(e => e.category === categoryFilter);
+              
+              return filteredEvidence.length > 0 ? (
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted">
+                        <tr>
+                          <th className="text-left p-3 font-medium">Date</th>
+                          <th className="text-left p-3 font-medium">Title</th>
+                          <th className="text-left p-3 font-medium">Category</th>
+                          <th className="text-left p-3 font-medium">Source</th>
+                          <th className="text-left p-3 font-medium">Status</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                         {filteredEvidence.map((e, i) => (
+                          <tr key={i} className="border-t hover:bg-muted/50">
+                            <td className="p-3 whitespace-nowrap">
+                              {new Date(e.event_date).toLocaleDateString()}
+                            </td>
+                            <td className="p-3 max-w-xs">
+                              {e.canonical_url ? (
+                                <a 
+                                  href={e.canonical_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-primary hover:underline inline-flex items-center gap-1"
+                                  title={e.title}
+                                >
+                                  <span className="truncate">{e.title}</span>
+                                  <LinkIcon className="h-3 w-3 flex-shrink-0" />
+                                </a>
+                              ) : (
+                                <span className="truncate" title={e.title}>{e.title}</span>
+                              )}
+                            </td>
+                            <td className="p-3">
+                              <Badge variant="outline" className="text-xs">
+                                {e.category || '—'}
+                              </Badge>
+                            </td>
+                            <td className="p-3 text-muted-foreground text-xs">
+                              {e.source_name ?? '—'}
+                            </td>
+                            <td className="p-3">
+                              <Badge 
+                                variant={
+                                  e.verification === 'official' ? 'default' :
+                                  e.verification === 'corroborated' ? 'secondary' : 
+                                  'outline'
+                                }
+                                className="text-xs"
+                              >
+                                {e.verification ?? 'unverified'}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="text-center py-12 text-muted-foreground">
-                <AlertCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p className="text-sm">No evidence available yet for this brand.</p>
-              </div>
-            )}
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  <AlertCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">
+                    {categoryFilter === 'all' 
+                      ? 'No evidence available yet for this brand.'
+                      : `No ${categoryFilter} events found for this brand.`
+                    }
+                  </p>
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
 

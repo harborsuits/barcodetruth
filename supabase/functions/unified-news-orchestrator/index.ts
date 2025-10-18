@@ -74,7 +74,7 @@ function scoreRelevance(title: string, body: string, brand: Brand): number {
 const CAT = {
   labor:       /\b(strike|walkout|union|organizing|collective\s+bargain|overtime|wage|layoff|retention|harass|discrimin|OSHA)\b/i,
   environment: /\b(EPA|emission|methane|spill|toxic|recall|contaminat|pollut|sustainab|carbon|deforest|waste|water|air|recall(s)?\b.*(lot|batch|product|device|drug|food)|fda|class\s*i+|medical device report|adverse event)\b/i,
-  politics:    /\b(FTC|DOJ|SEC|Congress|Senate|tariff|sanction|attorney\s+general|bill|rulemaking|regulat|settlement|class action|jury verdict|multidistrict litigation|mdL)\b/i,
+  politics:    /\b(FTC|DOJ|SEC|Congress|Senate|tariff|sanction|attorney\s+general|bill|rulemaking|regulat|settlement|class action|jury verdict|multidistrict litigation|mdl)\b/i,
   social:      /\b(ad\s+campaign|marketing|donation|community|partnership|award|sponsor|launch|recipe|taste\s+test)\b/i,
 };
 

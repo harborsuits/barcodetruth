@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 
-type CategoryKey = "all" | "labor" | "environment" | "politics" | "cultural-values";
+type CategoryKey = "all" | "labor" | "environment" | "politics" | "social";
 
 interface CategoryOption {
   key: CategoryKey;
@@ -12,7 +12,7 @@ const CAT_OPTS: CategoryOption[] = [
   { key: "labor", label: "Labor" },
   { key: "environment", label: "Environment" },
   { key: "politics", label: "Politics" },
-  { key: "cultural-values", label: "Cultural/Values" },
+  { key: "social", label: "Social" },
 ];
 
 interface CategoryFilterProps {
