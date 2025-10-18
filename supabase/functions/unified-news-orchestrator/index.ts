@@ -49,10 +49,24 @@ function hashToUuid(hash: string): string {
   return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
 }
 
-function categorize(text: string): "social" | "general" {
+// Categorize article into one of the 4 scored categories
+function categorize(text: string): "labor" | "environment" | "politics" | "social" {
   const lower = text.toLowerCase();
-  const socialKw = ["lawsuit", "recall", "boycott", "protest", "scandal", "controversy", "discrimination"];
-  return socialKw.some(k => lower.includes(k)) ? "social" : "general";
+  
+  // Labor: workers, unions, wages, safety, OSHA
+  const laborKw = ["worker", "union", "wage", "salary", "osha", "labor", "employee", "strike", "overtime", "workplace safety", "injury", "fatality"];
+  if (laborKw.some(kw => lower.includes(kw))) return "labor";
+  
+  // Environment: pollution, emissions, EPA, climate, waste
+  const envKw = ["pollution", "epa", "emission", "climate", "waste", "toxic", "spill", "contamination", "environmental", "carbon", "green"];
+  if (envKw.some(kw => lower.includes(kw))) return "environment";
+  
+  // Politics: donation, lobby, PAC, campaign, political
+  const polKw = ["donation", "lobby", "pac", "campaign", "political", "election", "congress", "senate", "fec"];
+  if (polKw.some(kw => lower.includes(kw))) return "politics";
+  
+  // Social: lawsuit, recall, boycott, discrimination, scandal (default for most news)
+  return "social";
 }
 
 async function fetchGDELT(brandName: string, max: number, daysBack = 7): Promise<NewsArticle[]> {
