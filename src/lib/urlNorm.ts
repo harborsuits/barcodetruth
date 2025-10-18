@@ -11,7 +11,7 @@ export function canonicalizeUrl(u: string): string {
     // Strip tracking parameters
     const trackingParams = [
       'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
-      'gclid', 'fbclid', 'mc_cid', 'mc_eid', 'msclkid', '_ga'
+      'gclid', 'fbclid', 'mc_cid', 'mc_eid', 'msclkid', '_ga', 'ref', 'referrer'
     ];
     trackingParams.forEach(p => url.searchParams.delete(p));
     
@@ -32,6 +32,11 @@ export function canonicalizeUrl(u: string): string {
       url.pathname = url.pathname.slice(0, -1);
     }
     
+    // Normalize www subdomain
+    if (url.hostname.startsWith('www.')) {
+      url.hostname = url.hostname.slice(4);
+    }
+    
     return url.toString();
   } catch {
     return u;
@@ -45,6 +50,31 @@ export function registrableDomain(u: string): string | null {
   try {
     const parsed = parse(u);
     return parsed.domain || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extract domain from URL (without www)
+ */
+export function domainOf(u: string): string {
+  try {
+    const url = new URL(u);
+    return url.hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Extract section from URL path (first non-empty segment)
+ */
+export function sectionFromUrl(u: string): string | null {
+  try {
+    const url = new URL(u);
+    const parts = url.pathname.split('/').filter(Boolean);
+    return parts.length > 0 ? parts[0].toLowerCase() : null;
   } catch {
     return null;
   }

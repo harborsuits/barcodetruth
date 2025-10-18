@@ -74,51 +74,49 @@ function windowHit(text: string, brandRE: RegExp, windowTokens = 8) {
   return false;
 }
 
+// Universal site section configuration (applies to all brands)
+const SITE_SECTIONS: Record<string, string[]> = {
+  'theguardian.com': ['business', 'environment', 'money', 'food', 'science'],
+  'nytimes.com': ['business', 'climate', 'technology'],
+  'washingtonpost.com': ['business', 'climate-environment', 'technology', 'national'],
+  'bbc.com': ['business', 'science-environment', 'technology'],
+  'bbc.co.uk': ['business', 'science-environment', 'technology'],
+  'cnn.com': ['business', 'tech', 'health'],
+  'reuters.com': ['business', 'markets', 'technology', 'sustainability'],
+  'bloomberg.com': ['markets', 'technology', 'companies', 'politics'],
+};
+
+function extractSection(url: URL): string | null {
+  const path = url.pathname.toLowerCase();
+  const parts = path.split('/').filter(Boolean);
+  return parts.length > 0 ? parts[0] : null;
+}
+
 function hardExclude(brand: Brand, title: string, body: string, url: URL): boolean {
   const txt = `${title}\n${body}`;
+  const hostname = url.hostname.toLowerCase().replace(/^www\./, '');
   
   // Per-brand custom exclusions via monitoring_config
   const cfg = brand.monitoring_config || {};
   if (Array.isArray(cfg.exclude_regex) && cfg.exclude_regex.length > 0) {
-    if (cfg.exclude_regex.some((pat: string) => new RegExp(pat, 'i').test(txt))) return true;
+    for (const pat of cfg.exclude_regex) {
+      try {
+        if (new RegExp(pat, 'i').test(txt)) return true;
+      } catch (e) {
+        console.warn(`Invalid regex pattern for brand ${brand.name}: ${pat}`, e);
+      }
+    }
   }
 
-  // Universal non-business section guardrails (all news sources)
-  const path = url.pathname.toLowerCase();
-  const hostname = url.hostname.toLowerCase();
-  
-  // Non-business sections (sports, politics live blogs, opinion, culture)
-  const nonBizSections = [
-    /\/sport\//,
-    /\/football\//,
-    /\/basketball\//,
-    /\/culture\//,
-    /\/world\//,
-    /\/us-news\/live\//,
-    /\/politics\/live\//,
-    /\/live\//,
-    /\/opinion\//,
-    /\/commentisfree\//,
-    /\/lifestyle\//,
-    /\/entertainment\//
-  ];
-  
-  // Business/financial sections (allow-list)
-  const allowBiz = [
-    /\/business\//,
-    /\/money\//,
-    /\/food\//,
-    /\/companies?\//,
-    /\/finance\//,
-    /\/markets?\//,
-    /\/economy\//,
-    /\/commerce\//
-  ];
-  
-  // Apply section filtering to major news sites
-  const newsHosts = ['theguardian.com', 'nytimes.com', 'washingtonpost.com', 'bbc.com', 'bbc.co.uk', 'cnn.com'];
-  if (newsHosts.some(h => hostname.endsWith(h))) {
-    if (!allowBiz.some((r) => r.test(path)) && nonBizSections.some((r) => r.test(path))) {
+  // Domain-level allow/block lists from brand config
+  if (cfg.block_domains?.includes(hostname)) return true;
+  if (cfg.allow_domains?.length && !cfg.allow_domains.includes(hostname)) return true;
+
+  // Universal section filtering for major news sites
+  const allowedSections = SITE_SECTIONS[hostname];
+  if (allowedSections) {
+    const section = extractSection(url);
+    if (section && !allowedSections.includes(section)) {
       return true;
     }
   }
@@ -136,29 +134,48 @@ function brandConfigPass(brand: Brand, title: string, body: string): boolean {
   return true;
 }
 
-function scoreRelevanceStrict(brand: Brand, title: string, body: string, url: URL): { score: number; flags: string[] } {
-  if (hardExclude(brand, title, body, url)) return { score: 0, flags: [] };
+function scoreRelevanceStrict(brand: Brand, title: string, body: string, url: URL): { score: number; reason: string } {
+  if (hardExclude(brand, title, body, url)) return { score: 0, reason: 'hard_exclude' };
+
+  const cfg = (brand as any).monitoring_config || {};
+  const minScore = typeof cfg.min_score === 'number' ? cfg.min_score : 0.5;
 
   const aliases = [brand.name, ...(brand.aliases ?? [])].map((a) => new RegExp(`\\b${ESC(a)}\\b`, 'i'));
   const textLead = body.slice(0, 500);
 
   let s = 0;
+  const reasons: string[] = [];
+
   const titleHit = aliases.some((re) => re.test(title));
   const leadHit = aliases.some((re) => re.test(textLead));
   const context = BUSINESS.test(title) || BUSINESS.test(textLead);
   const proxHit = aliases.some((re) => windowHit(`${title} ${textLead}`, re, 8));
 
-  if (titleHit) s += 7;
-  if (leadHit) s += 4;
-  if (context) s += 3;
-  if (proxHit) s += 3;
-  if ((titleHit || leadHit) && !context) s -= 6;
+  if (titleHit) {
+    s += 7;
+    reasons.push('title_match');
+  }
+  if (leadHit) {
+    s += 4;
+    reasons.push('lead_match');
+  }
+  if (context) {
+    s += 3;
+    reasons.push('business_context');
+  }
+  if (proxHit) {
+    s += 3;
+    reasons.push('proximity_8');
+  }
+
+  // Heavy penalty if brand mentioned but no business context
+  if ((titleHit || leadHit) && !context) {
+    s -= 6;
+    reasons.push('no_business_penalty');
+  }
 
   const score = Math.max(0, Math.min(20, s));
-  const flags: string[] = [];
-  if (context) flags.push('business_context');
-  if (proxHit) flags.push('proximity_8');
-  return { score, flags };
+  return { score, reason: reasons.join('|') || 'no_match' };
 }
 
 // ---- category --------------------------------------------------------------
@@ -602,9 +619,9 @@ Deno.serve(async (req) => {
         }
         
         // Score relevance (context + proximity + section-aware)
-        const { score: rel, flags } = scoreRelevanceStrict(b, title, body, urlObj);
+        const { score: rel, reason: relReason } = scoreRelevanceStrict(b, title, body, urlObj);
         if (rel < 9) {
-          console.log(`[orchestrator] Skipping low-relevance article (rel=${rel}): ${title.slice(0, 80)}`);
+          console.log(`[orchestrator] Skipping low-relevance article (rel=${rel}, reason=${relReason}): ${title.slice(0, 80)}`);
           totalSkipped++;
           continue; // DROP low relevance noise
         }
@@ -651,8 +668,9 @@ Deno.serve(async (req) => {
             category,
             verification: 'unverified',
             orientation,
-            disambiguation_reason: (typeof flags !== 'undefined' && flags.length ? flags.join('|') : null),
+            disambiguation_reason: relReason,
             relevance_score: rel,
+            relevance_reason: relReason,
             impact_confidence: confidence,
             is_press_release: isPressRelease,
             impact_labor:       category === 'labor'       ? finalImpact : 0,

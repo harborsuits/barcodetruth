@@ -426,12 +426,14 @@ export type Database = {
           impact_labor: number | null
           impact_politics: number | null
           impact_social: number | null
+          is_irrelevant: boolean | null
           is_press_release: boolean | null
           is_test: boolean
           jurisdiction: string | null
           occurred_at: string | null
           orientation: Database["public"]["Enums"]["event_orientation"] | null
           raw_data: Json | null
+          relevance_reason: string | null
           relevance_score: number | null
           resolved: boolean | null
           severity: string | null
@@ -461,12 +463,14 @@ export type Database = {
           impact_labor?: number | null
           impact_politics?: number | null
           impact_social?: number | null
+          is_irrelevant?: boolean | null
           is_press_release?: boolean | null
           is_test?: boolean
           jurisdiction?: string | null
           occurred_at?: string | null
           orientation?: Database["public"]["Enums"]["event_orientation"] | null
           raw_data?: Json | null
+          relevance_reason?: string | null
           relevance_score?: number | null
           resolved?: boolean | null
           severity?: string | null
@@ -498,12 +502,14 @@ export type Database = {
           impact_labor?: number | null
           impact_politics?: number | null
           impact_social?: number | null
+          is_irrelevant?: boolean | null
           is_press_release?: boolean | null
           is_test?: boolean
           jurisdiction?: string | null
           occurred_at?: string | null
           orientation?: Database["public"]["Enums"]["event_orientation"] | null
           raw_data?: Json | null
+          relevance_reason?: string | null
           relevance_score?: number | null
           resolved?: boolean | null
           severity?: string | null
