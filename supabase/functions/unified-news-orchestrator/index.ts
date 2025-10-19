@@ -1,5 +1,6 @@
 // Unified real ingestion: GDELT + Guardian + NewsAPI + NYT + GNews -> brand_events + event_sources (dedup by URL hash)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { RELEVANCE_MIN_ACCEPTED, RELEVANCE_MAX_SCORE } from "../_shared/scoringConstants.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -708,11 +709,13 @@ Deno.serve(async (req) => {
 
         console.log(`[Orchestrator] Processing ${b.name}: ${title.slice(0, 50)}... (rel=${rel}, cat=${categoryResult.category_code}, impact=${finalImpact})`);
 
-        const normalizedRel = rel / 20; // Convert 0-20 scale to 0-1
+        // Canary: detect if rel looks normalized (should never happen)
+        if (rel <= 1 && rel !== 0) {
+          console.warn('[CANARY] relRaw looks normalized (0-1):', { rel, title: title.slice(0, 50), brand: b.name });
+        }
         
-        // Determine if irrelevant based on brand's min_score threshold (normalized scale)
-        const minScore = (b.monitoring_config as any)?.min_score ?? 0.5;
-        const isIrrelevant = normalizedRel < minScore; // FIX: Use normalized score!
+        // Use raw score for gating (0-20 scale)
+        const isIrrelevant = rel < RELEVANCE_MIN_ACCEPTED;
 
         // 1) Upsert brand_events first (so FK exists)
         const { error: evErr } = await supabase
@@ -729,7 +732,7 @@ Deno.serve(async (req) => {
             category_code: categoryResult.category_code, // NEW: using event_rules!
             orientation,
             disambiguation_reason: relReason,
-            relevance_score: rel, // FIX: Save raw score (0-20) not normalized (0-1)!
+            relevance_score_raw: rel, // Raw score (0-20 integer)
             relevance_reason: relReason,
             is_irrelevant: isIrrelevant,
             impact_confidence: confidence,

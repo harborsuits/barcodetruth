@@ -436,7 +436,8 @@ export type Database = {
           orientation: Database["public"]["Enums"]["event_orientation"] | null
           raw_data: Json | null
           relevance_reason: string | null
-          relevance_score: number | null
+          relevance_score_norm: number | null
+          relevance_score_raw: number
           resolved: boolean | null
           severity: string | null
           source_url: string | null
@@ -475,7 +476,8 @@ export type Database = {
           orientation?: Database["public"]["Enums"]["event_orientation"] | null
           raw_data?: Json | null
           relevance_reason?: string | null
-          relevance_score?: number | null
+          relevance_score_norm?: number | null
+          relevance_score_raw?: number
           resolved?: boolean | null
           severity?: string | null
           source_url?: string | null
@@ -516,7 +518,8 @@ export type Database = {
           orientation?: Database["public"]["Enums"]["event_orientation"] | null
           raw_data?: Json | null
           relevance_reason?: string | null
-          relevance_score?: number | null
+          relevance_score_norm?: number | null
+          relevance_score_raw?: number
           resolved?: boolean | null
           severity?: string | null
           source_url?: string | null

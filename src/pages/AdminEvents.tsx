@@ -55,7 +55,8 @@ interface BrandEvent {
   event_date: string;
   created_at: string;
   is_irrelevant: boolean;
-  relevance_score: number | null;
+  relevance_score_raw: number;
+  relevance_score_norm: number | null;
   ai_summary: string | null;
   brands: { name: string; logo_url: string | null } | null;
   event_sources: Array<{
@@ -113,7 +114,8 @@ export default function AdminEvents() {
           event_date,
           created_at,
           is_irrelevant,
-          relevance_score,
+          relevance_score_raw,
+          relevance_score_norm,
           ai_summary,
           brands!inner(name, logo_url),
           event_sources(id, source_name, canonical_url, source_date)
@@ -559,9 +561,9 @@ export default function AdminEvents() {
                                   Irrelevant
                                 </Badge>
                               )}
-                              {event.relevance_score !== null && event.relevance_score < 9 && (
+                              {event.relevance_score_raw < 11 && (
                                 <Badge variant="destructive" className="text-xs">
-                                  Low Rel: {event.relevance_score}
+                                  Low Rel: {event.relevance_score_raw}/20
                                 </Badge>
                               )}
                               {!/^[A-Za-z0-9\s.,!?'"()-]+$/.test(event.title) && (
@@ -778,11 +780,9 @@ export default function AdminEvents() {
                 {selectedEvent.is_irrelevant && (
                   <Badge variant="destructive">Irrelevant</Badge>
                 )}
-                {selectedEvent.relevance_score !== null && (
-                  <Badge variant={selectedEvent.relevance_score < 9 ? "destructive" : "secondary"}>
-                    Rel: {selectedEvent.relevance_score}/20
-                  </Badge>
-                )}
+                <Badge variant={selectedEvent.relevance_score_raw < 11 ? "destructive" : "secondary"}>
+                  Rel: {selectedEvent.relevance_score_raw}/20
+                </Badge>
                 {!/^[A-Za-z0-9\s.,!?'"()-]+$/.test(selectedEvent.title) && (
                   <Badge variant="secondary">Non-English</Badge>
                 )}
