@@ -221,6 +221,14 @@ export const Scan = () => {
   });
 
   const startScanner = async () => {
+    console.log('[Mobile Debug] Start scanner clicked:', {
+      userAgent: navigator.userAgent,
+      inIframe: window.self !== window.top,
+      isSecure: window.location.protocol === 'https:',
+      hasGetUserMedia: !!(navigator.mediaDevices?.getUserMedia),
+      timestamp: Date.now()
+    });
+
     // Check scan limit before starting
     if (!can_scan) {
       toast({
@@ -234,18 +242,17 @@ export const Scan = () => {
     }
 
     if (!videoRef.current) {
-      console.error('Video element not ready');
+      console.error('[Mobile Debug] Video element not ready');
       return;
     }
     
     setError('');
     setScanResult('scanning');
     console.log('[Analytics] scan_start', { ts: Date.now() });
-    console.log('Initializing scanner...');
     
     // Feature detection
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      console.error('getUserMedia not supported');
+      console.error('[Mobile Debug] getUserMedia not supported');
       setError('Camera not supported in this browser. Use manual entry below.');
       setScanResult('idle');
       toast({
@@ -259,29 +266,46 @@ export const Scan = () => {
     // Check if in iframe (preview environment)
     const inIframe = window.self !== window.top;
     if (inIframe) {
-      console.warn('Running in iframe - camera access may be restricted');
-      setError('Camera not available in preview. Use manual entry below or test on published site.');
+      console.warn('[Mobile Debug] Running in iframe - camera blocked');
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      setError('Camera blocked in preview. Use the published app or manual entry below.');
       setScanResult('idle');
       toast({
-        title: "Camera not available",
-        description: "Preview environment doesn't support camera. Use manual barcode entry or test on your published site.",
-        variant: "destructive"
+        title: "Camera blocked in preview",
+        description: isMobile 
+          ? "Mobile browsers block camera in preview. Use the published app link or manual entry below."
+          : "Preview environment blocks camera. Use manual barcode entry or test on your published site.",
+        variant: "destructive",
+        duration: 6000
       });
       return;
     }
     
     try {
+      console.log('[Mobile Debug] Requesting camera access...');
       await startBarcodeScanner();
-      console.log('Camera started successfully');
+      console.log('[Mobile Debug] Camera started successfully');
     } catch (err: any) {
-      console.error('Scanner start error:', err);
+      console.error('[Mobile Debug] Scanner start error:', err);
       const errorMsg = err?.message || 'Failed to access camera';
       setError(errorMsg);
       setScanResult('idle');
+      
+      // Better error messages for common mobile issues
+      let description = errorMsg;
+      if (err?.name === 'NotAllowedError') {
+        description = 'Camera access denied. Check your browser settings and grant camera permission.';
+      } else if (err?.name === 'NotFoundError') {
+        description = 'No camera found on this device.';
+      } else if (err?.name === 'NotReadableError') {
+        description = 'Camera is in use by another app. Close other apps and try again.';
+      }
+      
       toast({
         title: "Camera error",
-        description: errorMsg,
-        variant: "destructive"
+        description,
+        variant: "destructive",
+        duration: 6000
       });
     }
   };
