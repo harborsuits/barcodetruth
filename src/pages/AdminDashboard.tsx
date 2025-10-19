@@ -19,8 +19,10 @@ import {
   Shield,
   BarChart3,
   Zap,
-  ArrowLeft
+  ArrowLeft,
+  RefreshCw
 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 
 interface DashboardMetrics {
@@ -128,6 +130,17 @@ export default function AdminDashboard() {
       bgColor: "bg-pink-600/10",
       priority: "high",
       metrics: "Testing tool"
+    },
+    {
+      title: "Reclassify Events",
+      description: "Apply categorization rules to all events",
+      icon: RefreshCw,
+      route: null,
+      action: "reclassify",
+      color: "text-amber-600 dark:text-amber-400",
+      bgColor: "bg-amber-600/10",
+      priority: "high",
+      metrics: "One-time fix"
     },
     {
       title: "Claims Moderation",
@@ -326,8 +339,35 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {highPriority.map((tool) => {
               const Icon = tool.icon;
+              
+              const handleClick = async () => {
+                if (tool.action === "reclassify") {
+                  try {
+                    toast({
+                      title: "Starting reclassification...",
+                      description: "This may take a minute",
+                    });
+                    const { data, error } = await supabase.rpc('reclassify_all_events');
+                    if (error) throw error;
+                    const result = data[0];
+                    toast({
+                      title: "Reclassification complete!",
+                      description: `Updated ${result.updated_count} events: ${result.financial_count} financial, ${result.recall_count} recalls, ${result.legal_count} legal, ${result.regulatory_count} regulatory`,
+                    });
+                  } catch (error: any) {
+                    toast({
+                      title: "Reclassification failed",
+                      description: error.message,
+                      variant: "destructive",
+                    });
+                  }
+                } else if (tool.route) {
+                  navigate(tool.route);
+                }
+              };
+              
               return (
-                <Card key={tool.route} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate(tool.route)}>
+                <Card key={tool.route || tool.title} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={handleClick}>
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className={`p-3 rounded-lg ${tool.bgColor}`}>
@@ -340,7 +380,7 @@ export default function AdminDashboard() {
                   </CardHeader>
                   <CardContent>
                     <Button className="w-full" variant="outline">
-                      Open Tool
+                      {tool.action === "reclassify" ? "Run Now" : "Open Tool"}
                     </Button>
                   </CardContent>
                 </Card>

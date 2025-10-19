@@ -3555,6 +3555,16 @@ export type Database = {
         Args: { p_brand_id: string; p_user_id: string }
         Returns: Json
       }
+      reclassify_all_events: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          financial_count: number
+          legal_count: number
+          recall_count: number
+          regulatory_count: number
+          updated_count: number
+        }[]
+      }
       refresh_brand_coverage: {
         Args: Record<PropertyKey, never>
         Returns: undefined
