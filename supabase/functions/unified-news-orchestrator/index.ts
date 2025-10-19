@@ -96,6 +96,18 @@ function hardExclude(brand: Brand, title: string, body: string, url: URL): boole
   const txt = `${title}\n${body}`;
   const hostname = url.hostname.toLowerCase().replace(/^www\./, '');
   
+  // Brand-specific disambiguation rules
+  if (brand.name === "Gillette") {
+    // Exclude stadium, location, or person references
+    if (/\b(stadium|gillette\s+ma|gillette\s+wyoming|gillette\s*,\s*ma)/i.test(txt)) {
+      return true;
+    }
+    // Exclude if it's clearly about the person not the company
+    if (/\bdaniel\s+gillette\b/i.test(txt) && !/\brazor|shav(e|ing)|procter|p&g\b/i.test(txt)) {
+      return true;
+    }
+  }
+  
   // Per-brand custom exclusions via monitoring_config
   const cfg = brand.monitoring_config || {};
   if (Array.isArray(cfg.exclude_regex) && cfg.exclude_regex.length > 0) {
@@ -658,7 +670,7 @@ Deno.serve(async (req) => {
         
         // Score relevance (context + proximity + section-aware)
         const { score: rel, reason: relReason } = scoreRelevanceStrict(b, title, body, urlObj);
-        if (rel < 9) {
+        if (rel < 11) {
           console.log(`[orchestrator] Skipping low-relevance article (rel=${rel}, reason=${relReason}): ${title.slice(0, 80)}`);
           totalSkipped++;
           continue; // DROP low relevance noise
@@ -696,11 +708,11 @@ Deno.serve(async (req) => {
 
         console.log(`[Orchestrator] Processing ${b.name}: ${title.slice(0, 50)}... (rel=${rel}, cat=${categoryResult.category_code}, impact=${finalImpact})`);
 
-        // Determine if irrelevant based on brand's min_score threshold
-        const minScore = (b.monitoring_config as any)?.min_score ?? 0.5;
-        const isIrrelevant = rel < minScore;
-
         const normalizedRel = rel / 20; // Convert 0-20 scale to 0-1
+        
+        // Determine if irrelevant based on brand's min_score threshold (normalized scale)
+        const minScore = (b.monitoring_config as any)?.min_score ?? 0.5;
+        const isIrrelevant = normalizedRel < minScore; // FIX: Use normalized score!
 
         // 1) Upsert brand_events first (so FK exists)
         const { error: evErr } = await supabase
