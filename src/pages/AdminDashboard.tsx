@@ -347,13 +347,17 @@ export default function AdminDashboard() {
                       title: "Starting reclassification...",
                       description: "This may take a minute",
                     });
-                    const { data, error } = await supabase.rpc('reclassify_all_events');
+                    const { data, error } = await supabase.functions.invoke('reclassify-events');
                     if (error) throw error;
-                    const result = data[0];
-                    toast({
-                      title: "Reclassification complete!",
-                      description: `Updated ${result.updated_count} events: ${result.financial_count} financial, ${result.recall_count} recalls, ${result.legal_count} legal, ${result.regulatory_count} regulatory`,
-                    });
+                    if (data.success) {
+                      const result = data.results;
+                      toast({
+                        title: "Reclassification complete!",
+                        description: `Updated ${result.updated_count} events: ${result.financial_count} financial, ${result.recall_count} recalls, ${result.legal_count} legal, ${result.regulatory_count} regulatory`,
+                      });
+                    } else {
+                      throw new Error(data.error || 'Unknown error');
+                    }
                   } catch (error: any) {
                     toast({
                       title: "Reclassification failed",

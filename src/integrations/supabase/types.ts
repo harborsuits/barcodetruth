@@ -413,6 +413,8 @@ export type Database = {
           article_text: string | null
           brand_id: string
           category: Database["public"]["Enums"]["event_category"]
+          category_code: string | null
+          category_score: number | null
           company_response_date: string | null
           company_response_summary: string | null
           company_response_url: string | null
@@ -450,6 +452,8 @@ export type Database = {
           article_text?: string | null
           brand_id: string
           category?: Database["public"]["Enums"]["event_category"]
+          category_code?: string | null
+          category_score?: number | null
           company_response_date?: string | null
           company_response_summary?: string | null
           company_response_url?: string | null
@@ -489,6 +493,8 @@ export type Database = {
           article_text?: string | null
           brand_id?: string
           category?: Database["public"]["Enums"]["event_category"]
+          category_code?: string | null
+          category_score?: number | null
           company_response_date?: string | null
           company_response_summary?: string | null
           company_response_url?: string | null
