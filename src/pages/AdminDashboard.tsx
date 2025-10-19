@@ -18,7 +18,8 @@ import {
   Users,
   Shield,
   BarChart3,
-  Zap
+  Zap,
+  ArrowLeft
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -179,14 +180,24 @@ export default function AdminDashboard() {
       <header className="bg-card border-b">
         <div className="container max-w-7xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold flex items-center gap-3">
-                <Shield className="h-8 w-8 text-primary" />
-                Admin Dashboard
-              </h1>
-              <p className="text-muted-foreground mt-2">
-                Central hub for managing Barcode Truth operations
-              </p>
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate(-1)}
+                title="Go back"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold flex items-center gap-3">
+                  <Shield className="h-8 w-8 text-primary" />
+                  Admin Dashboard
+                </h1>
+                <p className="text-muted-foreground mt-2">
+                  Central hub for managing Barcode Truth operations
+                </p>
+              </div>
             </div>
             <Button variant="outline" onClick={() => navigate('/settings')}>
               <Settings className="h-4 w-4 mr-2" />
