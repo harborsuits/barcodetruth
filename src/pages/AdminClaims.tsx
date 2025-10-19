@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, Clock, ArrowLeft } from 'lucide-react';
 
 interface Claim {
   id: string;
@@ -136,11 +136,21 @@ export default function AdminClaims() {
 
   return (
     <div className="container max-w-6xl py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Claim Moderation</h1>
-        <p className="text-muted-foreground">
-          Review and moderate community product claims
-        </p>
+      <div className="mb-8 flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate(-1)}
+          aria-label="Go back"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Claim Moderation</h1>
+          <p className="text-muted-foreground">
+            Review and moderate community product claims
+          </p>
+        </div>
       </div>
 
       <Tabs value={filter} onValueChange={(v) => setFilter(v as any)}>

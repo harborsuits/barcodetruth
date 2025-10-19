@@ -1,11 +1,13 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Play, Database, FileText, Calculator, RefreshCw } from "lucide-react";
+import { Loader2, Play, Database, FileText, Calculator, RefreshCw, ArrowLeft } from "lucide-react";
 
 export const AdminTriggers = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -66,11 +68,21 @@ export const AdminTriggers = () => {
 
   return (
     <div className="container max-w-4xl mx-auto p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Admin Triggers</h1>
-        <p className="text-muted-foreground mt-2">
-          Manually trigger enrichment and ingestion jobs
-        </p>
+      <div className="flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate(-1)}
+          aria-label="Go back"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold">Admin Triggers</h1>
+          <p className="text-muted-foreground mt-2">
+            Manually trigger enrichment and ingestion jobs
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

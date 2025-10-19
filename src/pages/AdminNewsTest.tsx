@@ -1,12 +1,14 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 
 export default function AdminNewsTest() {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [brandId, setBrandId] = useState('');
   const [loading, setLoading] = useState(false);
@@ -133,7 +135,12 @@ export default function AdminNewsTest() {
 
   return (
     <div className="container mx-auto p-6 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-6">News Ingestion Test</h1>
+      <div className="flex items-center gap-3 mb-6">
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Go back">
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <h1 className="text-3xl font-bold">News Ingestion Test</h1>
+      </div>
 
       <Card className="p-6 mb-6">
         <div className="flex gap-4">
