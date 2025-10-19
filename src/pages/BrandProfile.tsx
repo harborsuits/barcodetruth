@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { BrandWikiEnrichment } from '@/components/BrandWikiEnrichment';
-import CategoryFilter from '@/components/CategoryFilter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -59,6 +58,8 @@ type BrandProfile = {
     source_name: string | null; 
     canonical_url: string | null;
     category: string | null;
+    category_code?: string | null;
+    ai_summary?: string | null;
   }>;
 };
 
@@ -70,10 +71,10 @@ export default function BrandProfile() {
   const [data, setData] = useState<BrandProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
   // Get current user for personalized scoring
   const [user, setUser] = useState<any>(null);
-  const [categoryFilter, setCategoryFilter] = useState<'all' | 'labor' | 'environment' | 'politics' | 'social'>('all');
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -120,30 +121,47 @@ export default function BrandProfile() {
 
     (async () => {
       try {
-        const { data: result, error: rpcError } = await supabase.rpc('brand_profile_view', { 
-          p_brand_id: actualId 
-        });
+        const { data: profileData, error: profileError } = await supabase
+          .rpc('brand_profile_view', { p_brand_id: actualId });
 
-        if (rpcError) throw rpcError;
+        if (profileError) throw profileError;
+        if (!profileData) throw new Error('Brand not found');
+
+        // Cast to any to work with the JSON structure
+        const rawData: any = profileData;
+
+        // Fetch additional fields not in the RPC
+        const evidenceWithDetails = await Promise.all(
+          (rawData.evidence || []).map(async (ev: any) => {
+            const { data: eventData } = await supabase
+              .from('brand_events')
+              .select('category_code, ai_summary')
+              .eq('event_id', ev.event_id)
+              .single();
+            return { ...ev, category_code: eventData?.category_code, ai_summary: eventData?.ai_summary };
+          })
+        );
+
+        rawData.evidence = evidenceWithDetails;
         
         // Cast to BrandProfile type
-        const profileData = result as unknown as BrandProfile;
+        const result = rawData as BrandProfile;
         
         console.log('[BrandProfile] RPC result:', {
           brand_id: actualId,
-          brand_name: profileData?.brand?.name,
-          evidence_count: profileData?.evidence?.length ?? 0,
-          evidence_sample: profileData?.evidence?.slice(0, 2),
-          coverage: profileData?.coverage,
-          has_error: !!rpcError
+          brand_name: result?.brand?.name,
+          evidence_count: result?.evidence?.length ?? 0,
+          evidence_sample: result?.evidence?.slice(0, 2),
+          coverage: result?.coverage,
+          has_error: !!profileError
         });
         
-        if (!profileData?.brand) {
+        if (!result?.brand) {
           setError('Brand not found');
           return;
         }
 
-        setData(profileData);
+        setData(result);
       } catch (e: any) {
         console.error('Failed to load brand profile:', e);
         setError(e?.message ?? 'Failed to load brand profile');
@@ -401,16 +419,42 @@ export default function BrandProfile() {
         {/* Evidence table */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col gap-4">
               <h3 className="text-lg font-semibold">Latest evidence</h3>
-              <CategoryFilter value={categoryFilter} onChange={setCategoryFilter} />
+              
+              {/* Category Filter */}
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: 'All', value: 'all' },
+                  { label: 'Financial', value: 'FIN' },
+                  { label: 'Product Safety', value: 'PRODUCT' },
+                  { label: 'Legal', value: 'LEGAL' },
+                  { label: 'Regulatory', value: 'REGULATORY' },
+                  { label: 'Labor', value: 'LABOR' },
+                  { label: 'ESG', value: 'ESG' },
+                  { label: 'Policy', value: 'POLICY' },
+                  { label: 'Noise', value: 'NOISE' },
+                ].map((filter) => (
+                  <button
+                    key={filter.value}
+                    onClick={() => setCategoryFilter(filter.value)}
+                    className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
+                      categoryFilter === filter.value
+                        ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                        : 'bg-background hover:bg-muted border-border'
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </CardHeader>
           <CardContent>
             {(() => {
               const filteredEvidence = categoryFilter === 'all' 
                 ? (data.evidence ?? [])
-                : (data.evidence ?? []).filter(e => e.category === categoryFilter);
+                : (data.evidence ?? []).filter(e => e.category_code?.startsWith(categoryFilter));
               
               console.log('[BrandProfile] Evidence table render:', {
                 brand_id: actualId,
@@ -433,51 +477,58 @@ export default function BrandProfile() {
                           <th className="text-left p-3 font-medium">Status</th>
                         </tr>
                       </thead>
-                      <tbody>
-                         {filteredEvidence.map((e, i) => (
-                          <tr key={i} className="border-t hover:bg-muted/50">
-                            <td className="p-3 whitespace-nowrap">
-                              {new Date(e.event_date).toLocaleDateString()}
-                            </td>
-                            <td className="p-3 max-w-xs">
-                              {e.canonical_url ? (
-                                <a 
-                                  href={e.canonical_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-primary hover:underline inline-flex items-center gap-1"
-                                  title={e.title}
-                                >
-                                  <span className="truncate">{e.title}</span>
-                                  <LinkIcon className="h-3 w-3 flex-shrink-0" />
-                                </a>
-                              ) : (
-                                <span className="truncate" title={e.title}>{e.title}</span>
-                              )}
-                            </td>
-                            <td className="p-3">
-                              <Badge variant="outline" className="text-xs">
-                                {e.category || '—'}
-                              </Badge>
-                            </td>
-                            <td className="p-3 text-muted-foreground text-xs">
-                              {e.source_name ?? '—'}
-                            </td>
-                            <td className="p-3">
-                              <Badge 
-                                variant={
-                                  e.verification === 'official' ? 'default' :
-                                  e.verification === 'corroborated' ? 'secondary' : 
-                                  'outline'
-                                }
-                                className="text-xs"
-                              >
-                                {e.verification ?? 'unverified'}
-                              </Badge>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
+                       <tbody>
+                          {filteredEvidence.map((e, i) => (
+                           <tr key={i} className="border-t hover:bg-muted/50">
+                             <td className="p-3 whitespace-nowrap">
+                               {new Date(e.event_date).toLocaleDateString()}
+                             </td>
+                             <td className="p-3 max-w-xs">
+                               <div className="flex flex-col gap-1">
+                                 {e.canonical_url ? (
+                                   <a 
+                                     href={e.canonical_url}
+                                     target="_blank"
+                                     rel="noopener noreferrer"
+                                     className="text-primary hover:underline inline-flex items-center gap-1"
+                                     title={e.title}
+                                   >
+                                     <span className="truncate">{e.title}</span>
+                                     <LinkIcon className="h-3 w-3 flex-shrink-0" />
+                                   </a>
+                                 ) : (
+                                   <span className="truncate" title={e.title}>{e.title}</span>
+                                 )}
+                                 {e.ai_summary && (
+                                   <span className="text-xs text-muted-foreground line-clamp-2">
+                                     {e.ai_summary}
+                                   </span>
+                                 )}
+                               </div>
+                             </td>
+                             <td className="p-3">
+                               <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-xs font-medium">
+                                 {e.category_code || e.category || '—'}
+                               </span>
+                             </td>
+                             <td className="p-3 text-muted-foreground text-xs">
+                               {e.source_name ?? '—'}
+                             </td>
+                             <td className="p-3">
+                               <Badge 
+                                 variant={
+                                   e.verification === 'official' ? 'default' :
+                                   e.verification === 'corroborated' ? 'secondary' : 
+                                   'outline'
+                                 }
+                                 className="text-xs"
+                               >
+                                 {e.verification ?? 'unverified'}
+                               </Badge>
+                             </td>
+                           </tr>
+                         ))}
+                       </tbody>
                     </table>
                   </div>
                 </div>
