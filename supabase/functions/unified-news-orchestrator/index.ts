@@ -729,7 +729,7 @@ Deno.serve(async (req) => {
             category_code: categoryResult.category_code, // NEW: using event_rules!
             orientation,
             disambiguation_reason: relReason,
-            relevance_score: normalizedRel,
+            relevance_score: rel, // FIX: Save raw score (0-20) not normalized (0-1)!
             relevance_reason: relReason,
             is_irrelevant: isIrrelevant,
             impact_confidence: confidence,
