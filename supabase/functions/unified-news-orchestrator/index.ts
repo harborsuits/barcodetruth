@@ -9,7 +9,7 @@ const corsHeaders = {
 
 type Brand = { id: string; name: string; aliases: string[]; ticker: string | null; newsroom_domains: string[]; monitoring_config?: any };
 type GdeltItem = { url: string; title: string; seendate: string; domain?: string };
-type NewsArticle = { title: string; summary: string; url: string; published_at: string; source_name: string; category: "labor" | "environment" | "politics" | "social" };
+type NewsArticle = { title: string; summary: string; url: string; published_at: string; source_name: string; category?: "labor" | "environment" | "politics" | "social" };
 
 const QUERY_TERMS = [
   "OSHA", "violation", "safety", "workplace", "worker", "union", "wage", "discrimination",
@@ -178,20 +178,65 @@ function scoreRelevanceStrict(brand: Brand, title: string, body: string, url: UR
   return { score, reason: reasons.join('|') || 'no_match' };
 }
 
-// ---- category --------------------------------------------------------------
-const CAT = {
-  labor:       /\b(strike|walkout|union|organizing|collective\s+bargain|overtime|wage|layoff|retention|harass|discrimin|OSHA)\b/i,
-  environment: /\b(EPA|emission|methane|spill|toxic|recall|contaminat|pollut|sustainab|carbon|deforest|waste|water|air|recall(s)?\b.*(lot|batch|product|device|drug|food)|fda|class\s*i+|medical device report|adverse event)\b/i,
-  politics:    /\b(FTC|DOJ|SEC|Congress|Senate|tariff|sanction|attorney\s+general|bill|rulemaking|regulat|settlement|class action|jury verdict|multidistrict litigation|mdl)\b/i,
-  social:      /\b(ad\s+campaign|marketing|donation|community|partnership|award|sponsor|launch|recipe|taste\s+test)\b/i,
-};
+// ---- category using event_rules --------------------------------------------
+// Map new category codes to old categories for backward compatibility
+function mapCategoryCodeToOldCategory(code: string): 'labor'|'environment'|'politics'|'social'|'general' {
+  if (!code) return 'general';
+  
+  const prefix = code.split('.')[0];
+  switch (prefix) {
+    case 'LABOR': return 'labor';
+    case 'ESG':
+    case 'REGULATORY':
+      return 'environment';
+    case 'LEGAL':
+    case 'POLICY':
+      return 'politics';
+    case 'FIN':
+    case 'PRODUCT':
+      return 'social';
+    default:
+      return 'general';
+  }
+}
 
-function classifyCategory(title: string, path: string): 'labor'|'environment'|'politics'|'social' {
-  const t = `${title} ${path}`;
-  if (CAT.labor.test(t)) return 'labor';
-  if (CAT.environment.test(t)) return 'environment';
-  if (CAT.politics.test(t)) return 'politics';
-  return 'social';
+// New async category classifier using event_rules
+async function classifyCategory(
+  supabase: any,
+  domain: string, 
+  path: string, 
+  title: string, 
+  body: string
+): Promise<{ category: string; category_code: string; matched_rule?: string }> {
+  try {
+    const { data, error } = await supabase.rpc('test_article_categorization', {
+      p_domain: domain || '',
+      p_path: path || '',
+      p_title: title,
+      p_body: body || ''
+    });
+
+    if (error) {
+      console.error('[classifyCategory] Error calling test_article_categorization:', error);
+      return { category: 'general', category_code: 'general' };
+    }
+
+    if (data && data.length > 0) {
+      const result = data[0];
+      return {
+        category_code: result.category_code,
+        category: mapCategoryCodeToOldCategory(result.category_code),
+        matched_rule: result.matched_rule_id
+      };
+    }
+
+    // No match - default to general
+    console.log(`[classifyCategory] No rules matched for: ${title.slice(0, 60)}`);
+    return { category: 'general', category_code: 'general' };
+  } catch (err) {
+    console.error('[classifyCategory] Exception:', err);
+    return { category: 'general', category_code: 'general' };
+  }
 }
 
 // ---- orientation & impact  (-5..+5) ---------------------------------------
@@ -235,15 +280,14 @@ function parseGdeltArticle(i: GdeltItem, brandName: string): NewsArticle {
   
   const urlObj = new URL(i.url);
   const title = i.title ?? `News: ${brandName}`;
-  const category = classifyCategory(title, urlObj.pathname);
+  // Note: GDELT parse doesn't have supabase client, will classify later in main loop
   
   return {
     title,
     summary: "",
     url: i.url,
     published_at: publishedAt,
-    source_name: i.domain ?? urlObj.hostname,
-    category
+    source_name: i.domain ?? urlObj.hostname
   };
 }
 
@@ -281,8 +325,7 @@ async function fetchGuardian(apiKey: string, brandName: string, daysBack = 7): P
       summary: text,
       url: a.webUrl,
       published_at: a.webPublicationDate,
-      source_name: "The Guardian",
-      category: classifyCategory(title, urlObj.pathname)
+      source_name: "The Guardian"
     };
   });
 }
@@ -311,8 +354,7 @@ async function fetchNewsAPI(apiKey: string, brandName: string, daysBack = 7): Pr
       summary: text,
       url: a.url,
       published_at: a.publishedAt,
-      source_name: a.source?.name || "NewsAPI",
-      category: classifyCategory(title, urlObj.pathname)
+      source_name: a.source?.name || "NewsAPI"
     };
   });
 }
@@ -340,8 +382,7 @@ async function fetchNYTimes(apiKey: string, brandName: string, daysBack = 7): Pr
       summary: text,
       url: a.web_url,
       published_at: a.pub_date,
-      source_name: "The New York Times",
-      category: classifyCategory(title, urlObj.pathname)
+      source_name: "The New York Times"
     };
   });
 }
@@ -370,8 +411,7 @@ async function fetchGNews(apiKey: string, brandName: string, daysBack = 7): Prom
       summary: text,
       url: a.url,
       published_at: a.publishedAt,
-      source_name: a.source?.name || "GNews",
-      category: classifyCategory(title, urlObj.pathname)
+      source_name: a.source?.name || "GNews"
     };
   });
 }
@@ -400,8 +440,7 @@ async function fetchMediastack(apiKey: string, brandName: string, daysBack = 7):
       summary: text,
       url: a.url,
       published_at: a.published_at,
-      source_name: a.source || "Mediastack",
-      category: classifyCategory(title, urlObj.pathname)
+      source_name: a.source || "Mediastack"
     };
   });
 }
@@ -428,8 +467,7 @@ async function fetchCurrents(apiKey: string, brandName: string, daysBack = 7): P
       summary: text,
       url: a.url,
       published_at: a.published,
-      source_name: a.author || "Currents",
-      category: classifyCategory(title, urlObj.pathname)
+      source_name: a.author || "Currents"
     };
   });
 }
@@ -631,8 +669,11 @@ Deno.serve(async (req) => {
         const eventId = hashToUuid(eventIdHash);
         const url = new URL(urlCanon);
         
-        // Classify category from title + URL
-        const category = classifyCategory(title, url.pathname);
+        // Classify category using event_rules
+        const domainName = url.hostname.replace(/^www\./, '');
+        const categoryResult = await classifyCategory(supabase, domainName, url.pathname, title, body);
+        
+        console.log(`[Orchestrator] Classified "${title.slice(0, 50)}..." as ${categoryResult.category_code} (old: ${categoryResult.category})`);
         
         // Calculate impact and confidence
         const baseImpact = orientationImpact(title);
@@ -653,33 +694,13 @@ Deno.serve(async (req) => {
         if (baseImpact < -1) orientation = 'negative';
         else if (baseImpact > 1) orientation = 'positive';
 
-        console.log(`[Orchestrator] Processing ${b.name}: ${title.slice(0, 50)}... (rel=${rel}, cat=${category}, impact=${finalImpact})`);
+        console.log(`[Orchestrator] Processing ${b.name}: ${title.slice(0, 50)}... (rel=${rel}, cat=${categoryResult.category_code}, impact=${finalImpact})`);
 
         // Determine if irrelevant based on brand's min_score threshold
         const minScore = (b.monitoring_config as any)?.min_score ?? 0.5;
         const isIrrelevant = rel < minScore;
 
-        // Classify using canonical taxonomy
-        const domainName = url.hostname.replace(/^www\./, '');
-        const path = url.pathname;
         const normalizedRel = rel / 20; // Convert 0-20 scale to 0-1
-        
-        const { data: classification } = await supabase
-          .rpc('classify_event', {
-            p_domain: domainName,
-            p_path: path,
-            p_title: title,
-            p_body: body,
-            p_base: normalizedRel,
-          });
-
-        const cls = classification?.[0] || {
-          category_code: 'NOISE.MARKETING',
-          severity: 2,
-          certainty: 2,
-          verification: 'media',
-          category_score: normalizedRel,
-        };
 
         // 1) Upsert brand_events first (so FK exists)
         const { error: evErr } = await supabase
@@ -691,12 +712,9 @@ Deno.serve(async (req) => {
             event_date: occurred,
             occurred_at: occurred,
             source_url: urlCanon,
-            category,
+            category: categoryResult.category, // old field for backward compat
             verification: 'unverified',
-            category_code: cls.category_code,
-            severity: cls.severity,
-            certainty: cls.certainty,
-            category_score: cls.category_score,
+            category_code: categoryResult.category_code, // NEW: using event_rules!
             orientation,
             disambiguation_reason: relReason,
             relevance_score: normalizedRel,
@@ -704,10 +722,10 @@ Deno.serve(async (req) => {
             is_irrelevant: isIrrelevant,
             impact_confidence: confidence,
             is_press_release: isPressRelease,
-            impact_labor:       category === 'labor'       ? finalImpact : 0,
-            impact_environment: category === 'environment' ? finalImpact : 0,
-            impact_politics:    category === 'politics'    ? finalImpact : 0,
-            impact_social:      category === 'social'      ? finalImpact : 0,
+            impact_labor:       categoryResult.category === 'labor'       ? finalImpact : 0,
+            impact_environment: categoryResult.category === 'environment' ? finalImpact : 0,
+            impact_politics:    categoryResult.category === 'politics'    ? finalImpact : 0,
+            impact_social:      categoryResult.category === 'social'      ? finalImpact : 0,
           }, { onConflict: 'event_id' });
 
         if (evErr) {
