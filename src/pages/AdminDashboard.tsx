@@ -120,6 +120,16 @@ export default function AdminDashboard() {
       metrics: metrics ? `${metrics.unverified_events} unverified` : "—"
     },
     {
+      title: "Category Tester",
+      description: "Test article categorization rules",
+      icon: Zap,
+      route: "/admin/category-tester",
+      color: "text-pink-600 dark:text-pink-400",
+      bgColor: "bg-pink-600/10",
+      priority: "high",
+      metrics: "Testing tool"
+    },
+    {
       title: "Claims Moderation",
       description: "Review user-submitted product-to-brand mappings",
       icon: Package,

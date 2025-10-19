@@ -37,6 +37,7 @@ const AdminIngestion = lazyNamed(() => import("./pages/AdminIngestion"), "AdminI
 const AdminNewsTest = lazyNamed(() => import("./pages/AdminNewsTest"), "default");
 const AdminEvents = lazyNamed(() => import("./pages/AdminEvents"), "default");
 const AdminDashboard = lazyNamed(() => import("./pages/AdminDashboard"), "default");
+const AdminCategoryTester = lazyNamed(() => import("./pages/AdminCategoryTester"), "default");
 
 const queryClient = new QueryClient();
 
@@ -322,6 +323,20 @@ const App = () => {
                   <RouteErrorBoundary>
                     <Suspense fallback={<RouteFallback label="Loading admin dashboard…" />}>
                       <AdminDashboard />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/category-tester"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading category tester…" />}>
+                      <AdminCategoryTester />
                     </Suspense>
                   </RouteErrorBoundary>
                 </AdminRoute>

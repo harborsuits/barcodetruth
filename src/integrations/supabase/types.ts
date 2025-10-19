@@ -1082,6 +1082,42 @@ export type Database = {
         }
         Relationships: []
       }
+      event_rules: {
+        Row: {
+          category_code: string
+          created_at: string
+          enabled: boolean
+          id: string
+          match_type: string
+          notes: string | null
+          pattern: string
+          priority: number
+          updated_at: string
+        }
+        Insert: {
+          category_code: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          match_type: string
+          notes?: string | null
+          pattern: string
+          priority?: number
+          updated_at?: string
+        }
+        Update: {
+          category_code?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          match_type?: string
+          notes?: string | null
+          pattern?: string
+          priority?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       event_sources: {
         Row: {
           ai_model_version: string | null
@@ -3556,6 +3592,22 @@ export type Database = {
       search_catalog: {
         Args: { p_limit?: number; p_q: string }
         Returns: Json
+      }
+      test_article_categorization: {
+        Args: {
+          p_body: string
+          p_domain: string
+          p_path: string
+          p_title: string
+        }
+        Returns: {
+          category_code: string
+          match_type: string
+          matched_rule_id: string
+          pattern: string
+          priority: number
+          rule_notes: string
+        }[]
       }
       unlock_stale_jobs: {
         Args: { timeout_seconds: number }
