@@ -655,6 +655,10 @@ Deno.serve(async (req) => {
 
         console.log(`[Orchestrator] Processing ${b.name}: ${title.slice(0, 50)}... (rel=${rel}, cat=${category}, impact=${finalImpact})`);
 
+        // Determine if irrelevant based on brand's min_score threshold
+        const minScore = (b.monitoring_config as any)?.min_score ?? 0.5;
+        const isIrrelevant = rel < minScore;
+
         // 1) Upsert brand_events first (so FK exists)
         const { error: evErr } = await supabase
           .from("brand_events")
@@ -671,6 +675,7 @@ Deno.serve(async (req) => {
             disambiguation_reason: relReason,
             relevance_score: rel,
             relevance_reason: relReason,
+            is_irrelevant: isIrrelevant,
             impact_confidence: confidence,
             is_press_release: isPressRelease,
             impact_labor:       category === 'labor'       ? finalImpact : 0,

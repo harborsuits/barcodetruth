@@ -56,25 +56,32 @@ export function registrableDomain(u: string): string | null {
 }
 
 /**
- * Extract domain from URL (without www)
+ * Extract domain from URL (without www) - fallback-safe
  */
 export function domainOf(u: string): string {
   try {
     const url = new URL(u);
     return url.hostname.replace(/^www\./, '');
-  } catch {
+  } catch (e) {
+    console.warn('Domain extraction failed:', e);
     return '';
   }
 }
 
 /**
  * Extract section from URL path (first non-empty segment)
+ * Strips /amp/ and /live/ prefixes for normalization
  */
 export function sectionFromUrl(u: string): string | null {
   try {
     const url = new URL(u);
-    const parts = url.pathname.split('/').filter(Boolean);
-    return parts.length > 0 ? parts[0].toLowerCase() : null;
+    // Strip /amp/ and /live/ prefixes, normalize path
+    const path = url.pathname
+      .replace(/^\/amp\/?/, '/')
+      .replace(/^\/live\/?/, '/')
+      .toLowerCase();
+    const parts = path.split('/').filter(Boolean);
+    return parts.length > 0 ? parts[0] : null;
   } catch {
     return null;
   }

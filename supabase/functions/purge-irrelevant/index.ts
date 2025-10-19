@@ -18,6 +18,26 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Auth gate: only allow CRON or service role
+  const auth = req.headers.get('authorization') || '';
+  const cronSecret = Deno.env.get('CRON_SECRET');
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  
+  if (!auth.startsWith('Bearer ')) {
+    return new Response(
+      JSON.stringify({ ok: false, error: 'unauthorized' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+  
+  const token = auth.slice(7);
+  if (token !== cronSecret && token !== serviceKey) {
+    return new Response(
+      JSON.stringify({ ok: false, error: 'unauthorized' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   try {
     const body: PurgeRequest = await req.json().catch(() => ({}));
     const {
@@ -71,60 +91,79 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Fetch candidate events for purging
-    let query = supabase
-      .from('brand_events')
-      .select('event_id, brand_id, title, description, source_url, relevance_score, relevance_reason, is_irrelevant')
-      .or(`relevance_score.lte.${scoreBelow},is_irrelevant.eq.false`)
-      .limit(maxRows)
-      .order('event_date', { ascending: false });
-
-    if (brandId) {
-      query = query.eq('brand_id', brandId);
-    }
-
-    const { data: rows, error } = await query;
-    if (error) {
-      console.error('Error fetching events:', error);
-      return new Response(
-        JSON.stringify({ ok: false, error: error.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
+    // Fetch candidate events for purging (batch processing)
     const updates: Array<{ event_id: string; is_irrelevant: boolean; relevance_reason: string }> = [];
     const deletes: string[] = [];
+    
+    let processed = 0;
+    let page = 0;
+    const pageSize = 500;
+    
+    while (processed < maxRows) {
+      let query = supabase
+        .from('brand_events')
+        .select('event_id, brand_id, title, description, source_url, relevance_score, relevance_reason, is_irrelevant')
+        .eq('is_irrelevant', false)
+        .lte('relevance_score', scoreBelow)
+        .order('event_date', { ascending: false })
+        .range(page * pageSize, (page + 1) * pageSize - 1);
 
-    for (const row of rows ?? []) {
-      const patterns = brandMap.get(row.brand_id) ?? [];
-      const text = `${row.title ?? ''} ${row.description ?? ''}`;
-      
-      // Check if any brand-specific exclude pattern matches
-      const excludeMatch = patterns.some((p) => {
-        try {
-          const re = new RegExp(p, 'i');
-          return re.test(text);
-        } catch (e) {
-          console.warn(`Invalid regex pattern: ${p}`, e);
-          return false;
-        }
-      });
+      if (brandId) {
+        query = query.eq('brand_id', brandId);
+      }
 
-      const shouldPurge = excludeMatch || (row.relevance_score ?? 1) <= scoreBelow;
+      const { data: rows, error } = await query;
 
-      if (shouldPurge) {
-        if (dryRun) continue;
+      if (error) {
+        console.error('Error fetching events:', error);
+        return new Response(
+          JSON.stringify({ ok: false, error: error.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!rows?.length) break;
+
+      for (const row of rows) {
+        // Cap patterns at 200 to avoid pathological configs
+        const patterns = (brandMap.get(row.brand_id) ?? []).slice(0, 200);
+        const text = `${row.title ?? ''} ${row.description ?? ''}`;
         
-        if (hardDelete) {
-          deletes.push(row.event_id);
-        } else {
-          updates.push({
-            event_id: row.event_id,
-            is_irrelevant: true,
-            relevance_reason: `${row.relevance_reason ?? ''} | purged_score:${row.relevance_score}`,
-          });
+        // Check if any brand-specific exclude pattern matches
+        const excludeMatch = patterns.some((p) => {
+          try {
+            const re = new RegExp(p, 'i');
+            return re.test(text);
+          } catch (e) {
+            console.warn(`Invalid regex pattern: ${p}`, e);
+            return false;
+          }
+        });
+
+        const shouldPurge = excludeMatch || (row.relevance_score ?? 1) <= scoreBelow;
+
+        if (shouldPurge) {
+          if (dryRun) continue;
+          
+          if (hardDelete) {
+            deletes.push(row.event_id);
+          } else {
+            const base = row.relevance_reason?.trim() || '';
+            const reason = base 
+              ? `${base} | purged_score:${row.relevance_score}` 
+              : `purged_score:${row.relevance_score}`;
+            
+            updates.push({
+              event_id: row.event_id,
+              is_irrelevant: true,
+              relevance_reason: reason,
+            });
+          }
         }
       }
+
+      processed += rows.length;
+      page++;
     }
 
     // Execute updates/deletes
@@ -167,7 +206,7 @@ Deno.serve(async (req) => {
 
     const result = {
       ok: true,
-      reviewed: rows?.length ?? 0,
+      reviewed: processed,
       wouldPurge: dryRun ? (updates.length + deletes.length) : undefined,
       updated: dryRun ? 0 : updates.length,
       deleted: dryRun ? 0 : deletes.length,
