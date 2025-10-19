@@ -35,6 +35,8 @@ const AdminEvidence = lazyNamed(() => import("./pages/AdminEvidence"), "default"
 const AdminTriggers = lazyNamed(() => import("./pages/AdminTriggers"), "AdminTriggers");
 const AdminIngestion = lazyNamed(() => import("./pages/AdminIngestion"), "AdminIngestion");
 const AdminNewsTest = lazyNamed(() => import("./pages/AdminNewsTest"), "default");
+const AdminEvents = lazyNamed(() => import("./pages/AdminEvents"), "default");
+const AdminDashboard = lazyNamed(() => import("./pages/AdminDashboard"), "default");
 
 const queryClient = new QueryClient();
 
@@ -292,6 +294,34 @@ const App = () => {
                   <RouteErrorBoundary>
                     <Suspense fallback={<RouteFallback label="Loading news test…" />}>
                       <AdminNewsTest />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/events"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading event management…" />}>
+                      <AdminEvents />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading admin dashboard…" />}>
+                      <AdminDashboard />
                     </Suspense>
                   </RouteErrorBoundary>
                 </AdminRoute>

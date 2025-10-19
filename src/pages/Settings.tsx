@@ -664,20 +664,64 @@ export const Settings = () => {
               <p className="text-sm text-muted-foreground">
                 Access admin-only features for managing brand data and news ingestion.
               </p>
-              <Button 
-                onClick={() => navigate('/admin/ingestion')}
-                variant="outline"
-                className="w-full"
-              >
-                News Ingestion Control
-              </Button>
-              <Button 
-                onClick={() => navigate('/admin/health')}
-                variant="outline"
-                className="w-full"
-              >
-                System Health
-              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button 
+                  onClick={() => navigate('/admin')}
+                  variant="default"
+                  size="sm"
+                >
+                  Dashboard
+                </Button>
+                <Button 
+                  onClick={() => navigate('/admin/events')}
+                  variant="outline"
+                  size="sm"
+                >
+                  Event Management
+                </Button>
+                <Button 
+                  onClick={() => navigate('/admin/health')}
+                  variant="outline"
+                  size="sm"
+                >
+                  System Health
+                </Button>
+                <Button 
+                  onClick={() => navigate('/admin/ingestion')}
+                  variant="outline"
+                  size="sm"
+                >
+                  Ingestion
+                </Button>
+                <Button 
+                  onClick={() => navigate('/admin/triggers')}
+                  variant="outline"
+                  size="sm"
+                >
+                  Triggers
+                </Button>
+                <Button 
+                  onClick={() => navigate('/admin/claims')}
+                  variant="outline"
+                  size="sm"
+                >
+                  Claims
+                </Button>
+                <Button 
+                  onClick={() => navigate('/admin/review')}
+                  variant="outline"
+                  size="sm"
+                >
+                  Review Queue
+                </Button>
+                <Button 
+                  onClick={() => navigate('/admin/evidence/new')}
+                  variant="outline"
+                  size="sm"
+                >
+                  Add Evidence
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}
