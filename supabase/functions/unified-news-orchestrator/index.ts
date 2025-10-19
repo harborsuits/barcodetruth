@@ -659,6 +659,28 @@ Deno.serve(async (req) => {
         const minScore = (b.monitoring_config as any)?.min_score ?? 0.5;
         const isIrrelevant = rel < minScore;
 
+        // Classify using canonical taxonomy
+        const domainName = url.hostname.replace(/^www\./, '');
+        const path = url.pathname;
+        const normalizedRel = rel / 20; // Convert 0-20 scale to 0-1
+        
+        const { data: classification } = await supabase
+          .rpc('classify_event', {
+            p_domain: domainName,
+            p_path: path,
+            p_title: title,
+            p_body: body,
+            p_base: normalizedRel,
+          });
+
+        const cls = classification?.[0] || {
+          category_code: 'NOISE.MARKETING',
+          severity: 2,
+          certainty: 2,
+          verification: 'media',
+          category_score: normalizedRel,
+        };
+
         // 1) Upsert brand_events first (so FK exists)
         const { error: evErr } = await supabase
           .from("brand_events")
@@ -671,9 +693,13 @@ Deno.serve(async (req) => {
             source_url: urlCanon,
             category,
             verification: 'unverified',
+            category_code: cls.category_code,
+            severity: cls.severity,
+            certainty: cls.certainty,
+            category_score: cls.category_score,
             orientation,
             disambiguation_reason: relReason,
-            relevance_score: rel,
+            relevance_score: normalizedRel,
             relevance_reason: relReason,
             is_irrelevant: isIrrelevant,
             impact_confidence: confidence,
