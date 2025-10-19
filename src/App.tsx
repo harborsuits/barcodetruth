@@ -38,6 +38,7 @@ const AdminNewsTest = lazyNamed(() => import("./pages/AdminNewsTest"), "default"
 const AdminEvents = lazyNamed(() => import("./pages/AdminEvents"), "default");
 const AdminDashboard = lazyNamed(() => import("./pages/AdminDashboard"), "default");
 const AdminCategoryTester = lazyNamed(() => import("./pages/AdminCategoryTester"), "default");
+const BootstrapAdmin = lazyNamed(() => import("./pages/BootstrapAdmin"), "default");
 
 const queryClient = new QueryClient();
 
@@ -341,6 +342,14 @@ const App = () => {
                   </RouteErrorBoundary>
                 </AdminRoute>
               </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bootstrap-admin"
+            element={
+              <Suspense fallback={<RouteFallback label="Loading…" />}>
+                <BootstrapAdmin />
+              </Suspense>
             }
           />
           <Route
