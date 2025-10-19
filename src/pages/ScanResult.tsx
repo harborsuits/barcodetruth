@@ -189,6 +189,14 @@ export default function ScanResult() {
         .order('event_date', { ascending: false })
         .limit(3);
       
+      console.log('[ScanResult] Events query result:', {
+        brand_id: product!.brand_id,
+        events_count: data?.length ?? 0,
+        first_event: data?.[0],
+        error: error,
+        query_enabled: !!product?.brand_id
+      });
+      
       if (error) throw error;
       return data as BrandEvent[];
     },
@@ -726,18 +734,27 @@ export default function ScanResult() {
             )}
 
             {/* Recent activity */}
-            {events && events.length > 0 && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <h3 className="text-base font-semibold">Recent Activity</h3>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {events.map((event) => (
-                    <EventCard key={event.event_id} event={event} compact />
-                  ))}
-                </CardContent>
-              </Card>
-            )}
+            {(() => {
+              console.log('[ScanResult] Recent Activity render check:', {
+                events_exists: !!events,
+                events_length: events?.length ?? 0,
+                events_sample: events?.[0],
+                current_brand_events: currentBrandData?.events?.length ?? 0
+              });
+              
+              return events && events.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <h3 className="text-base font-semibold">Recent Activity</h3>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {events.map((event) => (
+                      <EventCard key={event.event_id} event={event} compact />
+                    ))}
+                  </CardContent>
+                </Card>
+              );
+            })()}
           </>
         ) : null}
       </main>

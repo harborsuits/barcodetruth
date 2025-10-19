@@ -129,6 +129,15 @@ export default function BrandProfile() {
         // Cast to BrandProfile type
         const profileData = result as unknown as BrandProfile;
         
+        console.log('[BrandProfile] RPC result:', {
+          brand_id: actualId,
+          brand_name: profileData?.brand?.name,
+          evidence_count: profileData?.evidence?.length ?? 0,
+          evidence_sample: profileData?.evidence?.slice(0, 2),
+          coverage: profileData?.coverage,
+          has_error: !!rpcError
+        });
+        
         if (!profileData?.brand) {
           setError('Brand not found');
           return;
@@ -402,6 +411,14 @@ export default function BrandProfile() {
               const filteredEvidence = categoryFilter === 'all' 
                 ? (data.evidence ?? [])
                 : (data.evidence ?? []).filter(e => e.category === categoryFilter);
+              
+              console.log('[BrandProfile] Evidence table render:', {
+                brand_id: actualId,
+                raw_evidence_count: data.evidence?.length ?? 0,
+                filtered_count: filteredEvidence.length,
+                category_filter: categoryFilter,
+                evidence_sample: filteredEvidence?.[0]
+              });
               
               return filteredEvidence.length > 0 ? (
                 <div className="border rounded-lg overflow-hidden">
