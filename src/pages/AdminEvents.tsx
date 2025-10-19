@@ -50,11 +50,13 @@ interface BrandEvent {
   title: string;
   description: string;
   category: string;
+  category_code: string | null;
   verification: string;
   event_date: string;
   created_at: string;
   is_irrelevant: boolean;
   relevance_score: number | null;
+  ai_summary: string | null;
   brands: { name: string; logo_url: string | null } | null;
   event_sources: Array<{
     id: string;
@@ -106,11 +108,13 @@ export default function AdminEvents() {
           title,
           description,
           category,
+          category_code,
           verification,
           event_date,
           created_at,
           is_irrelevant,
           relevance_score,
+          ai_summary,
           brands!inner(name, logo_url),
           event_sources(id, source_name, canonical_url, source_date)
         `, { count: 'exact' })
@@ -548,17 +552,43 @@ export default function AdminEvents() {
                           </td>
                           <td className="px-4 py-3 text-sm max-w-md">
                             <div className="truncate font-medium">{event.title}</div>
-                            {event.is_irrelevant && (
-                              <Badge variant="outline" className="mt-1 text-xs">
-                                <AlertTriangle className="h-3 w-3 mr-1" />
-                                Irrelevant
-                              </Badge>
-                            )}
+                            <div className="flex items-center gap-2 mt-1">
+                              {event.is_irrelevant && (
+                                <Badge variant="outline" className="text-xs">
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  Irrelevant
+                                </Badge>
+                              )}
+                              {event.relevance_score !== null && event.relevance_score < 9 && (
+                                <Badge variant="destructive" className="text-xs">
+                                  Low Rel: {event.relevance_score}
+                                </Badge>
+                              )}
+                              {!/^[A-Za-z0-9\s.,!?'"()-]+$/.test(event.title) && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Non-English
+                                </Badge>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3">
-                            <Badge variant="outline" className="capitalize">
-                              {event.category}
-                            </Badge>
+                            <div className="space-y-1">
+                              {event.category_code ? (
+                                <>
+                                  <Badge variant="default" className="text-xs font-mono">
+                                    {event.category_code}
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs capitalize ml-1">
+                                    {event.category}
+                                  </Badge>
+                                </>
+                              ) : (
+                                <Badge variant="outline" className="capitalize">
+                                  {event.category}
+                                  <span className="ml-1 text-destructive">⚠️</span>
+                                </Badge>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3">
                             <Badge
@@ -726,29 +756,51 @@ export default function AdminEvents() {
           </DialogHeader>
           {selectedEvent && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="capitalize">
-                  {selectedEvent.category}
-                </Badge>
+              <div className="flex items-center gap-2 flex-wrap">
+                {selectedEvent.category_code ? (
+                  <>
+                    <Badge variant="default" className="font-mono">
+                      {selectedEvent.category_code}
+                    </Badge>
+                    <Badge variant="outline" className="capitalize">
+                      {selectedEvent.category}
+                    </Badge>
+                  </>
+                ) : (
+                  <Badge variant="outline" className="capitalize">
+                    {selectedEvent.category}
+                    <AlertTriangle className="h-3 w-3 ml-1 text-destructive" />
+                  </Badge>
+                )}
                 <Badge variant="secondary" className="capitalize">
                   {selectedEvent.verification}
                 </Badge>
                 {selectedEvent.is_irrelevant && (
                   <Badge variant="destructive">Irrelevant</Badge>
                 )}
+                {selectedEvent.relevance_score !== null && (
+                  <Badge variant={selectedEvent.relevance_score < 9 ? "destructive" : "secondary"}>
+                    Rel: {selectedEvent.relevance_score}/20
+                  </Badge>
+                )}
+                {!/^[A-Za-z0-9\s.,!?'"()-]+$/.test(selectedEvent.title) && (
+                  <Badge variant="secondary">Non-English</Badge>
+                )}
               </div>
+
+              {selectedEvent.ai_summary && (
+                <div>
+                  <h4 className="text-sm font-semibold mb-2">AI Summary</h4>
+                  <p className="text-sm text-muted-foreground">{selectedEvent.ai_summary}</p>
+                </div>
+              )}
 
               <div>
                 <h4 className="text-sm font-semibold mb-2">Description</h4>
-                <p className="text-sm text-muted-foreground">{selectedEvent.description}</p>
+                <p className="text-sm text-muted-foreground">
+                  {selectedEvent.description || "No description available"}
+                </p>
               </div>
-
-              {selectedEvent.relevance_score !== null && (
-                <div>
-                  <h4 className="text-sm font-semibold mb-2">Relevance Score</h4>
-                  <p className="text-sm">{selectedEvent.relevance_score}/100</p>
-                </div>
-              )}
 
               <div>
                 <h4 className="text-sm font-semibold mb-2">
