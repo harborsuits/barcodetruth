@@ -163,20 +163,6 @@ export default function BrandProfile() {
 
         // Cast to any to work with the JSON structure
         const rawData: any = profileData;
-
-        // Fetch additional fields not in the RPC
-        const evidenceWithDetails = await Promise.all(
-          (rawData.evidence || []).map(async (ev: any) => {
-            const { data: eventData } = await supabase
-              .from('brand_events')
-              .select('category_code, ai_summary')
-              .eq('event_id', ev.event_id)
-              .single();
-            return { ...ev, category_code: eventData?.category_code, ai_summary: eventData?.ai_summary };
-          })
-        );
-
-        rawData.evidence = evidenceWithDetails;
         
         // Cast to BrandProfile type
         const result = rawData as BrandProfile;
