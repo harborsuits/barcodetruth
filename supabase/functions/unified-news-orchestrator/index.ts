@@ -738,7 +738,7 @@ Deno.serve(async (req) => {
             brand_id: b.id,
             title: title.slice(0, 512),
             event_date: occurred,
-            occurred_at: occurred,
+            // occurred_at is GENERATED from event_date - don't insert
             source_url: urlCanon,
             category: categoryResult.category, // old field for backward compat
             verification: 'unverified',
