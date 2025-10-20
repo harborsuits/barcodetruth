@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { RELEVANCE_MAX_SCORE } from "../_shared/scoringConstants.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -178,6 +179,8 @@ serve(async (req) => {
             description,
             source_url: sourceUrl,
             occurred_at: occurredAt,
+            relevance_score_raw: RELEVANCE_MAX_SCORE, // Official gov data = max relevance
+            is_irrelevant: false,
             event_date: occurredAt,
             impact_labor: impactLabor,
             raw_data: JSON.parse(JSON.stringify(inspection)),

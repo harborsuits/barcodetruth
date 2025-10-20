@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { RELEVANCE_MAX_SCORE } from "../_shared/scoringConstants.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -306,6 +307,8 @@ Deno.serve(async (req) => {
           occurred_at: occurredAt,
           event_date: occurredAt,
           impact_politics: impact,
+          relevance_score_raw: RELEVANCE_MAX_SCORE, // Official gov data = max relevance
+          is_irrelevant: false,
           raw_data: JSON.parse(JSON.stringify({
             committee_id: cmteId,
             committee_name: committee.name,
