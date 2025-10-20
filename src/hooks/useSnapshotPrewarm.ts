@@ -18,7 +18,7 @@ export function useSnapshotPrewarm() {
         );
         
         if (!latestRes.ok) {
-          console.log('[Prewarm] Latest snapshot not available yet');
+          console.log('[Prewarm] Latest snapshot not available yet - using live queries as fallback');
           return;
         }
 

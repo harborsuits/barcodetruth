@@ -132,6 +132,16 @@ export default function AdminDashboard() {
       metrics: "Testing tool"
     },
     {
+      title: "Ops Health",
+      description: "24h operational health metrics and guardrails",
+      icon: BarChart3,
+      route: "/admin/ops-health",
+      color: "text-cyan-600 dark:text-cyan-400",
+      bgColor: "bg-cyan-600/10",
+      priority: "high",
+      metrics: metrics ? `${metrics.events_24h} events` : "—"
+    },
+    {
       title: "Reclassify Events",
       description: "Apply categorization rules to all events",
       icon: RefreshCw,
@@ -569,11 +579,45 @@ export default function AdminDashboard() {
                   <Badge variant={metrics.failed_jobs > 0 ? "destructive" : "outline"}>
                     {metrics.failed_jobs > 0 ? `${metrics.failed_jobs} failed` : 'All healthy'}
                   </Badge>
-                </div>
+                 </div>
               </div>
             </CardContent>
           </Card>
         )}
+
+        {/* Quick Access Tools */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Access</CardTitle>
+            <CardDescription>Testing and diagnostic tools</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Button 
+              variant="outline"
+              onClick={() => navigate("/admin/test-scorer")}
+              className="w-full"
+            >
+              <Zap className="mr-2 h-4 w-4" />
+              Test Scorer
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => navigate("/admin/ops-health")}
+              className="w-full"
+            >
+              <BarChart3 className="mr-2 h-4 w-4" />
+              Ops Health
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => navigate("/admin/category-tester")}
+              className="w-full"
+            >
+              <Activity className="mr-2 h-4 w-4" />
+              Category Tester
+            </Button>
+          </CardContent>
+        </Card>
       </main>
     </div>
   );

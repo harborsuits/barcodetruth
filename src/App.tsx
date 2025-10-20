@@ -39,6 +39,7 @@ const AdminEvents = lazyNamed(() => import("./pages/AdminEvents"), "default");
 const AdminDashboard = lazyNamed(() => import("./pages/AdminDashboard"), "default");
 const AdminCategoryTester = lazyNamed(() => import("./pages/AdminCategoryTester"), "default");
 const AdminTestScorer = lazyNamed(() => import("./pages/AdminTestScorer"), "default");
+const AdminOpsHealth = lazyNamed(() => import("./pages/AdminOpsHealth"), "default");
 const BootstrapAdmin = lazyNamed(() => import("./pages/BootstrapAdmin"), "default");
 
 const queryClient = new QueryClient();
@@ -353,6 +354,20 @@ const App = () => {
                   <RouteErrorBoundary>
                     <Suspense fallback={<RouteFallback label="Loading scorer test…" />}>
                       <AdminTestScorer />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/ops-health"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading ops health…" />}>
+                      <AdminOpsHealth />
                     </Suspense>
                   </RouteErrorBoundary>
                 </AdminRoute>

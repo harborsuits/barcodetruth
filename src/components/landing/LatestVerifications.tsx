@@ -11,7 +11,6 @@ export function LatestVerifications() {
         .from("event_sources")
         .select("id, source_name, domain_owner, source_date")
         .not("source_date", "is", null)
-        .not("domain_owner", "is", null)
         .order("source_date", { ascending: false })
         .limit(8);
 
