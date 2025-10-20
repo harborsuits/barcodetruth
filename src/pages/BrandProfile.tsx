@@ -11,6 +11,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { useBrandLogo } from '@/hooks/useBrandLogo';
+import { getCategoryDisplay, type CategoryGroup } from '@/lib/categoryConfig';
 
 type BrandProfile = {
   brand: { 
@@ -572,9 +573,17 @@ export default function BrandProfile() {
                                  'Unverified'}
                               </Badge>
                               
-                              <Badge variant="outline" className="text-xs">
-                                {ev.category_code || ev.category || 'General'}
-                              </Badge>
+                              {(() => {
+                                const categoryDisplay = getCategoryDisplay(ev.category_code);
+                                return (
+                                  <Badge 
+                                    variant="outline" 
+                                    className={`text-xs ${categoryDisplay.color}`}
+                                  >
+                                    {categoryDisplay.group}: {categoryDisplay.label}
+                                  </Badge>
+                                );
+                              })()}
                               
                               <span className="text-xs text-muted-foreground">
                                 {formatDistanceToNow(new Date(ev.event_date), { addSuffix: true })}

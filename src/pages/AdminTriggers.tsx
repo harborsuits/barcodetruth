@@ -39,6 +39,34 @@ export const AdminTriggers = () => {
     }
   };
 
+  const triggerReclassification = async () => {
+    setLoading('reclassify');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      toast({ title: 'Starting reclassification...', description: 'This may take a few minutes' });
+      
+      const { data, error } = await supabase.functions.invoke('reclassify-events');
+      
+      if (error) throw error;
+
+      toast({ 
+        title: 'Reclassification complete', 
+        description: `Updated ${data?.results?.updated_count || 0} events`
+      });
+    } catch (error: any) {
+      console.error("Reclassification error:", error);
+      toast({ 
+        title: 'Reclassification failed', 
+        description: error.message,
+        variant: 'destructive' 
+      });
+    } finally {
+      setLoading(null);
+    }
+  };
+
   const triggers = [
     {
       action: "ingest-all",
@@ -121,6 +149,38 @@ export const AdminTriggers = () => {
             </Card>
           );
         })}
+        
+        {/* Reclassification Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <RefreshCw className="h-5 w-5" />
+              Reclassify Events
+            </CardTitle>
+            <CardDescription>
+              Re-categorize recent events using updated taxonomy
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              onClick={triggerReclassification}
+              disabled={loading === 'reclassify'}
+              className="w-full"
+            >
+              {loading === 'reclassify' ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Reclassifying...
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4 mr-2" />
+                  Trigger
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

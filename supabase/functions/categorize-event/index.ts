@@ -37,20 +37,36 @@ Deno.serve(async (req) => {
           {
             role: 'system',
             content: `You are an event categorization system for ShopSignals, a brand ethics app. 
-            
+
 Analyze the event description and return structured JSON with:
-- category: one of [labor, environment, politics, social, cultural-values, general]
+- category_code: hierarchical category code (see taxonomy below)
 - severity: one of [minor, moderate, severe]
 - orientation: one of [positive, negative, mixed]
 - suggested_impact: object with numeric scores for affected categories (-20 to +20)
 
-Category definitions:
-- labor: wages, safety, working conditions, unions, discrimination
-- environment: emissions, waste, sustainability, certifications
-- politics: donations, lobbying, ballot activity
-- social: community impact, diversity, philanthropy
-- cultural-values: moral/social stances, campaigns, boycotts
-- general: anything else
+Category Taxonomy (use these exact codes):
+- FIN.EARNINGS: earnings reports, revenue, profits
+- FIN.ACQUISITION: mergers, acquisitions, investments
+- FIN.BANKRUPTCY: bankruptcy, financial distress
+- PRODUCT.RECALL: product recalls, safety issues
+- PRODUCT.LAUNCH: new product launches
+- LEGAL.LAWSUIT: lawsuits, litigation
+- LEGAL.SETTLEMENT: legal settlements
+- LEGAL.INVESTIGATION: regulatory investigations
+- REGULATORY.VIOLATION: regulatory violations, fines
+- REGULATORY.COMPLIANCE: compliance updates
+- LABOR.SAFETY: workplace safety, OSHA violations
+- LABOR.WAGES: wage issues, pay disputes
+- LABOR.UNION: union activity, collective bargaining
+- LABOR.DISCRIMINATION: discrimination, harassment claims
+- ESG.ENVIRONMENT: emissions, pollution, environmental impact
+- ESG.SOCIAL: diversity, community impact, philanthropy
+- ESG.GOVERNANCE: corporate governance, board changes
+- POLICY.POLITICAL: political donations, lobbying
+- POLICY.ADVOCACY: advocacy, public positions
+- SOCIAL.BOYCOTT: boycotts, protests
+- SOCIAL.CAMPAIGN: social campaigns, movements
+- NOISE.GENERAL: general news, announcements, other
 
 Be neutral and cite-only. Never add judgment.`
           },
@@ -72,9 +88,19 @@ Categorize this event.`
               parameters: {
                 type: 'object',
                 properties: {
-                  category: {
+                  category_code: {
                     type: 'string',
-                    enum: ['labor', 'environment', 'politics', 'social', 'cultural-values', 'general']
+                    enum: [
+                      'FIN.EARNINGS', 'FIN.ACQUISITION', 'FIN.BANKRUPTCY',
+                      'PRODUCT.RECALL', 'PRODUCT.LAUNCH',
+                      'LEGAL.LAWSUIT', 'LEGAL.SETTLEMENT', 'LEGAL.INVESTIGATION',
+                      'REGULATORY.VIOLATION', 'REGULATORY.COMPLIANCE',
+                      'LABOR.SAFETY', 'LABOR.WAGES', 'LABOR.UNION', 'LABOR.DISCRIMINATION',
+                      'ESG.ENVIRONMENT', 'ESG.SOCIAL', 'ESG.GOVERNANCE',
+                      'POLICY.POLITICAL', 'POLICY.ADVOCACY',
+                      'SOCIAL.BOYCOTT', 'SOCIAL.CAMPAIGN',
+                      'NOISE.GENERAL'
+                    ]
                   },
                   severity: {
                     type: 'string',
@@ -98,7 +124,7 @@ Categorize this event.`
                     description: 'Brief explanation of the categorization'
                   }
                 },
-                required: ['category', 'severity', 'orientation', 'suggested_impact']
+                required: ['category_code', 'severity', 'orientation', 'suggested_impact']
               }
             }
           }
