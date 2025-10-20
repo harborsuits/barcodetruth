@@ -66,6 +66,7 @@ Category Taxonomy (use these exact codes):
 - POLICY.ADVOCACY: advocacy, public positions
 - SOCIAL.BOYCOTT: boycotts, protests
 - SOCIAL.CAMPAIGN: social campaigns, movements
+- NOISE.FINANCIAL: stock trades, investment positions, financial advisors buying/selling shares
 - NOISE.GENERAL: general news, announcements, other
 
 Be neutral and cite-only. Never add judgment.`
@@ -99,7 +100,7 @@ Categorize this event.`
                       'ESG.ENVIRONMENT', 'ESG.SOCIAL', 'ESG.GOVERNANCE',
                       'POLICY.POLITICAL', 'POLICY.ADVOCACY',
                       'SOCIAL.BOYCOTT', 'SOCIAL.CAMPAIGN',
-                      'NOISE.GENERAL'
+                      'NOISE.GENERAL', 'NOISE.FINANCIAL'
                     ]
                   },
                   severity: {
