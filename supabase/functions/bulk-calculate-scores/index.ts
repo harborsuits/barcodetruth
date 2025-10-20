@@ -19,13 +19,23 @@ Deno.serve(async (req) => {
     console.log("[bulk-calculate-scores] Starting bulk score calculation...");
 
     // Get brands with recent events (from coverage)
+    // Note: Can't use embedded resources with materialized views, so we query separately
     const { data: brandsWithEvents, error: coverageErr } = await supabase
       .from("brand_data_coverage")
-      .select("brand_id, brands(name)")
+      .select("brand_id")
       .gt("events_30d", 0)
       .limit(100);
 
     if (coverageErr) throw coverageErr;
+
+    // Get brand names separately
+    const brandIds = brandsWithEvents?.map(b => b.brand_id) || [];
+    const { data: brands } = await supabase
+      .from("brands")
+      .select("id, name")
+      .in("id", brandIds);
+
+    const brandMap = new Map(brands?.map(b => [b.id, b.name]) || []);
 
     if (!brandsWithEvents || brandsWithEvents.length === 0) {
       console.log("[bulk-calculate-scores] No brands with recent events");
@@ -42,7 +52,7 @@ Deno.serve(async (req) => {
     // Calculate score for each brand using simple-brand-scorer
     for (const item of brandsWithEvents) {
       const brandId = item.brand_id;
-      const brandName = (item.brands as any)?.name || "Unknown";
+      const brandName = brandMap.get(brandId) || "Unknown";
 
       try {
         // Use simple-brand-scorer instead of complex calculate-brand-score

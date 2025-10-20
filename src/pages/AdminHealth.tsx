@@ -273,6 +273,52 @@ export default function AdminHealth() {
     }
   }
 
+  async function refreshMaterializedViews() {
+    try {
+      toast.info("Refreshing coverage data...", {
+        description: "This will update event counts and metrics",
+      });
+
+      const { data, error } = await supabase.functions.invoke("refresh-materialized-views", {
+        body: {},
+      });
+
+      if (error) throw error;
+
+      toast.success("Coverage data refreshed", {
+        description: "Brand event counts and metrics are now up to date",
+      });
+    } catch (e: any) {
+      console.error("Refresh error:", e);
+      toast.error("Failed to refresh coverage", {
+        description: e.message || "Unknown error",
+      });
+    }
+  }
+
+  async function triggerScoring() {
+    try {
+      toast.info("Starting score calculation...", {
+        description: "This will recalculate scores for all active brands",
+      });
+
+      const { data, error } = await supabase.functions.invoke("bulk-calculate-scores", {
+        body: {},
+      });
+
+      if (error) throw error;
+
+      toast.success("Scoring complete", {
+        description: `Processed ${data.total || 0} brands, ${data.successful || 0} successful`,
+      });
+    } catch (e: any) {
+      console.error("Scoring error:", e);
+      toast.error("Failed to calculate scores", {
+        description: e.message || "Unknown error",
+      });
+    }
+  }
+
   if (!isAdmin) {
     return null;
   }
@@ -311,7 +357,15 @@ export default function AdminHealth() {
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={refreshMaterializedViews} variant="outline" size="sm" className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+              <Activity className="w-4 h-4 mr-2" />
+              Refresh Coverage Data
+            </Button>
+            <Button onClick={triggerScoring} variant="outline" size="sm" className="bg-purple-50 dark:bg-purple-950 border-purple-200 dark:border-purple-800">
+              <Activity className="w-4 h-4 mr-2" />
+              Calculate Scores
+            </Button>
             <Button onClick={backfillSummaries} variant="outline" size="sm">
               <Activity className="w-4 h-4 mr-2" />
               Generate AI Summaries (200)
