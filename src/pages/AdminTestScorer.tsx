@@ -175,18 +175,22 @@ export default function AdminTestScorer() {
     }
 
     const breakdown = data?.breakdown || {};
+    const score = breakdown.score || 0;
+    const actualGate = score >= 11 ? 'pass' : 'block';
     const passed = breakdown.score >= 11;
 
     return (
       <Card className={`p-4 ${passed ? 'border-green-500' : 'border-yellow-500'}`}>
-        <h3 className="font-semibold mb-2">{title} - {passed ? '✅ PASS' : '⚠️ FAIL'}</h3>
+        <h3 className="font-semibold mb-2">{title} - {passed ? '✅ PASS' : '⚠️ BLOCKED'}</h3>
         <div className="space-y-2 text-sm">
           <div><strong>Brand:</strong> {data?.brand}</div>
           <div><strong>Title:</strong> {data?.title}</div>
-          <div><strong>Score:</strong> {breakdown.score}/20 {passed ? '(≥11 threshold)' : '(<11 threshold)'}</div>
+          <div><strong>Score:</strong> {score}/20 (gate: {actualGate})</div>
           <div><strong>Reason:</strong> {breakdown.reason}</div>
           <div className="grid grid-cols-2 gap-2 mt-2">
-            <div>hardExclude: {breakdown.hardExclude ? '❌' : '✅'}</div>
+            {breakdown.hardExclude && (
+              <div className="col-span-2 text-destructive">⚠️ hard_exclude_matched: true</div>
+            )}
             <div>titleHit: {breakdown.titleHit ? '✅' : '❌'}</div>
             <div>leadHit: {breakdown.leadHit ? '✅' : '❌'}</div>
             <div>context: {breakdown.context ? '✅' : '❌'}</div>
@@ -229,9 +233,9 @@ export default function AdminTestScorer() {
       {(test1Result || test2Result || test3Result) && (
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold">Test Results</h2>
-          {renderTestResult("Test 1: P&G Earnings (Expected: PASS, score ≥13)", test1Result)}
-          {renderTestResult("Test 2: Nestlé with Accent (Expected: PASS, score ≥10)", test2Result)}
-          {renderTestResult("Test 3: Irrelevant Article (Expected: FAIL, score <11)", test3Result)}
+          {renderTestResult("Test 1: P&G Earnings (Expected: pass gate, score ≥11)", test1Result)}
+          {renderTestResult("Test 2: Nestlé with Accent (Expected: pass gate, score ≥11)", test2Result)}
+          {renderTestResult("Test 3: Irrelevant Article (Expected: block gate, score <11)", test3Result)}
         </div>
       )}
 

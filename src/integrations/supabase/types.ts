@@ -3077,6 +3077,17 @@ export type Database = {
         }
         Relationships: []
       }
+      ops_health_24h: {
+        Row: {
+          bad_verification: number | null
+          below_gate: number | null
+          category_breakdown: Json | null
+          null_category: number | null
+          total_24h: number | null
+          verification_breakdown: Json | null
+        }
+        Relationships: []
+      }
       product_claims_moderator: {
         Row: {
           barcode_ean13: string | null

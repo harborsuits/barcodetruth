@@ -116,6 +116,12 @@ function evaluate(brand: Brand, title: string, body: string, urlStr?: string) {
   if ((titleHit || leadHit) && !context) { s -= 2; reasons.push('no_business_penalty'); }
 
   const score = Math.max(0, Math.min(20, s));
+  
+  // Only log hardExclude when true (pattern matched)
+  if (hard) {
+    console.warn('[test-relevance-scorer] hard_exclude_matched: true (this item must be blocked)');
+  }
+  
   return {
     hardExclude: hard,
     titleHit,
