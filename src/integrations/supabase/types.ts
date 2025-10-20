@@ -3686,6 +3686,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_rate_limit: {
+        Args: { p_source: string; p_window_start: string }
+        Returns: undefined
+      }
       is_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean

@@ -1,6 +1,8 @@
 // Unified real ingestion: GDELT + Guardian + NewsAPI + NYT + GNews -> brand_events + event_sources (dedup by URL hash)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { RELEVANCE_MIN_ACCEPTED, RELEVANCE_MAX_SCORE } from "../_shared/scoringConstants.ts";
+import { enabledSources, getApiKey, SourceId } from "../_shared/sourceRegistry.ts";
+import { fetchBudgeted } from "../_shared/fetchBudgeted.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -317,17 +319,17 @@ function parseGdeltArticle(i: GdeltItem, brandName: string): NewsArticle {
   };
 }
 
-async function fetchGDELT(brandName: string, max: number, daysBack = 7): Promise<NewsArticle[]> {
+async function fetchGDELT(supabase: any, brandName: string, max: number, daysBack = 7): Promise<NewsArticle[]> {
   const q = encodeURIComponent(`"${brandName}"`);
   const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=ArtList&maxrecords=${max}&format=json&timelang=eng&timespan=${daysBack}d`;
-  const res = await fetch(url);
+  const res = await fetchBudgeted(supabase, 'gdelt', url);
   if (!res.ok) throw new Error(`GDELT: ${res.status}`);
   const gd = await res.json();
   const items: GdeltItem[] = gd?.articles ?? [];
   return items.map(i => parseGdeltArticle(i, brandName));
 }
 
-async function fetchGuardian(apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
+async function fetchGuardian(supabase: any, apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
   const searchQuery = `${brandName} AND (${QUERY_TERMS})`;
   const fromDate = new Date();
   fromDate.setDate(fromDate.getDate() - daysBack);
@@ -338,7 +340,7 @@ async function fetchGuardian(apiKey: string, brandName: string, daysBack = 7): P
   url.searchParams.set("page-size", "10");
   url.searchParams.set("order-by", "newest");
   url.searchParams.set("from-date", fromDate.toISOString().split('T')[0]);
-  const res = await fetch(url.toString());
+  const res = await fetchBudgeted(supabase, 'guardian', url.toString());
   if (!res.ok) throw new Error(`Guardian: ${res.status}`);
   const data = await res.json();
   const results = data.response?.results || [];
@@ -356,7 +358,7 @@ async function fetchGuardian(apiKey: string, brandName: string, daysBack = 7): P
   });
 }
 
-async function fetchNewsAPI(apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
+async function fetchNewsAPI(supabase: any, apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
   const searchQuery = `${brandName} AND (${QUERY_TERMS})`;
   const fromDate = new Date();
   fromDate.setDate(fromDate.getDate() - daysBack);
@@ -367,7 +369,7 @@ async function fetchNewsAPI(apiKey: string, brandName: string, daysBack = 7): Pr
   url.searchParams.set("pageSize", "10");
   url.searchParams.set("language", "en");
   url.searchParams.set("from", fromDate.toISOString());
-  const res = await fetch(url.toString());
+  const res = await fetchBudgeted(supabase, 'newsapi', url.toString());
   if (!res.ok) throw new Error(`NewsAPI: ${res.status}`);
   const data = await res.json();
   const articles = data.articles || [];
@@ -385,7 +387,7 @@ async function fetchNewsAPI(apiKey: string, brandName: string, daysBack = 7): Pr
   });
 }
 
-async function fetchNYTimes(apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
+async function fetchNYTimes(supabase: any, apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
   const searchQuery = `${brandName} AND (${QUERY_TERMS})`;
   const fromDate = new Date();
   fromDate.setDate(fromDate.getDate() - daysBack);
@@ -395,7 +397,7 @@ async function fetchNYTimes(apiKey: string, brandName: string, daysBack = 7): Pr
   url.searchParams.set("sort", "newest");
   url.searchParams.set("fl", "headline,abstract,web_url,pub_date");
   url.searchParams.set("begin_date", fromDate.toISOString().split('T')[0].replace(/-/g, ''));
-  const res = await fetch(url.toString());
+  const res = await fetchBudgeted(supabase, 'nyt', url.toString());
   if (!res.ok) throw new Error(`NYT: ${res.status}`);
   const data = await res.json();
   const docs = data.response?.docs || [];
@@ -413,7 +415,7 @@ async function fetchNYTimes(apiKey: string, brandName: string, daysBack = 7): Pr
   });
 }
 
-async function fetchGNews(apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
+async function fetchGNews(supabase: any, apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
   const searchQuery = `${brandName} AND (${QUERY_TERMS})`;
   const fromDate = new Date();
   fromDate.setDate(fromDate.getDate() - daysBack);
@@ -424,7 +426,7 @@ async function fetchGNews(apiKey: string, brandName: string, daysBack = 7): Prom
   url.searchParams.set("max", "10");
   url.searchParams.set("sortby", "publishedAt");
   url.searchParams.set("from", fromDate.toISOString());
-  const res = await fetch(url.toString());
+  const res = await fetchBudgeted(supabase, 'gnews', url.toString());
   if (!res.ok) throw new Error(`GNews: ${res.status}`);
   const data = await res.json();
   const articles = data.articles || [];
@@ -442,7 +444,7 @@ async function fetchGNews(apiKey: string, brandName: string, daysBack = 7): Prom
   });
 }
 
-async function fetchMediastack(apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
+async function fetchMediastack(supabase: any, apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
   const searchQuery = `${brandName} ${QUERY_TERMS}`;
   const fromDate = new Date();
   fromDate.setDate(fromDate.getDate() - daysBack);
@@ -453,7 +455,7 @@ async function fetchMediastack(apiKey: string, brandName: string, daysBack = 7):
   url.searchParams.set("sort", "published_desc");
   url.searchParams.set("limit", "10");
   url.searchParams.set("date", fromDate.toISOString().split('T')[0]);
-  const res = await fetch(url.toString());
+  const res = await fetchBudgeted(supabase, 'mediastack', url.toString());
   if (!res.ok) throw new Error(`Mediastack: ${res.status}`);
   const data = await res.json();
   const articles = data.data || [];
@@ -471,7 +473,7 @@ async function fetchMediastack(apiKey: string, brandName: string, daysBack = 7):
   });
 }
 
-async function fetchCurrents(apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
+async function fetchCurrents(supabase: any, apiKey: string, brandName: string, daysBack = 7): Promise<NewsArticle[]> {
   const searchQuery = `${brandName} ${QUERY_TERMS}`;
   const fromDate = new Date();
   fromDate.setDate(fromDate.getDate() - daysBack);
@@ -480,7 +482,7 @@ async function fetchCurrents(apiKey: string, brandName: string, daysBack = 7): P
   url.searchParams.set("keywords", searchQuery);
   url.searchParams.set("language", "en");
   url.searchParams.set("start_date", fromDate.toISOString());
-  const res = await fetch(url.toString());
+  const res = await fetchBudgeted(supabase, 'currents', url.toString());
   if (!res.ok) throw new Error(`Currents: ${res.status}`);
   const data = await res.json();
   const articles = data.news || [];
@@ -569,14 +571,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    const guardianKey = Deno.env.get("GUARDIAN_API_KEY");
-    const newsApiKey = Deno.env.get("NEWSAPI_KEY");
-    const nytKey = Deno.env.get("NYT_API_KEY");
-    const gnewsKey = Deno.env.get("GNEWS_API_KEY");
-    const mediastackKey = Deno.env.get("MEDIASTACK_API_KEY");
-    const currentsKey = Deno.env.get("CURRENTS_API_KEY");
-
-    console.log(`[Orchestrator] API Keys available - Guardian: ${!!guardianKey}, NewsAPI: ${!!newsApiKey}, NYT: ${!!nytKey}, GNews: ${!!gnewsKey}, Mediastack: ${!!mediastackKey}, Currents: ${!!currentsKey}`);
+    // Auto-detect which sources are enabled based on API key availability
+    const sources = enabledSources();
+    console.log(`[Orchestrator] Enabled sources (${sources.length}):`, sources.join(', '));
 
     let totalInserted = 0;
     let totalSkipped = 0;
@@ -585,72 +582,48 @@ Deno.serve(async (req) => {
       console.log(`[Orchestrator] Processing brand: ${b.name}`);
       const allArticles: NewsArticle[] = [];
 
-      // Fetch from all sources
-      try {
-        const gdeltArticles = await fetchGDELT(b.name, max, daysBack);
-        allArticles.push(...gdeltArticles);
-        console.log(`[GDELT] Fetched ${gdeltArticles.length} articles for ${b.name}`);
-      } catch (e) {
-        console.error(`[GDELT] Error for ${b.name}:`, e);
-      }
-
-      if (guardianKey) {
+      // Fetch from all enabled sources with budget enforcement
+      for (const sourceId of sources) {
         try {
-          const guardianArticles = await fetchGuardian(guardianKey, b.name, daysBack);
-          allArticles.push(...guardianArticles);
-          console.log(`[Guardian] Fetched ${guardianArticles.length} articles for ${b.name}`);
+          let articles: NewsArticle[] = [];
+          
+          switch (sourceId) {
+            case 'gdelt':
+              articles = await fetchGDELT(supabase, b.name, max, daysBack);
+              break;
+            case 'guardian':
+              const guardianKey = getApiKey('guardian');
+              if (guardianKey) articles = await fetchGuardian(supabase, guardianKey, b.name, daysBack);
+              break;
+            case 'newsapi':
+              const newsApiKey = getApiKey('newsapi');
+              if (newsApiKey) articles = await fetchNewsAPI(supabase, newsApiKey, b.name, daysBack);
+              break;
+            case 'nyt':
+              const nytKey = getApiKey('nyt');
+              if (nytKey) articles = await fetchNYTimes(supabase, nytKey, b.name, daysBack);
+              break;
+            case 'gnews':
+              const gnewsKey = getApiKey('gnews');
+              if (gnewsKey) articles = await fetchGNews(supabase, gnewsKey, b.name, daysBack);
+              break;
+            case 'mediastack':
+              const mediastackKey = getApiKey('mediastack');
+              if (mediastackKey) articles = await fetchMediastack(supabase, mediastackKey, b.name, daysBack);
+              break;
+            case 'currents':
+              const currentsKey = getApiKey('currents');
+              if (currentsKey) articles = await fetchCurrents(supabase, currentsKey, b.name, daysBack);
+              break;
+          }
+          
+          if (articles.length > 0) {
+            allArticles.push(...articles);
+            console.log(`[${sourceId.toUpperCase()}] Fetched ${articles.length} articles for ${b.name}`);
+          }
         } catch (e) {
-          console.error(`[Guardian] Error for ${b.name}:`, e);
-        }
-      }
-
-      if (newsApiKey) {
-        try {
-          const newsApiArticles = await fetchNewsAPI(newsApiKey, b.name, daysBack);
-          allArticles.push(...newsApiArticles);
-          console.log(`[NewsAPI] Fetched ${newsApiArticles.length} articles for ${b.name}`);
-        } catch (e) {
-          console.error(`[NewsAPI] Error for ${b.name}:`, e);
-        }
-      }
-
-      if (nytKey) {
-        try {
-          const nytArticles = await fetchNYTimes(nytKey, b.name, daysBack);
-          allArticles.push(...nytArticles);
-          console.log(`[NYT] Fetched ${nytArticles.length} articles for ${b.name}`);
-        } catch (e) {
-          console.error(`[NYT] Error for ${b.name}:`, e);
-        }
-      }
-
-      if (gnewsKey) {
-        try {
-          const gnewsArticles = await fetchGNews(gnewsKey, b.name, daysBack);
-          allArticles.push(...gnewsArticles);
-          console.log(`[GNews] Fetched ${gnewsArticles.length} articles for ${b.name}`);
-        } catch (e) {
-          console.error(`[GNews] Error for ${b.name}:`, e);
-        }
-      }
-
-      if (mediastackKey) {
-        try {
-          const mediastackArticles = await fetchMediastack(mediastackKey, b.name, daysBack);
-          allArticles.push(...mediastackArticles);
-          console.log(`[Mediastack] Fetched ${mediastackArticles.length} articles for ${b.name}`);
-        } catch (e) {
-          console.error(`[Mediastack] Error for ${b.name}:`, e);
-        }
-      }
-
-      if (currentsKey) {
-        try {
-          const currentsArticles = await fetchCurrents(currentsKey, b.name, daysBack);
-          allArticles.push(...currentsArticles);
-          console.log(`[Currents] Fetched ${currentsArticles.length} articles for ${b.name}`);
-        } catch (e) {
-          console.error(`[Currents] Error for ${b.name}:`, e);
+          // Fail soft: log error but continue with other sources
+          console.error(`[${sourceId.toUpperCase()}] Error for ${b.name}:`, e);
         }
       }
 
