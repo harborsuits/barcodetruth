@@ -39,6 +39,7 @@ export function OwnershipGraph({ brandId }: { brandId: string }) {
       if (error) throw error;
       return data as unknown as GraphData;
     },
+    enabled: Boolean(brandId),
   });
 
   if (isLoading) {

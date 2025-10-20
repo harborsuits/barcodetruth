@@ -26,6 +26,7 @@ export function RollupScores({ brandId }: { brandId: string }) {
       if (error) throw error;
       return data as unknown as RollupScore;
     },
+    enabled: Boolean(brandId),
   });
 
   if (isLoading) {

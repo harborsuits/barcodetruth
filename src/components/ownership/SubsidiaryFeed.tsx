@@ -39,6 +39,7 @@ export function SubsidiaryFeed({ brandId }: { brandId: string }) {
       if (error) throw error;
       return data as unknown as FeedEvent[];
     },
+    enabled: Boolean(brandId),
   });
 
   // Check if this brand has any subsidiaries
@@ -51,6 +52,7 @@ export function SubsidiaryFeed({ brandId }: { brandId: string }) {
       const graph = data as any;
       return (graph?.edges || []).some((e: any) => e.from === brandId);
     },
+    enabled: Boolean(brandId),
   });
 
   const getCategoryColor = (category: string) => {
