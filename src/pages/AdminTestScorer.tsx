@@ -65,30 +65,32 @@ export default function AdminTestScorer() {
   const triggerBatchProcessing = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('batch-process-brands', {
-        body: { mode: 'manual', limit: 5 }
+      // Use mode=all to process all active brands (bypasses empty queue)
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const response = await fetch(
+        'https://midmvcwtywnexzdwbekp.supabase.co/functions/v1/batch-process-brands?mode=all&limit=5',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      const data = await response.json();
+      setBatchResult({ data, error: null });
+      
+      toast({
+        title: "Batch Processing Started",
+        description: `Processing ${data.processed || 0} brands`
       });
-      
-      setBatchResult({ data, error });
-      
-      if (error) {
-        toast({
-          variant: "destructive",
-          title: "Batch Processing Failed",
-          description: error.message
-        });
-      } else {
-        toast({
-          title: "Batch Processing Started",
-          description: "Check logs and wait 5 minutes before checking events"
-        });
-      }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Batch error:', error);
       toast({
         variant: "destructive",
         title: "Batch Processing Failed",
-        description: error instanceof Error ? error.message : "Unknown error"
+        description: error.message
       });
     } finally {
       setLoading(false);
