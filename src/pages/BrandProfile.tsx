@@ -12,6 +12,9 @@ import { toast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { useBrandLogo } from '@/hooks/useBrandLogo';
 import { getCategoryDisplay, type CategoryGroup } from '@/lib/categoryConfig';
+import { OwnershipGraph } from '@/components/ownership/OwnershipGraph';
+import { SubsidiaryFeed } from '@/components/ownership/SubsidiaryFeed';
+import { RollupScores } from '@/components/ownership/RollupScores';
 
 type BrandProfile = {
   brand: { 
@@ -430,6 +433,12 @@ export default function BrandProfile() {
           </CardHeader>
         </Card>
 
+        {/* Ownership Structure */}
+        <OwnershipGraph brandId={id!} />
+
+        {/* Consolidated Scores (if has subsidiaries) */}
+        <RollupScores brandId={id!} />
+
         {/* Evidence - Grouped by Category */}
         <Card>
           <CardHeader>
@@ -466,6 +475,15 @@ export default function BrandProfile() {
             </div>
           </CardHeader>
           <CardContent>
+            {/* New Subsidiary Feed Component */}
+            <SubsidiaryFeed brandId={id!} />
+            
+            {/* Original detailed view as fallback */}
+            <details className="mt-6">
+              <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
+                Show detailed evidence breakdown
+              </summary>
+              <div className="mt-4">
             {(() => {
               // Map category codes to groups
               const categoryGroups: Record<string, number> = {
@@ -648,13 +666,15 @@ export default function BrandProfile() {
                        </div>
                      );
                    })}
-                 </div>
-               ))}
-             </div>
-           );
-         })()}
-       </CardContent>
-     </Card>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+              </div>
+            </details>
+          </CardContent>
+        </Card>
 
         {/* Secondary actions */}
         <div className="flex gap-3 justify-center pb-6">
