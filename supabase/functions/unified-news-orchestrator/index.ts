@@ -737,6 +737,7 @@ Deno.serve(async (req) => {
             event_id: eventId,
             brand_id: b.id,
             title: title.slice(0, 512),
+            description: (body && body.trim().length > 0 ? body : title).slice(0, 4000),
             event_date: occurred,
             // occurred_at is GENERATED from event_date - don't insert
             source_url: urlCanon,
