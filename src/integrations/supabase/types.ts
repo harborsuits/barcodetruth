@@ -182,6 +182,13 @@ export type Database = {
             referencedColumns: ["brand_id"]
           },
           {
+            foreignKeyName: "article_brand_matches_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "article_brand_matches_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
@@ -257,6 +264,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_aliases_canonical_brand_id_fkey"
+            columns: ["canonical_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -370,6 +384,13 @@ export type Database = {
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
           },
+          {
+            foreignKeyName: "brand_baselines_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
         ]
       }
       brand_data_mappings: {
@@ -445,6 +466,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_data_mappings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -616,6 +644,13 @@ export type Database = {
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
           },
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
         ]
       }
       brand_feature_flags: {
@@ -676,6 +711,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_feature_flags_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -760,6 +802,13 @@ export type Database = {
             referencedColumns: ["brand_id"]
           },
           {
+            foreignKeyName: "brand_ownerships_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "brand_ownerships_parent_brand_id_fkey"
             columns: ["parent_brand_id"]
             isOneToOne: false
@@ -800,6 +849,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_ownerships_parent_brand_id_fkey"
+            columns: ["parent_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -898,6 +954,13 @@ export type Database = {
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
           },
+          {
+            foreignKeyName: "brand_scores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
         ]
       }
       brand_scores_history: {
@@ -967,6 +1030,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_scores_history_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1038,6 +1108,13 @@ export type Database = {
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
           },
+          {
+            foreignKeyName: "brand_social_baseline_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
         ]
       }
       brands: {
@@ -1055,6 +1132,9 @@ export type Database = {
           last_ingestion_status: string | null
           last_news_ingestion: string | null
           logo_attribution: string | null
+          logo_etag: string | null
+          logo_last_checked: string | null
+          logo_source: string | null
           logo_url: string | null
           monitoring_config: Json | null
           name: string
@@ -1080,6 +1160,9 @@ export type Database = {
           last_ingestion_status?: string | null
           last_news_ingestion?: string | null
           logo_attribution?: string | null
+          logo_etag?: string | null
+          logo_last_checked?: string | null
+          logo_source?: string | null
           logo_url?: string | null
           monitoring_config?: Json | null
           name: string
@@ -1105,6 +1188,9 @@ export type Database = {
           last_ingestion_status?: string | null
           last_news_ingestion?: string | null
           logo_attribution?: string | null
+          logo_etag?: string | null
+          logo_last_checked?: string | null
+          logo_source?: string | null
           logo_url?: string | null
           monitoring_config?: Json | null
           name?: string
@@ -1508,6 +1594,13 @@ export type Database = {
             referencedColumns: ["brand_id"]
           },
           {
+            foreignKeyName: "job_anomalies_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "job_anomalies_job_run_id_fkey"
             columns: ["job_run_id"]
             isOneToOne: false
@@ -1758,6 +1851,13 @@ export type Database = {
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
           },
+          {
+            foreignKeyName: "pilot_brands_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
         ]
       }
       processing_queue: {
@@ -1839,6 +1939,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "processing_queue_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1971,6 +2078,13 @@ export type Database = {
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
           },
+          {
+            foreignKeyName: "product_claims_claimed_brand_id_fkey"
+            columns: ["claimed_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
         ]
       }
       products: {
@@ -2049,6 +2163,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "products_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2596,6 +2717,13 @@ export type Database = {
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
           },
+          {
+            foreignKeyName: "user_scans_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
         ]
       }
       verification_audit: {
@@ -2739,6 +2867,13 @@ export type Database = {
             referencedColumns: ["brand_id"]
           },
           {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "event_sources_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
@@ -2837,6 +2972,13 @@ export type Database = {
             referencedColumns: ["brand_id"]
           },
           {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "event_sources_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
@@ -2929,6 +3071,13 @@ export type Database = {
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
           },
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
         ]
       }
       brand_latest_evidence: {
@@ -2981,6 +3130,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "event_sources_event_id_fkey"
@@ -3070,6 +3226,13 @@ export type Database = {
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
           },
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
         ]
       }
       brand_score_movers_24h: {
@@ -3124,6 +3287,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_scores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3260,6 +3430,13 @@ export type Database = {
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
           },
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
         ]
       }
       ops_health_24h: {
@@ -3334,6 +3511,13 @@ export type Database = {
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
           },
+          {
+            foreignKeyName: "product_claims_claimed_brand_id_fkey"
+            columns: ["claimed_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
         ]
       }
       product_claims_moderator_base: {
@@ -3396,6 +3580,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "product_claims_claimed_brand_id_fkey"
+            columns: ["claimed_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3508,7 +3699,35 @@ export type Database = {
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
           },
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      v_brands_needing_logos: {
+        Row: {
+          id: string | null
+          name: string | null
+          website: string | null
+          wikidata_qid: string | null
+        }
+        Insert: {
+          id?: string | null
+          name?: string | null
+          website?: string | null
+          wikidata_qid?: string | null
+        }
+        Update: {
+          id?: string | null
+          name?: string | null
+          website?: string | null
+          wikidata_qid?: string | null
+        }
+        Relationships: []
       }
       v_coalescing_effectiveness: {
         Row: {
