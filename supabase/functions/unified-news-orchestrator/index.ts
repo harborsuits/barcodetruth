@@ -64,12 +64,12 @@ const BUSINESS = /\b(company|companies|brand|brands|factory|factories|plant|faci
 function windowHit(text: string, brandRE: RegExp, windowTokens = 8) {
   const tokens = text.split(/\s+/);
   for (let i = 0; i < tokens.length; i++) {
-    if (brandRE.test(tokens[i])) {
+    // Find business term, then check if brand alias appears within the window around it
+    if (BUSINESS.test(tokens[i])) {
       const start = Math.max(0, i - windowTokens);
-      const end = Math.min(tokens.length - 1, i + windowTokens);
-      for (let j = start; j <= end; j++) {
-        if (BUSINESS.test(tokens[j])) return true;
-      }
+      const end = Math.min(tokens.length, i + windowTokens + 1);
+      const windowStr = tokens.slice(start, end).join(' ');
+      if (brandRE.test(windowStr)) return true;
     }
   }
   return false;

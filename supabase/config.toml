@@ -115,3 +115,7 @@ verify_jwt = false
 
 [functions.historical-baseline-scanner]
 verify_jwt = false
+
+# New diagnostic function
+[functions.test-relevance-scorer]
+verify_jwt = false
