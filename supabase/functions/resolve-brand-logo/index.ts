@@ -125,7 +125,13 @@ serve(async (req) => {
     // Fallback to Clearbit if no Commons logo found
     if (!logoUrl && brand.website) {
       try {
-        const domain = new URL(brand.website).hostname.replace(/^www\./, '');
+        // Normalize website URL (add https:// if missing)
+        let websiteUrl = brand.website;
+        if (!websiteUrl.startsWith('http://') && !websiteUrl.startsWith('https://')) {
+          websiteUrl = 'https://' + websiteUrl;
+        }
+        
+        const domain = new URL(websiteUrl).hostname.replace(/^www\./, '');
         const clearbitUrl = `https://logo.clearbit.com/${domain}`;
         
         // Check if Clearbit has a logo with timeout
