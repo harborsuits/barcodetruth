@@ -461,6 +461,7 @@ export default function BrandProfile() {
                   { label: 'Labor', value: 'LABOR' },
                   { label: 'ESG', value: 'ESG' },
                   { label: 'Policy', value: 'POLICY' },
+                  { label: 'Social & Cultural', value: 'SOCIAL' },
                   { label: 'Noise', value: 'NOISE' },
                 ].map((filter) => (
                   <button
