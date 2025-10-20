@@ -192,6 +192,16 @@ export default function AdminDashboard() {
       priority: "low",
       metrics: "Dev tool"
     },
+    {
+      title: "Relevance Scorer Test",
+      description: "Test article relevance scoring and batch processing",
+      icon: Activity,
+      route: "/admin/test-scorer",
+      color: "text-emerald-600 dark:text-emerald-400",
+      bgColor: "bg-emerald-600/10",
+      priority: "low",
+      metrics: "Debug tool"
+    },
   ];
 
   const highPriority = adminTools.filter(t => t.priority === 'high');
