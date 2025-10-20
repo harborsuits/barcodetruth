@@ -4118,6 +4118,30 @@ export type Database = {
         Args: { p_kind: string }
         Returns: string
       }
+      get_brand_feed_with_subsidiaries: {
+        Args: {
+          p_brand_id: string
+          p_include_subsidiaries?: boolean
+          p_limit?: number
+        }
+        Returns: {
+          brand_id: string
+          brand_name: string
+          category: Database["public"]["Enums"]["event_category"]
+          category_code: string
+          description: string
+          event_date: string
+          event_id: string
+          severity: string
+          source_url: string
+          title: string
+          verification: Database["public"]["Enums"]["verification_level"]
+        }[]
+      }
+      get_brand_rollup_scores: {
+        Args: { p_brand_id: string }
+        Returns: Json
+      }
       get_brands_needing_scores: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -4150,6 +4174,10 @@ export type Database = {
           brand_name: string
           company_size: string
         }[]
+      }
+      get_ownership_graph: {
+        Args: { p_brand_id: string }
+        Returns: Json
       }
       get_source_credibility: {
         Args: { source_name_param: string }
