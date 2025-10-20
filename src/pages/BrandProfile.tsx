@@ -416,11 +416,11 @@ export default function BrandProfile() {
           </CardHeader>
         </Card>
 
-        {/* Evidence table */}
+        {/* Evidence - Sorted by Impact */}
         <Card>
           <CardHeader>
             <div className="flex flex-col gap-4">
-              <h3 className="text-lg font-semibold">Latest evidence</h3>
+              <h3 className="text-lg font-semibold">Evidence</h3>
               
               {/* Category Filter */}
               <div className="flex flex-wrap gap-2">
@@ -452,95 +452,137 @@ export default function BrandProfile() {
           </CardHeader>
           <CardContent>
             {(() => {
+              const getVerificationScore = (v: string | null) => 
+                v === 'official' ? 3 : v === 'corroborated' ? 2 : 1;
+              
+              const getRecencyScore = (date: string) => {
+                const days = Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
+                if (days <= 30) return 3;
+                if (days <= 90) return 2;
+                if (days <= 365) return 1;
+                return 0;
+              };
+              
               const filteredEvidence = categoryFilter === 'all' 
                 ? (data.evidence ?? [])
                 : (data.evidence ?? []).filter(e => e.category_code?.startsWith(categoryFilter));
               
-              console.log('[BrandProfile] Evidence table render:', {
+              // Sort by verification (official first), then recency (newest first)
+              const sortedEvidence = [...filteredEvidence].sort((a, b) => {
+                const verificationDiff = getVerificationScore(b.verification) - getVerificationScore(a.verification);
+                if (verificationDiff !== 0) return verificationDiff;
+                
+                const recencyDiff = getRecencyScore(b.event_date) - getRecencyScore(a.event_date);
+                if (recencyDiff !== 0) return recencyDiff;
+                
+                return new Date(b.event_date).getTime() - new Date(a.event_date).getTime();
+              });
+              
+              console.log('[BrandProfile] Evidence sorted by impact:', {
                 brand_id: actualId,
+                total: sortedEvidence.length,
+                official: sortedEvidence.filter(e => e.verification === 'official').length,
+                recent_30d: sortedEvidence.filter(e => getRecencyScore(e.event_date) === 3).length,
                 raw_evidence_count: data.evidence?.length ?? 0,
                 filtered_count: filteredEvidence.length,
                 category_filter: categoryFilter,
                 evidence_sample: filteredEvidence?.[0]
               });
-              
-              return filteredEvidence.length > 0 ? (
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted">
-                        <tr>
-                          <th className="text-left p-3 font-medium">Date</th>
-                          <th className="text-left p-3 font-medium">Title</th>
-                          <th className="text-left p-3 font-medium">Category</th>
-                          <th className="text-left p-3 font-medium">Source</th>
-                          <th className="text-left p-3 font-medium">Status</th>
-                        </tr>
-                      </thead>
-                       <tbody>
-                          {filteredEvidence.map((e, i) => (
-                           <tr key={i} className="border-t hover:bg-muted/50">
-                             <td className="p-3 whitespace-nowrap">
-                               {new Date(e.event_date).toLocaleDateString()}
-                             </td>
-                             <td className="p-3 max-w-xs">
-                               <div className="flex flex-col gap-1">
-                                 {e.canonical_url ? (
-                                   <a 
-                                     href={e.canonical_url}
-                                     target="_blank"
-                                     rel="noopener noreferrer"
-                                     className="text-primary hover:underline inline-flex items-center gap-1"
-                                     title={e.title}
-                                   >
-                                     <span className="truncate">{e.title}</span>
-                                     <LinkIcon className="h-3 w-3 flex-shrink-0" />
-                                   </a>
-                                 ) : (
-                                   <span className="truncate" title={e.title}>{e.title}</span>
-                                 )}
-                                 {e.ai_summary && (
-                                   <span className="text-xs text-muted-foreground line-clamp-2">
-                                     {e.ai_summary}
-                                   </span>
-                                 )}
-                               </div>
-                             </td>
-                             <td className="p-3">
-                               <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-xs font-medium">
-                                 {e.category_code || e.category || '—'}
-                               </span>
-                             </td>
-                             <td className="p-3 text-muted-foreground text-xs">
-                               {e.source_name ?? '—'}
-                             </td>
-                             <td className="p-3">
-                               <Badge 
-                                 variant={
-                                   e.verification === 'official' ? 'default' :
-                                   e.verification === 'corroborated' ? 'secondary' : 
-                                   'outline'
-                                 }
-                                 className="text-xs"
-                               >
-                                 {e.verification ?? 'unverified'}
-                               </Badge>
-                             </td>
-                           </tr>
-                         ))}
-                       </tbody>
-                    </table>
+
+              if (!sortedEvidence.length) {
+                return (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <AlertCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p className="text-sm">
+                      {categoryFilter === 'all' 
+                        ? 'No evidence available yet for this brand.'
+                        : `No ${categoryFilter} events found for this brand.`
+                      }
+                    </p>
                   </div>
-                </div>
-              ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  <AlertCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm">
-                    {categoryFilter === 'all' 
-                      ? 'No evidence available yet for this brand.'
-                      : `No ${categoryFilter} events found for this brand.`
-                    }
-                  </p>
+                );
+              }
+
+              return (
+                <div className="space-y-3">
+                  {sortedEvidence.map((ev, idx) => {
+                    const isOfficial = ev.verification === 'official';
+                    const isCorroborated = ev.verification === 'corroborated';
+                    const isRecent = getRecencyScore(ev.event_date) === 3;
+                    
+                    return (
+                      <div 
+                        key={idx} 
+                        className={`p-4 rounded-lg border transition-colors ${
+                          isOfficial ? 'border-destructive/50 bg-destructive/5' : 
+                          isCorroborated ? 'border-primary/50 bg-primary/5' : 
+                          'border-border bg-card'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* Icon based on verification */}
+                          <div className={`mt-0.5 flex-shrink-0 ${
+                            isOfficial ? 'text-destructive' : 
+                            isCorroborated ? 'text-primary' : 
+                            'text-muted-foreground'
+                          }`}>
+                            {isOfficial ? '⚠️' : isCorroborated ? '⚖️' : '📰'}
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            {/* Badges row */}
+                            <div className="flex flex-wrap gap-2 mb-2">
+                              <Badge 
+                                variant={
+                                  isOfficial ? 'destructive' : 
+                                  isCorroborated ? 'default' : 
+                                  'outline'
+                                }
+                                className="text-xs"
+                              >
+                                {ev.verification === 'official' ? 'Official' : 
+                                 ev.verification === 'corroborated' ? 'Multiple Sources' : 
+                                 'Unverified'}
+                              </Badge>
+                              
+                              <Badge variant="outline" className="text-xs">
+                                {ev.category_code || ev.category || 'General'}
+                              </Badge>
+                              
+                              <span className="text-xs text-muted-foreground">
+                                {formatDistanceToNow(new Date(ev.event_date), { addSuffix: true })}
+                              </span>
+                            </div>
+                            
+                            {/* Title */}
+                            <h4 className="font-semibold text-base leading-tight mb-2">
+                              {ev.title || 'Untitled Event'}
+                            </h4>
+                            
+                            {/* AI Summary */}
+                            {ev.ai_summary && (
+                              <p className="text-sm text-muted-foreground leading-relaxed mb-2">
+                                {ev.ai_summary}
+                              </p>
+                            )}
+                            
+                            {/* Source link */}
+                            {ev.canonical_url && (
+                              <a
+                                href={ev.canonical_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                              >
+                                {ev.source_name || 'Read more'}
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })()}

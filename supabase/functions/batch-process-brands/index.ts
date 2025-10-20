@@ -133,22 +133,7 @@ Deno.serve(async (req) => {
     for (const brand of brandsToProcess) {
       console.log(`[Batch Processor] Processing: ${brand.name}`);
       
-      // Check if baseline exists - skip if not ready
-      const { data: baseline } = await supabase
-        .from('brand_baselines')
-        .select('baseline_complete')
-        .eq('brand_id', brand.id)
-        .maybeSingle();
-
-      if (!baseline?.baseline_complete) {
-        console.log(`[Batch Processor] ${brand.name}: No baseline - skipping (run historical-baseline-scanner first)`);
-        results.details.push({
-          brand: brand.name,
-          status: 'skipped',
-          reason: 'no_baseline'
-        });
-        continue;
-      }
+      // Process brand immediately - baselines are optional metadata, not requirements
       
       // Mark as processing
       await supabase
