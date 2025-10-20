@@ -10,6 +10,7 @@ import { ArrowLeft, ExternalLink, AlertCircle, Building2, Link as LinkIcon } fro
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
+import { useBrandLogo } from '@/hooks/useBrandLogo';
 
 type BrandProfile = {
   brand: { 
@@ -62,6 +63,38 @@ type BrandProfile = {
     ai_summary?: string | null;
   }>;
 };
+
+// Logo component with instant fallback
+function BrandLogoWithFallback({ 
+  logoUrl, 
+  website, 
+  brandName, 
+  monogram 
+}: { 
+  logoUrl?: string | null; 
+  website?: string | null; 
+  brandName: string; 
+  monogram: string;
+}) {
+  const displayLogo = useBrandLogo(logoUrl || null, website);
+  
+  if (displayLogo) {
+    return (
+      <img 
+        src={displayLogo} 
+        alt={`${brandName} logo`}
+        className="w-16 h-16 rounded-2xl border-2 object-contain bg-muted flex-shrink-0 p-2"
+        loading="lazy"
+      />
+    );
+  }
+  
+  return (
+    <div className="w-16 h-16 rounded-2xl border-2 grid place-items-center text-2xl font-bold bg-muted flex-shrink-0">
+      {monogram}
+    </div>
+  );
+}
 
 export default function BrandProfile() {
   const { id, brandId } = useParams<{ id?: string; brandId?: string }>();
@@ -259,18 +292,12 @@ export default function BrandProfile() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-start gap-4">
-              {data.brand.logo_url ? (
-                <img 
-                  src={data.brand.logo_url} 
-                  alt={`${data.brand.name} logo`}
-                  className="w-16 h-16 rounded-2xl border-2 object-contain bg-muted flex-shrink-0 p-2"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="w-16 h-16 rounded-2xl border-2 grid place-items-center text-2xl font-bold bg-muted flex-shrink-0">
-                  {monogram}
-                </div>
-              )}
+              <BrandLogoWithFallback 
+                logoUrl={data.brand.logo_url} 
+                website={data.brand.website}
+                brandName={data.brand.name}
+                monogram={monogram}
+              />
               <div className="flex-1 min-w-0">
                 <h2 className="text-2xl font-bold truncate">{data.brand.name}</h2>
                 

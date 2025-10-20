@@ -7,11 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { TrendingUp, ArrowRight, AlertTriangle, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { confidenceMeta } from "@/lib/confidence";
+import { useBrandLogo } from "@/hooks/useBrandLogo";
 
 interface TrendingBrand {
   brand_id: string;
   brand_name: string;
   logo_url?: string;
+  website?: string;
   overall_score: number | null;
   event_count?: number;
   confidence?: number;
@@ -24,6 +26,32 @@ interface TrendingBrand {
     verification: string;
     source_count: number;
   };
+}
+
+// Small logo icon with instant fallback
+function BrandLogoIcon({ logoUrl, website, brandName }: { 
+  logoUrl?: string; 
+  website?: string;
+  brandName: string;
+}) {
+  const displayLogo = useBrandLogo(logoUrl || null, website || null);
+  
+  return (
+    <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-muted/40 rounded-lg">
+      {displayLogo ? (
+        <img 
+          src={displayLogo} 
+          alt={`${brandName} logo`}
+          loading="lazy"
+          className="max-w-full max-h-full object-contain p-1"
+        />
+      ) : (
+        <span className="text-lg font-bold">
+          {brandName?.[0]?.toUpperCase() ?? 'B'}
+        </span>
+      )}
+    </div>
+  );
 }
 
 export function TrendingPreview() {
@@ -70,25 +98,26 @@ export function TrendingPreview() {
       .limit(5);
 
     if (trendingData && trendingData.length) {
-      // Fetch logos for these brands
+      // Fetch logos and websites for these brands
       const brandIds = trendingData.map(b => b.brand_id);
-      let logoMap: Record<string, string> = {};
+      let brandDataMap: Record<string, { logo_url: string | null; website: string | null }> = {};
       if (brandIds.length > 0) {
-        const { data: brandLogos } = await supabase
+        const { data: brandData } = await supabase
           .from('brands')
-          .select('id, logo_url')
+          .select('id, logo_url, website')
           .in('id', brandIds);
 
-        logoMap = (brandLogos || []).reduce((acc, b) => {
-          if (b.logo_url) acc[b.id] = b.logo_url;
+        brandDataMap = (brandData || []).reduce((acc, b) => {
+          acc[b.id] = { logo_url: b.logo_url, website: b.website };
           return acc;
-        }, {} as Record<string, string>);
+        }, {} as Record<string, { logo_url: string | null; website: string | null }>);
       }
 
       setTrending(trendingData.map((b: any) => ({
         brand_id: b.brand_id,
         brand_name: b.name,
-        logo_url: logoMap[b.brand_id],
+        logo_url: brandDataMap[b.brand_id]?.logo_url,
+        website: brandDataMap[b.brand_id]?.website,
         event_count: b.events_30d || 0,
         overall_score: b.score ?? null,
         confidence: b.score_confidence ?? null,
@@ -161,20 +190,11 @@ export function TrendingPreview() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 flex-1">
-                  <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-muted/40 rounded-lg">
-                    {brand.logo_url ? (
-                      <img 
-                        src={brand.logo_url} 
-                        alt={`${brand.brand_name} logo`}
-                        loading="lazy"
-                        className="max-w-full max-h-full object-contain p-1"
-                      />
-                    ) : (
-                      <span className="text-lg font-bold">
-                        {brand.brand_name?.[0]?.toUpperCase() ?? 'B'}
-                      </span>
-                    )}
-                  </div>
+                  <BrandLogoIcon 
+                    logoUrl={brand.logo_url} 
+                    website={brand.website}
+                    brandName={brand.brand_name}
+                  />
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-semibold text-base">{brand.brand_name}</h3>
