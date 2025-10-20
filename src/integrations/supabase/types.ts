@@ -4132,6 +4132,8 @@ export type Database = {
           description: string
           event_date: string
           event_id: string
+          is_parent_entity: boolean
+          orientation: string
           severity: string
           source_url: string
           title: string
