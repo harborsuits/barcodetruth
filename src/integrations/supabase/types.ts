@@ -274,6 +274,80 @@ export type Database = {
           },
         ]
       }
+      brand_api_usage: {
+        Row: {
+          brand_id: string
+          calls_today: number
+          last_call_at: string | null
+          updated_at: string
+          window_start: string
+        }
+        Insert: {
+          brand_id: string
+          calls_today?: number
+          last_call_at?: string | null
+          updated_at?: string
+          window_start?: string
+        }
+        Update: {
+          brand_id?: string
+          calls_today?: number
+          last_call_at?: string | null
+          updated_at?: string
+          window_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_api_usage_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_api_usage_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brand_standings"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_api_usage_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brand_trending"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_api_usage_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_api_usage_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_api_usage_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_api_usage_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brand_baselines: {
         Row: {
           articles_analyzed: number
@@ -4069,6 +4143,14 @@ export type Database = {
           title_fp: string
         }[]
       }
+      get_next_brands_fair_rotation: {
+        Args: { p_limit?: number }
+        Returns: {
+          brand_id: string
+          brand_name: string
+          company_size: string
+        }[]
+      }
       get_source_credibility: {
         Args: { source_name_param: string }
         Returns: number
@@ -4079,6 +4161,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_brand_api_usage: {
+        Args: { p_brand_id: string; p_calls?: number }
+        Returns: undefined
       }
       increment_rate_limit: {
         Args: { p_source: string; p_window_start: string }
