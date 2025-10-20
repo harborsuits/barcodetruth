@@ -1,10 +1,13 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AdminTestScorer() {
+  const navigate = useNavigate();
   const [test1Result, setTest1Result] = useState<any>(null);
   const [test2Result, setTest2Result] = useState<any>(null);
   const [test3Result, setTest3Result] = useState<any>(null);
@@ -197,6 +200,14 @@ export default function AdminTestScorer() {
   return (
     <div className="container mx-auto p-8 space-y-6">
       <div>
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate(-1)}
+          className="mb-4"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
+        </Button>
         <h1 className="text-3xl font-bold mb-2">Relevance Scorer Test Suite</h1>
         <p className="text-muted-foreground">
           Test the fixed relevance scoring and trigger batch ingestion
