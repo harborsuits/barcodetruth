@@ -324,7 +324,17 @@ async function fetchGDELT(supabase: any, brandName: string, max: number, daysBac
   const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=ArtList&maxrecords=${max}&format=json&timelang=eng&timespan=${daysBack}d`;
   const res = await fetchBudgeted(supabase, 'gdelt', url);
   if (!res.ok) throw new Error(`GDELT: ${res.status}`);
-  const gd = await res.json();
+  
+  let gd;
+  try {
+    gd = await res.json();
+  } catch (parseError) {
+    const rawText = await res.text();
+    console.error('[GDELT] JSON parse failed:', parseError);
+    console.error('[GDELT] Raw response preview:', rawText.slice(0, 200));
+    return []; // Skip this source and continue processing others
+  }
+  
   const items: GdeltItem[] = gd?.articles ?? [];
   return items.map(i => parseGdeltArticle(i, brandName));
 }
