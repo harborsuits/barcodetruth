@@ -86,6 +86,10 @@ Relevance scoring:
 - 0.3-0.5: Article mentions brand + keywords but not the event
 - 0.0-0.3: False positive - unrelated article
 
+CRITICAL: Heavily penalize financial noise:
+- Articles ONLY about stock trades, shares bought/sold, investment positions = 0.0-0.2
+- Must have REAL consumer impact (recalls, violations, layoffs, etc.) to score above 0.5
+
 Verification:
 - official: Government source, court records, official statements
 - corroborated: Credible news org with specific facts

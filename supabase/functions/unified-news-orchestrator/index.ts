@@ -709,6 +709,13 @@ Deno.serve(async (req) => {
         const domainName = url.hostname.replace(/^www\./, '');
         const categoryResult = await classifyCategory(supabase, domainName, url.pathname, title, body);
         
+        // Skip NOISE articles entirely - don't insert them
+        if (categoryResult.category_code?.startsWith('NOISE.')) {
+          totalSkipped++;
+          console.log(`[Orchestrator] Skipping NOISE article: ${title.slice(0, 60)}`);
+          continue;
+        }
+        
         // Map sub-category to one of 4 main consumer categories
         const mainCategory = mapToMainCategory(categoryResult.category_code);
         
