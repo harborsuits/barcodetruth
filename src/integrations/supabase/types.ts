@@ -29,6 +29,48 @@ export type Database = {
         }
         Relationships: []
       }
+      api_error_log: {
+        Row: {
+          id: number
+          message: string | null
+          occurred_at: string
+          source: string
+          status: number | null
+        }
+        Insert: {
+          id?: number
+          message?: string | null
+          occurred_at?: string
+          source: string
+          status?: number | null
+        }
+        Update: {
+          id?: number
+          message?: string | null
+          occurred_at?: string
+          source?: string
+          status?: number | null
+        }
+        Relationships: []
+      }
+      api_rate_config: {
+        Row: {
+          limit_per_window: number
+          source: string
+          window_kind: string
+        }
+        Insert: {
+          limit_per_window: number
+          source: string
+          window_kind: string
+        }
+        Update: {
+          limit_per_window?: number
+          source?: string
+          window_kind?: string
+        }
+        Relationships: []
+      }
       api_rate_limits: {
         Row: {
           call_count: number
@@ -3650,6 +3692,10 @@ export type Database = {
           score_social: number
         }[]
       }
+      current_window_start: {
+        Args: { p_kind: string }
+        Returns: string
+      }
       get_brands_needing_scores: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -3785,6 +3831,10 @@ export type Database = {
           priority: number
           rule_notes: string
         }[]
+      }
+      try_spend: {
+        Args: { p_cost?: number; p_source: string }
+        Returns: boolean
       }
       unlock_stale_jobs: {
         Args: { timeout_seconds: number }

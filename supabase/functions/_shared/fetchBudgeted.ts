@@ -10,7 +10,7 @@ interface BudgetCheckResult {
 }
 
 /**
- * Check if we have budget remaining for this source in the current 24h window
+ * Check budget using try_spend RPC - atomically checks and increments if allowed
  */
 async function checkBudget(
   supabase: SupabaseClient,
@@ -21,69 +21,71 @@ async function checkBudget(
     return { allowed: false, remaining: 0, resetAt: new Date(), reason: 'unknown_source' };
   }
 
-  // Calculate current 24h window (UTC midnight to midnight)
-  const now = new Date();
-  const windowStart = new Date(now);
-  windowStart.setUTCHours(0, 0, 0, 0);
-
-  // Fetch current usage for this source in current window
-  const { data, error } = await supabase
-    .from('api_rate_limits')
-    .select('call_count, window_start')
-    .eq('source', sourceId)
-    .gte('window_start', windowStart.toISOString())
-    .single();
-
-  if (error && error.code !== 'PGRST116') { // PGRST116 = no rows (ok)
-    console.error(`[fetchBudgeted] Error checking budget for ${sourceId}:`, error);
-    return { allowed: true, remaining: config.dailyLimit, resetAt: windowStart }; // fail open
-  }
-
-  const currentCount = data?.call_count ?? 0;
-  const remaining = Math.max(0, config.dailyLimit - currentCount);
-  
-  const resetAt = new Date(windowStart);
-  resetAt.setUTCDate(resetAt.getUTCDate() + 1); // next midnight UTC
-
-  if (remaining <= 0) {
-    return { 
-      allowed: false, 
-      remaining: 0, 
-      resetAt,
-      reason: `quota_exhausted (${currentCount}/${config.dailyLimit})`
-    };
-  }
-
-  return { allowed: true, remaining, resetAt };
-}
-
-/**
- * Increment the call counter for this source
- */
-async function incrementUsage(
-  supabase: SupabaseClient,
-  sourceId: SourceId
-): Promise<void> {
-  const now = new Date();
-  const windowStart = new Date(now);
-  windowStart.setUTCHours(0, 0, 0, 0);
-
-  // Use the RPC function to increment atomically
-  const { error } = await supabase.rpc('increment_rate_limit', { 
+  // Call try_spend RPC which atomically checks budget and increments
+  const { data: allowed, error } = await supabase.rpc('try_spend', { 
     p_source: sourceId,
-    p_window_start: windowStart.toISOString()
+    p_cost: 1 
   });
 
   if (error) {
-    console.error(`[fetchBudgeted] Error incrementing usage for ${sourceId}:`, error);
+    console.error(`[fetchBudgeted] Error checking budget for ${sourceId}:`, error);
+    return { allowed: true, remaining: config.dailyLimit, resetAt: new Date() }; // fail open
   }
+
+  if (!allowed) {
+    return { 
+      allowed: false, 
+      remaining: 0, 
+      resetAt: new Date(Date.now() + 86400000), // ~24h from now
+      reason: `quota_exhausted`
+    };
+  }
+
+  // If allowed, fetch remaining count for logging
+  const { data: configData } = await supabase
+    .from('api_rate_config')
+    .select('limit_per_window')
+    .eq('source', sourceId)
+    .single();
+
+  const { data: usageData } = await supabase
+    .from('api_rate_limits')
+    .select('call_count')
+    .eq('source', sourceId)
+    .order('window_start', { ascending: false })
+    .limit(1)
+    .single();
+
+  const remaining = Math.max(0, (configData?.limit_per_window ?? config.dailyLimit) - (usageData?.call_count ?? 0));
+  
+  return { 
+    allowed: true, 
+    remaining, 
+    resetAt: new Date(Date.now() + 86400000)
+  };
+}
+
+/**
+ * Log API errors for visibility
+ */
+async function logApiError(
+  supabase: SupabaseClient,
+  sourceId: SourceId,
+  status: number,
+  message: string
+): Promise<void> {
+  await supabase.from('api_error_log').insert({
+    source: sourceId,
+    status,
+    message: message.slice(0, 500) // truncate
+  });
 }
 
 /**
  * Budget-aware fetch wrapper
- * - Checks api_rate_limits before making the request
- * - Skips if budget exhausted (returns null response)
- * - Increments counter on successful check
+ * - Calls try_spend() to atomically check + increment budget
+ * - Skips if budget exhausted (returns 429 response)
+ * - Logs errors for visibility
  * - Handles errors gracefully (logs + returns error response)
  */
 export async function fetchBudgeted(
@@ -92,11 +94,12 @@ export async function fetchBudgeted(
   url: string,
   options?: RequestInit
 ): Promise<Response> {
-  // Check budget
+  // Check budget (also increments if allowed)
   const budget = await checkBudget(supabase, sourceId);
   
   if (!budget.allowed) {
     console.warn(`[fetchBudgeted] ${sourceId} budget exhausted: ${budget.reason}`);
+    await logApiError(supabase, sourceId, 429, budget.reason || 'quota_exceeded');
     return new Response(JSON.stringify({ 
       error: 'quota_exceeded', 
       source: sourceId,
@@ -107,22 +110,25 @@ export async function fetchBudgeted(
     });
   }
 
-  console.log(`[fetchBudgeted] ${sourceId} - ${budget.remaining} calls remaining until ${budget.resetAt.toISOString()}`);
+  console.log(`[fetchBudgeted] ${sourceId} - ${budget.remaining} calls remaining`);
 
   // Make the request
   try {
-    await incrementUsage(supabase, sourceId);
     const response = await fetch(url, options);
     
     // Log non-200 responses
     if (!response.ok) {
-      console.warn(`[fetchBudgeted] ${sourceId} returned ${response.status} for: ${url.slice(0, 100)}`);
+      const msg = `HTTP ${response.status} for ${url.slice(0, 100)}`;
+      console.warn(`[fetchBudgeted] ${sourceId}: ${msg}`);
+      await logApiError(supabase, sourceId, response.status, msg);
     }
     
     return response;
   } catch (err) {
-    console.error(`[fetchBudgeted] ${sourceId} fetch failed:`, err);
-    return new Response(JSON.stringify({ error: 'fetch_failed', message: String(err) }), {
+    const msg = String(err);
+    console.error(`[fetchBudgeted] ${sourceId} fetch failed:`, msg);
+    await logApiError(supabase, sourceId, 0, msg);
+    return new Response(JSON.stringify({ error: 'fetch_failed', message: msg }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });

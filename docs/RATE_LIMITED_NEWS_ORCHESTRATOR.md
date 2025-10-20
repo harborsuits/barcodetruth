@@ -21,6 +21,8 @@ The unified news orchestrator now includes automatic API key detection and budge
 | Mediastack | 16 | Yes | ~500/month ÷ 30 days |
 | Currents | 20 | Yes | ~600/month ÷ 30 days |
 
+**Budget Enforcement:** The system uses `try_spend()` RPC to atomically check and increment usage counters, preventing quota overruns.
+
 ## Cron Schedule
 
 Run orchestrator **every 2 hours** to stay within free-tier quotas:
@@ -47,23 +49,31 @@ SELECT cron.schedule(
 
 Check remaining calls per source:
 ```sql
-SELECT 
-  source,
-  call_count,
-  window_start,
-  updated_at,
-  CASE source
-    WHEN 'guardian' THEN 500 - call_count
-    WHEN 'newsapi' THEN 100 - call_count
-    WHEN 'nyt' THEN 500 - call_count
-    WHEN 'gnews' THEN 100 - call_count
-    WHEN 'mediastack' THEN 16 - call_count
-    WHEN 'currents' THEN 20 - call_count
-    WHEN 'gdelt' THEN 5000 - call_count
-  END AS remaining
-FROM api_rate_limits
-WHERE window_start >= date_trunc('day', now())
-ORDER BY source;
+WITH cfg AS (
+  SELECT c.source, c.window_kind, c.limit_per_window,
+         current_window_start(c.window_kind) AS win_start
+  FROM api_rate_config c
+),
+usage AS (
+  SELECT l.source, l.window_start, l.call_count
+  FROM api_rate_limits l
+)
+SELECT cfg.source, cfg.window_kind, cfg.limit_per_window,
+       COALESCE(u.call_count,0) AS used,
+       (cfg.limit_per_window - COALESCE(u.call_count,0)) AS remaining,
+       cfg.win_start AS window_start
+FROM cfg
+LEFT JOIN usage u
+  ON u.source = cfg.source AND u.window_start = cfg.win_start
+ORDER BY cfg.source;
+```
+
+Check recent API errors:
+```sql
+SELECT source, status, message, occurred_at
+FROM api_error_log
+ORDER BY occurred_at DESC
+LIMIT 50;
 ```
 
 ## Health Check
