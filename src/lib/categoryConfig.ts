@@ -1,5 +1,5 @@
 export type CategoryCode = 
-  | 'FIN.EARNINGS' | 'FIN.ACQUISITION' | 'FIN.BANKRUPTCY'
+  | 'FIN.EARNINGS' | 'FIN.ACQUISITION' | 'FIN.BANKRUPTCY' | 'FIN.INSTITUTIONAL'
   | 'PRODUCT.RECALL' | 'PRODUCT.LAUNCH'
   | 'LEGAL.LAWSUIT' | 'LEGAL.SETTLEMENT' | 'LEGAL.INVESTIGATION'
   | 'REGULATORY.VIOLATION' | 'REGULATORY.COMPLIANCE'
@@ -7,7 +7,7 @@ export type CategoryCode =
   | 'ESG.ENVIRONMENT' | 'ESG.SOCIAL' | 'ESG.GOVERNANCE'
   | 'POLICY.POLITICAL' | 'POLICY.ADVOCACY'
   | 'SOCIAL.BOYCOTT' | 'SOCIAL.CAMPAIGN'
-  | 'NOISE.GENERAL';
+  | 'NOISE.GENERAL' | 'NOISE.INSTITUTIONAL' | 'NOISE.ROUTINE';
 
 export type CategoryGroup = 
   | 'Financial'
@@ -28,7 +28,7 @@ export const categoryGroups: Record<CategoryGroup, {
   'Financial': {
     color: 'text-blue-600 dark:text-blue-400',
     bgColor: 'bg-blue-50 dark:bg-blue-950',
-    codes: ['FIN.EARNINGS', 'FIN.ACQUISITION', 'FIN.BANKRUPTCY']
+    codes: ['FIN.EARNINGS', 'FIN.ACQUISITION', 'FIN.BANKRUPTCY', 'FIN.INSTITUTIONAL']
   },
   'Product Safety': {
     color: 'text-red-600 dark:text-red-400',
@@ -68,7 +68,7 @@ export const categoryGroups: Record<CategoryGroup, {
   'Noise': {
     color: 'text-muted-foreground',
     bgColor: 'bg-muted',
-    codes: ['NOISE.GENERAL']
+    codes: ['NOISE.GENERAL', 'NOISE.INSTITUTIONAL', 'NOISE.ROUTINE']
   }
 };
 
