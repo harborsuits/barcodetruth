@@ -508,27 +508,64 @@ export default function BrandProfile() {
                 'PRODUCT.RECALL': 'Product Safety',
                 'LEGAL.LITIGATION': 'Legal',
                 'LEGAL.SETTLEMENT': 'Legal',
+                'LEGAL.LAWSUIT': 'Legal',
                 'REGULATORY.ENFORCEMENT': 'Regulatory',
                 'REGULATORY.FILING': 'Regulatory',
+                'REGULATORY.EPA': 'Regulatory',
+                'REGULATORY.OSHA': 'Regulatory',
                 'LABOR.PRACTICES': 'Labor',
                 'LABOR.UNION': 'Labor',
+                'LABOR.SAFETY': 'Labor',
                 'ESG.ENVIRONMENT': 'ESG (Environment)',
                 'ESG.SOCIAL': 'Social & Cultural',
+                'ENV.POLLUTION': 'ESG (Environment)',
+                'ENV.EMISSIONS': 'ESG (Environment)',
                 'SOC.CULTURE': 'Social & Cultural',
                 'POLICY.PUBLIC': 'Policy',
-                'NOISE.GENERAL': 'Noise'
+                'POLICY.POLITICAL': 'Policy',
+                'NOISE.GENERAL': 'Noise',
+                'NOISE.FINANCIAL': 'Noise'
+              };
+
+              // Helper function to determine group from category_code or legacy category
+              const getGroupName = (code: string | null, legacyCategory: string | null): string => {
+                if (code && codeToGroup[code]) {
+                  return codeToGroup[code];
+                }
+                // Fallback: Check if code starts with a known prefix
+                if (code) {
+                  const prefix = code.split('.')[0];
+                  if (prefix === 'FIN') return 'Financial';
+                  if (prefix === 'PRODUCT') return 'Product Safety';
+                  if (prefix === 'LEGAL') return 'Legal';
+                  if (prefix === 'REGULATORY') return 'Regulatory';
+                  if (prefix === 'LABOR') return 'Labor';
+                  if (prefix === 'ESG' || prefix === 'ENV') return 'ESG (Environment)';
+                  if (prefix === 'SOC') return 'Social & Cultural';
+                  if (prefix === 'POLICY') return 'Policy';
+                  if (prefix === 'NOISE') return 'Noise';
+                }
+                // Legacy category fallback
+                if (legacyCategory === 'labor') return 'Labor';
+                if (legacyCategory === 'environment') return 'ESG (Environment)';
+                if (legacyCategory === 'politics') return 'Policy';
+                if (legacyCategory === 'social') return 'Social & Cultural';
+                return 'Noise';
               };
 
               const getVerificationRank = (v: string | null) => 
                 v === 'official' ? 1 : v === 'corroborated' ? 2 : 3;
 
               // Add group info to each evidence item
-              const evidenceWithGroups = (data.evidence ?? []).map(ev => ({
-                ...ev,
-                group_name: codeToGroup[ev.category_code ?? ''] ?? 'Noise',
-                group_order: categoryGroups[codeToGroup[ev.category_code ?? ''] ?? 'Noise'] ?? 90,
-                verification_rank: getVerificationRank(ev.verification)
-              }));
+              const evidenceWithGroups = (data.evidence ?? []).map(ev => {
+                const groupName = getGroupName(ev.category_code, ev.category);
+                return {
+                  ...ev,
+                  group_name: groupName,
+                  group_order: categoryGroups[groupName] ?? 90,
+                  verification_rank: getVerificationRank(ev.verification)
+                };
+              });
 
               // Filter by selected category
               const filteredEvidence = categoryFilter === 'all'

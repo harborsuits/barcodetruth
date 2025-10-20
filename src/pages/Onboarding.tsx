@@ -23,6 +23,12 @@ export const Onboarding = () => {
     navigate("/");
   };
 
+  const handleSkip = () => {
+    localStorage.setItem("onboardingComplete", "true");
+    localStorage.setItem("userValues", JSON.stringify({ labor: 50, environment: 50, politics: 50, social: 50 }));
+    navigate("/");
+  };
+
   if (step === 0) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
@@ -61,9 +67,14 @@ export const Onboarding = () => {
             </Card>
           </div>
 
-          <Button onClick={() => setStep(1)} size="lg" className="w-full">
-            Get Started
-          </Button>
+          <div className="space-y-3">
+            <Button onClick={() => setStep(1)} size="lg" className="w-full">
+              Get Started
+            </Button>
+            <Button onClick={handleSkip} variant="ghost" size="lg" className="w-full">
+              Skip for now
+            </Button>
+          </div>
         </div>
       </div>
     );
