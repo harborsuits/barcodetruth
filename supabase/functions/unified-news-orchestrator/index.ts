@@ -58,8 +58,8 @@ function nonAsciiRatio(s: string): number {
 // ---- relevance & filtering -------------------------------------------------
 const ESC = (s: string) => s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
 
-// Business context cues
-const BUSINESS = /\b(company|brand|factory|plant|facility|product|recall|device|drug|food|cereal|earnings?|revenue|profit|ceo|acquisition|merger|lawsuit|settlement|regulator|os(h|ha)|epa|fda|sec)\b/i;
+// Business context cues - comprehensive coverage including financial, organizational, and regulatory terms
+const BUSINESS = /\b(company|companies|brand|brands|factory|factories|plant|facility|product|products|recall|device|drug|food|cereal|earnings?|revenue|profit|ceo|chief|executive|officer|acquisition|merger|lawsuit|settlement|regulator|os(h|ha)|epa|fda|fec|sec|corporate|corporation|business|manufacturer|manufacturing|sales|market|markets|industry|consumer|customers?|fine|penalty|penalties|violation|violations|complaint|investigation|probe|charges?|sued|suing|settled|alliance|coalition|association|organization|partnership|initiative|campaign|program|policy|policies|statement|announce|announced|report|reports|filing|disclosure|stock|stocks|shares|equity|investment|investor|shareholders?|portfolio|capital|financial|fund|funds)\b/i;
 
 function windowHit(text: string, brandRE: RegExp, windowTokens = 8) {
   const tokens = text.split(/\s+/);
@@ -147,22 +147,35 @@ function brandConfigPass(brand: Brand, title: string, body: string): boolean {
   return true;
 }
 
+// Normalize text for matching (remove accents, normalize unicode)
+function normalize(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
 function scoreRelevanceStrict(brand: Brand, title: string, body: string, url: URL): { score: number; reason: string } {
   if (hardExclude(brand, title, body, url)) return { score: 0, reason: 'hard_exclude' };
 
   const cfg = (brand as any).monitoring_config || {};
   const minScore = typeof cfg.min_score === 'number' ? cfg.min_score : 0.5;
 
-  const aliases = [brand.name, ...(brand.aliases ?? [])].map((a) => new RegExp(`\\b${ESC(a)}\\b`, 'i'));
+  // Normalize brand names and aliases for matching (removes accents)
+  const aliases = [brand.name, ...(brand.aliases ?? [])].map((a) => {
+    const normalized = normalize(a);
+    return new RegExp(`\\b${ESC(normalized)}\\b`, 'i');
+  });
+  
+  // Normalize text for matching
+  const titleNorm = normalize(title);
   const textLead = body.slice(0, 500);
+  const leadNorm = normalize(textLead);
 
   let s = 0;
   const reasons: string[] = [];
 
-  const titleHit = aliases.some((re) => re.test(title));
-  const leadHit = aliases.some((re) => re.test(textLead));
+  const titleHit = aliases.some((re) => re.test(titleNorm));
+  const leadHit = aliases.some((re) => re.test(leadNorm));
   const context = BUSINESS.test(title) || BUSINESS.test(textLead);
-  const proxHit = aliases.some((re) => windowHit(`${title} ${textLead}`, re, 8));
+  const proxHit = aliases.some((re) => windowHit(`${titleNorm} ${leadNorm}`, re, 8));
 
   if (titleHit) {
     s += 7;
@@ -181,9 +194,9 @@ function scoreRelevanceStrict(brand: Brand, title: string, body: string, url: UR
     reasons.push('proximity_8');
   }
 
-  // Heavy penalty if brand mentioned but no business context
+  // Light penalty if brand mentioned but no business context (reduced from -6 to -2)
   if ((titleHit || leadHit) && !context) {
-    s -= 6;
+    s -= 2;
     reasons.push('no_business_penalty');
   }
 
