@@ -14,6 +14,33 @@ type Brand = { id: string; name: string; aliases: string[]; ticker: string | nul
 type GdeltItem = { url: string; title: string; seendate: string; domain?: string };
 type NewsArticle = { title: string; summary: string; url: string; published_at: string; source_name: string; category?: "labor" | "environment" | "politics" | "social" };
 
+// Map sub-categories to main 4 consumer categories
+function mapToMainCategory(categoryCode: string | null): "labor" | "environment" | "politics" | "social" {
+  if (!categoryCode) return 'social';
+  
+  // Labor: LABOR.* + OSHA
+  if (categoryCode.startsWith('LABOR.') || categoryCode === 'REGULATORY.OSHA') {
+    return 'labor';
+  }
+  
+  // Environment: ESG climate/governance + EPA
+  if (categoryCode.startsWith('ESG.CLIMATE') || 
+      categoryCode === 'ESG.GOVERNANCE' || 
+      categoryCode === 'REGULATORY.EPA') {
+    return 'environment';
+  }
+  
+  // Politics: POLICY.* + FTC/SEC
+  if (categoryCode.startsWith('POLICY.') || 
+      categoryCode === 'REGULATORY.FTC' || 
+      categoryCode === 'REGULATORY.SEC') {
+    return 'politics';
+  }
+  
+  // Social: everything else (ESG.SOCIAL, PRODUCT.*, LEGAL.*, etc.)
+  return 'social';
+}
+
 const QUERY_TERMS = [
   "OSHA", "violation", "safety", "workplace", "worker", "union", "wage", "discrimination",
   "harassment", "injury", "fatality", "labor", "employee", "fired", "layoff",
@@ -682,7 +709,10 @@ Deno.serve(async (req) => {
         const domainName = url.hostname.replace(/^www\./, '');
         const categoryResult = await classifyCategory(supabase, domainName, url.pathname, title, body);
         
-        console.log(`[Orchestrator] Classified "${title.slice(0, 50)}..." as ${categoryResult.category_code} (old: ${categoryResult.category})`);
+        // Map sub-category to one of 4 main consumer categories
+        const mainCategory = mapToMainCategory(categoryResult.category_code);
+        
+        console.log(`[Orchestrator] Classified "${title.slice(0, 50)}..." as ${categoryResult.category_code} -> mapped to ${mainCategory}`);
         
         // Calculate impact and confidence
         const baseImpact = orientationImpact(title);
@@ -724,9 +754,9 @@ Deno.serve(async (req) => {
             event_date: occurred,
             // occurred_at is GENERATED from event_date - don't insert
             source_url: urlCanon,
-            category: categoryResult.category, // old field for backward compat
+            category: mainCategory, // Use mapped main category
             verification: 'unverified',
-            category_code: categoryResult.category_code, // NEW: using event_rules!
+            category_code: categoryResult.category_code, // Keep detailed code for reference
             orientation,
             disambiguation_reason: relReason,
             relevance_score_raw: rel, // Raw score (0-20 integer)
@@ -734,10 +764,10 @@ Deno.serve(async (req) => {
             is_irrelevant: isIrrelevant,
             impact_confidence: confidence,
             is_press_release: isPressRelease,
-            impact_labor:       categoryResult.category === 'labor'       ? finalImpact : 0,
-            impact_environment: categoryResult.category === 'environment' ? finalImpact : 0,
-            impact_politics:    categoryResult.category === 'politics'    ? finalImpact : 0,
-            impact_social:      categoryResult.category === 'social'      ? finalImpact : 0,
+            impact_labor:       mainCategory === 'labor'       ? finalImpact : 0,
+            impact_environment: mainCategory === 'environment' ? finalImpact : 0,
+            impact_politics:    mainCategory === 'politics'    ? finalImpact : 0,
+            impact_social:      mainCategory === 'social'      ? finalImpact : 0,
           }, { onConflict: 'event_id' });
 
         if (evErr) {
