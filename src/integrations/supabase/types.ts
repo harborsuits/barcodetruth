@@ -1366,6 +1366,13 @@ export type Database = {
             foreignKeyName: "event_sources_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
+            referencedRelation: "company_feed_grouped"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_sources_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
             referencedRelation: "company_profile_feed"
             referencedColumns: ["event_id"]
           },
@@ -1423,6 +1430,13 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "brand_latest_verified_event"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "fk_event"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_feed_grouped"
             referencedColumns: ["event_id"]
           },
           {
@@ -2777,6 +2791,13 @@ export type Database = {
             foreignKeyName: "verification_audit_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
+            referencedRelation: "company_feed_grouped"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "verification_audit_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
             referencedRelation: "company_profile_feed"
             referencedColumns: ["event_id"]
           },
@@ -2898,6 +2919,13 @@ export type Database = {
             foreignKeyName: "event_sources_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
+            referencedRelation: "company_feed_grouped"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_sources_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
             referencedRelation: "company_profile_feed"
             referencedColumns: ["event_id"]
           },
@@ -2997,6 +3025,13 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "brand_latest_verified_event"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_sources_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_feed_grouped"
             referencedColumns: ["event_id"]
           },
           {
@@ -3157,6 +3192,13 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "brand_latest_verified_event"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_sources_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_feed_grouped"
             referencedColumns: ["event_id"]
           },
           {
@@ -3330,6 +3372,79 @@ export type Database = {
           verified_rate: number | null
         }
         Relationships: []
+      }
+      company_feed_grouped: {
+        Row: {
+          brand_id: string | null
+          category: Database["public"]["Enums"]["event_category"] | null
+          category_code: string | null
+          created_at: string | null
+          description: string | null
+          event_date: string | null
+          event_id: string | null
+          group_name: string | null
+          group_order: number | null
+          occurred_at: string | null
+          orientation: Database["public"]["Enums"]["event_orientation"] | null
+          relevance_score_raw: number | null
+          severity: string | null
+          source_url: string | null
+          title: string | null
+          updated_at: string | null
+          verification: Database["public"]["Enums"]["verification_level"] | null
+          verification_rank: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_standings"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_trending"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_events_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_profile_feed: {
         Row: {
@@ -3726,6 +3841,20 @@ export type Database = {
           name?: string | null
           website?: string | null
           wikidata_qid?: string | null
+        }
+        Relationships: []
+      }
+      v_category_groups: {
+        Row: {
+          group_name: string | null
+          group_order: number | null
+        }
+        Relationships: []
+      }
+      v_category_map: {
+        Row: {
+          code: string | null
+          group_name: string | null
         }
         Relationships: []
       }

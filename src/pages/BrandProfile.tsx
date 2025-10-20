@@ -430,7 +430,7 @@ export default function BrandProfile() {
           </CardHeader>
         </Card>
 
-        {/* Evidence - Sorted by Impact */}
+        {/* Evidence - Grouped by Category */}
         <Card>
           <CardHeader>
             <div className="flex flex-col gap-4">
@@ -440,15 +440,15 @@ export default function BrandProfile() {
               <div className="flex flex-wrap gap-2">
                 {[
                   { label: 'All', value: 'all' },
-                  { label: 'Financial', value: 'FIN' },
-                  { label: 'Product Safety', value: 'PRODUCT' },
-                  { label: 'Legal', value: 'LEGAL' },
-                  { label: 'Regulatory', value: 'REGULATORY' },
-                  { label: 'Labor', value: 'LABOR' },
-                  { label: 'ESG', value: 'ESG' },
-                  { label: 'Policy', value: 'POLICY' },
-                  { label: 'Social & Cultural', value: 'SOCIAL' },
-                  { label: 'Noise', value: 'NOISE' },
+                  { label: 'Product Safety', value: 'Product Safety' },
+                  { label: 'Regulatory', value: 'Regulatory' },
+                  { label: 'Legal', value: 'Legal' },
+                  { label: 'Labor', value: 'Labor' },
+                  { label: 'Financial', value: 'Financial' },
+                  { label: 'Policy', value: 'Policy' },
+                  { label: 'ESG (Environment)', value: 'ESG (Environment)' },
+                  { label: 'Social & Cultural', value: 'Social & Cultural' },
+                  { label: 'Noise', value: 'Noise' },
                 ].map((filter) => (
                   <button
                     key={filter.value}
@@ -467,42 +467,74 @@ export default function BrandProfile() {
           </CardHeader>
           <CardContent>
             {(() => {
-              const getVerificationScore = (v: string | null) => 
-                v === 'official' ? 3 : v === 'corroborated' ? 2 : 1;
-              
-              const getRecencyScore = (date: string) => {
-                const days = Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
-                if (days <= 30) return 3;
-                if (days <= 90) return 2;
-                if (days <= 365) return 1;
-                return 0;
+              // Map category codes to groups
+              const categoryGroups: Record<string, number> = {
+                'Product Safety': 10,
+                'Regulatory': 20,
+                'Legal': 30,
+                'Labor': 40,
+                'Financial': 50,
+                'Policy': 60,
+                'ESG (Environment)': 70,
+                'Social & Cultural': 80,
+                'Noise': 90
               };
-              
-              const filteredEvidence = categoryFilter === 'all' 
-                ? (data.evidence ?? [])
-                : (data.evidence ?? []).filter(e => e.category_code?.startsWith(categoryFilter));
-              
-              // Sort by verification (official first), then recency (newest first)
+
+              const codeToGroup: Record<string, string> = {
+                'FIN.EARNINGS': 'Financial',
+                'FIN.MARKETS': 'Financial',
+                'FIN.MNA': 'Financial',
+                'FIN.INSTITUTIONAL': 'Financial',
+                'FIN.GENERAL': 'Financial',
+                'PRODUCT.SAFETY': 'Product Safety',
+                'PRODUCT.RECALL': 'Product Safety',
+                'LEGAL.LITIGATION': 'Legal',
+                'LEGAL.SETTLEMENT': 'Legal',
+                'REGULATORY.ENFORCEMENT': 'Regulatory',
+                'REGULATORY.FILING': 'Regulatory',
+                'LABOR.PRACTICES': 'Labor',
+                'LABOR.UNION': 'Labor',
+                'ESG.ENVIRONMENT': 'ESG (Environment)',
+                'ESG.SOCIAL': 'Social & Cultural',
+                'SOC.CULTURE': 'Social & Cultural',
+                'POLICY.PUBLIC': 'Policy',
+                'NOISE.GENERAL': 'Noise'
+              };
+
+              const getVerificationRank = (v: string | null) => 
+                v === 'official' ? 1 : v === 'corroborated' ? 2 : 3;
+
+              // Add group info to each evidence item
+              const evidenceWithGroups = (data.evidence ?? []).map(ev => ({
+                ...ev,
+                group_name: codeToGroup[ev.category_code ?? ''] ?? 'Noise',
+                group_order: categoryGroups[codeToGroup[ev.category_code ?? ''] ?? 'Noise'] ?? 90,
+                verification_rank: getVerificationRank(ev.verification)
+              }));
+
+              // Filter by selected category
+              const filteredEvidence = categoryFilter === 'all'
+                ? evidenceWithGroups
+                : evidenceWithGroups.filter(e => e.group_name === categoryFilter);
+
+              // Sort: group_order ASC, verification_rank ASC, event_date DESC
               const sortedEvidence = [...filteredEvidence].sort((a, b) => {
-                const verificationDiff = getVerificationScore(b.verification) - getVerificationScore(a.verification);
-                if (verificationDiff !== 0) return verificationDiff;
-                
-                const recencyDiff = getRecencyScore(b.event_date) - getRecencyScore(a.event_date);
-                if (recencyDiff !== 0) return recencyDiff;
-                
+                if (a.group_order !== b.group_order) return a.group_order - b.group_order;
+                if (a.verification_rank !== b.verification_rank) return a.verification_rank - b.verification_rank;
                 return new Date(b.event_date).getTime() - new Date(a.event_date).getTime();
               });
-              
-              console.log('[BrandProfile] Evidence sorted by impact:', {
-                brand_id: actualId,
-                total: sortedEvidence.length,
-                official: sortedEvidence.filter(e => e.verification === 'official').length,
-                recent_30d: sortedEvidence.filter(e => getRecencyScore(e.event_date) === 3).length,
-                raw_evidence_count: data.evidence?.length ?? 0,
-                filtered_count: filteredEvidence.length,
-                category_filter: categoryFilter,
-                evidence_sample: filteredEvidence?.[0]
-              });
+
+              // Group by group_name
+              const grouped = sortedEvidence.reduce((acc, ev) => {
+                if (!acc[ev.group_name]) acc[ev.group_name] = [];
+                acc[ev.group_name].push(ev);
+                return acc;
+              }, {} as Record<string, typeof sortedEvidence>);
+
+              // Sort groups by group_order
+              const groupOrder = Object.keys(grouped).sort((a, b) => 
+                (categoryGroups[a] ?? 90) - (categoryGroups[b] ?? 90)
+              );
 
               if (!sortedEvidence.length) {
                 return (
@@ -519,45 +551,55 @@ export default function BrandProfile() {
               }
 
               return (
-                <div className="space-y-3">
-                  {sortedEvidence.map((ev, idx) => {
-                    const isOfficial = ev.verification === 'official';
-                    const isCorroborated = ev.verification === 'corroborated';
-                    const isRecent = getRecencyScore(ev.event_date) === 3;
-                    
-                    return (
-                      <div 
-                        key={idx} 
-                        className={`p-4 rounded-lg border transition-colors ${
-                          isOfficial ? 'border-destructive/50 bg-destructive/5' : 
-                          isCorroborated ? 'border-primary/50 bg-primary/5' : 
-                          'border-border bg-card'
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          {/* Icon based on verification */}
-                          <div className={`mt-0.5 flex-shrink-0 ${
-                            isOfficial ? 'text-destructive' : 
-                            isCorroborated ? 'text-primary' : 
-                            'text-muted-foreground'
-                          }`}>
-                            {isOfficial ? '⚠️' : isCorroborated ? '⚖️' : '📰'}
-                          </div>
-                          
-                          <div className="flex-1 min-w-0">
-                            {/* Badges row */}
-                            <div className="flex flex-wrap gap-2 mb-2">
-                              <Badge 
-                                variant={
-                                  isOfficial ? 'destructive' : 
-                                  isCorroborated ? 'default' : 
-                                  'outline'
-                                }
-                                className="text-xs"
-                              >
-                                {ev.verification === 'official' ? 'Official' : 
-                                 ev.verification === 'corroborated' ? 'Multiple Sources' : 
-                                 'Unverified'}
+                <div className="space-y-6">
+                  {groupOrder.map(groupName => (
+                    <div key={groupName} className="space-y-3">
+                      {/* Group Header */}
+                      <div className="flex items-center gap-2 pb-2 border-b">
+                        <h4 className="font-semibold text-sm">{groupName}</h4>
+                        <Badge variant="secondary" className="text-xs">
+                          {grouped[groupName].length}
+                        </Badge>
+                      </div>
+                      
+                      {/* Events in this group */}
+                      {grouped[groupName].map((ev, idx) => {
+                        const isOfficial = ev.verification === 'official';
+                        const isCorroborated = ev.verification === 'corroborated';
+                        
+                        return (
+                          <div 
+                            key={idx} 
+                            className={`p-4 rounded-lg border transition-colors ${
+                              isOfficial ? 'border-destructive/50 bg-destructive/5' : 
+                              isCorroborated ? 'border-primary/50 bg-primary/5' : 
+                              'border-border bg-card'
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              {/* Icon based on verification */}
+                              <div className={`mt-0.5 flex-shrink-0 ${
+                                isOfficial ? 'text-destructive' : 
+                                isCorroborated ? 'text-primary' : 
+                                'text-muted-foreground'
+                              }`}>
+                                {isOfficial ? '⚠️' : isCorroborated ? '⚖️' : '📰'}
+                              </div>
+                              
+                              <div className="flex-1 min-w-0">
+                                {/* Badges row */}
+                                <div className="flex flex-wrap gap-2 mb-2">
+                                  <Badge
+                                    variant={
+                                      isOfficial ? 'destructive' : 
+                                      isCorroborated ? 'default' : 
+                                      'outline'
+                                    }
+                                    className="text-xs"
+                                  >
+                                    {ev.verification === 'official' ? 'Official' : 
+                                     ev.verification === 'corroborated' ? 'Multiple Sources' : 
+                                     'Unverified'}
                               </Badge>
                               
                               {(() => {
@@ -575,42 +617,44 @@ export default function BrandProfile() {
                               <span className="text-xs text-muted-foreground">
                                 {formatDistanceToNow(new Date(ev.event_date), { addSuffix: true })}
                               </span>
-                            </div>
-                            
-                            {/* Title */}
-                            <h4 className="font-semibold text-base leading-tight mb-2">
-                              {ev.title || 'Untitled Event'}
-                            </h4>
-                            
-                            {/* AI Summary */}
-                            {ev.ai_summary && (
-                              <p className="text-sm text-muted-foreground leading-relaxed mb-2">
-                                {ev.ai_summary}
-                              </p>
-                            )}
-                            
-                            {/* Source link */}
-                            {ev.canonical_url && (
-                              <a
-                                href={ev.canonical_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                              >
-                                {ev.source_name || 'Read more'}
-                                <ExternalLink className="h-3 w-3" />
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-          </CardContent>
-        </Card>
+                             </div>
+                             
+                             {/* Title */}
+                             <h4 className="font-semibold text-base leading-tight mb-2">
+                               {ev.title || 'Untitled Event'}
+                             </h4>
+                             
+                             {/* AI Summary */}
+                             {ev.ai_summary && (
+                               <p className="text-sm text-muted-foreground leading-relaxed mb-2">
+                                 {ev.ai_summary}
+                               </p>
+                             )}
+                             
+                             {/* Source link */}
+                             {ev.canonical_url && (
+                               <a
+                                 href={ev.canonical_url}
+                                 target="_blank"
+                                 rel="noreferrer"
+                                 className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                               >
+                                 {ev.source_name || 'Read more'}
+                                 <ExternalLink className="h-3 w-3" />
+                               </a>
+                             )}
+                           </div>
+                         </div>
+                       </div>
+                     );
+                   })}
+                 </div>
+               ))}
+             </div>
+           );
+         })()}
+       </CardContent>
+     </Card>
 
         {/* Secondary actions */}
         <div className="flex gap-3 justify-center pb-6">
