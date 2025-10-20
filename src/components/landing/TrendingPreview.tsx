@@ -94,7 +94,7 @@ export function TrendingPreview() {
     // Use brand_trending view for optimized trending data
     const { data: trendingData } = await supabase
       .from('brand_trending')
-      .select('brand_id, name, score, events_7d, events_30d, verified_rate, independent_sources, score_confidence, last_event_at, trend_score')
+      .select('brand_id, name, score, events_7d, events_30d, verified_rate, independent_sources, last_event_at, trend_score')
       .limit(5);
 
     if (trendingData && trendingData.length) {
@@ -120,7 +120,7 @@ export function TrendingPreview() {
         website: brandDataMap[b.brand_id]?.website,
         event_count: b.events_30d || 0,
         overall_score: b.score ?? null,
-        confidence: b.score_confidence ?? null,
+        confidence: null, // Not available in view
         verified_rate: b.verified_rate || 0,
         independent_sources: b.independent_sources || 0,
         last_event_at: b.last_event_at
