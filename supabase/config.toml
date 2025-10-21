@@ -119,3 +119,7 @@ verify_jwt = false
 # New diagnostic function
 [functions.test-relevance-scorer]
 verify_jwt = false
+
+[functions.reclassify-events]
+verify_jwt = true
+

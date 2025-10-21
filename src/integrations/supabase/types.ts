@@ -1287,6 +1287,131 @@ export type Database = {
         }
         Relationships: []
       }
+      classification_audit: {
+        Row: {
+          brand_id: string | null
+          confidence: number
+          created_at: string | null
+          event_id: string
+          keyword_scores: Json | null
+          primary_code: string
+          secondary_codes: string[] | null
+          source_domain: string | null
+        }
+        Insert: {
+          brand_id?: string | null
+          confidence: number
+          created_at?: string | null
+          event_id: string
+          keyword_scores?: Json | null
+          primary_code: string
+          secondary_codes?: string[] | null
+          source_domain?: string | null
+        }
+        Update: {
+          brand_id?: string | null
+          confidence?: number
+          created_at?: string | null
+          event_id?: string
+          keyword_scores?: Json | null
+          primary_code?: string
+          secondary_codes?: string[] | null
+          source_domain?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classification_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "classification_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_standings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classification_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_trending"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "classification_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classification_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "classification_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "classification_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classification_audit_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "brand_events"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "classification_audit_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "brand_evidence_view_base"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "classification_audit_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "brand_latest_verified_event"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "classification_audit_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "company_feed_grouped"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "classification_audit_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "company_profile_feed"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "classification_audit_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "v_brand_sources_inline"
+            referencedColumns: ["event_id"]
+          },
+        ]
+      }
       cron_runs: {
         Row: {
           fn: string

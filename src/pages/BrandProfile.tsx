@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ArrowLeft, ExternalLink, AlertCircle, Building2, Link as LinkIcon } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
@@ -110,6 +111,7 @@ export default function BrandProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [hasSetDefaultFilter, setHasSetDefaultFilter] = useState(false);
 
   // Get current user for personalized scoring
   const [user, setUser] = useState<any>(null);
@@ -119,6 +121,22 @@ export default function BrandProfile() {
       setUser(data?.user);
     });
   }, []);
+
+  // Auto-switch to Noise tab if all events are noise (only on initial load)
+  useEffect(() => {
+    if (!data?.evidence || hasSetDefaultFilter || loading) return;
+    
+    const nonNoiseEvents = data.evidence.filter(ev => 
+      !ev.category_code?.startsWith('NOISE')
+    );
+    
+    // If all events are noise, default to Noise tab
+    if (data.evidence.length > 0 && nonNoiseEvents.length === 0) {
+      setCategoryFilter('Noise');
+    }
+    
+    setHasSetDefaultFilter(true);
+  }, [data?.evidence, hasSetDefaultFilter, loading]);
 
   const { data: personalizedScore } = useQuery({
     queryKey: ['personalized-score', actualId, user?.id],
@@ -524,6 +542,13 @@ export default function BrandProfile() {
                   </button>
                 ))}
               </div>
+              
+              {/* Noise tab explainer */}
+              {categoryFilter === 'Noise' && (
+                <div className="text-xs text-muted-foreground italic p-3 bg-muted/50 rounded-lg border">
+                  <span className="font-medium">ℹ️ Market commentary:</span> These events are financial analysis, stock tips, or general business news. They're excluded from ethics scoring to focus on labor, environmental, and social impact.
+                </div>
+              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -734,6 +759,20 @@ export default function BrandProfile() {
                                     </Badge>
                                   ))}
                                 </div>
+                              )}
+                              
+                              {/* Noise reason tooltip */}
+                              {(ev as any).noise_reason && ev.category_code?.startsWith('NOISE') && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge variant="outline" className="text-xs cursor-help">
+                                      ℹ️ Not scored
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="max-w-xs">{(ev as any).noise_reason}</p>
+                                  </TooltipContent>
+                                </Tooltip>
                               )}
                               
                               <span className="text-xs text-muted-foreground">

@@ -4,6 +4,7 @@ import { CATEGORY_KEYWORDS, NEGATIVE_GUARDS } from "../_shared/keywords.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
@@ -33,7 +34,10 @@ function tokenScore(text: string) {
     let s = 0;
     for (const p of dict.phrases) if (t.includes(` ${norm(p)} `)) s += PHRASE_SCORE;
     for (const w of dict.words) {
-      const re = new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
+      // Improved word boundary: handles hyphens and underscores
+      const wb = String.raw`(?:\b|_|-)`;
+      const escaped = w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const re = new RegExp(`${wb}${escaped}${wb}`, "gi");
       s += ((t.match(re) || []).length) * WORD_SCORE;
     }
     scores[cat] = (scores[cat] || 0) + s;
@@ -71,14 +75,33 @@ Deno.serve(async (req) => {
     const scores = tokenScore(text);
     let { primary, secondary, confidence } = rank(scores);
 
-    // simple source-based hints
-    if (["fda.gov","foodsafety.gov"].includes((source_domain || "").toLowerCase())) primary = "product_safety";
-    if (["nlrb.gov"].includes((source_domain || "").toLowerCase())) primary = "labor";
-    if (["epa.gov"].includes((source_domain || "").toLowerCase())) primary = "environment";
+    // Domain-based hints (expanded)
+    const domain = (source_domain || "").toLowerCase();
+    
+    // Safety sources
+    if (["fda.gov","foodsafety.gov","cpsc.gov","ema.europa.eu"].some(d => domain.includes(d))) {
+      primary = "product_safety";
+      confidence = Math.max(confidence, 0.85);
+    }
+    
+    // Labor sources
+    if (["nlrb.gov","osha.gov","dol.gov"].some(d => domain.includes(d))) {
+      primary = "labor";
+      confidence = Math.max(confidence, 0.85);
+    }
+    
+    // Environment sources
+    if (["epa.gov","ec.europa.eu"].some(d => domain.includes(d)) || /environment\.gov/i.test(domain)) {
+      primary = "environment";
+      confidence = Math.max(confidence, 0.85);
+    }
 
-    // heuristic noise: stock-tip/opinion sites
-    const isStockTip = /reasons to buy|stock to watch|price target|upgrade|downgrade/i.test(text);
-    if (isStockTip && primary === "financial") {
+    // Finance noise sources - aggressively tag as noise
+    const financeNoiseDomains = ["fool.com","seekingalpha.com","benzinga.com","marketwatch.com"];
+    const isFinanceNoise = financeNoiseDomains.some(d => domain.includes(d));
+    const hasStockTipPhrases = /reasons to buy|stock to watch|price target|upgrade|downgrade|analyst rating|buy rating|sell rating/i.test(text);
+    
+    if ((isFinanceNoise || hasStockTipPhrases) && primary === "financial") {
       primary = "noise";
     }
 
@@ -99,7 +122,23 @@ Deno.serve(async (req) => {
 
     const finalCategoryCode = categoryCodeMap[primary] || "NOISE.GENERAL";
 
-    // persist
+    // Log to classification audit for telemetry
+    await supabase
+      .from("classification_audit")
+      .upsert({
+        event_id,
+        brand_id,
+        primary_code: finalCategoryCode,
+        secondary_codes: secondary,
+        confidence,
+        source_domain,
+        keyword_scores: scores
+      }, { onConflict: 'event_id' })
+      .then(({ error }) => {
+        if (error) console.warn("[categorize-event] Audit log warning:", error);
+      });
+
+    // persist to brand_events
     const { error: updateError } = await supabase
       .from("brand_events")
       .update({
