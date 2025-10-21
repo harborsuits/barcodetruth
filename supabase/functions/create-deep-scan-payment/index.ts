@@ -36,7 +36,8 @@ serve(async (req) => {
     // Check if customer exists
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let customerId;
-    if (customers.data.length > 0) {
+    // Safety check for customer data
+    if (customers.data && customers.data.length > 0 && customers.data[0]?.id) {
       customerId = customers.data[0].id;
     }
 

@@ -43,10 +43,17 @@ serve(async (req) => {
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    if (customers.data.length === 0) {
+    
+    // Safety check for customer data
+    if (!customers.data || customers.data.length === 0) {
       throw new Error("No Stripe customer found for this user");
     }
-    const customerId = customers.data[0].id;
+    
+    const customerId = customers.data[0]?.id;
+    if (!customerId) {
+      throw new Error("Invalid customer data structure");
+    }
+    
     logStep("Found Stripe customer", { customerId });
 
     const origin = req.headers.get("origin") || "http://localhost:3000";

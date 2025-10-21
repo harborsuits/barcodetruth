@@ -70,7 +70,8 @@ serve(async (req) => {
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     
-    if (customers.data.length === 0) {
+    // Safety check: Ensure customer exists before accessing
+    if (!customers.data || customers.data.length === 0) {
       logStep("No customer found, updating unsubscribed state");
       return new Response(JSON.stringify({ subscribed: false }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -78,7 +79,15 @@ serve(async (req) => {
       });
     }
 
-    const customerId = customers.data[0].id;
+    const customerId = customers.data[0]?.id;
+    if (!customerId) {
+      logStep("Invalid customer data structure");
+      return new Response(JSON.stringify({ subscribed: false }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+    
     logStep("Found Stripe customer", { customerId });
 
     const subscriptions = await stripe.subscriptions.list({
@@ -86,11 +95,11 @@ serve(async (req) => {
       status: "active",
       limit: 1,
     });
-    const hasActiveSub = subscriptions.data.length > 0;
+    const hasActiveSub = subscriptions.data && subscriptions.data.length > 0;
     let productId = null;
     let subscriptionEnd = null;
 
-    if (hasActiveSub) {
+    if (hasActiveSub && subscriptions.data[0]) {
       const subscription = subscriptions.data[0];
       try {
         if (subscription.current_period_end) {
@@ -100,7 +109,7 @@ serve(async (req) => {
         logStep("Date conversion error", { error: String(error), timestamp: subscription.current_period_end });
       }
       logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
-      productId = subscription.items.data[0]?.price?.product as string || null;
+      productId = subscription.items?.data?.[0]?.price?.product as string || null;
       logStep("Determined subscription tier", { productId });
     } else {
       logStep("No active subscription found");
