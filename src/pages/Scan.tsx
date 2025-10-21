@@ -199,7 +199,7 @@ export const Scan = () => {
 
   const startScanner = async () => {
     // TEMPORARY DEBUG - Remove after fixing
-    alert('Button clicked! Checking permissions...');
+    alert('1. Button clicked!');
     console.log('[Mobile Debug] Start scanner clicked:', {
       userAgent: navigator.userAgent,
       inIframe: window.self !== window.top,
@@ -208,17 +208,19 @@ export const Scan = () => {
       timestamp: Date.now()
     });
 
-    // Check scan limit before starting
-    if (!can_scan) {
-      toast({
-        title: "Scan limit reached",
-        description: is_subscribed 
-          ? "Please try again later" 
-          : `You've used all 5 free scans this month. Subscribe for unlimited scans.`,
-        variant: "destructive"
-      });
-      return;
-    }
+    // TEMPORARILY DISABLED FOR TESTING
+    // if (!can_scan) {
+    //   alert('2. BLOCKED: Scan limit reached');
+    //   toast({
+    //     title: "Scan limit reached",
+    //     description: is_subscribed 
+    //       ? "Please try again later" 
+    //       : `You've used all 5 free scans this month. Subscribe for unlimited scans.`,
+    //     variant: "destructive"
+    //   });
+    //   return;
+    // }
+    alert('2. Scan limit check bypassed (testing)');
 
     if (!videoRef.current) {
       console.error('[Mobile Debug] Video element not ready');
