@@ -894,57 +894,6 @@ export const Scan = () => {
       </AlertDialog>
 
       <ScannerDiagnostics open={showDiagnostics} onOpenChange={setShowDiagnostics} />
-      
-      {/* Debug Panel - Shows real-time detection */}
-      <div className="fixed bottom-0 left-0 right-0 bg-black text-white p-3 text-xs font-mono overflow-auto max-h-40 z-50 border-t-2 border-green-500">
-        <div className="font-bold text-green-400 mb-2">🔍 SCANNER DEBUG (Remove after fixing)</div>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <span className="text-gray-400">Last detected:</span>
-            <span className="ml-2 text-yellow-300 font-bold">
-              {lastDetectedRef.current || 'none'}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-400">Detected at:</span>
-            <span className="ml-2 text-yellow-300">
-              {lastDetectedAtRef.current ? new Date(lastDetectedAtRef.current).toLocaleTimeString() : 'never'}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-400">Pending:</span>
-            <span className="ml-2 text-cyan-300 font-bold">
-              {pendingBarcode || 'none'}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-400">Rejected:</span>
-            <span className="ml-2 text-red-400">
-              {rejectedBarcodes.size} codes
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-400">Scanning:</span>
-            <span className={`ml-2 font-bold ${isScanning ? 'text-green-400' : 'text-red-400'}`}>
-              {isScanning ? 'YES ✓' : 'NO ✗'}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-400">State:</span>
-            <span className="ml-2 text-purple-400">
-              {scanResult}
-            </span>
-          </div>
-        </div>
-        <div className="mt-2 text-yellow-400 animate-pulse">
-          ⚡ Watch this panel - it updates in REAL-TIME as barcodes are detected
-        </div>
-        {rejectedBarcodes.size > 0 && (
-          <div className="mt-2 text-red-400">
-            Blacklisted: {Array.from(rejectedBarcodes).join(', ')}
-          </div>
-        )}
-      </div>
     </div>
   );
 };

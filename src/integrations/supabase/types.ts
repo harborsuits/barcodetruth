@@ -1595,63 +1595,63 @@ export type Database = {
           {
             foreignKeyName: "company_ownership_child_brand_id_fkey"
             columns: ["child_brand_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "brand_data_coverage"
             referencedColumns: ["brand_id"]
           },
           {
             foreignKeyName: "company_ownership_child_brand_id_fkey"
             columns: ["child_brand_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "brand_monitoring_status"
             referencedColumns: ["brand_id"]
           },
           {
             foreignKeyName: "company_ownership_child_brand_id_fkey"
             columns: ["child_brand_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "brand_standings"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "company_ownership_child_brand_id_fkey"
             columns: ["child_brand_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "brand_trending"
             referencedColumns: ["brand_id"]
           },
           {
             foreignKeyName: "company_ownership_child_brand_id_fkey"
             columns: ["child_brand_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "brands"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "company_ownership_child_brand_id_fkey"
             columns: ["child_brand_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "v_baseline_inputs_24m"
             referencedColumns: ["brand_id"]
           },
           {
             foreignKeyName: "company_ownership_child_brand_id_fkey"
             columns: ["child_brand_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "v_baseline_inputs_90d"
             referencedColumns: ["brand_id"]
           },
           {
             foreignKeyName: "company_ownership_child_brand_id_fkey"
             columns: ["child_brand_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "v_brands_needing_logos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "company_ownership_child_company_id_fkey"
             columns: ["child_company_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
