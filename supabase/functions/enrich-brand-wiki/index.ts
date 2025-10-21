@@ -155,44 +155,84 @@ serve(async (req) => {
     if (!wikidata_qid) {
       console.log(`[enrich-brand-wiki] Searching Wikidata for: ${targetName}`);
       
-      // Prioritize company/corporation searches to avoid surname matches
-      const searchQueries = [
-        `${targetName} company`,
-        `${targetName} corporation`,
-        `${targetName} consumer goods`,
-        `${targetName} food company`,
-        `${targetName} brand`,
-        targetName
-      ];
+      // Build context-aware search queries
+      const searchQueries: string[] = [];
       
+      // If there's a parent company in ownership chain, search that first
+      if (company && company.name) {
+        searchQueries.push(company.name);
+        console.log(`[enrich-brand-wiki] Will try parent company: ${company.name}`);
+      }
+      
+      // Add target name with context
+      searchQueries.push(
+        `${targetName} company`,
+        `${targetName} food company`,
+        `${targetName} corporation`,
+        `${targetName} brand`,
+        `${targetName} consumer goods`,
+        targetName // Fallback to just the name
+      );
+      
+      console.log('[enrich-brand-wiki] Trying search queries:', searchQueries.slice(0, 3));
+      
+      // Try each query until we get good results
       for (const query of searchQueries) {
-        const wikidataSearchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(query)}&language=en&format=json&limit=3&type=item`;
+        if (wikidata_qid) break; // Already found
+        
+        const wikidataSearchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(query)}&language=en&format=json&limit=5&type=item`;
         
         const wikidataRes = await fetch(wikidataSearchUrl);
         if (wikidataRes.ok) {
           const wikidataJson = await wikidataRes.json();
+          
           if (wikidataJson.search && wikidataJson.search.length > 0) {
-            // Filter results to prefer companies/brands over people/surnames
+            // Aggressively filter results
             const filtered = wikidataJson.search.filter((result: any) => {
               const desc = (result.description || '').toLowerCase();
-              // Exclude people, surnames, given names
-              if (desc.includes('surname') || desc.includes('given name') || 
-                  desc.includes('person') || desc.includes('people')) {
+              
+              // EXCLUDE disambiguation pages, people, places
+              if (desc.includes('disambiguation') ||
+                  desc.includes('may refer to') ||
+                  desc.includes('surname') ||
+                  desc.includes('given name') ||
+                  desc.includes('family name') ||
+                  desc.includes('village') ||
+                  desc.includes('town') ||
+                  desc.includes('city') ||
+                  desc.includes('person') ||
+                  desc.includes('people')) {
+                console.log(`[enrich-brand-wiki] Filtered out: ${result.label} - ${desc}`);
                 return false;
               }
-              // Prefer companies, brands, products
-              return desc.includes('company') || desc.includes('brand') || 
-                     desc.includes('business') || desc.includes('corporation') ||
-                     desc.includes('product') || !result.description;
+              
+              // PREFER companies, brands, organizations
+              const isRelevant = 
+                desc.includes('company') ||
+                desc.includes('brand') ||
+                desc.includes('corporation') ||
+                desc.includes('business') ||
+                desc.includes('manufacturer') ||
+                desc.includes('organization') ||
+                desc.includes('enterprise') ||
+                !result.description; // No description might be fine
+              
+              return isRelevant;
             });
             
             if (filtered.length > 0) {
               wikidata_qid = filtered[0].id;
-              console.log(`[enrich-brand-wiki] Found Wikidata QID with query "${query}": ${wikidata_qid} - ${filtered[0].description}`);
+              console.log(`[enrich-brand-wiki] ✅ Found good match with query "${query}": ${filtered[0].label} - ${filtered[0].description || 'no description'}`);
               break;
+            } else {
+              console.log(`[enrich-brand-wiki] No relevant results for query "${query}"`);
             }
           }
         }
+      }
+      
+      if (!wikidata_qid) {
+        console.log('[enrich-brand-wiki] ❌ No suitable Wikidata entity found after trying all queries');
       }
     }
 
