@@ -33,6 +33,25 @@ export function useScanLimit() {
         return;
       }
 
+      // Check if user is admin - admins have unlimited scans
+      const { data: role } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      if (role) {
+        setLimit({
+          can_scan: true,
+          is_subscribed: true,
+          scans_remaining: 999999,
+          scans_used: 0,
+          loading: false,
+        });
+        return;
+      }
+
       const { data, error } = await supabase.rpc('can_user_scan', {
         p_user_id: user.id
       });
