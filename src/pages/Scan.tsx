@@ -266,18 +266,24 @@ export const Scan = () => {
     // Check if in iframe (preview environment)
     const inIframe = window.self !== window.top;
     if (inIframe) {
-      console.warn('[Mobile Debug] Running in iframe - camera blocked');
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      setError('Camera blocked in preview. Use the published app or manual entry below.');
+      console.warn('[Mobile Debug] In iframe - redirecting to full-screen scanner');
+      const newWin = window.open('/scan?fullscreen=1', '_blank', 'noopener');
+      if (!newWin) {
+        // Popup blocked, guide the user
+        setError('Camera blocked in preview. Open full-screen scanner in a new tab.');
+        toast({
+          title: 'Open full-screen scanner',
+          description: 'We tried opening a new tab. If blocked, tap the "Open full-screen" button at the top.',
+          variant: 'destructive',
+          duration: 6000
+        });
+      } else {
+        toast({
+          title: 'Opening full-screen scanner',
+          description: 'Switch to the new tab to enable camera.'
+        });
+      }
       setScanResult('idle');
-      toast({
-        title: "Camera blocked in preview",
-        description: isMobile 
-          ? "Mobile browsers block camera in preview. Use the published app link or manual entry below."
-          : "Preview environment blocks camera. Use manual barcode entry or test on your published site.",
-        variant: "destructive",
-        duration: 6000
-      });
       return;
     }
     
