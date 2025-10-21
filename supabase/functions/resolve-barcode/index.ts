@@ -337,6 +337,80 @@ Deno.serve(async (req) => {
         ? ownership.companies[0] 
         : ownership?.companies;
       
+      // If no ownership exists, try to build it retroactively
+      if (!ownership || !companyInfo) {
+        console.log(`[${normalizedBarcode}] No ownership found for brand ${product.brands.name}, building chain...`);
+        
+        // Try to get parent company hint from brand.parent_company field
+        const parentHint = product.brands.parent_company || '';
+        
+        if (parentHint) {
+          try {
+            const ownershipResult = await resolveOwnershipChain(
+              supabase,
+              product.brands.name,
+              parentHint
+            );
+            
+            console.log(`[${normalizedBarcode}] Ownership chain built retroactively:`, ownershipResult);
+            
+            // Update companyInfo with newly created ownership
+            const { data: newOwnership } = await supabase
+              .from('company_ownership')
+              .select(`
+                parent_company_id,
+                companies!company_ownership_parent_company_id_fkey (
+                  id,
+                  name
+                )
+              `)
+              .eq('child_brand_id', product.brands.id)
+              .maybeSingle();
+            
+            if (newOwnership) {
+              const updatedCompanyInfo = Array.isArray(newOwnership.companies)
+                ? newOwnership.companies[0]
+                : newOwnership.companies;
+              
+              const dur = Math.round(performance.now() - t0);
+              console.log(JSON.stringify({ 
+                level: "info", 
+                fn: "resolve-barcode", 
+                barcode: normalizedBarcode, 
+                source: "cache_enriched",
+                brand_id: product.brands.id,
+                company_id: updatedCompanyInfo?.id,
+                dur_ms: dur,
+                ok: true
+              }));
+              
+              return new Response(
+                JSON.stringify({
+                  success: true,
+                  brand_id: product.brands.id,
+                  brand_name: product.brands.name,
+                  company_id: updatedCompanyInfo?.id || null,
+                  company_name: updatedCompanyInfo?.name || null,
+                  upc: normalizedBarcode,
+                  product_name: product.name,
+                  product: {
+                    id: product.id,
+                    name: product.name,
+                    barcode: normalizedBarcode,
+                  },
+                  brand: product.brands,
+                  source: 'cache',
+                }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+          } catch (err) {
+            console.error(`[${normalizedBarcode}] Failed to build ownership chain:`, err);
+            // Continue with normal flow without ownership
+          }
+        }
+      }
+      
       const dur = Math.round(performance.now() - t0);
       console.log(JSON.stringify({ 
         level: "info", 
