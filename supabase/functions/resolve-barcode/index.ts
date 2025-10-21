@@ -153,6 +153,23 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (product && product.brands) {
+      // Find parent company
+      const { data: ownership } = await supabase
+        .from('company_ownership')
+        .select(`
+          parent_company_id,
+          companies!company_ownership_parent_company_id_fkey (
+            id,
+            name
+          )
+        `)
+        .eq('child_brand_id', product.brands.id)
+        .maybeSingle();
+      
+      const companyInfo = Array.isArray(ownership?.companies) 
+        ? ownership.companies[0] 
+        : ownership?.companies;
+      
       const dur = Math.round(performance.now() - t0);
       console.log(JSON.stringify({ 
         level: "info", 
@@ -160,6 +177,7 @@ Deno.serve(async (req) => {
         barcode: normalizedBarcode, 
         source: "cache",
         brand_id: product.brands.id,
+        company_id: companyInfo?.id,
         dur_ms: dur,
         ok: true
       }));
@@ -169,6 +187,8 @@ Deno.serve(async (req) => {
           success: true,
           brand_id: product.brands.id,
           brand_name: product.brands.name,
+          company_id: companyInfo?.id || null,
+          company_name: companyInfo?.name || null,
           upc: normalizedBarcode,
           product_name: product.name,
           product: {
@@ -261,6 +281,23 @@ Deno.serve(async (req) => {
             });
           
           if (!insertError) {
+            // Find parent company
+            const { data: ownership } = await supabase
+              .from('company_ownership')
+              .select(`
+                parent_company_id,
+                companies!company_ownership_parent_company_id_fkey (
+                  id,
+                  name
+                )
+              `)
+              .eq('child_brand_id', brandId)
+              .maybeSingle();
+            
+            const companyInfo = Array.isArray(ownership?.companies) 
+              ? ownership.companies[0] 
+              : ownership?.companies;
+            
             const dur = Math.round(performance.now() - t0);
             console.log(JSON.stringify({ 
               level: "info", 
@@ -268,6 +305,7 @@ Deno.serve(async (req) => {
               barcode: normalizedBarcode,
               source: "openfoodfacts",
               brand_id: brandId,
+              company_id: companyInfo?.id,
               dur_ms: dur,
               ok: true
             }));
@@ -277,6 +315,8 @@ Deno.serve(async (req) => {
                 success: true,
                 brand_id: brandId,
                 brand_name: brandName,
+                company_id: companyInfo?.id || null,
+                company_name: companyInfo?.name || null,
                 upc: normalizedBarcode,
                 product_name: productName,
                 product: { name: productName, barcode: normalizedBarcode },

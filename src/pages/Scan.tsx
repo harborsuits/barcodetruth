@@ -151,7 +151,7 @@ export const Scan = () => {
 
       if (data) {
         setScanResult('success');
-        console.log('[Analytics] scan_success', { barcode, brand_id: data.brand_id, dur_ms: dur });
+        console.log('[Analytics] scan_success', { barcode, brand_id: data.brand_id, company_id: data.company_id, dur_ms: dur });
         
         // Track the scan
         if (data.brand_id) {
@@ -170,11 +170,18 @@ export const Scan = () => {
         const updated = [recentScan, ...existing.filter((s: any) => s.upc !== data.upc)].slice(0, 10);
         localStorage.setItem('recent_scans', JSON.stringify(updated));
         
+        // Show company name if available, otherwise brand name
+        const displayName = data.company_name || data.brand_name || 'Unknown';
         toast({ 
           title: "Product found!", 
-          description: `${data.product_name}${data.brand_name ? ` by ${data.brand_name}` : ''}`
+          description: `${data.product_name} by ${displayName}`
         });
-        setTimeout(() => setScanResult('idle'), 800);
+        
+        // Navigate to company page if available, otherwise brand page
+        const targetId = data.company_id || data.brand_id;
+        setTimeout(() => {
+          navigate(`/brand/${targetId}`);
+        }, 800);
       } else {
         setScanResult('not_found');
         toast({ 
