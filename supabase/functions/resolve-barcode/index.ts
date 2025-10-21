@@ -186,7 +186,7 @@ async function resolveOwnershipChain(
     // Check if parent company exists in companies table
     let { data: parentCo } = await supabase
       .from('companies')
-      .select('id, name')
+      .select('id, name, logo_url')
       .ilike('name', parentCompanyHint)
       .maybeSingle();
     
@@ -195,7 +195,7 @@ async function resolveOwnershipChain(
       const { data: newParent } = await supabase
         .from('companies')
         .insert({ name: parentCompanyHint })
-        .select('id, name')
+        .select('id, name, logo_url')
         .single();
       parentCo = newParent;
       
@@ -205,10 +205,28 @@ async function resolveOwnershipChain(
         if (companyLogo) {
           await supabase
             .from('companies')
-            .update({ logo_url: companyLogo })
+            .update({ 
+              logo_url: companyLogo,
+              logo_source: 'clearbit'
+            })
             .eq('id', parentCo.id);
           console.log('[resolveOwnershipChain] Added company logo:', companyLogo);
         }
+      }
+    } else if (!parentCo.logo_url) {
+      // Fetch logo for existing company if missing
+      console.log('[resolveOwnershipChain] Existing company missing logo, fetching:', parentCo.name);
+      const companyLogo = await fetchBrandLogo(parentCompanyHint);
+      if (companyLogo) {
+        await supabase
+          .from('companies')
+          .update({ 
+            logo_url: companyLogo,
+            logo_source: 'clearbit'
+          })
+          .eq('id', parentCo.id);
+        parentCo.logo_url = companyLogo;
+        console.log('[resolveOwnershipChain] Added logo to existing company:', companyLogo);
       }
     }
     

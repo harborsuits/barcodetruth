@@ -1508,10 +1508,12 @@ export type Database = {
           country: string | null
           created_at: string | null
           description: string | null
+          description_lang: string | null
           description_source: string | null
           exchange: string | null
           id: string
           is_public: boolean | null
+          logo_source: string | null
           logo_url: string | null
           name: string
           ticker: string | null
@@ -1523,10 +1525,12 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           description?: string | null
+          description_lang?: string | null
           description_source?: string | null
           exchange?: string | null
           id?: string
           is_public?: boolean | null
+          logo_source?: string | null
           logo_url?: string | null
           name: string
           ticker?: string | null
@@ -1538,10 +1542,12 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           description?: string | null
+          description_lang?: string | null
           description_source?: string | null
           exchange?: string | null
           id?: string
           is_public?: boolean | null
+          logo_source?: string | null
           logo_url?: string | null
           name?: string
           ticker?: string | null
