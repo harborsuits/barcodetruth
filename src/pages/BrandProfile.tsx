@@ -133,6 +133,49 @@ export default function BrandProfile() {
     });
   }, []);
 
+  // Check for successful payment and trigger scan
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment') === 'success' && params.get('scan') === 'true') {
+      // Payment successful, trigger scan
+      const triggerScan = async () => {
+        try {
+          const { data, error } = await supabase.functions.invoke("deep-scan-start", {
+            body: { brand_id: actualId }
+          });
+
+          if (error || !data?.allowed) {
+            toast({
+              title: "Scan failed",
+              description: "Unable to start scan after payment",
+              variant: "destructive"
+            });
+            return;
+          }
+
+          toast({
+            title: "Payment received",
+            description: "Starting deep scan...",
+          });
+
+          // Clean URL
+          window.history.replaceState({}, '', `/brand/${actualId}`);
+        } catch (err) {
+          console.error("Error triggering scan:", err);
+        }
+      };
+
+      triggerScan();
+    } else if (params.get('payment') === 'canceled') {
+      toast({
+        title: "Payment canceled",
+        description: "Deep scan was not started",
+        variant: "destructive"
+      });
+      window.history.replaceState({}, '', `/brand/${actualId}`);
+    }
+  }, [actualId, toast]);
+
   // Auto-switch to Noise tab if all events are noise (only on initial load)
   useEffect(() => {
     if (!data?.evidence || hasSetDefaultFilter || loading) return;

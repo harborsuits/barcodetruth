@@ -33,39 +33,29 @@ export function RunDeepScanButton({ brandId, disabled, onScanComplete }: RunDeep
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke("deep-scan-start", {
-        body: { brand_id: brandId }
-      });
+      // Create payment session first
+      const { data: paymentData, error: paymentError } = await supabase.functions.invoke(
+        "create-deep-scan-payment",
+        { body: { brand_id: brandId } }
+      );
 
-      // Some responses may return 200 with allowed=false; treat non-200 as error only
-      if (error && (data == null || data.allowed === undefined)) throw error;
+      if (paymentError) throw paymentError;
 
-      if (!data.allowed) {
-        if (data.reason === "quota_exceeded") {
-          setShowUpgrade(true);
-        } else if (data.reason === "cooldown") {
-          toast({
-            title: "Please wait",
-            description: data.message || "You can scan this brand again in a few hours",
-            variant: "destructive"
-          });
-        } else {
-          toast({
-            title: "Scan unavailable",
-            description: "Unable to start scan. Please try again later.",
-            variant: "destructive"
-          });
-        }
-        setIsScanning(false);
-        return;
+      // Open Stripe checkout in new tab
+      if (paymentData?.url) {
+        window.open(paymentData.url, '_blank');
+        toast({
+          title: "Payment required",
+          description: "Complete payment to run deep scan ($5)",
+        });
       }
 
-      setScanId(data.scan_id);
+      setIsScanning(false);
     } catch (error) {
-      console.error("Error starting scan:", error);
+      console.error("Error starting scan payment:", error);
       toast({
         title: "Error",
-        description: "Failed to start deep scan",
+        description: "Failed to initialize payment",
         variant: "destructive"
       });
       setIsScanning(false);
@@ -89,10 +79,10 @@ export function RunDeepScanButton({ brandId, disabled, onScanComplete }: RunDeep
         variant="default"
       >
         <Sparkles className="h-4 w-4" />
-        {isScanning ? "Scanning..." : "Run Deep Scan"}
+        {isScanning ? "Opening payment..." : "Run Deep Scan ($5)"}
       </Button>
       <p className="text-xs text-muted-foreground text-center mt-2">
-        Check for new verified articles right now
+        One-time payment • Instant investigation
       </p>
 
       {scanId && (
