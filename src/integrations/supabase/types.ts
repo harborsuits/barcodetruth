@@ -2096,6 +2096,96 @@ export type Database = {
         }
         Relationships: []
       }
+      ingest_runs: {
+        Row: {
+          brand_id: string
+          completed_at: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          new_events: number | null
+          slot_start: string
+          status: string
+        }
+        Insert: {
+          brand_id: string
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          new_events?: number | null
+          slot_start: string
+          status: string
+        }
+        Update: {
+          brand_id?: string
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          new_events?: number | null
+          slot_start?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ingest_runs_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "ingest_runs_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_monitoring_status"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "ingest_runs_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_standings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ingest_runs_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_trending"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "ingest_runs_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ingest_runs_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "ingest_runs_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "ingest_runs_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_anomalies: {
         Row: {
           brand_id: string

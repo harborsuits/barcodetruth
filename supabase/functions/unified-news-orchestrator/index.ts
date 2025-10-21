@@ -581,35 +581,58 @@ Deno.serve(async (req) => {
   console.log(`[Orchestrator] Params - brandId: ${brandId}, max: ${max}, daysBack: ${daysBack}`);
 
   try {
-    // DUPLICATE-INGEST GUARD: Check if brand was ingested recently (15-min cooldown)
+    // ATOMIC SLOT-BASED COOLDOWN: Claim a 15-min slot for this brand
     if (brandId) {
-      const { data: recentBrand } = await supabase
-        .from("brands")
-        .select("last_news_ingestion")
-        .eq("id", brandId)
-        .maybeSingle();
+      const slotStart = new Date(Math.floor(Date.now() / (15 * 60 * 1000)) * (15 * 60 * 1000)).toISOString();
       
-      if (recentBrand?.last_news_ingestion) {
-        const lastIngest = new Date(recentBrand.last_news_ingestion).getTime();
-        const now = Date.now();
-        const cooldownMs = 15 * 60 * 1000; // 15 minutes
-        
-        if (now - lastIngest < cooldownMs) {
-          const remainingMin = Math.ceil((cooldownMs - (now - lastIngest)) / 60000);
-          console.log(`[Orchestrator] Brand ${brandId} ingested ${Math.floor((now - lastIngest) / 60000)}m ago - cooldown active (${remainingMin}m remaining)`);
+      console.log(JSON.stringify({
+        level: "info",
+        fn: "unified-news-orchestrator",
+        action: "claim-slot",
+        brand_id: brandId,
+        slot_start: slotStart
+      }));
+      
+      // Try to claim this slot atomically (UNIQUE constraint prevents races)
+      const { error: claimErr } = await supabase
+        .from("ingest_runs")
+        .insert({ 
+          brand_id: brandId, 
+          slot_start: slotStart, 
+          status: 'running' 
+        });
+      
+      if (claimErr) {
+        // Duplicate key = another instance is running or just finished this slot
+        if (claimErr.message && /duplicate key|unique constraint/i.test(claimErr.message)) {
+          console.log(JSON.stringify({
+            level: "info",
+            fn: "unified-news-orchestrator",
+            action: "cooldown-active",
+            brand_id: brandId,
+            slot_start: slotStart,
+            reason: "slot already claimed"
+          }));
           
           return new Response(
             JSON.stringify({ 
               ok: true, 
-              brands: 1, 
-              totalInserted: 0, 
-              totalSkipped: 0, 
-              message: `Brand recently ingested (cooldown: ${remainingMin}m remaining)`,
-              cooldown: true
+              skipped: true,
+              reason: 'cooldown',
+              message: 'Brand recently ingested (15-min cooldown active)'
             }),
             { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
+        
+        // Other error - log and continue (fail-open)
+        console.error(JSON.stringify({
+          level: "error",
+          fn: "unified-news-orchestrator",
+          action: "claim-slot-error",
+          brand_id: brandId,
+          error: claimErr.message
+        }));
       }
     }
 
@@ -906,6 +929,37 @@ Deno.serve(async (req) => {
 
     console.log(`[Orchestrator] Complete - ${totalInserted} inserted, ${totalSkipped} skipped`);
 
+    // Mark slot as complete (for single-brand runs)
+    if (brandId && brands.length > 0) {
+      const slotStart = new Date(Math.floor(Date.now() / (15 * 60 * 1000)) * (15 * 60 * 1000)).toISOString();
+      
+      await supabase
+        .from("ingest_runs")
+        .update({ 
+          status: 'success', 
+          new_events: totalInserted,
+          completed_at: new Date().toISOString()
+        })
+        .eq('brand_id', brandId)
+        .eq('slot_start', slotStart);
+      
+      console.log(JSON.stringify({
+        level: "info",
+        fn: "unified-news-orchestrator",
+        action: "slot-complete",
+        brand_id: brandId,
+        brand_name: brands[0].name,
+        new_events: totalInserted,
+        skipped: totalSkipped
+      }));
+      
+      // Update last_news_ingestion timestamp
+      await supabase
+        .from("brands")
+        .update({ last_news_ingestion: new Date().toISOString() })
+        .eq("id", brandId);
+    }
+
     return new Response(
       JSON.stringify({
         ok: true,
@@ -920,7 +974,32 @@ Deno.serve(async (req) => {
     );
 
   } catch (e: any) {
-    console.error("[Orchestrator] Fatal error:", e);
+    console.error(JSON.stringify({
+      level: "error",
+      fn: "unified-news-orchestrator",
+      action: "fatal-error",
+      error: String(e?.message || e)
+    }));
+    
+    // Mark slot as error (for single-brand runs)
+    if (brandId) {
+      const slotStart = new Date(Math.floor(Date.now() / (15 * 60 * 1000)) * (15 * 60 * 1000)).toISOString();
+      
+      const { error: updateErr } = await supabase
+        .from("ingest_runs")
+        .update({ 
+          status: 'error', 
+          error_message: String(e?.message || e),
+          completed_at: new Date().toISOString()
+        })
+        .eq('brand_id', brandId)
+        .eq('slot_start', slotStart);
+      
+      if (updateErr) {
+        console.error('[Orchestrator] Failed to update error status:', updateErr);
+      }
+    }
+    
     return new Response(
       JSON.stringify({
         ok: false,
