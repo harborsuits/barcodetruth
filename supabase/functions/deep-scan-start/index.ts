@@ -19,6 +19,12 @@ Deno.serve(async (req) => {
       }
     );
 
+    // Also create admin client for invoking runner
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return new Response(
@@ -116,10 +122,16 @@ Deno.serve(async (req) => {
 
     console.log(`[deep-scan-start] Created scan ${scan.id} for brand ${brand_id}`);
 
-    // Fire runner async (don't await)
-    supabase.functions.invoke("deep-scan-runner", {
+    // Fire runner async with service role (don't await to return quickly)
+    admin.functions.invoke("deep-scan-runner", {
       body: { scan_id: scan.id }
-    }).catch(err => console.error("[deep-scan-start] Runner invoke error:", err));
+    }).then(result => {
+      if (result.error) {
+        console.error("[deep-scan-start] Runner invoke error:", result.error);
+      } else {
+        console.log("[deep-scan-start] Runner invoked successfully");
+      }
+    }).catch(err => console.error("[deep-scan-start] Runner invoke failed:", err));
 
     return new Response(
       JSON.stringify({

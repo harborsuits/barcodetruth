@@ -31,20 +31,32 @@ Deno.serve(async (req) => {
       .eq("id", scan_id)
       .single();
 
-    if (scanError || !scan || scan.status !== "queued") {
-      console.error(`[deep-scan-runner] Invalid scan: ${scanError?.message || 'not queued'}`);
+    if (scanError || !scan) {
+      console.error(`[deep-scan-runner] Scan not found: ${scanError?.message}`);
       return new Response(
-        JSON.stringify({ ok: false, error: "Invalid scan" }),
+        JSON.stringify({ ok: false, error: "Scan not found" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Allow queued or running status (in case of retry)
+    if (scan.status !== "queued" && scan.status !== "running") {
+      console.error(`[deep-scan-runner] Invalid scan status: ${scan.status}`);
+      return new Response(
+        JSON.stringify({ ok: false, error: `Invalid scan status: ${scan.status}` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     console.log(`[deep-scan-runner] Starting scan ${scan_id} for brand ${scan.brand_id}`);
 
-    // Update to running
+    // Update to running with timestamp
     await admin
       .from("user_scans")
-      .update({ status: "running" })
+      .update({ 
+        status: "running",
+        started_at: new Date().toISOString()
+      })
       .eq("id", scan_id);
 
     try {
