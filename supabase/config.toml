@@ -123,3 +123,6 @@ verify_jwt = false
 [functions.reclassify-events]
 verify_jwt = true
 
+[functions.delete-brand-data]
+verify_jwt = false
+
