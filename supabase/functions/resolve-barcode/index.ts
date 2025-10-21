@@ -168,19 +168,44 @@ async function resolveOwnershipChain(
       companyName = parentCo.name;
       
       // Link brand → parent company in company_ownership table
-      await supabase
+      const { data: linkData, error: linkError } = await supabase
         .from('company_ownership')
-        .upsert({
-          child_brand_id: brand.id,
-          parent_company_id: parentCo.id,
-          parent_name: parentCo.name,
-          relationship: 'subsidiary',
-          source: 'openfoodfacts',
-          confidence: 0.7,
-        }, {
-          onConflict: 'child_brand_id',
-          ignoreDuplicates: false
-        });
+        .upsert(
+          {
+            child_brand_id: brand.id,
+            parent_company_id: parentCo.id,
+            parent_name: parentCo.name,
+            relationship: 'subsidiary',
+            source: 'openfoodfacts',
+            confidence: 0.7,
+          },
+          {
+            onConflict: 'child_brand_id',
+            ignoreDuplicates: false,
+          }
+        )
+        .select();
+
+      if (linkError) {
+        console.error('[resolveOwnershipChain] ERROR creating link (upsert):', linkError);
+        const { error: insertError } = await supabase
+          .from('company_ownership')
+          .insert({
+            child_brand_id: brand.id,
+            parent_company_id: parentCo.id,
+            parent_name: parentCo.name,
+            relationship: 'subsidiary',
+            source: 'openfoodfacts',
+            confidence: 0.7,
+          });
+        if (insertError) {
+          console.error('[resolveOwnershipChain] ERROR creating link (insert):', insertError);
+        } else {
+          console.log('[resolveOwnershipChain] Created ownership link (via insert)');
+        }
+      } else {
+        console.log('[resolveOwnershipChain] Created ownership link (via upsert):', linkData);
+      }
       
       console.log('[resolveOwnershipChain] Created ownership link');
       // Step 3: Find the ULTIMATE PARENT (recursive lookup)
@@ -188,19 +213,44 @@ async function resolveOwnershipChain(
       
       if (ultimateParent && ultimateParent.id !== parentCo.id) {
         // There's a higher-level parent - link parent → ultimate parent
-        await supabase
+        const { data: parentLinkData, error: parentLinkError } = await supabase
           .from('company_ownership')
-          .upsert({
-            child_company_id: parentCo.id,
-            parent_company_id: ultimateParent.id,
-            parent_name: ultimateParent.name,
-            relationship: 'subsidiary',
-            source: 'corporate_data',
-            confidence: 0.8,
-          }, {
-            onConflict: 'child_company_id',
-            ignoreDuplicates: false
-          });
+          .upsert(
+            {
+              child_company_id: parentCo.id,
+              parent_company_id: ultimateParent.id,
+              parent_name: ultimateParent.name,
+              relationship: 'subsidiary',
+              source: 'corporate_data',
+              confidence: 0.8,
+            },
+            {
+              onConflict: 'child_company_id',
+              ignoreDuplicates: false,
+            }
+          )
+          .select();
+
+        if (parentLinkError) {
+          console.error('[resolveOwnershipChain] ERROR creating parent→ultimate link (upsert):', parentLinkError);
+          const { error: parentInsertError } = await supabase
+            .from('company_ownership')
+            .insert({
+              child_company_id: parentCo.id,
+              parent_company_id: ultimateParent.id,
+              parent_name: ultimateParent.name,
+              relationship: 'subsidiary',
+              source: 'corporate_data',
+              confidence: 0.8,
+            });
+          if (parentInsertError) {
+            console.error('[resolveOwnershipChain] ERROR creating parent→ultimate link (insert):', parentInsertError);
+          } else {
+            console.log('[resolveOwnershipChain] Created parent→ultimate link (via insert)');
+          }
+        } else {
+          console.log('[resolveOwnershipChain] Created parent→ultimate link (via upsert):', parentLinkData);
+        }
         
         ultimateParentId = ultimateParent.id;
         ultimateParentName = ultimateParent.name;
