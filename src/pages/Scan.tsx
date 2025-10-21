@@ -198,6 +198,8 @@ export const Scan = () => {
   });
 
   const startScanner = async () => {
+    // TEMPORARY DEBUG - Remove after fixing
+    alert('Button clicked! Checking permissions...');
     console.log('[Mobile Debug] Start scanner clicked:', {
       userAgent: navigator.userAgent,
       inIframe: window.self !== window.top,
@@ -274,8 +276,10 @@ export const Scan = () => {
     }
     
     try {
+      alert('About to request camera access...');
       console.log('[Mobile Debug] Requesting camera access...');
       await startBarcodeScanner();
+      alert('Camera started successfully!');
       console.log('[Mobile Debug] Camera started successfully');
     } catch (err: any) {
       console.error('[Mobile Debug] Scanner start error:', err);
