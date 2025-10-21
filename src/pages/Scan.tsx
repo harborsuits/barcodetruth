@@ -46,6 +46,7 @@ export const Scan = () => {
   const [isInIframe, setIsInIframe] = useState(false);
   const [pendingBarcode, setPendingBarcode] = useState<string | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [rejectedBarcodes, setRejectedBarcodes] = useState<Set<string>>(new Set());
   const lastDetectedRef = useRef<string | null>(null);
   const lastDetectedAtRef = useRef<number>(0);
 
@@ -107,6 +108,12 @@ export const Scan = () => {
     // Normalize input
     const detected = (barcode || '').trim();
 
+    // Skip if already rejected in this session
+    if (rejectedBarcodes.has(detected)) {
+      console.log('Skipping previously rejected barcode:', detected);
+      return;
+    }
+
     // Validate format
     if (!isValidProductBarcode(detected)) {
       console.log('Ignored invalid barcode:', detected, 'length:', detected.length);
@@ -124,7 +131,7 @@ export const Scan = () => {
     // Pause scanning and show confirmation
     setPendingBarcode(detected);
     setShowConfirmDialog(true);
-  }, [scanResult, pendingBarcode]);
+  }, [scanResult, pendingBarcode, rejectedBarcodes]);
 
   // Handle confirmed barcode lookup
   const handleConfirmedLookup = useCallback(async (barcode: string) => {
@@ -257,6 +264,8 @@ export const Scan = () => {
         return;
       }
       
+      // Clear rejected barcodes when starting a fresh scan
+      setRejectedBarcodes(new Set());
       setError('');
       setScanResult('scanning');
       
@@ -427,6 +436,22 @@ export const Scan = () => {
               >
                 <Wrench className="h-5 w-5" />
               </Button>
+              {rejectedBarcodes.size > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setRejectedBarcodes(new Set());
+                    toast({
+                      title: "Scanner reset",
+                      description: "Cleared blacklist of rejected barcodes",
+                    });
+                  }}
+                  className="text-xs"
+                >
+                  Reset ({rejectedBarcodes.size})
+                </Button>
+              )}
             </div>
             {isOffline && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -833,7 +858,17 @@ export const Scan = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => {
+              // Add to rejection blacklist
+              if (pendingBarcode) {
+                setRejectedBarcodes(prev => new Set(prev).add(pendingBarcode));
+                console.log('Blacklisted barcode:', pendingBarcode);
+                toast({
+                  title: "Barcode ignored",
+                  description: "Won't detect this barcode again this session",
+                });
+              }
               setPendingBarcode(null);
+              setShowConfirmDialog(false);
             }}>
               No, scan again
             </AlertDialogCancel>
