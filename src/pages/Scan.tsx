@@ -102,32 +102,40 @@ export const Scan = () => {
   }, []);
 
   const handleBarcodeDetected = useCallback((barcode: string) => {
+    console.log('[Scan.tsx] handleBarcodeDetected called with:', barcode);
+    console.log('[Scan.tsx] Current state - processing:', scanResult === 'processing', 'pending:', pendingBarcode, 'rejected:', rejectedBarcodes.has(barcode));
+    
     // Ignore while processing or already confirming
-    if (scanResult === 'processing' || pendingBarcode) return;
+    if (scanResult === 'processing' || pendingBarcode) {
+      console.log('[Scan.tsx] Ignoring - already processing or confirming');
+      return;
+    }
 
     // Normalize input
     const detected = (barcode || '').trim();
 
     // Skip if already rejected in this session
     if (rejectedBarcodes.has(detected)) {
-      console.log('Skipping previously rejected barcode:', detected);
+      console.log('[Scan.tsx] Skipping previously rejected barcode:', detected);
       return;
     }
 
     // Validate format
     if (!isValidProductBarcode(detected)) {
-      console.log('Ignored invalid barcode:', detected, 'length:', detected.length);
+      console.log('[Scan.tsx] Invalid barcode format:', detected, 'length:', detected.length);
       return;
     }
 
     // Deduplicate same code within 1500ms
     const now = Date.now();
     if (lastDetectedRef.current === detected && now - lastDetectedAtRef.current < 1500) {
+      console.log('[Scan.tsx] Ignoring duplicate within 1500ms');
       return;
     }
     lastDetectedRef.current = detected;
     lastDetectedAtRef.current = now;
 
+    console.log('[Scan.tsx] Showing confirmation for barcode:', detected);
     // Pause scanning and show confirmation
     setPendingBarcode(detected);
     setShowConfirmDialog(true);

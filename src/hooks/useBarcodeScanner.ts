@@ -75,9 +75,13 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
     try {
       const result = await readerRef.current.decodeFromVideoElement(videoRef.current);
       if (result) {
+        const detectedBarcode = result.getText();
+        console.log('[Scanner] DETECTED barcode:', detectedBarcode, 'at', new Date().toISOString());
+        
         const points = result.getResultPoints().map(p => ({ x: p.getX(), y: p.getY() }));
         drawBoundingBox(points);
-        onScan(result.getText());
+        onScan(detectedBarcode);
+        
         // Clear bounding box after 500ms
         setTimeout(() => {
           const canvas = canvasRef.current;
@@ -89,6 +93,10 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
       }
     } catch (error) {
       // Ignore NotFoundExceptions (no barcode in frame)
+      // Log other errors
+      if (error && (error as Error).name !== 'NotFoundException') {
+        console.warn('[Scanner] Detection error:', error);
+      }
     }
 
     animationFrameRef.current = requestAnimationFrame(scanFrame);
@@ -96,6 +104,7 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
 
   const startScanning = useCallback(async () => {
     try {
+      console.log('[Scanner] Starting scan...');
       const hints = new Map();
       hints.set(DecodeHintType.POSSIBLE_FORMATS, [
         BarcodeFormat.UPC_A,
@@ -106,6 +115,7 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
 
       const reader = new BrowserMultiFormatReader(hints);
       readerRef.current = reader;
+      console.log('[Scanner] Reader initialized with formats:', ['UPC_A', 'UPC_E', 'EAN_13', 'EAN_8']);
 
       const constraints: MediaStreamConstraints = {
         video: {
@@ -136,11 +146,12 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
 
       setHasPermission(true);
       setIsScanning(true);
+      console.log('[Scanner] Camera started, beginning detection loop');
 
       // Start scanning loop
       scanFrame();
     } catch (error: any) {
-      console.error('Scanner start error:', error);
+      console.error('[Scanner] Start error:', error);
       setHasPermission(false);
       onError?.(error);
       toast({
@@ -152,6 +163,7 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
   }, [facingMode, currentResolution, onError, scanFrame]);
 
   const stopScanning = useCallback(() => {
+    console.log('[Scanner] Stopping scanner');
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
