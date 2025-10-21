@@ -92,24 +92,23 @@ export function ScannerDiagnostics({ open, onOpenChange }: { open: boolean; onOp
       setResults([...checks]);
     }
 
-    // 5. Test resolve-barcode endpoint with test EAN-13
-    const testBarcode = '0012345678905'; // Valid EAN-13 format
+    // 5. Test scan-product endpoint with real barcode
+    const testBarcode = '049000000009'; // Real 7-Eleven product
     const idx = checks.push({
       check: 'Endpoint Test',
       status: 'pending',
-      message: `Testing resolve-barcode with ${testBarcode}...`
+      message: `Testing scan-product with ${testBarcode}...`
     }) - 1;
     setResults([...checks]);
 
     const t0 = performance.now();
     try {
-      const { data, error } = await supabase.functions.invoke('resolve-barcode', {
-        body: { barcode: testBarcode }
+      const { data, error } = await supabase.functions.invoke('scan-product', {
+        body: { upc: testBarcode }
       });
       const latency = Math.round(performance.now() - t0);
 
-      // 404 is expected for unknown barcodes - it means the endpoint works
-      if (error && !error.message?.includes('404')) {
+      if (error) {
         checks[idx] = {
           check: 'Endpoint Test',
           status: 'fail',
@@ -117,19 +116,18 @@ export function ScannerDiagnostics({ open, onOpenChange }: { open: boolean; onOp
           latencyMs: latency,
           error: error.message
         };
-      } else if (data?.success) {
+      } else if (data?.product_name) {
         checks[idx] = {
           check: 'Endpoint Test',
           status: 'pass',
-          message: `Found: ${data.product?.name || 'product'} (${latency}ms)`,
+          message: `Found: ${data.product_name} → ${data.brand_name} (${latency}ms)`,
           latencyMs: latency
         };
       } else {
-        // 404 or product not found = endpoint is working fine
         checks[idx] = {
           check: 'Endpoint Test',
-          status: 'pass',
-          message: `Endpoint working (${latency}ms)`,
+          status: 'warning',
+          message: `Unexpected response (${latency}ms)`,
           latencyMs: latency
         };
       }
