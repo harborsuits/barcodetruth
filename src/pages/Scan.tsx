@@ -198,113 +198,47 @@ export const Scan = () => {
   });
 
   const startScanner = async () => {
-    // TEMPORARY DEBUG - Remove after fixing
-    alert('1. Button clicked!');
-    console.log('[Mobile Debug] Start scanner clicked:', {
-      userAgent: navigator.userAgent,
-      inIframe: window.self !== window.top,
-      isSecure: window.location.protocol === 'https:',
-      hasGetUserMedia: !!(navigator.mediaDevices?.getUserMedia),
-      timestamp: Date.now()
-    });
-
-    // TEMPORARILY DISABLED FOR TESTING
-    // if (!can_scan) {
-    //   alert('2. BLOCKED: Scan limit reached');
-    //   toast({
-    //     title: "Scan limit reached",
-    //     description: is_subscribed 
-    //       ? "Please try again later" 
-    //       : `You've used all 5 free scans this month. Subscribe for unlimited scans.`,
-    //     variant: "destructive"
-    //   });
-    //   return;
-    // }
-    alert('2. Scan limit check bypassed (testing)');
-
-    if (!videoRef.current) {
-      console.error('[Mobile Debug] Video element not ready');
-      return;
-    }
-    
-    setError('');
-    setScanResult('scanning');
-    console.log('[Analytics] scan_start', { ts: Date.now() });
-    
-    // Feature detection
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      console.error('[Mobile Debug] getUserMedia not supported');
-      setError('Camera not supported in this browser. Use manual entry below.');
-      setScanResult('idle');
-      toast({
-        title: "Camera not supported",
-        description: "Your browser doesn't support camera access. Use manual barcode entry below.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // Check if in iframe (preview environment)
-    const inIframe = window.self !== window.top;
-    if (inIframe) {
-      console.warn('[Mobile Debug] In iframe - redirecting to full-screen scanner');
-      try {
-        // Try navigating the top window (works even across origins in most browsers)
-        if (window.top) {
-          (window.top as Window).location.href = '/scan?fullscreen=1';
-        } else {
-          throw new Error('No top window');
-        }
-      } catch (e) {
-        const newWin = window.open('/scan?fullscreen=1', '_blank', 'noopener,noreferrer');
-        if (!newWin) {
-          // Popup blocked, guide the user
-          setError('Camera blocked in preview. Open full-screen scanner in a new tab.');
-          toast({
-            title: 'Open full-screen scanner',
-            description: 'We tried opening a new tab. If blocked, tap the "Open full-screen" button at the top.',
-            variant: 'destructive',
-            duration: 6000
-          });
-        } else {
-          toast({
-            title: 'Opening full-screen scanner',
-            description: 'Switch to the new tab to enable camera.'
-          });
-        }
-      }
-      setScanResult('idle');
-      return;
-    }
-    
     try {
-      alert('About to request camera access...');
-      console.log('[Mobile Debug] Requesting camera access...');
-      await startBarcodeScanner();
-      alert('Camera started successfully!');
-      console.log('[Mobile Debug] Camera started successfully');
-    } catch (err: any) {
-      console.error('[Mobile Debug] Scanner start error:', err);
-      const errorMsg = err?.message || 'Failed to access camera';
-      setError(errorMsg);
-      setScanResult('idle');
+      alert('1. Button clicked!');
       
-      // Better error messages for common mobile issues
-      let description = errorMsg;
-      if (err?.name === 'NotAllowedError') {
-        description = 'Camera access denied. Check your browser settings and grant camera permission.';
-      } else if (err?.name === 'NotFoundError') {
-        description = 'No camera found on this device.';
-      } else if (err?.name === 'NotReadableError') {
-        description = 'Camera is in use by another app. Close other apps and try again.';
+      // Scan limit check bypassed
+      alert('2. Scan limit check bypassed (testing)');
+      
+      if (!videoRef.current) {
+        alert('3. STOPPED: Video element not ready');
+        return;
       }
+      alert('3. Video element ready');
       
-      toast({
-        title: "Camera error",
-        description,
-        variant: "destructive",
-        duration: 6000
-      });
+      setError('');
+      setScanResult('scanning');
+      alert('4. State updated to scanning');
+      
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('5. STOPPED: Camera API not supported');
+        setError('Camera not supported in this browser. Use manual entry below.');
+        setScanResult('idle');
+        return;
+      }
+      alert('5. Camera API supported');
+      
+      const inIframe = window.self !== window.top;
+      if (inIframe) {
+        alert('6. STOPPED: In iframe');
+        setScanResult('idle');
+        return;
+      }
+      alert('6. Not in iframe');
+      
+      alert('7. About to call startBarcodeScanner...');
+      await startBarcodeScanner();
+      alert('8. SUCCESS! Camera started!');
+      
+    } catch (error: any) {
+      alert('CRASH: ' + error.message);
+      console.error('startScanner crashed:', error);
+      setError(error.message);
+      setScanResult('idle');
     }
   };
 
