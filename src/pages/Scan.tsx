@@ -422,14 +422,6 @@ export const Scan = () => {
             </div>
             <div className="flex items-center gap-2">
               <Button 
-                variant="outline"
-                size="sm"
-                onClick={() => window.open('/scan?fullscreen=1', '_blank', 'noopener,noreferrer')}
-                title="Open full-screen scanner"
-              >
-                Open full-screen
-              </Button>
-              <Button 
                 variant="ghost" 
                 size="icon" 
                 onClick={() => setShowDiagnostics(true)}
@@ -649,17 +641,6 @@ export const Scan = () => {
                     Enter barcode instead
                   </Button>
                 </div>
-                {isInIframe && (
-                  <div className="text-xs text-muted-foreground mt-2">
-                    Camera is blocked in preview. 
-                    <button
-                      onClick={() => window.open('/scan?fullscreen=1', '_blank', 'noopener,noreferrer')}
-                      className="underline underline-offset-2 text-primary ml-1"
-                    >
-                      Open full-screen scanner
-                    </button>
-                  </div>
-                )}
                   <div className="flex items-center gap-2">
                     <Button 
                       variant="ghost" 
