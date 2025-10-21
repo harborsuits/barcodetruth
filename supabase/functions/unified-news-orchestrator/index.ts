@@ -581,6 +581,38 @@ Deno.serve(async (req) => {
   console.log(`[Orchestrator] Params - brandId: ${brandId}, max: ${max}, daysBack: ${daysBack}`);
 
   try {
+    // DUPLICATE-INGEST GUARD: Check if brand was ingested recently (15-min cooldown)
+    if (brandId) {
+      const { data: recentBrand } = await supabase
+        .from("brands")
+        .select("last_news_ingestion")
+        .eq("id", brandId)
+        .maybeSingle();
+      
+      if (recentBrand?.last_news_ingestion) {
+        const lastIngest = new Date(recentBrand.last_news_ingestion).getTime();
+        const now = Date.now();
+        const cooldownMs = 15 * 60 * 1000; // 15 minutes
+        
+        if (now - lastIngest < cooldownMs) {
+          const remainingMin = Math.ceil((cooldownMs - (now - lastIngest)) / 60000);
+          console.log(`[Orchestrator] Brand ${brandId} ingested ${Math.floor((now - lastIngest) / 60000)}m ago - cooldown active (${remainingMin}m remaining)`);
+          
+          return new Response(
+            JSON.stringify({ 
+              ok: true, 
+              brands: 1, 
+              totalInserted: 0, 
+              totalSkipped: 0, 
+              message: `Brand recently ingested (cooldown: ${remainingMin}m remaining)`,
+              cooldown: true
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+    }
+
     let brands: Brand[] = [];
     if (brandId) {
       console.log(`[Orchestrator] Fetching specific brand: ${brandId}`);
@@ -632,6 +664,15 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Update last_news_ingestion timestamp for the brand (start of ingestion)
+    if (brandId && brands.length > 0) {
+      await supabase
+        .from("brands")
+        .update({ last_news_ingestion: new Date().toISOString() })
+        .eq("id", brandId);
+      console.log(`[Orchestrator] Updated last_news_ingestion for brand: ${brands[0].name}`);
+    }
+
     // Auto-detect which sources are enabled based on API key availability
     const sources = enabledSources();
     console.log(`[Orchestrator] Enabled sources (${sources.length}):`, sources.join(', '));
@@ -640,7 +681,7 @@ Deno.serve(async (req) => {
     let totalSkipped = 0;
 
     for (const b of brands) {
-      console.log(`[Orchestrator] Processing brand: ${b.name}`);
+      console.log(`[Orchestrator] Processing brand: ${b.name} (${b.id})`);
       const allArticles: NewsArticle[] = [];
 
       // Fetch from all enabled sources with budget enforcement

@@ -723,19 +723,47 @@ Deno.serve(async (req) => {
             
             // Trigger initial news ingestion for new brands (non-blocking)
             if (ownershipResult.is_new_brand) {
-              console.log(`[resolve-barcode] Triggering news ingestion for new brand: ${mappedBrand}`);
+              console.log(JSON.stringify({
+                level: "info",
+                fn: "resolve-barcode",
+                action: "trigger-news-ingestion",
+                brand_id: ownershipResult.brand_id,
+                brand_name: mappedBrand,
+                is_new_brand: true
+              }));
               
               // Fire and forget - don't await to avoid blocking response
               supabase.functions.invoke('unified-news-orchestrator', {
                 body: { brand_id: ownershipResult.brand_id }
               }).then((result: any) => {
                 if (result.error) {
-                  console.error('[resolve-barcode] News ingestion error:', result.error);
+                  console.error(JSON.stringify({
+                    level: "error",
+                    fn: "resolve-barcode",
+                    action: "news-ingestion-error",
+                    brand_id: ownershipResult.brand_id,
+                    brand_name: mappedBrand,
+                    error: result.error
+                  }));
                 } else {
-                  console.log('[resolve-barcode] News ingestion triggered:', result.data);
+                  console.log(JSON.stringify({
+                    level: "info",
+                    fn: "resolve-barcode",
+                    action: "news-ingestion-success",
+                    brand_id: ownershipResult.brand_id,
+                    brand_name: mappedBrand,
+                    result: result.data
+                  }));
                 }
               }).catch((err: Error) => {
-                console.error('[resolve-barcode] News ingestion failed:', err);
+                console.error(JSON.stringify({
+                  level: "error",
+                  fn: "resolve-barcode",
+                  action: "news-ingestion-failed",
+                  brand_id: ownershipResult.brand_id,
+                  brand_name: mappedBrand,
+                  error: err.message
+                }));
               });
             }
             
