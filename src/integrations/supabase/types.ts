@@ -2883,6 +2883,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_plans: {
+        Row: {
+          created_at: string | null
+          plan: string
+          scans_per_month: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          plan: string
+          scans_per_month: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          plan?: string
+          scans_per_month?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_preferences: {
         Row: {
           created_at: string
@@ -3001,25 +3025,43 @@ export type Database = {
         Row: {
           barcode: string | null
           brand_id: string | null
+          completed_at: string | null
           created_at: string
+          dedupe_key: string | null
+          error_message: string | null
           id: string
+          result_count: number | null
           scanned_at: string
+          started_at: string | null
+          status: string
           user_id: string
         }
         Insert: {
           barcode?: string | null
           brand_id?: string | null
+          completed_at?: string | null
           created_at?: string
+          dedupe_key?: string | null
+          error_message?: string | null
           id?: string
+          result_count?: number | null
           scanned_at?: string
+          started_at?: string | null
+          status?: string
           user_id: string
         }
         Update: {
           barcode?: string | null
           brand_id?: string | null
+          completed_at?: string | null
           created_at?: string
+          dedupe_key?: string | null
+          error_message?: string | null
           id?: string
+          result_count?: number | null
           scanned_at?: string
+          started_at?: string | null
+          status?: string
           user_id?: string
         }
         Relationships: [
@@ -4757,6 +4799,10 @@ export type Database = {
       get_ownership_graph: {
         Args: { p_brand_id: string }
         Returns: Json
+      }
+      get_scans_used_month: {
+        Args: { p_user: string }
+        Returns: number
       }
       get_source_credibility: {
         Args: { source_name_param: string }

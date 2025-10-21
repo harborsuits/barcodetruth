@@ -10,7 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ArrowLeft, ExternalLink, AlertCircle, Building2, Link as LinkIcon } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBrandLogo } from '@/hooks/useBrandLogo';
 import { getCategoryDisplay, type CategoryGroup } from '@/lib/categoryConfig';
 import { OwnershipGraph } from '@/components/ownership/OwnershipGraph';
@@ -19,6 +19,7 @@ import { RollupScores } from '@/components/ownership/RollupScores';
 import { DataCollectionBadge } from '@/components/brand/DataCollectionBadge';
 import { ReportIssueDialog } from '@/components/ReportIssueDialog';
 import { SuggestEvidenceDialog } from '@/components/SuggestEvidenceDialog';
+import { RunDeepScanButton } from '@/components/brand/RunDeepScanButton';
 
 type BrandProfile = {
   brand: { 
@@ -107,6 +108,7 @@ function BrandLogoWithFallback({
 export default function BrandProfile() {
   const { id, brandId } = useParams<{ id?: string; brandId?: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const actualId = id || brandId;
   
   const [data, setData] = useState<BrandProfile | null>(null);
@@ -456,16 +458,29 @@ export default function BrandProfile() {
 
         {/* Data Collection Status - Show when confidence is not high */}
         {confidenceData && confidenceData.confidence_level !== 'high' && (
-          <DataCollectionBadge
-            eventCount={confidenceData.event_count}
-            categoriesCovered={confidenceData.categories_covered || []}
-            hasSignificantEvents={confidenceData.has_significant_events || false}
-            completeness={confidenceData.completeness_percent || 0}
-            confidenceLevel={confidenceData.confidence_level || 'none'}
-            lastIngestAt={confidenceData.last_ingest_at}
-            domains90d={confidenceData.domains_90d}
-            ingestStatus={confidenceData.ingest_status}
-          />
+          <div className="space-y-4">
+            <DataCollectionBadge
+              eventCount={confidenceData.event_count}
+              categoriesCovered={confidenceData.categories_covered || []}
+              hasSignificantEvents={confidenceData.has_significant_events || false}
+              completeness={confidenceData.completeness_percent || 0}
+              confidenceLevel={confidenceData.confidence_level || 'none'}
+              lastIngestAt={confidenceData.last_ingest_at}
+              domains90d={confidenceData.domains_90d}
+              ingestStatus={confidenceData.ingest_status}
+            />
+
+            <div className="max-w-xs mx-auto">
+              <RunDeepScanButton
+                brandId={actualId!}
+                onScanComplete={() => {
+                  queryClient.invalidateQueries({ queryKey: ['brand-profile', actualId] });
+                  queryClient.invalidateQueries({ queryKey: ['brand-confidence', actualId] });
+                  setRefreshKey(k => k + 1);
+                }}
+              />
+            </div>
+          </div>
         )}
 
         {/* Coverage chips with Verified % */}
