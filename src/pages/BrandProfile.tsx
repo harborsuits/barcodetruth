@@ -20,6 +20,9 @@ import { DataCollectionBadge } from '@/components/brand/DataCollectionBadge';
 import { ReportIssueDialog } from '@/components/ReportIssueDialog';
 import { SuggestEvidenceDialog } from '@/components/SuggestEvidenceDialog';
 import { RunDeepScanButton } from '@/components/brand/RunDeepScanButton';
+import { OwnershipCard } from '@/components/brand/OwnershipCard';
+import { KeyPeopleRow } from '@/components/brand/KeyPeopleRow';
+import { ValuationChip } from '@/components/brand/ValuationChip';
 
 type BrandProfile = {
   brand: { 
@@ -200,6 +203,45 @@ export default function BrandProfile() {
       }
       const result = await response.json();
       return result?.[0] ?? null;
+    },
+    enabled: !!actualId,
+  });
+
+  // Fetch company info (ownership, key people, valuation)
+  const { data: companyInfo, refetch: refetchCompanyInfo } = useQuery({
+    queryKey: ['company-info', actualId],
+    queryFn: async () => {
+      if (!actualId) return null;
+
+      const { data, error } = await supabase.rpc('get_brand_company_info', {
+        p_brand_id: actualId
+      });
+
+      if (error) {
+        console.error('Error fetching company info:', error);
+        return null;
+      }
+
+      // Cast to any to handle JSON return type
+      const result = data as any;
+
+      // Check if data is stale (>7 days) and trigger enrichment
+      const ownership = result?.ownership;
+      const lastVerified = ownership?.[0]?.last_verified_at;
+      const isStale = !lastVerified || 
+        new Date(lastVerified) < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+      if (isStale) {
+        // Fire enrichment in background
+        supabase.functions.invoke('enrich-company-profile', {
+          body: { brand_id: actualId }
+        }).then(() => {
+          // Refetch after enrichment completes
+          setTimeout(() => refetchCompanyInfo(), 3000);
+        }).catch(err => console.error('Enrichment error:', err));
+      }
+
+      return result;
     },
     enabled: !!actualId,
   });
@@ -476,10 +518,34 @@ export default function BrandProfile() {
                 onScanComplete={() => {
                   queryClient.invalidateQueries({ queryKey: ['brand-profile', actualId] });
                   queryClient.invalidateQueries({ queryKey: ['brand-confidence', actualId] });
+                  queryClient.invalidateQueries({ queryKey: ['company-info', actualId] });
                   setRefreshKey(k => k + 1);
+                  // Also re-trigger enrichment after scan
+                  supabase.functions.invoke('enrich-company-profile', {
+                    body: { brand_id: actualId }
+                  });
                 }}
               />
             </div>
+          </div>
+        )}
+
+        {/* Ownership & Key People (if available) */}
+        {companyInfo && (
+          <div className="space-y-4">
+            <OwnershipCard companyInfo={companyInfo} />
+            
+            {companyInfo.people && companyInfo.people.length > 0 && (
+              <Card className="p-6">
+                <KeyPeopleRow people={companyInfo.people} />
+              </Card>
+            )}
+
+            {companyInfo.valuation && (
+              <div className="flex justify-center">
+                <ValuationChip valuation={companyInfo.valuation} />
+              </div>
+            )}
           </div>
         )}
 

@@ -1503,6 +1503,248 @@ export type Database = {
           },
         ]
       }
+      companies: {
+        Row: {
+          country: string | null
+          created_at: string | null
+          description: string | null
+          description_source: string | null
+          exchange: string | null
+          id: string
+          is_public: boolean | null
+          logo_url: string | null
+          name: string
+          ticker: string | null
+          updated_at: string | null
+          wikidata_qid: string | null
+          wikipedia_title: string | null
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string | null
+          description?: string | null
+          description_source?: string | null
+          exchange?: string | null
+          id?: string
+          is_public?: boolean | null
+          logo_url?: string | null
+          name: string
+          ticker?: string | null
+          updated_at?: string | null
+          wikidata_qid?: string | null
+          wikipedia_title?: string | null
+        }
+        Update: {
+          country?: string | null
+          created_at?: string | null
+          description?: string | null
+          description_source?: string | null
+          exchange?: string | null
+          id?: string
+          is_public?: boolean | null
+          logo_url?: string | null
+          name?: string
+          ticker?: string | null
+          updated_at?: string | null
+          wikidata_qid?: string | null
+          wikipedia_title?: string | null
+        }
+        Relationships: []
+      }
+      company_ownership: {
+        Row: {
+          child_brand_id: string
+          confidence: number | null
+          created_at: string | null
+          id: string
+          last_verified_at: string | null
+          parent_company_id: string | null
+          parent_name: string
+          relationship: string | null
+          source: string
+          source_ref: string | null
+        }
+        Insert: {
+          child_brand_id: string
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          last_verified_at?: string | null
+          parent_company_id?: string | null
+          parent_name: string
+          relationship?: string | null
+          source: string
+          source_ref?: string | null
+        }
+        Update: {
+          child_brand_id?: string
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          last_verified_at?: string | null
+          parent_company_id?: string | null
+          parent_name?: string
+          relationship?: string | null
+          source?: string
+          source_ref?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_ownership_child_brand_id_fkey"
+            columns: ["child_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "company_ownership_child_brand_id_fkey"
+            columns: ["child_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_monitoring_status"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "company_ownership_child_brand_id_fkey"
+            columns: ["child_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_standings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_ownership_child_brand_id_fkey"
+            columns: ["child_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_trending"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "company_ownership_child_brand_id_fkey"
+            columns: ["child_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_ownership_child_brand_id_fkey"
+            columns: ["child_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "company_ownership_child_brand_id_fkey"
+            columns: ["child_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "company_ownership_child_brand_id_fkey"
+            columns: ["child_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_ownership_parent_company_id_fkey"
+            columns: ["parent_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_people: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          id: string
+          image_url: string | null
+          last_verified_at: string | null
+          person_name: string
+          person_qid: string | null
+          role: string
+          source: string
+          source_ref: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          last_verified_at?: string | null
+          person_name: string
+          person_qid?: string | null
+          role: string
+          source: string
+          source_ref?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          last_verified_at?: string | null
+          person_name?: string
+          person_qid?: string | null
+          role?: string
+          source?: string
+          source_ref?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_people_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_valuation: {
+        Row: {
+          as_of_date: string
+          company_id: string
+          created_at: string | null
+          currency: string
+          id: string
+          metric: string
+          source: string
+          source_ref: string | null
+          value_numeric: number | null
+        }
+        Insert: {
+          as_of_date: string
+          company_id: string
+          created_at?: string | null
+          currency?: string
+          id?: string
+          metric: string
+          source: string
+          source_ref?: string | null
+          value_numeric?: number | null
+        }
+        Update: {
+          as_of_date?: string
+          company_id?: string
+          created_at?: string | null
+          currency?: string
+          id?: string
+          metric?: string
+          source?: string
+          source_ref?: string | null
+          value_numeric?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_valuation_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cron_runs: {
         Row: {
           fn: string
@@ -4727,6 +4969,10 @@ export type Database = {
       current_window_start: {
         Args: { p_kind: string }
         Returns: string
+      }
+      get_brand_company_info: {
+        Args: { p_brand_id: string }
+        Returns: Json
       }
       get_brand_data_confidence: {
         Args: { p_brand_id: string }
