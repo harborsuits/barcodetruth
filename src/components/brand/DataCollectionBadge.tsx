@@ -8,6 +8,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { formatDistanceToNow } from "date-fns";
 
 interface DataCollectionBadgeProps {
   eventCount: number;
@@ -15,6 +16,9 @@ interface DataCollectionBadgeProps {
   hasSignificantEvents: boolean;
   completeness: number;
   confidenceLevel: 'none' | 'low' | 'medium' | 'high';
+  lastIngestAt?: string;
+  domains90d?: number;
+  ingestStatus?: string;
 }
 
 export function DataCollectionBadge({
@@ -22,8 +26,14 @@ export function DataCollectionBadge({
   categoriesCovered,
   hasSignificantEvents,
   completeness,
-  confidenceLevel
+  confidenceLevel,
+  lastIngestAt,
+  domains90d = 0,
+  ingestStatus = 'Active'
 }: DataCollectionBadgeProps) {
+  const significantCategories = categoriesCovered.filter(cat => 
+    ['labor', 'environment', 'political', 'social', 'esg', 'regulatory', 'legal'].includes(cat)
+  );
   const getStatusConfig = () => {
     if (confidenceLevel === 'high') {
       return {
@@ -99,47 +109,60 @@ export function DataCollectionBadge({
 
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Coverage Progress</span>
+              <span className="text-muted-foreground">Evidence Coverage</span>
               <span className="font-medium">{completeness}%</span>
             </div>
             <Progress value={completeness} className="h-2" />
+            {lastIngestAt && (
+              <div className="text-xs text-muted-foreground">
+                Last ingest: {formatDistanceToNow(new Date(lastIngestAt), { addSuffix: true })}
+              </div>
+            )}
+            {ingestStatus && ingestStatus !== 'Active' && (
+              <div className="text-xs text-yellow-600 dark:text-yellow-400 font-medium">
+                ⚠ {ingestStatus}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
             <div>
               <div className="text-2xl font-bold">{eventCount}</div>
-              <div className="text-xs text-muted-foreground">Verified Events</div>
+              <div className="text-xs text-muted-foreground">Events (90d)</div>
             </div>
             
             <div>
-              <div className="text-2xl font-bold">{categoriesCovered.length}</div>
-              <div className="text-xs text-muted-foreground">
-                {categoriesCovered.length === 1 ? 'Category' : 'Categories'} Covered
-              </div>
+              <div className="text-2xl font-bold">{domains90d}</div>
+              <div className="text-xs text-muted-foreground">Independent Sources</div>
             </div>
             
             <div>
               <div className="text-2xl font-bold">
-                {hasSignificantEvents ? 'Yes' : 'None'}
+                {significantCategories.length > 0 ? significantCategories.length : 'None'}
               </div>
               <div className="text-xs text-muted-foreground">
-                Ethical/Labor/Environmental
+                Signals in E/L/Env
               </div>
             </div>
           </div>
 
-          {categoriesCovered.length > 0 && (
+          {significantCategories.length > 0 && (
             <div className="pt-2">
               <div className="text-xs text-muted-foreground mb-2">
-                Event Categories:
+                Significant event categories detected:
               </div>
               <div className="flex flex-wrap gap-1">
-                {categoriesCovered.map(cat => (
-                  <Badge key={cat} variant="secondary" className="text-xs">
+                {significantCategories.map(cat => (
+                  <Badge key={cat} variant="secondary" className="text-xs capitalize">
                     {cat}
                   </Badge>
                 ))}
               </div>
+            </div>
+          )}
+          {significantCategories.length === 0 && eventCount > 0 && (
+            <div className="pt-2 text-xs text-muted-foreground italic">
+              All events are general business news. No ethical/labor/environmental signals yet.
             </div>
           )}
 
@@ -147,7 +170,7 @@ export function DataCollectionBadge({
             <p className="text-xs text-muted-foreground italic">
               {confidenceLevel === 'high' 
                 ? "✓ Scores are now visible based on collected data"
-                : "Scores will appear when sufficient category-specific events are confirmed (20+ events across 3+ categories)"}
+                : "Scores will appear when sufficient category-specific events are confirmed (20+ events, 3+ categories, 3+ independent sources)"}
             </p>
           </div>
         </div>

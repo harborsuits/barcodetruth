@@ -155,20 +155,23 @@ export default function BrandProfile() {
     queryFn: async () => {
       if (!actualId) return null;
       
+      // Use raw fetch until types are updated
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/get_brand_data_confidence`,
+        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/brand_monitoring_status?brand_id=eq.${actualId}&select=*`,
         {
-          method: 'POST',
+          method: 'GET',
           headers: {
             'Content-Type': 'application/json',
             'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
-          },
-          body: JSON.stringify({ p_brand_id: actualId })
+          }
         }
       );
       
-      if (!response.ok) return null;
+      if (!response.ok) {
+        console.error('Error fetching monitoring status:', response.statusText);
+        return null;
+      }
       const result = await response.json();
       return result?.[0] ?? null;
     },
@@ -425,20 +428,14 @@ export default function BrandProfile() {
         {/* Data Collection Status - Show when confidence is not high */}
         {confidenceData && confidenceData.confidence_level !== 'high' && (
           <DataCollectionBadge
-            eventCount={coverage.events_30d}
-            categoriesCovered={(() => {
-              // Get unique categories from evidence
-              const categories = new Set<string>();
-              data.evidence.forEach(e => {
-                if (e.category && e.category !== 'general') {
-                  categories.add(e.category);
-                }
-              });
-              return Array.from(categories);
-            })()}
+            eventCount={confidenceData.event_count}
+            categoriesCovered={confidenceData.categories_covered || []}
             hasSignificantEvents={confidenceData.has_significant_events || false}
             completeness={confidenceData.completeness_percent || 0}
             confidenceLevel={confidenceData.confidence_level || 'none'}
+            lastIngestAt={confidenceData.last_ingest_at}
+            domains90d={confidenceData.domains_90d}
+            ingestStatus={confidenceData.ingest_status}
           />
         )}
 
