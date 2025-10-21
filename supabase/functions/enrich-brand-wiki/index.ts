@@ -76,10 +76,26 @@ serve(async (req) => {
 
     console.log(`[enrich-brand-wiki] Enriching brand: ${brandId}`);
 
-    // Get brand
+    // Get brand with parent company info
     const { data: brand, error: brandError } = await supabase
       .from('brands')
-      .select('id, name, wikidata_qid, description, description_source')
+      .select(`
+        id, 
+        name, 
+        wikidata_qid, 
+        description, 
+        description_source,
+        company_ownership!company_ownership_child_brand_id_fkey (
+          parent_company_id,
+          companies!company_ownership_parent_company_id_fkey (
+            id,
+            name,
+            description,
+            wikidata_qid,
+            description_source
+          )
+        )
+      `)
       .eq('id', brandId)
       .single();
 
@@ -91,13 +107,41 @@ serve(async (req) => {
       );
     }
 
+    // Determine enrichment target: parent company if exists, otherwise brand
+    const ownership = Array.isArray(brand.company_ownership) 
+      ? brand.company_ownership[0] 
+      : brand.company_ownership;
+    const company = ownership?.companies 
+      ? (Array.isArray(ownership.companies) ? ownership.companies[0] : ownership.companies)
+      : null;
+    
+    let targetName = brand.name;
+    let targetId = brand.id;
+    let targetTable = 'brands';
+    let targetDescription = brand.description;
+    let targetSource = brand.description_source;
+    let targetQid = brand.wikidata_qid;
+    
+    if (company) {
+      // Enrich the parent company instead
+      targetName = company.name;
+      targetId = company.id;
+      targetTable = 'companies';
+      targetDescription = company.description;
+      targetSource = company.description_source;
+      targetQid = company.wikidata_qid;
+      console.log(`[enrich-brand-wiki] Enriching parent company: ${targetName}`);
+    } else {
+      console.log(`[enrich-brand-wiki] No parent company, enriching brand: ${targetName}`);
+    }
+
     // Skip if already has Wikipedia description
-    if (brand.description && brand.description_source === 'wikipedia') {
-      console.log(`[enrich-brand-wiki] Brand ${brand.name} already has Wikipedia description`);
+    if (targetDescription && targetSource === 'wikipedia') {
+      console.log(`[enrich-brand-wiki] ${targetTable} ${targetName} already has Wikipedia description`);
       return new Response(
         JSON.stringify({ 
           success: true,
-          brand: brand.name,
+          target: targetName,
           note: "Already has Wikipedia description"
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -105,18 +149,20 @@ serve(async (req) => {
     }
 
     let description = null;
-    let wikidata_qid = brand.wikidata_qid;
+    let wikidata_qid = targetQid;
 
-    // Step 1: Search Wikidata for the brand if we don't have QID
+    // Step 1: Search Wikidata for the target if we don't have QID
     if (!wikidata_qid) {
-      console.log(`[enrich-brand-wiki] Searching Wikidata for: ${brand.name}`);
+      console.log(`[enrich-brand-wiki] Searching Wikidata for: ${targetName}`);
       
-      // Improve search by adding context - try multiple queries
+      // Prioritize company/corporation searches to avoid surname matches
       const searchQueries = [
-        `${brand.name} company`,
-        `${brand.name} brand`,
-        `${brand.name} food company`,
-        brand.name
+        `${targetName} company`,
+        `${targetName} corporation`,
+        `${targetName} consumer goods`,
+        `${targetName} food company`,
+        `${targetName} brand`,
+        targetName
       ];
       
       for (const query of searchQueries) {
@@ -167,8 +213,8 @@ serve(async (req) => {
 
     // Step 3: Fallback to direct Wikipedia search if no Wikidata match
     if (!wikipediaTitle) {
-      console.log(`[enrich-brand-wiki] Searching Wikipedia directly for: ${brand.name}`);
-      const wikiSearchUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(brand.name)}&limit=1&format=json`;
+      console.log(`[enrich-brand-wiki] Searching Wikipedia directly for: ${targetName}`);
+      const wikiSearchUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(targetName)}&limit=1&format=json`;
       
       const wikiSearchRes = await fetch(wikiSearchUrl);
       if (wikiSearchRes.ok) {
@@ -197,7 +243,7 @@ serve(async (req) => {
       }
     }
 
-    // Step 5: Update brand if we got description
+    // Step 5: Update target table if we got description
     if (description) {
       const updates: any = {
         description,
@@ -205,29 +251,31 @@ serve(async (req) => {
         description_lang: 'en'
       };
       
-      if (wikidata_qid && !brand.wikidata_qid) {
+      if (wikidata_qid && !targetQid) {
         updates.wikidata_qid = wikidata_qid;
       }
 
       const { error: updateError } = await supabase
-        .from('brands')
+        .from(targetTable)
         .update(updates)
-        .eq('id', brandId);
+        .eq('id', targetId);
 
       if (updateError) {
         console.error('[enrich-brand-wiki] Update error:', updateError);
         return new Response(
-          JSON.stringify({ error: "Failed to update brand" }),
+          JSON.stringify({ error: `Failed to update ${targetTable}` }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      console.log(`[enrich-brand-wiki] ✅ Updated brand ${brand.name} with Wikipedia description`);
+      console.log(`[enrich-brand-wiki] ✅ Updated ${targetTable} ${targetName} with Wikipedia description`);
 
       return new Response(
         JSON.stringify({ 
           success: true,
-          brand: brand.name,
+          brand_id: brandId,
+          target_table: targetTable,
+          target_name: targetName,
           updated: true,
           wikidata_qid,
           description_length: description.length
@@ -236,12 +284,12 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[enrich-brand-wiki] No Wikipedia description found for ${brand.name}`);
+    console.log(`[enrich-brand-wiki] No Wikipedia description found for ${targetName}`);
 
     return new Response(
       JSON.stringify({ 
         success: true,
-        brand: brand.name,
+        target: targetName,
         updated: false,
         note: "No Wikipedia description found"
       }),

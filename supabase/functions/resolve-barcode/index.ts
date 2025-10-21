@@ -48,6 +48,83 @@ function extractGS1Prefix(ean13: string): string | null {
   return prefix7;
 }
 
+// Helper function to resolve ownership chain
+async function resolveOwnershipChain(
+  supabase: any,
+  brandName: string,
+  parentCompanyHint: string
+): Promise<{ brand_id: string; company_id: string | null; company_name: string | null }> {
+  
+  // Step 1: Find or create the BRAND
+  let { data: brand } = await supabase
+    .from('brands')
+    .select('id, name')
+    .ilike('name', brandName)
+    .maybeSingle();
+  
+  if (!brand) {
+    const { data: newBrand } = await supabase
+      .from('brands')
+      .insert({ name: brandName })
+      .select('id, name')
+      .single();
+    brand = newBrand;
+  }
+  
+  if (!brand) {
+    return { brand_id: '', company_id: null, company_name: null };
+  }
+  
+  // Step 2: Find or create the PARENT COMPANY if hint provided
+  let companyId: string | null = null;
+  let companyName: string | null = null;
+  
+  if (parentCompanyHint && parentCompanyHint.trim()) {
+    // Check if parent company exists in companies table
+    let { data: parentCo } = await supabase
+      .from('companies')
+      .select('id, name')
+      .ilike('name', parentCompanyHint)
+      .maybeSingle();
+    
+    if (!parentCo) {
+      // Create the parent company
+      const { data: newParent } = await supabase
+        .from('companies')
+        .insert({ name: parentCompanyHint })
+        .select('id, name')
+        .single();
+      parentCo = newParent;
+    }
+    
+    if (parentCo) {
+      companyId = parentCo.id;
+      companyName = parentCo.name;
+      
+      // Link brand → parent company in company_ownership table
+      await supabase
+        .from('company_ownership')
+        .upsert({
+          child_brand_id: brand.id,
+          parent_company_id: parentCo.id,
+          parent_name: parentCo.name,
+          relationship: 'subsidiary',
+          source: 'openfoodfacts',
+          confidence: 0.7,
+        }, {
+          onConflict: 'child_brand_id',
+          ignoreDuplicates: false
+        });
+    }
+  }
+  
+  return {
+    brand_id: brand.id,
+    company_id: companyId,
+    company_name: companyName
+  };
+}
+
 // Cooldown cache for recent "not found" barcodes (60s TTL)
 const notFoundCache = new Map<string, number>();
 function isRecentNotFound(barcode: string): boolean {
@@ -217,102 +294,88 @@ Deno.serve(async (req) => {
       const offData = await offRes.json();
       
         if (offData.status === 1 && offData.product) {
-        const brands = offData.product.brands || offData.product.brands_tags?.[0] || '';
-        const manufacturer = offData.product.manufacturer || offData.product.manufacturing_places || '';
-        const normalized = brands.split(',')[0].trim().toLowerCase();
-        const productName = offData.product.product_name || offData.product.product_name_en || 'Unknown Product';
+        const product = offData.product;
+        
+        // Extract ALL relevant fields for complete data
+        const productName = product.product_name || product.product_name_en || 'Unknown Product';
+        const brandRaw = product.brands || product.brands_tags?.[0] || '';
+        const brandName = brandRaw.split(',')[0].trim().toLowerCase();
+        
+        // Try multiple sources for parent company
+        const owner = product.owner || product.owner_imported || '';
+        const manufacturer = product.manufacturer || product.manufacturing_places || '';
+        const origins = product.origins || '';
+        const brandTag = (product.brands_tags?.[0] || '').replace(/-/g, ' ');
+        
+        // Determine parent company with priority order
+        const parentCompany = 
+          owner ||  // Best: direct owner field
+          brandTag ||  // Second: brand tag (often more accurate than brands text)
+          manufacturer.split(',')[0]?.trim() ||  // Third: first manufacturer
+          origins.split(',')[0]?.trim() ||  // Fourth: origins
+          '';
         
         // Apply brand overrides
-        const mappedBrand = BRAND_OVERRIDES[normalized] || normalized;
+        const mappedBrand = BRAND_OVERRIDES[brandName] || brandName;
         
-        console.log(`[${normalizedBarcode}] Found on OpenFoodFacts: ${productName} -> Brand: ${mappedBrand}, Manufacturer: ${manufacturer}`);
+        console.log(`[${normalizedBarcode}] Found on OpenFoodFacts:`, {
+          product: productName,
+          brand: mappedBrand,
+          owner,
+          manufacturer,
+          parentCompany,
+          brandTag
+        });
         
-        // Try to find the brand in our database
-          const { data: brandMatch } = await supabase
-            .from('brands')
-            .select('id, name')
-            .ilike('name', mappedBrand)
-            .maybeSingle();
+        // Use ownership chain resolver
+        const ownershipResult = await resolveOwnershipChain(
+          supabase,
+          mappedBrand,
+          parentCompany
+        );
+        
+        if (!ownershipResult.brand_id) {
+          const dur = Math.round(performance.now() - t0);
+          console.log(JSON.stringify({ 
+            level: "error", 
+            fn: "resolve-barcode", 
+            barcode: normalizedBarcode,
+            msg: "Failed to create brand",
+            dur_ms: dur
+          }));
           
-          let brandId: string | null = brandMatch?.id ?? null;
-          let brandName: string | null = brandMatch?.name ?? null;
+          return new Response(
+            JSON.stringify({
+              success: false,
+              product: { name: productName, barcode: normalizedBarcode },
+              brand_guess: mappedBrand,
+              error: 'Brand creation failed',
+              message: 'Product found but brand could not be created.',
+              action: 'report_mapping',
+            }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
           
-          if (!brandId) {
-            // Create brand with parent company hint from manufacturer
-            const insertData: any = { name: mappedBrand };
-            if (manufacturer && manufacturer.trim()) {
-              insertData.parent_company = manufacturer.trim();
-            }
-            
-            const { data: newBrand, error: brandInsertError } = await supabase
-              .from('brands')
-              .insert(insertData)
-              .select('id, name')
-              .single();
-            
-            if (brandInsertError || !newBrand) {
-              const dur = Math.round(performance.now() - t0);
-              console.log(JSON.stringify({ 
-                level: "info", 
-                fn: "resolve-barcode", 
-                barcode: normalizedBarcode,
-                source: "openfoodfacts",
-                brand_guess: mappedBrand,
-                dur_ms: dur,
-                ok: false
-              }));
-              
-              return new Response(
-                JSON.stringify({
-                  success: false,
-                  product: { name: productName, barcode: normalizedBarcode },
-                  brand_guess: mappedBrand,
-                  error: 'Brand creation failed',
-                  message: 'Product found but brand could not be created.',
-                  action: 'report_mapping',
-                }),
-                { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-              );
-            }
-            
-            brandId = newBrand.id;
-            brandName = newBrand.name;
-          }
-          
+          // Insert product with resolved brand
           const { error: insertError } = await supabase
             .from('products')
             .insert({
               name: productName,
               barcode: normalizedBarcode,
-              brand_id: brandId!,
+              brand_id: ownershipResult.brand_id,
             });
           
           if (!insertError) {
-            // Find parent company
-            const { data: ownership } = await supabase
-              .from('company_ownership')
-              .select(`
-                parent_company_id,
-                companies!company_ownership_parent_company_id_fkey (
-                  id,
-                  name
-                )
-              `)
-              .eq('child_brand_id', brandId)
-              .maybeSingle();
-            
-            const companyInfo = Array.isArray(ownership?.companies) 
-              ? ownership.companies[0] 
-              : ownership?.companies;
-            
             const dur = Math.round(performance.now() - t0);
             console.log(JSON.stringify({ 
               level: "info", 
               fn: "resolve-barcode", 
               barcode: normalizedBarcode,
               source: "openfoodfacts",
-              brand_id: brandId,
-              company_id: companyInfo?.id,
+              brand_id: ownershipResult.brand_id,
+              company_id: ownershipResult.company_id,
+              company_name: ownershipResult.company_name,
               dur_ms: dur,
               ok: true
             }));
@@ -320,14 +383,14 @@ Deno.serve(async (req) => {
             return new Response(
               JSON.stringify({
                 success: true,
-                brand_id: brandId,
-                brand_name: brandName,
-                company_id: companyInfo?.id || null,
-                company_name: companyInfo?.name || null,
+                brand_id: ownershipResult.brand_id,
+                brand_name: mappedBrand,
+                company_id: ownershipResult.company_id,
+                company_name: ownershipResult.company_name,
                 upc: normalizedBarcode,
                 product_name: productName,
                 product: { name: productName, barcode: normalizedBarcode },
-                brand: { id: brandId, name: brandName },
+                brand: { id: ownershipResult.brand_id, name: mappedBrand },
                 source: 'openfoodfacts',
               }),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
