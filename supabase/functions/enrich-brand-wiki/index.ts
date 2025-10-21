@@ -110,14 +110,42 @@ serve(async (req) => {
     // Step 1: Search Wikidata for the brand if we don't have QID
     if (!wikidata_qid) {
       console.log(`[enrich-brand-wiki] Searching Wikidata for: ${brand.name}`);
-      const wikidataSearchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(brand.name)}&language=en&format=json&limit=1&type=item`;
       
-      const wikidataRes = await fetch(wikidataSearchUrl);
-      if (wikidataRes.ok) {
-        const wikidataJson = await wikidataRes.json();
-        if (wikidataJson.search && wikidataJson.search.length > 0) {
-          wikidata_qid = wikidataJson.search[0].id;
-          console.log(`[enrich-brand-wiki] Found Wikidata QID: ${wikidata_qid}`);
+      // Improve search by adding context - try multiple queries
+      const searchQueries = [
+        `${brand.name} company`,
+        `${brand.name} brand`,
+        `${brand.name} food company`,
+        brand.name
+      ];
+      
+      for (const query of searchQueries) {
+        const wikidataSearchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(query)}&language=en&format=json&limit=3&type=item`;
+        
+        const wikidataRes = await fetch(wikidataSearchUrl);
+        if (wikidataRes.ok) {
+          const wikidataJson = await wikidataRes.json();
+          if (wikidataJson.search && wikidataJson.search.length > 0) {
+            // Filter results to prefer companies/brands over people/surnames
+            const filtered = wikidataJson.search.filter((result: any) => {
+              const desc = (result.description || '').toLowerCase();
+              // Exclude people, surnames, given names
+              if (desc.includes('surname') || desc.includes('given name') || 
+                  desc.includes('person') || desc.includes('people')) {
+                return false;
+              }
+              // Prefer companies, brands, products
+              return desc.includes('company') || desc.includes('brand') || 
+                     desc.includes('business') || desc.includes('corporation') ||
+                     desc.includes('product') || !result.description;
+            });
+            
+            if (filtered.length > 0) {
+              wikidata_qid = filtered[0].id;
+              console.log(`[enrich-brand-wiki] Found Wikidata QID with query "${query}": ${wikidata_qid} - ${filtered[0].description}`);
+              break;
+            }
+          }
         }
       }
     }

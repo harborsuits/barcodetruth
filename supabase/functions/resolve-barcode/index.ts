@@ -216,15 +216,16 @@ Deno.serve(async (req) => {
     if (offRes.ok) {
       const offData = await offRes.json();
       
-      if (offData.status === 1 && offData.product) {
+        if (offData.status === 1 && offData.product) {
         const brands = offData.product.brands || offData.product.brands_tags?.[0] || '';
+        const manufacturer = offData.product.manufacturer || offData.product.manufacturing_places || '';
         const normalized = brands.split(',')[0].trim().toLowerCase();
         const productName = offData.product.product_name || offData.product.product_name_en || 'Unknown Product';
         
         // Apply brand overrides
         const mappedBrand = BRAND_OVERRIDES[normalized] || normalized;
         
-        console.log(`[${normalizedBarcode}] Found on OpenFoodFacts: ${productName} -> ${mappedBrand}`);
+        console.log(`[${normalizedBarcode}] Found on OpenFoodFacts: ${productName} -> Brand: ${mappedBrand}, Manufacturer: ${manufacturer}`);
         
         // Try to find the brand in our database
           const { data: brandMatch } = await supabase
@@ -237,9 +238,15 @@ Deno.serve(async (req) => {
           let brandName: string | null = brandMatch?.name ?? null;
           
           if (!brandId) {
+            // Create brand with parent company hint from manufacturer
+            const insertData: any = { name: mappedBrand };
+            if (manufacturer && manufacturer.trim()) {
+              insertData.parent_company = manufacturer.trim();
+            }
+            
             const { data: newBrand, error: brandInsertError } = await supabase
               .from('brands')
-              .insert({ name: mappedBrand })
+              .insert(insertData)
               .select('id, name')
               .single();
             

@@ -502,35 +502,33 @@ export default function BrandProfile() {
           </CardContent>
         </Card>
 
-        {/* 4 Category Score Cards - Show when we have high confidence data */}
-        {confidenceData && confidenceData.confidence_level === 'high' && (
-          <div className="grid grid-cols-2 gap-4">
-            <CategoryScoreCard 
-              category="labor" 
-              score={personalizedScore?.score_labor ?? data.score?.score_labor ?? 50}
-              eventCount={data.evidence?.filter(e => e.category === 'labor').length || 0}
-              onClick={() => setCategoryFilter('labor')}
-            />
-            <CategoryScoreCard 
-              category="environment" 
-              score={personalizedScore?.score_environment ?? data.score?.score_environment ?? 50}
-              eventCount={data.evidence?.filter(e => e.category === 'environment').length || 0}
-              onClick={() => setCategoryFilter('environment')}
-            />
-            <CategoryScoreCard 
-              category="politics" 
-              score={personalizedScore?.score_politics ?? data.score?.score_politics ?? 50}
-              eventCount={data.evidence?.filter(e => e.category === 'politics').length || 0}
-              onClick={() => setCategoryFilter('politics')}
-            />
-            <CategoryScoreCard 
-              category="social" 
-              score={personalizedScore?.score_social ?? data.score?.score_social ?? 50}
-              eventCount={data.evidence?.filter(e => e.category === 'social').length || 0}
-              onClick={() => setCategoryFilter('social')}
-            />
-          </div>
-        )}
+        {/* 4 Category Score Cards - Always show with baseline 50 if no data */}
+        <div className="grid grid-cols-2 gap-4">
+          <CategoryScoreCard 
+            category="labor" 
+            score={personalizedScore?.score_labor ?? data.score?.score_labor ?? 50}
+            eventCount={data.evidence?.filter(e => e.category === 'labor').length || 0}
+            onClick={() => setCategoryFilter('labor')}
+          />
+          <CategoryScoreCard 
+            category="environment" 
+            score={personalizedScore?.score_environment ?? data.score?.score_environment ?? 50}
+            eventCount={data.evidence?.filter(e => e.category === 'environment').length || 0}
+            onClick={() => setCategoryFilter('environment')}
+          />
+          <CategoryScoreCard 
+            category="politics" 
+            score={personalizedScore?.score_politics ?? data.score?.score_politics ?? 50}
+            eventCount={data.evidence?.filter(e => e.category === 'politics').length || 0}
+            onClick={() => setCategoryFilter('politics')}
+          />
+          <CategoryScoreCard 
+            category="social" 
+            score={personalizedScore?.score_social ?? data.score?.score_social ?? 50}
+            eventCount={data.evidence?.filter(e => e.category === 'social').length || 0}
+            onClick={() => setCategoryFilter('social')}
+          />
+        </div>
 
         {/* Data Collection Status - Show when confidence is not high */}
         {confidenceData && confidenceData.confidence_level !== 'high' && (
