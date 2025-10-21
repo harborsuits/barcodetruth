@@ -95,10 +95,12 @@ Deno.serve(async (req) => {
   const t0 = performance.now();
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_PUBLISHABLE_KEY') ?? ''
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    if (!supabaseUrl || !serviceKey) {
+      throw new Error('supabaseKey is required.');
+    }
+    const supabase = createClient(supabaseUrl, serviceKey);
 
     const { barcode } = await req.json() as BarcodeRequest;
 
@@ -165,6 +167,10 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
+          brand_id: product.brands.id,
+          brand_name: product.brands.name,
+          upc: normalizedBarcode,
+          product_name: product.name,
           product: {
             id: product.id,
             name: product.name,
@@ -201,20 +207,57 @@ Deno.serve(async (req) => {
         console.log(`[${normalizedBarcode}] Found on OpenFoodFacts: ${productName} -> ${mappedBrand}`);
         
         // Try to find the brand in our database
-        const { data: brandMatch } = await supabase
-          .from('brands')
-          .select('*')
-          .ilike('id', mappedBrand)
-          .maybeSingle();
-        
-        // Cache the result (24h TTL implied by usage pattern)
-        if (brandMatch) {
+          const { data: brandMatch } = await supabase
+            .from('brands')
+            .select('id, name')
+            .ilike('name', mappedBrand)
+            .maybeSingle();
+          
+          let brandId: string | null = brandMatch?.id ?? null;
+          let brandName: string | null = brandMatch?.name ?? null;
+          
+          if (!brandId) {
+            const { data: newBrand, error: brandInsertError } = await supabase
+              .from('brands')
+              .insert({ name: mappedBrand })
+              .select('id, name')
+              .single();
+            
+            if (brandInsertError || !newBrand) {
+              const dur = Math.round(performance.now() - t0);
+              console.log(JSON.stringify({ 
+                level: "info", 
+                fn: "resolve-barcode", 
+                barcode: normalizedBarcode,
+                source: "openfoodfacts",
+                brand_guess: mappedBrand,
+                dur_ms: dur,
+                ok: false
+              }));
+              
+              return new Response(
+                JSON.stringify({
+                  success: false,
+                  product: { name: productName, barcode: normalizedBarcode },
+                  brand_guess: mappedBrand,
+                  error: 'Brand creation failed',
+                  message: 'Product found but brand could not be created.',
+                  action: 'report_mapping',
+                }),
+                { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+            
+            brandId = newBrand.id;
+            brandName = newBrand.name;
+          }
+          
           const { error: insertError } = await supabase
             .from('products')
             .insert({
               name: productName,
               barcode: normalizedBarcode,
-              brand_id: brandMatch.id,
+              brand_id: brandId!,
             });
           
           if (!insertError) {
@@ -224,7 +267,7 @@ Deno.serve(async (req) => {
               fn: "resolve-barcode", 
               barcode: normalizedBarcode,
               source: "openfoodfacts",
-              brand_id: brandMatch.id,
+              brand_id: brandId,
               dur_ms: dur,
               ok: true
             }));
@@ -232,14 +275,17 @@ Deno.serve(async (req) => {
             return new Response(
               JSON.stringify({
                 success: true,
+                brand_id: brandId,
+                brand_name: brandName,
+                upc: normalizedBarcode,
+                product_name: productName,
                 product: { name: productName, barcode: normalizedBarcode },
-                brand: brandMatch,
+                brand: { id: brandId, name: brandName },
                 source: 'openfoodfacts',
               }),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
           }
-        }
         
         // Brand found but not in our DB - suggest mapping
         const dur = Math.round(performance.now() - t0);
