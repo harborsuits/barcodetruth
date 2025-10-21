@@ -161,8 +161,15 @@ export function SubsidiaryFeed({ brandId }: { brandId: string }) {
             </Card>
           ))
         ) : (
-          <Card className="p-8 text-center">
-            <p className="text-muted-foreground">No events found</p>
+          <Card className="p-8 text-center text-muted-foreground">
+            <p className="text-sm">
+              {includeSubsidiaries 
+                ? 'No events found for this brand or its subsidiaries'
+                : 'No recent events found'}
+            </p>
+            <p className="text-xs mt-2">
+              Try expanding "Show detailed evidence breakdown" below for all historical data
+            </p>
           </Card>
         )}
       </div>

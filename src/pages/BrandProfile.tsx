@@ -669,15 +669,28 @@ export default function BrandProfile() {
               );
 
               if (!sortedEvidence.length) {
+                const totalEvents = data.evidence?.length || 0;
                 return (
                   <div className="text-center py-12 text-muted-foreground">
                     <AlertCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm">
-                      {categoryFilter === 'all' 
-                        ? 'No evidence available yet for this brand.'
-                        : `No ${categoryFilter} events found for this brand.`
-                      }
-                    </p>
+                    {totalEvents === 0 ? (
+                      <p className="text-sm">No evidence available yet for this brand.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">
+                          No {categoryFilter} events found
+                        </p>
+                        <p className="text-xs">
+                          {totalEvents} event{totalEvents !== 1 ? 's' : ''} available in other categories.
+                          <button 
+                            onClick={() => setCategoryFilter('all')}
+                            className="ml-2 text-primary hover:underline"
+                          >
+                            Show all
+                          </button>
+                        </p>
+                      </div>
+                    )}
                   </div>
                 );
               }
