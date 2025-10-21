@@ -41,16 +41,26 @@ function mapToMainCategory(categoryCode: string | null): "labor" | "environment"
   return 'social';
 }
 
+// Ethical issue keywords - focused on labor, environment, politics, social impact
+// Explicitly EXCLUDE financial/stock market terms to reduce noise
 const QUERY_TERMS = [
+  // Labor issues
   "OSHA", "violation", "safety", "workplace", "worker", "union", "wage", "discrimination",
-  "harassment", "injury", "fatality", "labor", "employee", "fired", "layoff",
+  "harassment", "injury", "fatality", "labor", "strike", "fired", "layoff", "unfair",
+  // Environmental issues
   "EPA", "pollution", "emissions", "environmental", "toxic", "waste", "spill",
-  "contamination", "climate", "sustainability", "fine", "penalty",
-  "lawsuit", "recall", "boycott", "scandal", "fraud", "deceptive", "settlement",
-  "consumer", "data breach", "privacy", "investigation",
+  "contamination", "climate", "sustainability", 
+  // Legal/regulatory
+  "fine", "penalty", "lawsuit", "recall", "boycott", "scandal", "fraud", "settlement",
+  "consumer", "data breach", "privacy", "investigation", "probe", "charged", "accused",
+  // Politics
   "FEC", "donation", "lobbying", "PAC", "campaign", "political",
-  "allegation", "charged", "accused", "complaint", "regulatory"
+  // Social issues
+  "allegation", "complaint", "regulatory", "controversy", "ethics", "misconduct"
 ].join(" OR ");
+
+// Financial noise patterns to explicitly filter out
+const FINANCIAL_NOISE_PATTERNS = /\b(shares?|stock|holdings?|portfolio|analyst|rating|price target|buys?|sells?|equity|dividend|EPS|earnings per share|institutional|investment|investor|fund|capital|acquisition target|market cap|valuation)\b/i;
 
 function canonicalize(url: string): string {
   try {
@@ -709,10 +719,24 @@ Deno.serve(async (req) => {
         const domainName = url.hostname.replace(/^www\./, '');
         const categoryResult = await classifyCategory(supabase, domainName, url.pathname, title, body);
         
-        // Skip NOISE articles entirely - don't insert them
+        // CRITICAL: Skip ALL noise events entirely - both category_code and title-based detection
         if (categoryResult.category_code?.startsWith('NOISE.')) {
           totalSkipped++;
-          console.log(`[Orchestrator] Skipping NOISE article: ${title.slice(0, 60)}`);
+          console.log(`[Orchestrator] BLOCKING noise (category_code): ${title.slice(0, 60)}`);
+          continue;
+        }
+        
+        // Additional title-based financial noise detection (catches what category_code misses)
+        if (FINANCIAL_NOISE_PATTERNS.test(title)) {
+          totalSkipped++;
+          console.log(`[Orchestrator] BLOCKING financial noise (title pattern): ${title.slice(0, 60)}`);
+          continue;
+        }
+        
+        // Skip if title contains financial transaction verbs with company/brand context
+        if (/\b(takes position|boosts stock|reduces stake|trims position|purchases new stake|sells.*shares|has.*holdings)\b/i.test(title)) {
+          totalSkipped++;
+          console.log(`[Orchestrator] BLOCKING financial transaction: ${title.slice(0, 60)}`);
           continue;
         }
         
