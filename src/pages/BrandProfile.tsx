@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ArrowLeft, ExternalLink, AlertCircle, Building2, Link as LinkIcon } from 'lucide-react';
+import { CategoryScoreCard } from '@/components/brand/CategoryScoreCard';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -36,6 +37,10 @@ type BrandProfile = {
   } | null;
   score?: { 
     score: number | null; 
+    score_labor?: number | null;
+    score_environment?: number | null;
+    score_politics?: number | null;
+    score_social?: number | null;
     updated_at: string | null; 
     reason_json?: any | null 
   } | null;
@@ -496,6 +501,36 @@ export default function BrandProfile() {
             </div>
           </CardContent>
         </Card>
+
+        {/* 4 Category Score Cards - Show when we have high confidence data */}
+        {confidenceData && confidenceData.confidence_level === 'high' && (
+          <div className="grid grid-cols-2 gap-4">
+            <CategoryScoreCard 
+              category="labor" 
+              score={personalizedScore?.score_labor ?? data.score?.score_labor ?? 50}
+              eventCount={data.evidence?.filter(e => e.category === 'labor').length || 0}
+              onClick={() => setCategoryFilter('labor')}
+            />
+            <CategoryScoreCard 
+              category="environment" 
+              score={personalizedScore?.score_environment ?? data.score?.score_environment ?? 50}
+              eventCount={data.evidence?.filter(e => e.category === 'environment').length || 0}
+              onClick={() => setCategoryFilter('environment')}
+            />
+            <CategoryScoreCard 
+              category="politics" 
+              score={personalizedScore?.score_politics ?? data.score?.score_politics ?? 50}
+              eventCount={data.evidence?.filter(e => e.category === 'politics').length || 0}
+              onClick={() => setCategoryFilter('politics')}
+            />
+            <CategoryScoreCard 
+              category="social" 
+              score={personalizedScore?.score_social ?? data.score?.score_social ?? 50}
+              eventCount={data.evidence?.filter(e => e.category === 'social').length || 0}
+              onClick={() => setCategoryFilter('social')}
+            />
+          </div>
+        )}
 
         {/* Data Collection Status - Show when confidence is not high */}
         {confidenceData && confidenceData.confidence_level !== 'high' && (

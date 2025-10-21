@@ -14,31 +14,35 @@ type Brand = { id: string; name: string; aliases: string[]; ticker: string | nul
 type GdeltItem = { url: string; title: string; seendate: string; domain?: string };
 type NewsArticle = { title: string; summary: string; url: string; published_at: string; source_name: string; category?: "labor" | "environment" | "politics" | "social" };
 
-// Map sub-categories to main 4 consumer categories
-function mapToMainCategory(categoryCode: string | null): "labor" | "environment" | "politics" | "social" {
+// Map category_code to main 4-category system
+function mapToMainCategory(categoryCode: string | null): 'labor' | 'environment' | 'politics' | 'social' | null {
   if (!categoryCode) return 'social';
   
-  // Labor: LABOR.* + OSHA
-  if (categoryCode.startsWith('LABOR.') || categoryCode === 'REGULATORY.OSHA') {
-    return 'labor';
-  }
+  const upper = categoryCode.toUpperCase();
+  if (upper.startsWith('LABOR.') || upper === 'REGULATORY.OSHA') return 'labor';
+  if (upper.startsWith('ESG.') || upper === 'REGULATORY.EPA') return 'environment';
+  if (upper.startsWith('POLICY.') || upper.includes('FTC') || upper.includes('SEC')) return 'politics';
+  if (upper.startsWith('NOISE.') || upper.startsWith('FIN.')) return null; // Skip noise entirely
   
-  // Environment: ESG climate/governance + EPA
-  if (categoryCode.startsWith('ESG.CLIMATE') || 
-      categoryCode === 'ESG.GOVERNANCE' || 
-      categoryCode === 'REGULATORY.EPA') {
-    return 'environment';
-  }
+  return 'social'; // LEGAL, PRODUCT, default
+}
+
+// Calculate impact score based on severity and verification
+function calculateImpact(severity: string | null, verification: string): number {
+  let baseImpact = 0;
   
-  // Politics: POLICY.* + FTC/SEC
-  if (categoryCode.startsWith('POLICY.') || 
-      categoryCode === 'REGULATORY.FTC' || 
-      categoryCode === 'REGULATORY.SEC') {
-    return 'politics';
-  }
+  // Severity weighting
+  if (severity === 'catastrophic') baseImpact = -10;
+  else if (severity === 'severe') baseImpact = -7;
+  else if (severity === 'moderate') baseImpact = -5;
+  else if (severity === 'minor') baseImpact = -3;
+  else baseImpact = -4; // default moderate impact
   
-  // Social: everything else (ESG.SOCIAL, PRODUCT.*, LEGAL.*, etc.)
-  return 'social';
+  // Verification boost
+  if (verification === 'official') baseImpact = Math.floor(baseImpact * 1.5);
+  else if (verification === 'corroborated') baseImpact = Math.floor(baseImpact * 1.2);
+  
+  return baseImpact;
 }
 
 // Ethical issue keywords - focused on labor, environment, politics, social impact
@@ -742,6 +746,11 @@ Deno.serve(async (req) => {
         
         // Map sub-category to one of 4 main consumer categories
         const mainCategory = mapToMainCategory(categoryResult.category_code);
+        if (!mainCategory) {
+          totalSkipped++;
+          console.log(`[Orchestrator] BLOCKING unmappable/noise category: ${categoryResult.category_code}`);
+          continue;
+        }
         
         console.log(`[Orchestrator] Classified "${title.slice(0, 50)}..." as ${categoryResult.category_code} -> mapped to ${mainCategory}`);
         
