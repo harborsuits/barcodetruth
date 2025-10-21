@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
           scans_per_month: scansPerMonth,
           next_reset: nextReset.toISOString()
         }),
-        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
             reason: "cooldown",
             message: "Please wait 6 hours between scans of the same brand"
           }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
     }
@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
       console.error("[deep-scan-start] Insert error:", insertError);
       return new Response(
         JSON.stringify({ allowed: false, reason: "insert_failed" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

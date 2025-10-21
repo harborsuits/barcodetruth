@@ -73,24 +73,42 @@ Deno.serve(async (req) => {
 
       console.log(`[deep-scan-runner] Brand: ${brand.name}`);
 
-      // Call unified-news-orchestrator with brand-specific parameters
-      const { data: orchestratorResult, error: orchError } = await admin.functions.invoke(
-        "unified-news-orchestrator",
-        {
-          body: {
+      // Call unified-news-orchestrator with brand-specific parameters (with timeout)
+      const fnUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/unified-news-orchestrator`;
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 45000);
+
+      let newEventsCount = 0;
+      try {
+        const resp = await fetch(fnUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            'apikey': Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
             brand_id: brand.id,
             brand_name: brand.name,
             max_articles: 40,
-            mode: "deep_scan"
-          }
+            mode: 'deep_scan'
+          }),
+          signal: ctrl.signal
+        });
+        clearTimeout(timeout);
+
+        if (!resp.ok) {
+          const txt = await resp.text();
+          throw new Error(`Orchestrator HTTP ${resp.status}: ${txt}`);
         }
-      );
-
-      if (orchError) {
-        throw new Error(`Orchestrator error: ${orchError.message}`);
+        const orchestratorResult = await resp.json();
+        newEventsCount = orchestratorResult?.new_events || 0;
+      } catch (err) {
+        if ((err as any).name === 'AbortError') {
+          throw new Error('Orchestrator timed out');
+        }
+        throw err;
       }
-
-      const newEventsCount = orchestratorResult?.new_events || 0;
       console.log(`[deep-scan-runner] Found ${newEventsCount} new events`);
 
       // Refresh brand monitoring status

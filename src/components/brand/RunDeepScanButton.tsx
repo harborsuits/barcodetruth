@@ -37,7 +37,8 @@ export function RunDeepScanButton({ brandId, disabled, onScanComplete }: RunDeep
         body: { brand_id: brandId }
       });
 
-      if (error) throw error;
+      // Some responses may return 200 with allowed=false; treat non-200 as error only
+      if (error && (data == null || data.allowed === undefined)) throw error;
 
       if (!data.allowed) {
         if (data.reason === "quota_exceeded") {
