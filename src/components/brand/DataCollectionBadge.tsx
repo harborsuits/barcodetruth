@@ -32,7 +32,7 @@ export function DataCollectionBadge({
   ingestStatus = 'Active'
 }: DataCollectionBadgeProps) {
   const significantCategories = categoriesCovered.filter(cat => 
-    ['labor', 'environment', 'political', 'social', 'esg', 'regulatory', 'legal'].includes(cat)
+    ['labor', 'environment', 'political', 'social', 'esg', 'regulatory', 'legal', 'product_safety', 'privacy_ai', 'human_rights_supply', 'antitrust_tax', 'policy'].includes(cat.toLowerCase())
   );
   const getStatusConfig = () => {
     if (confidenceLevel === 'high') {
@@ -162,7 +162,7 @@ export function DataCollectionBadge({
           )}
           {significantCategories.length === 0 && eventCount > 0 && (
             <div className="pt-2 text-xs text-muted-foreground italic">
-              All events are general business news. No ethical/labor/environmental signals yet.
+              All events are general business news or financial market chatter. No ethical/labor/environmental signals yet.
             </div>
           )}
 

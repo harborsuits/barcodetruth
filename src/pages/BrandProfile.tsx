@@ -721,6 +721,21 @@ export default function BrandProfile() {
                                 );
                               })()}
                               
+                              {/* Secondary categories */}
+                              {(ev as any).secondary_categories?.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {(ev as any).secondary_categories.map((secCat: string, idx: number) => (
+                                    <Badge 
+                                      key={idx}
+                                      variant="secondary" 
+                                      className="text-xs opacity-70"
+                                    >
+                                      +{secCat}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                              
                               <span className="text-xs text-muted-foreground">
                                 {formatDistanceToNow(new Date(ev.event_date), { addSuffix: true })}
                               </span>

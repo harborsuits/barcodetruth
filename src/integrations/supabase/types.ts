@@ -558,6 +558,7 @@ export type Database = {
           brand_id: string
           category: Database["public"]["Enums"]["event_category"]
           category_code: string | null
+          category_confidence: number | null
           category_score: number | null
           company_response_date: string | null
           company_response_summary: string | null
@@ -576,6 +577,7 @@ export type Database = {
           is_press_release: boolean | null
           is_test: boolean
           jurisdiction: string | null
+          noise_reason: string | null
           occurred_at: string | null
           orientation: Database["public"]["Enums"]["event_orientation"] | null
           raw_data: Json | null
@@ -583,6 +585,7 @@ export type Database = {
           relevance_score_norm: number | null
           relevance_score_raw: number
           resolved: boolean | null
+          secondary_categories: string[] | null
           severity: string | null
           source_url: string | null
           source_url_sha256: string | null
@@ -598,6 +601,7 @@ export type Database = {
           brand_id: string
           category?: Database["public"]["Enums"]["event_category"]
           category_code?: string | null
+          category_confidence?: number | null
           category_score?: number | null
           company_response_date?: string | null
           company_response_summary?: string | null
@@ -616,6 +620,7 @@ export type Database = {
           is_press_release?: boolean | null
           is_test?: boolean
           jurisdiction?: string | null
+          noise_reason?: string | null
           occurred_at?: string | null
           orientation?: Database["public"]["Enums"]["event_orientation"] | null
           raw_data?: Json | null
@@ -623,6 +628,7 @@ export type Database = {
           relevance_score_norm?: number | null
           relevance_score_raw?: number
           resolved?: boolean | null
+          secondary_categories?: string[] | null
           severity?: string | null
           source_url?: string | null
           source_url_sha256?: string | null
@@ -640,6 +646,7 @@ export type Database = {
           brand_id?: string
           category?: Database["public"]["Enums"]["event_category"]
           category_code?: string | null
+          category_confidence?: number | null
           category_score?: number | null
           company_response_date?: string | null
           company_response_summary?: string | null
@@ -658,6 +665,7 @@ export type Database = {
           is_press_release?: boolean | null
           is_test?: boolean
           jurisdiction?: string | null
+          noise_reason?: string | null
           occurred_at?: string | null
           orientation?: Database["public"]["Enums"]["event_orientation"] | null
           raw_data?: Json | null
@@ -665,6 +673,7 @@ export type Database = {
           relevance_score_norm?: number | null
           relevance_score_raw?: number
           resolved?: boolean | null
+          secondary_categories?: string[] | null
           severity?: string | null
           source_url?: string | null
           source_url_sha256?: string | null

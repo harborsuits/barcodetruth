@@ -782,6 +782,20 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // Categorize event asynchronously (don't block the insert flow)
+        supabase.functions.invoke('categorize-event', {
+          body: {
+            event_id: eventId,
+            brand_id: b.id,
+            title: title,
+            summary: body,
+            content: body,
+            source_domain: domainName
+          }
+        }).catch(err => {
+          console.error(`[Categorize] Error for event ${eventId}:`, err);
+        });
+
         // 2) Upsert event_sources and link it via event_id
         const domain = url.hostname;
         const { error: srcErr, data: srcData } = await supabase
