@@ -199,57 +199,43 @@ export const Scan = () => {
 
   const startScanner = async () => {
     try {
-      alert('1. Button clicked!');
-      alert('2. Scan limit check bypassed (testing)');
-      
       if (!videoRef.current) {
-        alert('3. STOPPED: Video element not ready');
-        return;
-      }
-      alert('3. Video element ready');
-      
-      // Safety check state setters
-      if (!setError || !setScanResult) {
-        alert('4. CRASH: State setters undefined!');
-        return;
-      }
-      alert('4. State setters exist');
-      
-      try {
-        setError('');
-        alert('5. setError worked');
-      } catch (e: any) {
-        alert('5. CRASH in setError: ' + e.message);
+        console.error('Video element not ready');
+        setError('Video element not ready');
         return;
       }
       
-      try {
-        setScanResult('scanning');
-        alert('6. setScanResult worked');
-      } catch (e: any) {
-        alert('6. CRASH in setScanResult: ' + e.message);
-        return;
-      }
+      setError('');
+      setScanResult('scanning');
       
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        alert('7. STOPPED: Camera not supported');
+        setError('Camera not supported in this browser. Use manual entry below.');
+        setScanResult('idle');
+        toast({
+          title: "Camera not supported",
+          description: "Your browser doesn't support camera access. Use manual barcode entry below.",
+          variant: "destructive"
+        });
         return;
       }
-      alert('7. Camera API supported');
       
       const inIframe = window.self !== window.top;
       if (inIframe) {
-        alert('8. STOPPED: In iframe');
+        setScanResult('idle');
         return;
       }
-      alert('8. Not in iframe');
       
-      alert('9. Calling startBarcodeScanner...');
       await startBarcodeScanner();
-      alert('10. SUCCESS! Camera started!');
       
     } catch (error: any) {
-      alert('OUTER CRASH: ' + error.message);
+      console.error('startScanner crashed:', error);
+      setError(error.message);
+      setScanResult('idle');
+      toast({
+        title: "Camera error",
+        description: error.message,
+        variant: "destructive"
+      });
     }
   };
 
@@ -418,9 +404,9 @@ export const Scan = () => {
           </Card>
         )}
 
-        <Card>
+        <Card className="overflow-hidden">
           <CardContent className="pt-6">
-            <div className="aspect-[4/3] bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
+            <div className="relative w-full max-w-full aspect-[4/3] bg-muted rounded-lg flex items-center justify-center overflow-hidden">
               {/* Video and canvas - always in DOM, hidden when not scanning */}
               <div className={`relative w-full h-full ${isScanning || scanResult === 'processing' ? 'block' : 'hidden'}`}>
                 <video 
@@ -434,6 +420,15 @@ export const Scan = () => {
                   className="absolute inset-0 pointer-events-none z-10" 
                 />
               </div>
+
+              {/* Debug overlay - shows scanning status */}
+              {isScanning && (
+                <div className="absolute bottom-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-mono z-30">
+                  <div>Status: {isPaused ? 'PAUSED' : 'SCANNING'}</div>
+                  <div>Camera: {facingMode}</div>
+                  <div>Processing: {scanResult === 'processing' ? 'YES' : 'NO'}</div>
+                </div>
+              )}
 
               {/* Scanning UI overlay - only visible when scanning */}
               {(isScanning || scanResult === 'processing') && (
