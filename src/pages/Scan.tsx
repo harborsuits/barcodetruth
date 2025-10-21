@@ -200,8 +200,6 @@ export const Scan = () => {
   const startScanner = async () => {
     try {
       alert('1. Button clicked!');
-      
-      // Scan limit check bypassed
       alert('2. Scan limit check bypassed (testing)');
       
       if (!videoRef.current) {
@@ -210,35 +208,48 @@ export const Scan = () => {
       }
       alert('3. Video element ready');
       
-      setError('');
-      setScanResult('scanning');
-      alert('4. State updated to scanning');
-      
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        alert('5. STOPPED: Camera API not supported');
-        setError('Camera not supported in this browser. Use manual entry below.');
-        setScanResult('idle');
+      // Safety check state setters
+      if (!setError || !setScanResult) {
+        alert('4. CRASH: State setters undefined!');
         return;
       }
-      alert('5. Camera API supported');
+      alert('4. State setters exist');
+      
+      try {
+        setError('');
+        alert('5. setError worked');
+      } catch (e: any) {
+        alert('5. CRASH in setError: ' + e.message);
+        return;
+      }
+      
+      try {
+        setScanResult('scanning');
+        alert('6. setScanResult worked');
+      } catch (e: any) {
+        alert('6. CRASH in setScanResult: ' + e.message);
+        return;
+      }
+      
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('7. STOPPED: Camera not supported');
+        return;
+      }
+      alert('7. Camera API supported');
       
       const inIframe = window.self !== window.top;
       if (inIframe) {
-        alert('6. STOPPED: In iframe');
-        setScanResult('idle');
+        alert('8. STOPPED: In iframe');
         return;
       }
-      alert('6. Not in iframe');
+      alert('8. Not in iframe');
       
-      alert('7. About to call startBarcodeScanner...');
+      alert('9. Calling startBarcodeScanner...');
       await startBarcodeScanner();
-      alert('8. SUCCESS! Camera started!');
+      alert('10. SUCCESS! Camera started!');
       
     } catch (error: any) {
-      alert('CRASH: ' + error.message);
-      console.error('startScanner crashed:', error);
-      setError(error.message);
-      setScanResult('idle');
+      alert('OUTER CRASH: ' + error.message);
     }
   };
 
