@@ -127,7 +127,14 @@ async function resolveOwnershipChain(
   brandName: string,
   parentCompanyHint: string,
   logoUrl?: string
-): Promise<{ brand_id: string; company_id: string | null; company_name: string | null; ultimate_parent_id: string | null; ultimate_parent_name: string | null }> {
+): Promise<{ 
+  brand_id: string; 
+  company_id: string | null; 
+  company_name: string | null; 
+  ultimate_parent_id: string | null; 
+  ultimate_parent_name: string | null;
+  is_new_brand: boolean;
+}> {
   
   console.log('[resolveOwnershipChain] START:', { brandName, parentCompanyHint, logoUrl });
   
@@ -138,7 +145,9 @@ async function resolveOwnershipChain(
     .ilike('name', brandName)
     .maybeSingle();
   
+  let isNewBrand = false;
   if (!brand) {
+    isNewBrand = true;
     const brandData: any = { name: brandName };
     if (logoUrl) {
       brandData.logo_url = logoUrl;
@@ -171,7 +180,8 @@ async function resolveOwnershipChain(
       company_id: null, 
       company_name: null,
       ultimate_parent_id: null,
-      ultimate_parent_name: null
+      ultimate_parent_name: null,
+      is_new_brand: false
     };
   }
   
@@ -336,7 +346,8 @@ async function resolveOwnershipChain(
     company_id: companyId,
     company_name: companyName,
     ultimate_parent_id: ultimateParentId,
-    ultimate_parent_name: ultimateParentName
+    ultimate_parent_name: ultimateParentName,
+    is_new_brand: isNewBrand
   };
 }
 
@@ -705,9 +716,28 @@ Deno.serve(async (req) => {
               brand_id: ownershipResult.brand_id,
               company_id: ownershipResult.company_id,
               company_name: ownershipResult.company_name,
+              is_new_brand: ownershipResult.is_new_brand,
               dur_ms: dur,
               ok: true
             }));
+            
+            // Trigger initial news ingestion for new brands (non-blocking)
+            if (ownershipResult.is_new_brand) {
+              console.log(`[resolve-barcode] Triggering news ingestion for new brand: ${mappedBrand}`);
+              
+              // Fire and forget - don't await to avoid blocking response
+              supabase.functions.invoke('unified-news-orchestrator', {
+                body: { brand_id: ownershipResult.brand_id }
+              }).then((result: any) => {
+                if (result.error) {
+                  console.error('[resolve-barcode] News ingestion error:', result.error);
+                } else {
+                  console.log('[resolve-barcode] News ingestion triggered:', result.data);
+                }
+              }).catch((err: Error) => {
+                console.error('[resolve-barcode] News ingestion failed:', err);
+              });
+            }
             
             return new Response(
               JSON.stringify({
