@@ -197,6 +197,16 @@ function normalize(s: string): string {
 
 function scoreRelevanceStrict(brand: Brand, title: string, body: string, url: URL): { score: number; reason: string } {
   if (hardExclude(brand, title, body, url)) return { score: 0, reason: 'hard_exclude' };
+  
+  // CRITICAL: Block financial noise BEFORE scoring (not after classification)
+  if (FINANCIAL_NOISE_PATTERNS.test(title)) {
+    return { score: 0, reason: 'financial_noise' };
+  }
+  
+  // Additional financial transaction patterns
+  if (/\b(takes position|boosts stock|reduces stake|trims position|purchases new stake|sells.*shares|has.*holdings)\b/i.test(title)) {
+    return { score: 0, reason: 'financial_transaction' };
+  }
 
   const cfg = (brand as any).monitoring_config || {};
   const minScore = typeof cfg.min_score === 'number' ? cfg.min_score : 0.5;
