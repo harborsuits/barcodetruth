@@ -14,9 +14,8 @@ export function BrandWikiEnrichment({ brandId, hasDescription }: { brandId: stri
     const enrichBrand = async () => {
       try {
         console.log('[Wiki] Enriching brand:', brandId);
-        const { data, error } = await supabase.functions.invoke('enrich-brand-wiki', {
-          body: { brand_id: brandId }
-        });
+        // Note: enrich-brand-wiki expects brand_id as query param, not body
+        const { data, error } = await supabase.functions.invoke(`enrich-brand-wiki?brand_id=${brandId}`);
         
         if (error) console.error('[Wiki] Error:', error);
         else console.log('[Wiki] Success:', data);
