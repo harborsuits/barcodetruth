@@ -46,6 +46,8 @@ export const Scan = () => {
   const [isInIframe, setIsInIframe] = useState(false);
   const [pendingBarcode, setPendingBarcode] = useState<string | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const lastDetectedRef = useRef<string | null>(null);
+  const lastDetectedAtRef = useRef<number>(0);
 
   // Check HTTPS (except localhost)
   useEffect(() => {
@@ -99,16 +101,28 @@ export const Scan = () => {
   }, []);
 
   const handleBarcodeDetected = useCallback((barcode: string) => {
+    // Ignore while processing or already confirming
     if (scanResult === 'processing' || pendingBarcode) return;
-    
-    // Validate barcode format
-    if (!isValidProductBarcode(barcode)) {
-      console.log('Ignored invalid barcode:', barcode, 'length:', barcode.length);
-      return; // Keep scanning
+
+    // Normalize input
+    const detected = (barcode || '').trim();
+
+    // Validate format
+    if (!isValidProductBarcode(detected)) {
+      console.log('Ignored invalid barcode:', detected, 'length:', detected.length);
+      return;
     }
-    
+
+    // Deduplicate same code within 1500ms
+    const now = Date.now();
+    if (lastDetectedRef.current === detected && now - lastDetectedAtRef.current < 1500) {
+      return;
+    }
+    lastDetectedRef.current = detected;
+    lastDetectedAtRef.current = now;
+
     // Pause scanning and show confirmation
-    setPendingBarcode(barcode);
+    setPendingBarcode(detected);
     setShowConfirmDialog(true);
   }, [scanResult, pendingBarcode]);
 

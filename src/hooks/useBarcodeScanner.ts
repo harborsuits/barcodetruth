@@ -102,8 +102,6 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
         BarcodeFormat.UPC_E,
         BarcodeFormat.EAN_13,
         BarcodeFormat.EAN_8,
-        BarcodeFormat.CODE_128,
-        BarcodeFormat.QR_CODE,
       ]);
 
       const reader = new BrowserMultiFormatReader(hints);
