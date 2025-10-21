@@ -112,6 +112,7 @@ export default function BrandProfile() {
   const [error, setError] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [hasSetDefaultFilter, setHasSetDefaultFilter] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Get current user for personalized scoring
   const [user, setUser] = useState<any>(null);
@@ -203,6 +204,7 @@ export default function BrandProfile() {
       return;
     }
 
+    setLoading(true);
     (async () => {
       try {
         const { data: profileData, error: profileError } = await supabase
@@ -244,7 +246,7 @@ export default function BrandProfile() {
         setLoading(false);
       }
     })();
-  }, [actualId]);
+  }, [actualId, refreshKey]);
 
   if (loading) {
     return (
@@ -312,7 +314,11 @@ export default function BrandProfile() {
 
   return (
     <div className="min-h-screen bg-background">
-      <BrandWikiEnrichment brandId={actualId!} hasDescription={!!data.brand.description} />
+      <BrandWikiEnrichment 
+        brandId={actualId!} 
+        hasDescription={!!data.brand.description}
+        onEnriched={() => setRefreshKey(k => k + 1)}
+      />
       <header className="sticky top-0 z-10 bg-card border-b">
         <div className="container max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
