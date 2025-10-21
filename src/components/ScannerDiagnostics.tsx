@@ -108,7 +108,8 @@ export function ScannerDiagnostics({ open, onOpenChange }: { open: boolean; onOp
       });
       const latency = Math.round(performance.now() - t0);
 
-      if (error) {
+      // 404 is expected for unknown barcodes - it means the endpoint works
+      if (error && !error.message?.includes('404')) {
         checks[idx] = {
           check: 'Endpoint Test',
           status: 'fail',
@@ -124,10 +125,11 @@ export function ScannerDiagnostics({ open, onOpenChange }: { open: boolean; onOp
           latencyMs: latency
         };
       } else {
+        // 404 or product not found = endpoint is working fine
         checks[idx] = {
           check: 'Endpoint Test',
-          status: 'warning',
-          message: `Not found (but endpoint working, ${latency}ms)`,
+          status: 'pass',
+          message: `Endpoint working (${latency}ms)`,
           latencyMs: latency
         };
       }
