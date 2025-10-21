@@ -289,6 +289,19 @@ export default function BrandProfile() {
     })();
   }, [actualId, refreshKey]);
 
+  // Trigger server-side logo resolution if missing (must be before early returns)
+  useEffect(() => {
+    if (!actualId || !data?.brand || data.brand.logo_url) return;
+    supabase.functions
+      .invoke('resolve-brand-logo', {
+        body: { brand_id: actualId }
+      })
+      .then(() => {
+        setTimeout(() => setRefreshKey((k) => k + 1), 1000);
+      })
+      .catch((err) => console.error('resolve-brand-logo error:', err));
+  }, [actualId, data?.brand?.logo_url]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -352,19 +365,6 @@ export default function BrandProfile() {
 
   // Create monogram from brand name
   const monogram = data.brand.name?.[0]?.toUpperCase() ?? 'B';
-
-  // Trigger server-side logo resolution if missing
-  useEffect(() => {
-    if (!actualId || !data?.brand || data.brand.logo_url) return;
-    supabase.functions
-      .invoke('resolve-brand-logo', {
-        body: { brand_id: actualId }
-      })
-      .then(() => {
-        setTimeout(() => setRefreshKey((k) => k + 1), 1000);
-      })
-      .catch((err) => console.error('resolve-brand-logo error:', err));
-  }, [actualId, data?.brand?.logo_url]);
 
   return (
     <div className="min-h-screen bg-background">
