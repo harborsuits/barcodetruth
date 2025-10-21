@@ -19,7 +19,6 @@ import { RollupScores } from '@/components/ownership/RollupScores';
 import { DataCollectionBadge } from '@/components/brand/DataCollectionBadge';
 import { ReportIssueDialog } from '@/components/ReportIssueDialog';
 import { SuggestEvidenceDialog } from '@/components/SuggestEvidenceDialog';
-import { RunDeepScanButton } from '@/components/brand/RunDeepScanButton';
 import { OwnershipCard } from '@/components/brand/OwnershipCard';
 import { KeyPeopleRow } from '@/components/brand/KeyPeopleRow';
 import { ValuationChip } from '@/components/brand/ValuationChip';
@@ -132,49 +131,6 @@ export default function BrandProfile() {
       setUser(data?.user);
     });
   }, []);
-
-  // Check for successful payment and trigger scan
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('payment') === 'success' && params.get('scan') === 'true') {
-      // Payment successful, trigger scan
-      const triggerScan = async () => {
-        try {
-          const { data, error } = await supabase.functions.invoke("deep-scan-start", {
-            body: { brand_id: actualId }
-          });
-
-          if (error || !data?.allowed) {
-            toast({
-              title: "Scan failed",
-              description: "Unable to start scan after payment",
-              variant: "destructive"
-            });
-            return;
-          }
-
-          toast({
-            title: "Payment received",
-            description: "Starting deep scan...",
-          });
-
-          // Clean URL
-          window.history.replaceState({}, '', `/brand/${actualId}`);
-        } catch (err) {
-          console.error("Error triggering scan:", err);
-        }
-      };
-
-      triggerScan();
-    } else if (params.get('payment') === 'canceled') {
-      toast({
-        title: "Payment canceled",
-        description: "Deep scan was not started",
-        variant: "destructive"
-      });
-      window.history.replaceState({}, '', `/brand/${actualId}`);
-    }
-  }, [actualId, toast]);
 
   // Auto-switch to Noise tab if all events are noise (only on initial load)
   useEffect(() => {
@@ -555,21 +511,7 @@ export default function BrandProfile() {
               ingestStatus={confidenceData.ingest_status}
             />
 
-            <div className="max-w-xs mx-auto">
-              <RunDeepScanButton
-                brandId={actualId!}
-                onScanComplete={() => {
-                  queryClient.invalidateQueries({ queryKey: ['brand-profile', actualId] });
-                  queryClient.invalidateQueries({ queryKey: ['brand-confidence', actualId] });
-                  queryClient.invalidateQueries({ queryKey: ['company-info', actualId] });
-                  setRefreshKey(k => k + 1);
-                  // Also re-trigger enrichment after scan
-                  supabase.functions.invoke('enrich-company-profile', {
-                    body: { brand_id: actualId }
-                  });
-                }}
-              />
-            </div>
+            {/* Deep scan temporarily disabled - will enable when ready */}
           </div>
         )}
 
