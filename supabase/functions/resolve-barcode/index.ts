@@ -108,6 +108,8 @@ async function resolveOwnershipChain(
   parentCompanyHint: string
 ): Promise<{ brand_id: string; company_id: string | null; company_name: string | null; ultimate_parent_id: string | null; ultimate_parent_name: string | null }> {
   
+  console.log('[resolveOwnershipChain] START:', { brandName, parentCompanyHint });
+  
   // Step 1: Find or create the BRAND
   let { data: brand } = await supabase
     .from('brands')
@@ -123,6 +125,8 @@ async function resolveOwnershipChain(
       .single();
     brand = newBrand;
   }
+  
+  console.log('[resolveOwnershipChain] Brand result:', brand);
   
   if (!brand) {
     return { 
@@ -141,6 +145,7 @@ async function resolveOwnershipChain(
   let ultimateParentName: string | null = null;
   
   if (parentCompanyHint && parentCompanyHint.trim()) {
+    console.log('[resolveOwnershipChain] Creating parent company:', parentCompanyHint);
     // Check if parent company exists in companies table
     let { data: parentCo } = await supabase
       .from('companies')
@@ -177,6 +182,7 @@ async function resolveOwnershipChain(
           ignoreDuplicates: false
         });
       
+      console.log('[resolveOwnershipChain] Created ownership link');
       // Step 3: Find the ULTIMATE PARENT (recursive lookup)
       const ultimateParent = await findUltimateParent(supabase, parentCo.id);
       
@@ -204,8 +210,10 @@ async function resolveOwnershipChain(
         ultimateParentName = ultimateParent.name;
       }
     }
+    console.log('[resolveOwnershipChain] Ultimate parent:', { ultimateParentId, ultimateParentName });
   }
   
+  console.log('[resolveOwnershipChain] DONE:', { brand_id: brand.id, company_id: companyId, ultimate_parent_id: ultimateParentId });
   return {
     brand_id: brand.id,
     company_id: companyId,
@@ -456,6 +464,16 @@ Deno.serve(async (req) => {
     
     if (offRes.ok) {
       const offData = await offRes.json();
+      console.log('[resolve-barcode] OpenFoodFacts response:', {
+        barcode: normalizedBarcode,
+        product_name: offData.product?.product_name,
+        brands: offData.product?.brands,
+        owner: offData.product?.owner,
+        manufacturer: offData.product?.manufacturer,
+        manufacturing_places: offData.product?.manufacturing_places,
+        origins: offData.product?.origins,
+        brands_tags: offData.product?.brands_tags,
+      });
       
         if (offData.status === 1 && offData.product) {
         const product = offData.product;
@@ -478,6 +496,12 @@ Deno.serve(async (req) => {
           manufacturer.split(',')[0]?.trim() ||  // Third: first manufacturer
           origins.split(',')[0]?.trim() ||  // Fourth: origins
           '';
+        console.log('[resolve-barcode] Extracted parent company:', {
+          parentCompany,
+          owner,
+          brandTag,
+          manufacturer,
+        });
         
         // Apply brand overrides
         const mappedBrand = BRAND_OVERRIDES[brandName] || brandName;
@@ -492,11 +516,16 @@ Deno.serve(async (req) => {
         });
         
         // Use ownership chain resolver
+        console.log('[resolve-barcode] About to call resolveOwnershipChain:', {
+          brandName: mappedBrand,
+          parentCompanyHint: parentCompany,
+        });
         const ownershipResult = await resolveOwnershipChain(
           supabase,
           mappedBrand,
           parentCompany
         );
+        console.log('[resolve-barcode] resolveOwnershipChain result:', ownershipResult);
         
         if (!ownershipResult.brand_id) {
           const dur = Math.round(performance.now() - t0);
