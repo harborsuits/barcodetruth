@@ -4183,6 +4183,15 @@ export type Database = {
         Args: { p_kind: string }
         Returns: string
       }
+      get_brand_data_confidence: {
+        Args: { p_brand_id: string }
+        Returns: {
+          categories_covered: number
+          completeness_percent: number
+          confidence_level: Database["public"]["Enums"]["data_confidence"]
+          has_significant_events: boolean
+        }[]
+      }
       get_brand_feed_with_subsidiaries: {
         Args: {
           p_brand_id: string
@@ -4389,6 +4398,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user" | "moderator"
+      data_confidence: "none" | "low" | "medium" | "high"
       event_category:
         | "labor"
         | "environment"
@@ -4534,6 +4544,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user", "moderator"],
+      data_confidence: ["none", "low", "medium", "high"],
       event_category: [
         "labor",
         "environment",

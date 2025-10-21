@@ -15,6 +15,7 @@ import { getCategoryDisplay, type CategoryGroup } from '@/lib/categoryConfig';
 import { OwnershipGraph } from '@/components/ownership/OwnershipGraph';
 import { SubsidiaryFeed } from '@/components/ownership/SubsidiaryFeed';
 import { RollupScores } from '@/components/ownership/RollupScores';
+import { DataCollectionBadge } from '@/components/brand/DataCollectionBadge';
 
 type BrandProfile = {
   brand: { 
@@ -119,7 +120,6 @@ export default function BrandProfile() {
     });
   }, []);
 
-  // Fetch personalized score if user is logged in
   const { data: personalizedScore } = useQuery({
     queryKey: ['personalized-score', actualId, user?.id],
     queryFn: async () => {
@@ -147,6 +147,32 @@ export default function BrandProfile() {
       return result?.[0] ?? null;
     },
     enabled: !!actualId && !!user?.id,
+  });
+
+  // Fetch data confidence to determine if we show scores or monitoring badge
+  const { data: confidenceData } = useQuery({
+    queryKey: ['brand-confidence', actualId],
+    queryFn: async () => {
+      if (!actualId) return null;
+      
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/get_brand_data_confidence`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+          },
+          body: JSON.stringify({ p_brand_id: actualId })
+        }
+      );
+      
+      if (!response.ok) return null;
+      const result = await response.json();
+      return result?.[0] ?? null;
+    },
+    enabled: !!actualId,
   });
 
   useEffect(() => {
@@ -361,31 +387,60 @@ export default function BrandProfile() {
                   </div>
                 )}
               </div>
-              <div className="text-right flex-shrink-0">
-                <div className="text-5xl font-bold">
-                  {displayScore !== null && displayScore !== undefined ? Math.round(displayScore) : '—'}
+              {confidenceData && confidenceData.confidence_level === 'high' ? (
+                <div className="text-right flex-shrink-0">
+                  <div className="text-5xl font-bold">
+                    {displayScore !== null && displayScore !== undefined ? Math.round(displayScore) : '—'}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1 flex flex-col gap-1">
+                    {personalizedScore ? (
+                      <span className="text-primary font-medium">Your personalized score</span>
+                    ) : data.score?.updated_at ? (
+                      `Updated ${formatDistanceToNow(new Date(data.score.updated_at), { addSuffix: true })}`
+                    ) : (
+                      'Not scored yet'
+                    )}
+                     {/* Trend indicators */}
+                    {coverage.events_30d > 0 && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-muted-foreground">
+                          {coverage.events_30d} events (30d)
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground mt-1 flex flex-col gap-1">
-                  {personalizedScore ? (
-                    <span className="text-primary font-medium">Your personalized score</span>
-                  ) : data.score?.updated_at ? (
-                    `Updated ${formatDistanceToNow(new Date(data.score.updated_at), { addSuffix: true })}`
-                  ) : (
-                    'Not scored yet'
-                  )}
-                   {/* Trend indicators */}
-                  {coverage.events_30d > 0 && (
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-muted-foreground">
-                        {coverage.events_30d} events (30d)
-                      </span>
-                    </div>
-                  )}
+              ) : (
+                <div className="text-right flex-shrink-0">
+                  <div className="text-5xl font-bold text-muted-foreground">—</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Monitoring
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
+
+        {/* Data Collection Status - Show when confidence is not high */}
+        {confidenceData && confidenceData.confidence_level !== 'high' && (
+          <DataCollectionBadge
+            eventCount={coverage.events_30d}
+            categoriesCovered={(() => {
+              // Get unique categories from evidence
+              const categories = new Set<string>();
+              data.evidence.forEach(e => {
+                if (e.category && e.category !== 'general') {
+                  categories.add(e.category);
+                }
+              });
+              return Array.from(categories);
+            })()}
+            hasSignificantEvents={confidenceData.has_significant_events || false}
+            completeness={confidenceData.completeness_percent || 0}
+            confidenceLevel={confidenceData.confidence_level || 'none'}
+          />
+        )}
 
         {/* Coverage chips */}
         <section className="flex flex-wrap gap-2">
