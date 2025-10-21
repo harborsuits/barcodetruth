@@ -107,9 +107,19 @@ Deno.serve(async (req) => {
     }
 
     const parentBinding = parentBindings[0];
+    
+    // Safety check: ensure required fields exist
+    if (!parentBinding.parent?.value || !parentBinding.parentLabel?.value) {
+      console.log(`[enrich-company] Invalid parent data for ${brand.name}`);
+      return new Response(
+        JSON.stringify({ success: true, message: "Invalid parent data structure" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
     const parentQid = extractQid(parentBinding.parent.value);
     const parentName = parentBinding.parentLabel.value;
-    const relationship = parentBinding.rel.value;
+    const relationship = parentBinding.rel?.value || 'related_to';
 
     console.log(`[enrich-company] Parent: ${parentName} (${parentQid}), rel: ${relationship}`);
 

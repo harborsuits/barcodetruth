@@ -230,21 +230,8 @@ export default function BrandProfile() {
       // Cast to any to handle JSON return type
       const result = data as any;
 
-      // Check if data is stale (>7 days) and trigger enrichment
-      const ownership = result?.ownership;
-      const lastVerified = ownership?.[0]?.last_verified_at;
-      const isStale = !lastVerified || 
-        new Date(lastVerified) < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
-      if (isStale) {
-        // Fire enrichment in background
-        supabase.functions.invoke('enrich-company-profile', {
-          body: { brand_id: actualId }
-        }).then(() => {
-          // Refetch after enrichment completes
-          setTimeout(() => refetchCompanyInfo(), 3000);
-        }).catch(err => console.error('Enrichment error:', err));
-      }
+      // Note: Auto-enrichment removed to prevent infinite loops on missing data
+      // Users can manually trigger deep scan or enrichment via admin tools
 
       return result;
     },
