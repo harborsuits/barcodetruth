@@ -27,6 +27,7 @@ export const Scan = () => {
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const manualInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isInIframe, setIsInIframe] = useState(false);
 
   // Check HTTPS (except localhost)
   useEffect(() => {
@@ -35,11 +36,10 @@ export const Scan = () => {
     setIsSecure(isHttps || isLocalhost);
   }, []);
 
-  // Initialize A2HS
-  useEffect(() => { 
-    initA2HS(); 
+  // Detect preview iframe context
+  useEffect(() => {
+    setIsInIframe(window.self !== window.top);
   }, []);
-
   // Track scan count and show A2HS prompt
   useEffect(() => {
     const count = Number(localStorage.getItem('scan-count') || '0') + 1;
@@ -684,24 +684,35 @@ export const Scan = () => {
                 )}
                 
                 <div className="flex flex-col gap-3 items-center">
-                  <div className="flex items-center gap-3 justify-center">
-                    <Button 
-                      onClick={startScanner} 
-                      aria-label="Start barcode scanner"
-                      disabled={!isSecure || !can_scan}
+                <div className="flex items-center gap-3 justify-center">
+                  <Button 
+                    onClick={startScanner} 
+                    aria-label="Start barcode scanner"
+                    disabled={!isSecure || !can_scan}
+                  >
+                    <Camera className="mr-2 h-4 w-4" />
+                    Start Camera
+                  </Button>
+                  <Button 
+                    variant="secondary" 
+                    onClick={onManualFallbackClick} 
+                    aria-label="Enter barcode manually"
+                    disabled={!can_scan}
+                  >
+                    Enter barcode instead
+                  </Button>
+                </div>
+                {isInIframe && (
+                  <div className="text-xs text-muted-foreground mt-2">
+                    Camera is blocked in preview. 
+                    <button
+                      onClick={() => window.open('/scan?fullscreen=1', '_blank', 'noopener,noreferrer')}
+                      className="underline underline-offset-2 text-primary ml-1"
                     >
-                      <Camera className="mr-2 h-4 w-4" />
-                      Start Camera
-                    </Button>
-                    <Button 
-                      variant="secondary" 
-                      onClick={onManualFallbackClick} 
-                      aria-label="Enter barcode manually"
-                      disabled={!can_scan}
-                    >
-                      Enter barcode instead
-                    </Button>
+                      Open full-screen scanner
+                    </button>
                   </div>
+                )}
                   <div className="flex items-center gap-2">
                     <Button 
                       variant="ghost" 
