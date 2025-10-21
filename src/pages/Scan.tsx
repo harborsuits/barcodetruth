@@ -11,6 +11,24 @@ import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import { supabase } from "@/integrations/supabase/client";
 import { useScanLimit } from "@/hooks/useScanLimit";
 import { BrowserMultiFormatReader } from '@zxing/browser';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+// Validate product barcode format
+function isValidProductBarcode(barcode: string): boolean {
+  // UPC-A: 12 digits, EAN-13: 13 digits, UPC-E: 8 digits
+  const validLengths = [8, 12, 13];
+  const isNumeric = /^\d+$/.test(barcode);
+  return isNumeric && validLengths.includes(barcode.length);
+}
 
 export const Scan = () => {
   const navigate = useNavigate();
@@ -26,6 +44,8 @@ export const Scan = () => {
   const manualInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isInIframe, setIsInIframe] = useState(false);
+  const [pendingBarcode, setPendingBarcode] = useState<string | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   // Check HTTPS (except localhost)
   useEffect(() => {
@@ -78,9 +98,22 @@ export const Scan = () => {
     };
   }, []);
 
-  const handleBarcodeDetected = useCallback(async (barcode: string) => {
-    if (scanResult === 'processing') return;
+  const handleBarcodeDetected = useCallback((barcode: string) => {
+    if (scanResult === 'processing' || pendingBarcode) return;
     
+    // Validate barcode format
+    if (!isValidProductBarcode(barcode)) {
+      console.log('Ignored invalid barcode:', barcode, 'length:', barcode.length);
+      return; // Keep scanning
+    }
+    
+    // Pause scanning and show confirmation
+    setPendingBarcode(barcode);
+    setShowConfirmDialog(true);
+  }, [scanResult, pendingBarcode]);
+
+  // Handle confirmed barcode lookup
+  const handleConfirmedLookup = useCallback(async (barcode: string) => {
     setScannedBarcode(barcode);
     setScanResult('processing');
     
@@ -110,7 +143,6 @@ export const Scan = () => {
             description: "Try another barcode or search by brand",
             variant: "destructive" 
           });
-          // Cooldown before next scan
           setTimeout(() => setScanResult('idle'), 800);
           return;
         }
@@ -142,7 +174,6 @@ export const Scan = () => {
           title: "Product found!", 
           description: `${data.product_name}${data.brand_name ? ` by ${data.brand_name}` : ''}`
         });
-        // Cooldown before next scan
         setTimeout(() => setScanResult('idle'), 800);
       } else {
         setScanResult('not_found');
@@ -151,7 +182,6 @@ export const Scan = () => {
           description: "Try another barcode or search by brand",
           variant: "destructive" 
         });
-        // Cooldown before next scan
         setTimeout(() => setScanResult('idle'), 800);
       }
     } catch (error: any) {
@@ -162,10 +192,9 @@ export const Scan = () => {
         description: error?.message || "Try again",
         variant: "destructive" 
       });
-      // Cooldown before next scan
       setTimeout(() => setScanResult('idle'), 800);
     }
-  }, [scanResult, trackScan]);
+  }, [trackScan]);
 
   // Barcode scanner hook (defined after handleBarcodeDetected)
   const {
@@ -258,7 +287,7 @@ export const Scan = () => {
         stopScanner();
       }
       
-      handleBarcodeDetected(upc);
+      handleConfirmedLookup(upc);
     }
   }, []); // Run once on mount
 
@@ -287,13 +316,13 @@ export const Scan = () => {
 
   const handleManualSubmit = () => {
     const trimmed = manualBarcode.trim();
-    if (trimmed.length >= 8 && trimmed.length <= 14 && /^\d+$/.test(trimmed)) {
-      handleBarcodeDetected(trimmed);
+    if (isValidProductBarcode(trimmed)) {
+      handleConfirmedLookup(trimmed);
       setManualBarcode('');
     } else {
       toast({
         title: "Invalid barcode",
-        description: "Please enter 8-14 digits",
+        description: "Please enter 8, 12, or 13 digits",
         variant: "destructive"
       });
     }
@@ -313,7 +342,16 @@ export const Scan = () => {
           const reader = new BrowserMultiFormatReader();
           const result = await reader.decodeFromImageElement(img);
           if (result) {
-            await handleBarcodeDetected(result.getText());
+            const detectedBarcode = result.getText();
+            if (isValidProductBarcode(detectedBarcode)) {
+              await handleConfirmedLookup(detectedBarcode);
+            } else {
+              toast({ 
+                title: 'Invalid barcode format', 
+                description: 'Barcode must be 8, 12, or 13 digits' 
+              });
+              setScanResult('idle');
+            }
           } else {
             toast({ title: 'No barcode detected in image' });
             setScanResult('idle');
@@ -757,6 +795,38 @@ export const Scan = () => {
           </div>
         </details>
       </main>
+
+      {/* Barcode Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Barcode Detected</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>Is this the correct barcode?</p>
+              <div className="font-mono text-lg font-semibold text-foreground bg-muted p-3 rounded-md text-center">
+                {pendingBarcode}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setPendingBarcode(null);
+            }}>
+              No, scan again
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (pendingBarcode) {
+                handleConfirmedLookup(pendingBarcode);
+                setPendingBarcode(null);
+              }
+              setShowConfirmDialog(false);
+            }}>
+              Yes, look it up
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <ScannerDiagnostics open={showDiagnostics} onOpenChange={setShowDiagnostics} />
     </div>
   );
