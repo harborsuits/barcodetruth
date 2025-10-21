@@ -374,11 +374,27 @@ export default function BrandProfile() {
         body: { brand_id: actualId }
       })
       .then(() => {
-        // Refetch after resolution
         setTimeout(() => setRefreshKey((k) => k + 1), 1000);
       })
       .catch((err) => console.error('resolve-brand-logo error:', err));
   }, [actualId, data?.brand?.logo_url]);
+
+  // Trigger company enrichment if people/valuation missing
+  useEffect(() => {
+    if (!actualId || !companyInfo?.ownership?.company?.id) return;
+    if (companyInfo.people?.length || companyInfo.valuation) return; // Already has data
+    
+    console.log('[BrandProfile] Triggering company enrichment for:', actualId);
+    supabase.functions
+      .invoke('enrich-company-profile', {
+        body: { brand_id: actualId }
+      })
+      .then((result) => {
+        console.log('[BrandProfile] Company enrichment result:', result);
+        setTimeout(() => setRefreshKey((k) => k + 1), 2000);
+      })
+      .catch((err) => console.error('enrich-company-profile error:', err));
+  }, [actualId, companyInfo]);
 
   return (
     <div className="min-h-screen bg-background">
