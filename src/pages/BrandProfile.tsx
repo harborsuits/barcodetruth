@@ -558,11 +558,8 @@ export default function BrandProfile() {
             </div>
           </CardHeader>
           <CardContent>
-            {/* New Subsidiary Feed Component */}
-            <SubsidiaryFeed brandId={id!} />
-            
-            {/* Original detailed view as fallback */}
-            <details className="mt-6">
+            {/* Detailed evidence breakdown */}
+            <details open>
               <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
                 Show detailed evidence breakdown
               </summary>
