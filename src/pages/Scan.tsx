@@ -267,21 +267,30 @@ export const Scan = () => {
     const inIframe = window.self !== window.top;
     if (inIframe) {
       console.warn('[Mobile Debug] In iframe - redirecting to full-screen scanner');
-      const newWin = window.open('/scan?fullscreen=1', '_blank', 'noopener');
-      if (!newWin) {
-        // Popup blocked, guide the user
-        setError('Camera blocked in preview. Open full-screen scanner in a new tab.');
-        toast({
-          title: 'Open full-screen scanner',
-          description: 'We tried opening a new tab. If blocked, tap the "Open full-screen" button at the top.',
-          variant: 'destructive',
-          duration: 6000
-        });
-      } else {
-        toast({
-          title: 'Opening full-screen scanner',
-          description: 'Switch to the new tab to enable camera.'
-        });
+      try {
+        // Try navigating the top window (works even across origins in most browsers)
+        if (window.top) {
+          (window.top as Window).location.href = '/scan?fullscreen=1';
+        } else {
+          throw new Error('No top window');
+        }
+      } catch (e) {
+        const newWin = window.open('/scan?fullscreen=1', '_blank', 'noopener,noreferrer');
+        if (!newWin) {
+          // Popup blocked, guide the user
+          setError('Camera blocked in preview. Open full-screen scanner in a new tab.');
+          toast({
+            title: 'Open full-screen scanner',
+            description: 'We tried opening a new tab. If blocked, tap the "Open full-screen" button at the top.',
+            variant: 'destructive',
+            duration: 6000
+          });
+        } else {
+          toast({
+            title: 'Opening full-screen scanner',
+            description: 'Switch to the new tab to enable camera.'
+          });
+        }
       }
       setScanResult('idle');
       return;
@@ -438,9 +447,8 @@ export const Scan = () => {
               <Button 
                 variant="outline"
                 size="sm"
-                onClick={() => window.open('/scan?fullscreen=1', '_blank', 'noopener')}
+                onClick={() => window.open('/scan?fullscreen=1', '_blank', 'noopener,noreferrer')}
                 title="Open full-screen scanner"
-                className="hidden sm:flex"
               >
                 Open full-screen
               </Button>
