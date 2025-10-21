@@ -421,22 +421,23 @@ export const Scan = () => {
         <Card>
           <CardContent className="pt-6">
             <div className="aspect-[4/3] bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
-              {isScanning || scanResult === 'processing' ? (
-                <>
-                  {/* Video preview with overlay canvas for bounding boxes */}
-                  <div className="relative w-full h-full">
-                    <video 
-                      ref={videoRef} 
-                      className={`absolute inset-0 w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
-                      playsInline
-                      muted
-                    />
-                    <canvas 
-                      ref={canvasRef} 
-                      className="absolute inset-0 pointer-events-none z-10" 
-                    />
-                  </div>
+              {/* Video and canvas - always in DOM, hidden when not scanning */}
+              <div className={`relative w-full h-full ${isScanning || scanResult === 'processing' ? 'block' : 'hidden'}`}>
+                <video 
+                  ref={videoRef} 
+                  className={`absolute inset-0 w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
+                  playsInline
+                  muted
+                />
+                <canvas 
+                  ref={canvasRef} 
+                  className="absolute inset-0 pointer-events-none z-10" 
+                />
+              </div>
 
+              {/* Scanning UI overlay - only visible when scanning */}
+              {(isScanning || scanResult === 'processing') && (
+                <>
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
                     {/* Scanning reticle with animated corners */}
                     <div className="w-64 h-48 relative">
@@ -536,7 +537,10 @@ export const Scan = () => {
                     {isPaused ? "Scanning paused" : "Scanning for barcode..."}
                   </div>
                 </>
-              ) : (
+              )}
+              
+              {/* Idle state placeholder - only visible when not scanning */}
+              {!(isScanning || scanResult === 'processing') && (
                 <>
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="w-64 h-48 relative">
