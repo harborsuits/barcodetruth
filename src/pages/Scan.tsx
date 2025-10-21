@@ -170,17 +170,19 @@ export const Scan = () => {
         const updated = [recentScan, ...existing.filter((s: any) => s.upc !== data.upc)].slice(0, 10);
         localStorage.setItem('recent_scans', JSON.stringify(updated));
         
-        // Show company name if available, otherwise brand name
-        const displayName = data.company_name || data.brand_name || 'Unknown';
+        // Show ownership context in toast
+        const ownershipInfo = data.company_name 
+          ? `${data.brand_name} (owned by ${data.company_name})`
+          : data.brand_name || 'Unknown';
+        
         toast({ 
           title: "Product found!", 
-          description: `${data.product_name} by ${displayName}`
+          description: `${data.product_name} - ${ownershipInfo}`
         });
         
-        // Navigate to company page if available, otherwise brand page
-        const targetId = data.company_id || data.brand_id;
+        // Navigate to brand page (shows ownership chain)
         setTimeout(() => {
-          navigate(`/brand/${targetId}`);
+          navigate(`/brand/${data.brand_id}`);
         }, 800);
       } else {
         setScanResult('not_found');
