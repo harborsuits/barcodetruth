@@ -1,12 +1,11 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, AlertCircle, Download, WifiOff, X, Flashlight, FlashlightOff, Wrench, Upload, FlipHorizontal, Pause, Play } from "lucide-react";
+import { ArrowLeft, Camera, AlertCircle, WifiOff, X, Flashlight, FlashlightOff, Wrench, Upload, FlipHorizontal, Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ReportIssue } from "@/components/ReportIssue";
 import { ScannerDiagnostics } from "@/components/ScannerDiagnostics";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { initA2HS, triggerA2HS, isA2HSAvailable, dismissA2HS, isA2HSDismissed } from "@/lib/a2hs";
 import { toast } from "@/hooks/use-toast";
 import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,7 +17,6 @@ export const Scan = () => {
   const { can_scan, scans_remaining, is_subscribed, trackScan, checkLimit } = useScanLimit();
   const [scanResult, setScanResult] = useState<'idle' | 'scanning' | 'processing' | 'success' | 'not_found'>('idle');
   const [scannedBarcode, setScannedBarcode] = useState<string>('');
-  const [showA2HSPrompt, setShowA2HSPrompt] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [error, setError] = useState<string>('');
   const [manualBarcode, setManualBarcode] = useState('');
@@ -39,16 +37,6 @@ export const Scan = () => {
   // Detect preview iframe context
   useEffect(() => {
     setIsInIframe(window.self !== window.top);
-  }, []);
-  // Track scan count and show A2HS prompt
-  useEffect(() => {
-    const count = Number(localStorage.getItem('scan-count') || '0') + 1;
-    localStorage.setItem('scan-count', String(count));
-    
-    const shouldPrompt = count >= 2 && isA2HSAvailable() && !isA2HSDismissed();
-    if (shouldPrompt) {
-      setShowA2HSPrompt(true);
-    }
   }, []);
 
   // Monitor online/offline status
@@ -89,17 +77,6 @@ export const Scan = () => {
       document.body.style.height = '';
     };
   }, []);
-
-  const handleInstallApp = async () => {
-    const accepted = await triggerA2HS();
-    if (accepted) {
-      toast({ title: "App installed!", description: "Barcode Truth is now on your home screen" });
-      setShowA2HSPrompt(false);
-    } else {
-      dismissA2HS();
-      setShowA2HSPrompt(false);
-    }
-  };
 
   const handleBarcodeDetected = useCallback(async (barcode: string) => {
     if (scanResult === 'processing') return;
@@ -498,36 +475,6 @@ export const Scan = () => {
           </Card>
         )}
 
-        {/* A2HS Prompt */}
-        {showA2HSPrompt && (
-          <Card className="border-primary">
-            <CardContent className="pt-6">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0">
-                  <Download className="h-8 w-8 text-primary" />
-                </div>
-                <div className="flex-1 space-y-2">
-                  <h3 className="font-semibold">Install Barcode Truth</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Add to your home screen for quick access and offline scanning
-                  </p>
-                  <div className="flex gap-2">
-                    <Button onClick={handleInstallApp} size="sm">
-                      Install App
-                    </Button>
-                    <Button 
-                      onClick={() => { dismissA2HS(); setShowA2HSPrompt(false); }} 
-                      variant="ghost" 
-                      size="sm"
-                    >
-                      Not now
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
         <Card>
           <CardContent className="pt-6">
             <div className="aspect-[4/3] bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
