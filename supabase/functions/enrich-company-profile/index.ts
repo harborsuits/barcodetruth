@@ -208,6 +208,12 @@ Deno.serve(async (req) => {
     const peopleResult = await querySparql(peopleQuery);
     
     for (const binding of peopleResult.results.bindings) {
+      // Safety checks for required fields
+      if (!binding.person?.value || !binding.role?.value || !binding.personLabel?.value) {
+        console.log(`[enrich-company] Skipping invalid person binding`);
+        continue;
+      }
+
       const personQid = extractQid(binding.person.value);
       const imageUrl = binding.image?.value ? convertWikimediaImage(binding.image.value) : null;
 
@@ -248,7 +254,8 @@ Deno.serve(async (req) => {
         const valuationResult = await querySparql(valuationQuery);
         const valuationBinding = valuationResult.results.bindings[0];
 
-        if (valuationBinding) {
+        // Safety check for required valuation fields
+        if (valuationBinding?.amount?.value && valuationBinding?.date?.value) {
           await admin
             .from("company_valuation")
             .insert({

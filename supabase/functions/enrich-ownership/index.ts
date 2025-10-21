@@ -100,8 +100,9 @@ serve(async (req) => {
     const ownedBy = entity.claims?.P127;
     if (ownedBy) {
       for (const claim of ownedBy) {
-        const parentQid = claim.mainsnak?.datavalue?.value?.id;
-        if (parentQid) {
+        // Safety check for nested property access
+        const parentQid = claim?.mainsnak?.datavalue?.value?.id;
+        if (parentQid && typeof parentQid === 'string') {
           parentQids.push({ qid: parentQid, relationship: 'owned_by' });
         }
       }
@@ -111,8 +112,9 @@ serve(async (req) => {
     const parentOrg = entity.claims?.P749;
     if (parentOrg) {
       for (const claim of parentOrg) {
-        const parentQid = claim.mainsnak?.datavalue?.value?.id;
-        if (parentQid) {
+        // Safety check for nested property access
+        const parentQid = claim?.mainsnak?.datavalue?.value?.id;
+        if (parentQid && typeof parentQid === 'string') {
           parentQids.push({ qid: parentQid, relationship: 'parent_org' });
         }
       }
@@ -128,7 +130,8 @@ serve(async (req) => {
       const parentEntityData = await parentEntityRes.json();
       const parentEntity = parentEntityData.entities?.[parent.qid] as WikidataEntity | undefined;
       
-      if (!parentEntity?.labels?.en) {
+      // Safety check for label existence and value
+      if (!parentEntity?.labels?.en?.value) {
         console.log(`[Enrich] No English label for parent ${parent.qid}, skipping`);
         continue;
       }
