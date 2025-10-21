@@ -48,12 +48,65 @@ function extractGS1Prefix(ean13: string): string | null {
   return prefix7;
 }
 
-// Helper function to resolve ownership chain
+// Helper: Find ultimate parent by following the chain
+async function findUltimateParent(
+  supabase: any,
+  companyId: string,
+  maxDepth = 5
+): Promise<{ id: string; name: string } | null> {
+  let currentId = companyId;
+  let currentName = '';
+  let depth = 0;
+  const visited = new Set<string>([companyId]);
+  
+  while (depth < maxDepth) {
+    // Find parent of current company
+    const { data: ownership } = await supabase
+      .from('company_ownership')
+      .select(`
+        parent_company_id,
+        companies!company_ownership_parent_company_id_fkey (
+          id,
+          name
+        )
+      `)
+      .eq('child_company_id', currentId)
+      .maybeSingle();
+    
+    if (!ownership?.parent_company_id) {
+      // No parent found - this IS the ultimate parent
+      const { data: company } = await supabase
+        .from('companies')
+        .select('id, name')
+        .eq('id', currentId)
+        .single();
+      return company || null;
+    }
+    
+    const parentCompany = Array.isArray(ownership.companies)
+      ? ownership.companies[0]
+      : ownership.companies;
+    
+    if (!parentCompany || visited.has(parentCompany.id)) {
+      // Loop detected or invalid data
+      break;
+    }
+    
+    currentId = parentCompany.id;
+    currentName = parentCompany.name;
+    visited.add(currentId);
+    depth++;
+  }
+  
+  return currentId ? { id: currentId, name: currentName } : null;
+}
+
+// Helper function to resolve complete ownership chain
 async function resolveOwnershipChain(
   supabase: any,
   brandName: string,
   parentCompanyHint: string
-): Promise<{ brand_id: string; company_id: string | null; company_name: string | null }> {
+): Promise<{ brand_id: string; company_id: string | null; company_name: string | null; ultimate_parent_id: string | null; ultimate_parent_name: string | null }> {
   
   // Step 1: Find or create the BRAND
   let { data: brand } = await supabase
@@ -72,12 +125,20 @@ async function resolveOwnershipChain(
   }
   
   if (!brand) {
-    return { brand_id: '', company_id: null, company_name: null };
+    return { 
+      brand_id: '', 
+      company_id: null, 
+      company_name: null,
+      ultimate_parent_id: null,
+      ultimate_parent_name: null
+    };
   }
   
   // Step 2: Find or create the PARENT COMPANY if hint provided
   let companyId: string | null = null;
   let companyName: string | null = null;
+  let ultimateParentId: string | null = null;
+  let ultimateParentName: string | null = null;
   
   if (parentCompanyHint && parentCompanyHint.trim()) {
     // Check if parent company exists in companies table
@@ -115,13 +176,42 @@ async function resolveOwnershipChain(
           onConflict: 'child_brand_id',
           ignoreDuplicates: false
         });
+      
+      // Step 3: Find the ULTIMATE PARENT (recursive lookup)
+      const ultimateParent = await findUltimateParent(supabase, parentCo.id);
+      
+      if (ultimateParent && ultimateParent.id !== parentCo.id) {
+        // There's a higher-level parent - link parent → ultimate parent
+        await supabase
+          .from('company_ownership')
+          .upsert({
+            child_company_id: parentCo.id,
+            parent_company_id: ultimateParent.id,
+            parent_name: ultimateParent.name,
+            relationship: 'subsidiary',
+            source: 'corporate_data',
+            confidence: 0.8,
+          }, {
+            onConflict: 'child_company_id',
+            ignoreDuplicates: false
+          });
+        
+        ultimateParentId = ultimateParent.id;
+        ultimateParentName = ultimateParent.name;
+      } else if (ultimateParent) {
+        // Parent IS the ultimate parent
+        ultimateParentId = ultimateParent.id;
+        ultimateParentName = ultimateParent.name;
+      }
     }
   }
   
   return {
     brand_id: brand.id,
     company_id: companyId,
-    company_name: companyName
+    company_name: companyName,
+    ultimate_parent_id: ultimateParentId,
+    ultimate_parent_name: ultimateParentName
   };
 }
 

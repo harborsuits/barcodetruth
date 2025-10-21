@@ -1553,7 +1553,8 @@ export type Database = {
       }
       company_ownership: {
         Row: {
-          child_brand_id: string
+          child_brand_id: string | null
+          child_company_id: string | null
           confidence: number | null
           created_at: string | null
           id: string
@@ -1565,7 +1566,8 @@ export type Database = {
           source_ref: string | null
         }
         Insert: {
-          child_brand_id: string
+          child_brand_id?: string | null
+          child_company_id?: string | null
           confidence?: number | null
           created_at?: string | null
           id?: string
@@ -1577,7 +1579,8 @@ export type Database = {
           source_ref?: string | null
         }
         Update: {
-          child_brand_id?: string
+          child_brand_id?: string | null
+          child_company_id?: string | null
           confidence?: number | null
           created_at?: string | null
           id?: string
@@ -1643,6 +1646,13 @@ export type Database = {
             columns: ["child_brand_id"]
             isOneToOne: false
             referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_ownership_child_company_id_fkey"
+            columns: ["child_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
           {
@@ -4808,6 +4818,21 @@ export type Database = {
           brand_id: string | null
           sent_today: number | null
           user_id: string | null
+        }
+        Relationships: []
+      }
+      v_ownership_trail: {
+        Row: {
+          confidence: number | null
+          entity_id: string | null
+          entity_name: string | null
+          entity_type: string | null
+          level: number | null
+          logo_url: string | null
+          parent_id: string | null
+          path_ids: string[] | null
+          relationship: string | null
+          source: string | null
         }
         Relationships: []
       }

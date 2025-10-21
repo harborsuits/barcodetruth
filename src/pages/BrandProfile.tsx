@@ -15,6 +15,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBrandLogo } from '@/hooks/useBrandLogo';
 import { getCategoryDisplay, type CategoryGroup } from '@/lib/categoryConfig';
 import { OwnershipGraph } from '@/components/ownership/OwnershipGraph';
+import { OwnershipTrail } from '@/components/ownership/OwnershipTrail';
 import { SubsidiaryFeed } from '@/components/ownership/SubsidiaryFeed';
 import { RollupScores } from '@/components/ownership/RollupScores';
 import { DataCollectionBadge } from '@/components/brand/DataCollectionBadge';
@@ -614,6 +615,9 @@ export default function BrandProfile() {
             </details>
           </CardHeader>
         </Card>
+
+        {/* Ownership Trail */}
+        <OwnershipTrail brandId={id!} />
 
         {/* Ownership Structure */}
         <OwnershipGraph brandId={id!} />
