@@ -94,9 +94,9 @@ export const Scan = () => {
     try {
       const t0 = performance.now();
       
-      // Call new scan-product endpoint per TICKET B
-      const { data, error } = await supabase.functions.invoke('scan-product', {
-        body: { upc: barcode }
+      // Call resolve-barcode endpoint (checks DB + OpenFoodFacts fallback)
+      const { data, error } = await supabase.functions.invoke('resolve-barcode', {
+        body: { barcode }
       });
 
       const dur = Math.round(performance.now() - t0);
