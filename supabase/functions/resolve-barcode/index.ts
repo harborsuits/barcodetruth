@@ -101,29 +101,66 @@ async function findUltimateParent(
   return currentId ? { id: currentId, name: currentName } : null;
 }
 
+// Helper function to fetch brand logo from Clearbit
+async function fetchBrandLogo(companyName: string): Promise<string | null> {
+  try {
+    // Try Clearbit Logo API (free tier)
+    const domain = `${companyName.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '')}.com`;
+    const clearbitUrl = `https://logo.clearbit.com/${domain}`;
+    
+    // Test if logo exists (HEAD request to avoid downloading)
+    const response = await fetch(clearbitUrl, { method: 'HEAD' });
+    if (response.ok) {
+      console.log('[fetchBrandLogo] Found logo via Clearbit:', clearbitUrl);
+      return clearbitUrl;
+    }
+  } catch (e) {
+    console.log('[fetchBrandLogo] Clearbit failed:', e);
+  }
+  
+  return null;
+}
+
 // Helper function to resolve complete ownership chain
 async function resolveOwnershipChain(
   supabase: any,
   brandName: string,
-  parentCompanyHint: string
+  parentCompanyHint: string,
+  logoUrl?: string
 ): Promise<{ brand_id: string; company_id: string | null; company_name: string | null; ultimate_parent_id: string | null; ultimate_parent_name: string | null }> {
   
-  console.log('[resolveOwnershipChain] START:', { brandName, parentCompanyHint });
+  console.log('[resolveOwnershipChain] START:', { brandName, parentCompanyHint, logoUrl });
   
   // Step 1: Find or create the BRAND
   let { data: brand } = await supabase
     .from('brands')
-    .select('id, name')
+    .select('id, name, logo_url')
     .ilike('name', brandName)
     .maybeSingle();
   
   if (!brand) {
+    const brandData: any = { name: brandName };
+    if (logoUrl) {
+      brandData.logo_url = logoUrl;
+      brandData.logo_source = 'openfoodfacts';
+    }
+    
     const { data: newBrand } = await supabase
       .from('brands')
-      .insert({ name: brandName })
-      .select('id, name')
+      .insert(brandData)
+      .select('id, name, logo_url')
       .single();
     brand = newBrand;
+  } else if (!brand.logo_url && logoUrl) {
+    // Update existing brand with logo if it doesn't have one
+    await supabase
+      .from('brands')
+      .update({ 
+        logo_url: logoUrl,
+        logo_source: 'openfoodfacts'
+      })
+      .eq('id', brand.id);
+    brand.logo_url = logoUrl;
   }
   
   console.log('[resolveOwnershipChain] Brand result:', brand);
@@ -161,6 +198,18 @@ async function resolveOwnershipChain(
         .select('id, name')
         .single();
       parentCo = newParent;
+      
+      // Try to fetch and store company logo from Clearbit
+      if (parentCo) {
+        const companyLogo = await fetchBrandLogo(parentCompanyHint);
+        if (companyLogo) {
+          await supabase
+            .from('companies')
+            .update({ logo_url: companyLogo })
+            .eq('id', parentCo.id);
+          console.log('[resolveOwnershipChain] Added company logo:', companyLogo);
+        }
+      }
     }
     
     if (parentCo) {
@@ -528,6 +577,21 @@ Deno.serve(async (req) => {
         if (offData.status === 1 && offData.product) {
         const product = offData.product;
         
+        // Extract product images
+        const productImage = 
+          product.image_url ||
+          product.image_front_url ||
+          product.image_front_small_url ||
+          '';
+        
+        // Extract brand logo
+        const brandLogo = 
+          product.brand_logo_url ||
+          product.brand_owner_logo_url ||
+          '';
+        
+        console.log('[resolve-barcode] Images:', { productImage, brandLogo });
+        
         // Extract ALL relevant fields for complete data
         const productName = product.product_name || product.product_name_en || 'Unknown Product';
         const brandRaw = product.brands || product.brands_tags?.[0] || '';
@@ -565,15 +629,17 @@ Deno.serve(async (req) => {
           brandTag
         });
         
-        // Use ownership chain resolver
+        // Use ownership chain resolver with logo
         console.log('[resolve-barcode] About to call resolveOwnershipChain:', {
           brandName: mappedBrand,
           parentCompanyHint: parentCompany,
+          brandLogo,
         });
         const ownershipResult = await resolveOwnershipChain(
           supabase,
           mappedBrand,
-          parentCompany
+          parentCompany,
+          brandLogo || undefined
         );
         console.log('[resolve-barcode] resolveOwnershipChain result:', ownershipResult);
         
@@ -600,13 +666,15 @@ Deno.serve(async (req) => {
           );
         }
           
-          // Insert product with resolved brand
+          // Insert product with resolved brand and image
           const { error: insertError } = await supabase
             .from('products')
             .insert({
               name: productName,
               barcode: normalizedBarcode,
               brand_id: ownershipResult.brand_id,
+              image_url: productImage || null,
+              source: 'openfoodfacts',
             });
           
           if (!insertError) {

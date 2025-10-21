@@ -2687,7 +2687,9 @@ export type Database = {
           category: string | null
           created_at: string
           id: string
+          image_url: string | null
           name: string
+          source: string | null
           upc_type: string | null
           updated_at: string
           valid_checksum: boolean | null
@@ -2698,7 +2700,9 @@ export type Database = {
           category?: string | null
           created_at?: string
           id?: string
+          image_url?: string | null
           name: string
+          source?: string | null
           upc_type?: string | null
           updated_at?: string
           valid_checksum?: boolean | null
@@ -2709,7 +2713,9 @@ export type Database = {
           category?: string | null
           created_at?: string
           id?: string
+          image_url?: string | null
           name?: string
+          source?: string | null
           upc_type?: string | null
           updated_at?: string
           valid_checksum?: boolean | null
