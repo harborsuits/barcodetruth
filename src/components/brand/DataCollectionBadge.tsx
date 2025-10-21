@@ -167,6 +167,11 @@ export function DataCollectionBadge({
           )}
 
           <div className="pt-2 border-t">
+            {completeness >= 90 && confidenceLevel !== 'high' && (
+              <div className="mb-3 text-xs px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-100">
+                <span className="font-semibold">🎯 Scores unlocking soon</span> — evidence coverage at {completeness}%
+              </div>
+            )}
             <p className="text-xs text-muted-foreground italic">
               {confidenceLevel === 'high' 
                 ? "✓ Scores are now visible based on collected data"

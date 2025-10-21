@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { BrandWikiEnrichment } from '@/components/BrandWikiEnrichment';
@@ -17,6 +17,8 @@ import { OwnershipGraph } from '@/components/ownership/OwnershipGraph';
 import { SubsidiaryFeed } from '@/components/ownership/SubsidiaryFeed';
 import { RollupScores } from '@/components/ownership/RollupScores';
 import { DataCollectionBadge } from '@/components/brand/DataCollectionBadge';
+import { ReportIssueDialog } from '@/components/ReportIssueDialog';
+import { SuggestEvidenceDialog } from '@/components/SuggestEvidenceDialog';
 
 type BrandProfile = {
   brand: { 
@@ -113,6 +115,9 @@ export default function BrandProfile() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [hasSetDefaultFilter, setHasSetDefaultFilter] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [suggestDialogOpen, setSuggestDialogOpen] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<string | undefined>();
 
   // Get current user for personalized scoring
   const [user, setUser] = useState<any>(null);
@@ -463,7 +468,7 @@ export default function BrandProfile() {
           />
         )}
 
-        {/* Coverage chips */}
+        {/* Coverage chips with Verified % */}
         <section className="flex flex-wrap gap-2">
           <Badge variant="outline" className="text-sm px-3 py-1">
             7d: {coverage.events_7d ?? 0}
@@ -477,9 +482,11 @@ export default function BrandProfile() {
           <Badge variant="outline" className="text-sm px-3 py-1">
             365d: {coverage.events_365d}
           </Badge>
-          <Badge variant="outline" className="text-sm px-3 py-1">
-            Verified: {Math.round(coverage.verified_rate)}%
-          </Badge>
+          {confidenceData && (
+            <Badge variant="outline" className="text-sm px-3 py-1">
+              Verified: {Math.round((confidenceData.verified_rate || 0) * 100)}% (90d)
+            </Badge>
+          )}
           <Badge variant="outline" className="text-sm px-3 py-1">
             Sources: {coverage.independent_sources}
           </Badge>
@@ -647,10 +654,29 @@ export default function BrandProfile() {
                 };
               });
 
+              // Cluster duplicate stories by normalized title + canonical URL
+              const clusterKey = (ev: any) => {
+                const normalized = (ev.title || '').trim().toLowerCase();
+                const url = ev.canonical_url || ev.source_url || '';
+                return `${normalized}|${url}`;
+              };
+
+              const clusterMap = evidenceWithGroups.reduce((acc, ev) => {
+                const key = clusterKey(ev);
+                if (!acc[key]) {
+                  acc[key] = { ...ev, _outlets: new Set(), _count: 0 };
+                }
+                acc[key]._count++;
+                if (ev.source_name) acc[key]._outlets.add(ev.source_name);
+                return acc;
+              }, {} as Record<string, any>);
+
+              const clusteredEvidence = Object.values(clusterMap);
+
               // Filter by selected category
               const filteredEvidence = categoryFilter === 'all'
-                ? evidenceWithGroups
-                : evidenceWithGroups.filter(e => e.group_name === categoryFilter);
+                ? clusteredEvidence
+                : clusteredEvidence.filter(e => e.group_name === categoryFilter);
 
               // Sort: group_order ASC, verification_rank ASC, event_date DESC
               const sortedEvidence = [...filteredEvidence].sort((a, b) => {
@@ -796,10 +822,15 @@ export default function BrandProfile() {
                               </span>
                              </div>
                              
-                             {/* Title */}
-                             <h4 className="font-semibold text-base leading-tight mb-2">
-                               {ev.title || 'Untitled Event'}
-                             </h4>
+                              {/* Title with outlet count */}
+                              <h4 className="font-semibold text-base leading-tight mb-2">
+                                {ev.title || 'Untitled Event'}
+                                {ev._count > 1 && (
+                                  <span className="ml-2 text-xs border rounded-full px-2 py-0.5 text-muted-foreground">
+                                    +{ev._count - 1} {ev._count === 2 ? 'outlet' : 'outlets'}
+                                  </span>
+                                )}
+                              </h4>
                              
                              {/* AI Summary */}
                              {ev.ai_summary && (
@@ -808,18 +839,37 @@ export default function BrandProfile() {
                                </p>
                              )}
                              
-                             {/* Source link */}
-                             {ev.canonical_url && (
-                               <a
-                                 href={ev.canonical_url}
-                                 target="_blank"
-                                 rel="noreferrer"
-                                 className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                               >
-                                 {ev.source_name || 'Read more'}
-                                 <ExternalLink className="h-3 w-3" />
-                               </a>
-                             )}
+                             {/* Source link and actions */}
+                             <div className="space-y-2">
+                               {ev.canonical_url && (
+                                 <a
+                                   href={ev.canonical_url}
+                                   target="_blank"
+                                   rel="noreferrer"
+                                   className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                                 >
+                                   {ev.source_name || 'Read more'}
+                                   <ExternalLink className="h-3 w-3" />
+                                 </a>
+                               )}
+                               <div className="flex gap-3 text-xs text-muted-foreground">
+                                 <button
+                                   onClick={() => {
+                                     setSelectedEventId(ev.event_id);
+                                     setReportDialogOpen(true);
+                                   }}
+                                   className="underline hover:text-foreground"
+                                 >
+                                   Report issue
+                                 </button>
+                                 <button
+                                   onClick={() => setSuggestDialogOpen(true)}
+                                   className="underline hover:text-foreground"
+                                 >
+                                   Suggest evidence
+                                 </button>
+                               </div>
+                             </div>
                            </div>
                          </div>
                        </div>
@@ -837,13 +887,38 @@ export default function BrandProfile() {
 
         {/* Secondary actions */}
         <div className="flex gap-3 justify-center pb-6">
-          <Button variant="outline" size="sm" disabled>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              setSelectedEventId(undefined);
+              setReportDialogOpen(true);
+            }}
+          >
             Report an issue
           </Button>
-          <Button variant="outline" size="sm" disabled>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setSuggestDialogOpen(true)}
+          >
             Suggest evidence
           </Button>
         </div>
+        {/* Report/Suggest dialogs */}
+        <ReportIssueDialog
+          open={reportDialogOpen}
+          onOpenChange={setReportDialogOpen}
+          brandId={actualId!}
+          eventId={selectedEventId}
+          brandName={data.brand.name}
+        />
+        <SuggestEvidenceDialog
+          open={suggestDialogOpen}
+          onOpenChange={setSuggestDialogOpen}
+          brandId={actualId!}
+          brandName={data.brand.name}
+        />
       </main>
     </div>
   );
