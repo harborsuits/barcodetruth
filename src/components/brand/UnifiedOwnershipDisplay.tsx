@@ -83,6 +83,8 @@ export function UnifiedOwnershipDisplay({
   const hasOwnershipInfo = (ownershipDetails && ownershipDetails.length > 0) || 
                            (shareholders && shareholders.length > 0);
   const hasParents = parentChain && parentChain.length > 1;
+  const ultimateParent = hasParents ? parentChain[parentChain.length - 1] : null;
+  const isUltimateParent = !hasParents;
 
   return (
     <div className="space-y-6">
@@ -102,7 +104,7 @@ export function UnifiedOwnershipDisplay({
 
         <div className="flex-1 min-w-0">
           <h3 className="font-bold text-xl mb-2">{company.name}</h3>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 mb-3">
             <Badge variant="outline" className="capitalize">
               {company.type}
             </Badge>
@@ -124,6 +126,26 @@ export function UnifiedOwnershipDisplay({
                 Private Company
               </Badge>
             )}
+          </div>
+          
+          {/* Chain Position Indicator */}
+          <div className="text-sm text-muted-foreground">
+            {isUltimateParent ? (
+              <span className="inline-flex items-center gap-1">
+                <Badge variant="default" className="bg-primary/10 text-primary border-primary/20">
+                  Ultimate Parent
+                </Badge>
+                <span>— Top of ownership chain</span>
+              </span>
+            ) : ultimateParent ? (
+              <span className="inline-flex items-center gap-1 flex-wrap">
+                <span>Part of the</span>
+                <Badge variant="outline" className="font-semibold">
+                  {ultimateParent.name}
+                </Badge>
+                <span>corporate group</span>
+              </span>
+            ) : null}
           </div>
         </div>
       </div>
