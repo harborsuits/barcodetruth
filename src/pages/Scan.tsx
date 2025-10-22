@@ -46,7 +46,6 @@ export const Scan = () => {
   const [isInIframe, setIsInIframe] = useState(false);
   const [pendingBarcode, setPendingBarcode] = useState<string | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [rejectedBarcodes, setRejectedBarcodes] = useState<Set<string>>(new Set());
   const lastDetectedRef = useRef<string | null>(null);
   const lastDetectedAtRef = useRef<number>(0);
 
@@ -103,7 +102,7 @@ export const Scan = () => {
 
   const handleBarcodeDetected = useCallback((barcode: string) => {
     console.log('[Scan.tsx] handleBarcodeDetected called with:', barcode);
-    console.log('[Scan.tsx] Current state - processing:', scanResult === 'processing', 'pending:', pendingBarcode, 'rejected:', rejectedBarcodes.has(barcode));
+    console.log('[Scan.tsx] Current state - processing:', scanResult === 'processing', 'pending:', pendingBarcode);
     
     // Ignore while processing or already confirming
     if (scanResult === 'processing' || pendingBarcode) {
@@ -114,24 +113,19 @@ export const Scan = () => {
     // Normalize input
     const detected = (barcode || '').trim();
 
-    // Skip if already rejected in this session
-    if (rejectedBarcodes.has(detected)) {
-      console.log('[Scan.tsx] Skipping previously rejected barcode:', detected);
-      return;
-    }
-
     // Validate format
     if (!isValidProductBarcode(detected)) {
       console.log('[Scan.tsx] Invalid barcode format:', detected, 'length:', detected.length);
       return;
     }
 
-    // Deduplicate same code within 1500ms
+    // SHORT-TERM deduplicate: same code within 800ms (reduced from 1500ms)
     const now = Date.now();
-    if (lastDetectedRef.current === detected && now - lastDetectedAtRef.current < 1500) {
-      console.log('[Scan.tsx] Ignoring duplicate within 1500ms');
+    if (lastDetectedRef.current === detected && now - lastDetectedAtRef.current < 800) {
+      console.log('[Scan.tsx] Ignoring duplicate within 800ms');
       return;
     }
+    
     lastDetectedRef.current = detected;
     lastDetectedAtRef.current = now;
 
@@ -139,7 +133,7 @@ export const Scan = () => {
     // Pause scanning and show confirmation
     setPendingBarcode(detected);
     setShowConfirmDialog(true);
-  }, [scanResult, pendingBarcode, rejectedBarcodes]);
+  }, [scanResult, pendingBarcode]);
 
   // Handle confirmed barcode lookup
   const handleConfirmedLookup = useCallback(async (barcode: string) => {
@@ -272,8 +266,6 @@ export const Scan = () => {
         return;
       }
       
-      // Clear rejected barcodes when starting a fresh scan
-      setRejectedBarcodes(new Set());
       setError('');
       setScanResult('scanning');
       
@@ -444,22 +436,6 @@ export const Scan = () => {
               >
                 <Wrench className="h-5 w-5" />
               </Button>
-              {rejectedBarcodes.size > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setRejectedBarcodes(new Set());
-                    toast({
-                      title: "Scanner reset",
-                      description: "Cleared blacklist of rejected barcodes",
-                    });
-                  }}
-                  className="text-xs"
-                >
-                  Reset ({rejectedBarcodes.size})
-                </Button>
-              )}
             </div>
             {isOffline && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -877,17 +853,10 @@ export const Scan = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => {
-              // Add to rejection blacklist
-              if (pendingBarcode) {
-                setRejectedBarcodes(prev => new Set(prev).add(pendingBarcode));
-                console.log('Blacklisted barcode:', pendingBarcode);
-                toast({
-                  title: "Barcode ignored",
-                  description: "Won't detect this barcode again this session",
-                });
-              }
+              console.log('[Scan.tsx] User rejected barcode:', pendingBarcode);
               setPendingBarcode(null);
               setShowConfirmDialog(false);
+              // Scanner will automatically resume and can detect the same barcode again after 800ms
             }}>
               No, scan again
             </AlertDialogCancel>
