@@ -1,8 +1,9 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, AlertCircle, WifiOff, X, Flashlight, FlashlightOff, Wrench, Upload, FlipHorizontal, Pause, Play } from "lucide-react";
+import { Camera, AlertCircle, WifiOff, X, Flashlight, FlashlightOff, Wrench, Upload, FlipHorizontal, Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Header } from "@/components/layout/Header";
 import { ReportIssue } from "@/components/ReportIssue";
 import { ScannerDiagnostics } from "@/components/ScannerDiagnostics";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -418,34 +419,7 @@ export const Scan = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-10 bg-card border-b">
-        <div className="container max-w-2xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <h1 className="text-xl font-bold">Scan Product</h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setShowDiagnostics(true)}
-                title="Scanner Diagnostics"
-              >
-                <Wrench className="h-5 w-5" />
-              </Button>
-            </div>
-            {isOffline && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <WifiOff className="h-4 w-4" />
-                <span>Offline</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
+      <Header showBack={true} showSettings={false} />
 
       <main className="container max-w-2xl mx-auto px-4 py-6 space-y-4">
         {/* Status announcer for screen readers */}

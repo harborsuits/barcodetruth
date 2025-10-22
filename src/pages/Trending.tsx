@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Heart, Bell } from "lucide-react";
+import { Heart, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Header } from "@/components/layout/Header";
 import { toast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EventCard, type BrandEvent } from "@/components/EventCard";
@@ -193,16 +194,7 @@ export const Trending = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-10 bg-card border-b">
-        <div className="container max-w-2xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="text-xl font-bold">Trending Brands</h1>
-          </div>
-        </div>
-      </header>
+      <Header showBack={true} showSettings={false} />
 
       <main className="container max-w-2xl mx-auto px-4 py-6">
         {isLoading ? (

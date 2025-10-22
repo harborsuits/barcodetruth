@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { TrendingUp, List, Settings, Search, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Header } from "@/components/layout/Header";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { TrendingPreview } from "@/components/landing/TrendingPreview";
 import { TrustedSources } from "@/components/landing/TrustedSources";
@@ -11,7 +12,6 @@ import { AttributionFooter } from "@/components/AttributionFooter";
 import { SubscriptionBanner } from "@/components/SubscriptionBanner";
 import { useSnapshotPrewarm } from "@/hooks/useSnapshotPrewarm";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
-import logo from "@/assets/logo.png";
 
 export const Home = () => {
   const navigate = useNavigate();
@@ -20,21 +20,7 @@ export const Home = () => {
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b">
-        <div className="container max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <img src={logo} alt="Barcode Truth" className="h-12 w-auto" />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/settings")}
-            >
-              <Settings className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-      </header>
+      <Header showSettings={true} showBack={false} />
 
       <main className="max-w-screen-md mx-auto px-4 sm:px-6 space-y-8 pb-24">
         <HeroSection />

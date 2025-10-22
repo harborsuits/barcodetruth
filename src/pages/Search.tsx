@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search as SearchIcon, Home, Package } from "lucide-react";
+import { Search as SearchIcon, Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Header } from "@/components/layout/Header";
 import { ReportIssue } from "@/components/ReportIssue";
 import { searchCatalog, type ProductSearchResult, type BrandSearchResult } from "@/lib/searchCatalog";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -72,35 +73,21 @@ export default function Search() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b">
-        <div className="container max-w-2xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/")}
-              aria-label="Go to home"
-            >
-              <Home className="h-5 w-5" />
-            </Button>
-            <div className="flex-1 relative">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                ref={inputRef}
-                type="search"
-                placeholder="Search products and brands..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="pl-9 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                autoFocus
-              />
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header showBack={true} showSettings={false} />
 
       <main className="container max-w-2xl mx-auto px-4 py-6">
+        <div className="mb-6 relative">
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            ref={inputRef}
+            type="search"
+            placeholder="Search products and brands..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="pl-9 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            autoFocus
+          />
+        </div>
         {isSearching && (
           <div className="text-center py-8 text-muted-foreground">
             Searching...

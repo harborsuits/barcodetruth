@@ -1,46 +1,38 @@
-import { Shield, TrendingUp } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { Settings, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import logo from "@/assets/logo.png";
 
-export function Header() {
-  const isAdmin = useIsAdmin();
+interface HeaderProps {
+  showBack?: boolean;
+  showSettings?: boolean;
+}
+
+export function Header({ showBack = false, showSettings = true }: HeaderProps) {
   const navigate = useNavigate();
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-        <div 
-          className="flex items-center gap-2 cursor-pointer" 
-          onClick={() => navigate("/")}
-        >
-          <img src={logo} alt="Logo" className="h-8 w-8" />
-          <span className="font-semibold">BrandScores</span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => navigate("/trending")}
-          >
-            <TrendingUp className="mr-2 h-4 w-4" />
-            Trending
-          </Button>
-          {isAdmin === true && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => navigate("/admin/health")}
+    <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur">
+      <div className="mx-auto max-w-6xl px-4 py-4">
+        <div className="flex items-center justify-center relative">
+          {showBack && (
+            <button 
+              onClick={() => navigate(-1)}
+              className="absolute left-0"
             >
-              <Shield className="mr-2 h-4 w-4" />
-              Admin
-            </Button>
+              <ArrowLeft className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
+            </button>
           )}
-          {isAdmin === null && (
-            <span aria-busy="true" aria-live="polite" className="inline-block w-20 h-9" />
+          {showSettings && !showBack && (
+            <button 
+              onClick={() => navigate("/settings")}
+              className="absolute left-0"
+            >
+              <Settings className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
+            </button>
           )}
+          <button onClick={() => navigate("/")} className="hover:opacity-80 transition-opacity">
+            <img src={logo} alt="Barcode Truth" className="h-12 w-auto" />
+          </button>
         </div>
       </div>
     </header>
