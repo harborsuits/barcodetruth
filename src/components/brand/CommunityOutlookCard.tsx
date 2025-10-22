@@ -8,6 +8,7 @@ import { RateBrandModal } from "./RateBrandModal";
 import { CategoryOutlook } from "@/types/community";
 import { Users, TrendingUp, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Link } from "react-router-dom";
 
 interface CommunityOutlookCardProps {
   brandId: string;
@@ -43,12 +44,12 @@ export function CommunityOutlookCard({ brandId, brandName }: CommunityOutlookCar
     },
   });
 
-  const getConfidenceBadge = (confidence: string) => {
+  const getConfidenceBadge = (confidence: string, n: number) => {
     const variants = {
-      none: { label: "Not enough community input yet", variant: "secondary" as const },
-      low: { label: "Low confidence (≥10 ratings)", variant: "outline" as const },
-      medium: { label: "Medium confidence (≥30 ratings)", variant: "default" as const },
-      high: { label: "High confidence (≥100 ratings)", variant: "default" as const },
+      none: { label: "Awaiting community ratings", variant: "secondary" as const, icon: "⏳" },
+      low: { label: `Low confidence (n=${n})`, variant: "outline" as const, icon: "📊" },
+      medium: { label: `Medium confidence (n=${n})`, variant: "default" as const, icon: "📈" },
+      high: { label: `High confidence (n=${n})`, variant: "default" as const, icon: "✓" },
     };
     return variants[confidence as keyof typeof variants] || variants.none;
   };
@@ -58,9 +59,19 @@ export function CommunityOutlookCard({ brandId, brandName }: CommunityOutlookCar
                   category.histogram.s4 + category.histogram.s5;
     
     if (total === 0 || category.n < 10) {
+      const badge = getConfidenceBadge("none", category.n);
       return (
-        <div className="text-sm text-muted-foreground py-4 text-center">
-          Not enough community input yet
+        <div className="py-4 space-y-2">
+          <div className="text-center">
+            <p className="text-sm font-medium text-muted-foreground">
+              To Be Determined — awaiting more input
+            </p>
+          </div>
+          <div className="flex items-center justify-center">
+            <Badge variant={badge.variant} className="text-xs">
+              {badge.icon} {badge.label} {category.n > 0 ? `(${category.n}/10 needed)` : ''}
+            </Badge>
+          </div>
         </div>
       );
     }
@@ -100,9 +111,9 @@ export function CommunityOutlookCard({ brandId, brandName }: CommunityOutlookCar
           })}
         </div>
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>n={category.n}</span>
-          <Badge variant={getConfidenceBadge(category.confidence).variant} className="text-xs">
-            {getConfidenceBadge(category.confidence).label}
+          <span>Responses: {category.n}</span>
+          <Badge variant={getConfidenceBadge(category.confidence, category.n).variant} className="text-xs">
+            {getConfidenceBadge(category.confidence, category.n).icon} {getConfidenceBadge(category.confidence, category.n).label}
           </Badge>
         </div>
       </div>
@@ -127,34 +138,23 @@ export function CommunityOutlookCard({ brandId, brandName }: CommunityOutlookCar
     <>
       <Card className="p-6 space-y-6">
         <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
+          <div className="space-y-1 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
               <Users className="w-5 h-5 text-primary" />
               <h3 className="text-lg font-semibold">Community Outlook</h3>
               <Badge variant="outline" className="text-xs">Beta</Badge>
+              <Link 
+                to="/methodology" 
+                className="text-xs text-primary hover:underline inline-flex items-center gap-1 ml-auto"
+              >
+                <Info className="w-3 h-3" />
+                How this works
+              </Link>
             </div>
             <p className="text-sm text-muted-foreground">
-              Community perspectives on {brandName}'s conduct, by category. Ratings should be based on the evidence you've read. Confidence grows with more responses.
+              Community perspectives on {brandName}'s conduct across four categories. Share your view after reading the evidence below. Confidence grows with participation.
             </p>
           </div>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Info className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-               <TooltipContent className="max-w-xs">
-                <p className="text-xs font-semibold mb-2">Category Ratings:</p>
-                <ul className="text-xs space-y-1">
-                  <li><strong>Labor</strong> – treatment, wages, safety, unions</li>
-                  <li><strong>Environment</strong> – emissions, waste, resource use</li>
-                  <li><strong>Politics</strong> – lobbying, regulation, policy stances</li>
-                  <li><strong>Social</strong> – DEI, donations, community impact</li>
-                </ul>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
         </div>
 
         <div className="space-y-6">
