@@ -10,6 +10,9 @@ import { Header } from "@/components/layout/Header";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+import { FEATURES } from "@/config/features";
+import { OutlookConfidenceBadge } from "@/components/brand/OutlookConfidenceBadge";
+
 export const Lists = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("following");
@@ -134,13 +137,15 @@ export const Lists = () => {
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          {brand.last_event_at && brand.score != null ? (
+                          {FEATURES.companyScore && brand.last_event_at && brand.score != null ? (
                             <>
                               <span className={`text-2xl font-bold ${getScoreColor(brand.score)}`}>
                                 {brand.score}
                               </span>
                               <span className="text-sm text-muted-foreground">/100</span>
                             </>
+                          ) : FEATURES.communityOutlook ? (
+                            <OutlookConfidenceBadge brandId={brand.id} />
                           ) : (
                             <span className="text-sm text-muted-foreground">—</span>
                           )}

@@ -114,6 +114,8 @@ function BrandLogoWithFallback({
   );
 }
 
+import { FEATURES } from "@/config/features";
+
 export default function BrandProfile() {
   const { id, brandId } = useParams<{ id?: string; brandId?: string }>();
   const navigate = useNavigate();
@@ -167,6 +169,7 @@ export default function BrandProfile() {
 
   const { data: personalizedScore } = useQuery({
     queryKey: ['personalized-score', actualId, user?.id],
+    enabled: FEATURES.companyScore && Boolean(actualId) && Boolean(user?.id),
     queryFn: async () => {
       if (!actualId || !user?.id) return null;
       
@@ -191,7 +194,6 @@ export default function BrandProfile() {
       const result = await response.json();
       return result?.[0] ?? null;
     },
-    enabled: !!actualId && !!user?.id,
   });
 
   // Fetch data confidence to determine if we show scores or monitoring badge
@@ -381,7 +383,8 @@ export default function BrandProfile() {
     );
   }
 
-  // Use personalized score if available, otherwise global score
+  // Legacy: Use personalized score if available, otherwise global score
+  // Now hidden behind feature flag in favor of Community Outlook
   const displayScore = personalizedScore?.personalized_score ?? data.score?.score ?? null;
   const coverage = data.coverage ?? {
     events_7d: 0,

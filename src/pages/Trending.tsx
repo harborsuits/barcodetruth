@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Header } from "@/components/layout/Header";
 import { toast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { FEATURES } from "@/config/features";
+import { OutlookConfidenceBadge } from "@/components/brand/OutlookConfidenceBadge";
 import { EventCard, type BrandEvent } from "@/components/EventCard";
 import { topImpacts } from "@/lib/events";
 import { AttributionFooter } from "@/components/AttributionFooter";
@@ -224,11 +226,15 @@ export const Trending = () => {
             >
               <CardContent className="p-5">
                 <div className="flex items-start gap-4">
-                  {/* Score Badge */}
-                  {brand.score != null ? (
+                  {/* Score Badge or Community Outlook */}
+                  {FEATURES.companyScore && brand.score != null ? (
                     <div className={`flex flex-col items-center justify-center rounded-full border-2 w-16 h-16 shrink-0 ${getScoreColor(brand.score)}`}>
                       <div className="text-2xl font-bold">{brand.score}</div>
                       <div className="text-[10px] font-medium opacity-80">Score</div>
+                    </div>
+                  ) : FEATURES.communityOutlook ? (
+                    <div className="flex flex-col items-center justify-center rounded-full border-2 w-16 h-16 shrink-0 border-muted bg-muted/10">
+                      <OutlookConfidenceBadge brandId={brand.id} />
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center rounded-full border-2 w-16 h-16 shrink-0 border-muted bg-muted/10">

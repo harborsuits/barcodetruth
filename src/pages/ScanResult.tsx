@@ -50,6 +50,8 @@ interface BrandWithScores {
   brand_scores: BrandScores[];
 }
 
+import { FEATURES } from "@/config/features";
+
 export default function ScanResult() {
   const { barcode } = useParams<{ barcode: string }>();
   const navigate = useNavigate();
@@ -89,6 +91,7 @@ export default function ScanResult() {
   // Query brand from Edge API
   const { data: brandData, isLoading: brandLoading } = useQuery({
     queryKey: ['brand-scores', product?.brand_id],
+    enabled: FEATURES.companyScore && Boolean(product?.brand_id),
     queryFn: async () => {
       const API = import.meta.env.VITE_SUPABASE_URL + "/functions/v1/v1-brands";
       const res = await fetch(`${API}/brands/${product!.brand_id}`);
@@ -114,7 +117,6 @@ export default function ScanResult() {
         }]
       } as BrandWithScores;
     },
-    enabled: !!product?.brand_id,
   });
 
   // Fetch recent brand events (last 12 months)
@@ -669,7 +671,8 @@ export default function ScanResult() {
 
                 <ValueFitBar score={currentBrandData.valueFit} showExplainer />
 
-                {topDrivers.length > 0 && (
+                {/* Legacy score explanation - hidden when company score is off */}
+                {FEATURES.companyScore && topDrivers.length > 0 && (
                   <WhyThisScore 
                     brandId={product.brand_id} 
                     impacts={topDrivers}
