@@ -1,37 +1,125 @@
-# Enrichment Pipeline Consolidation Plan
+# Enrichment Pipeline Consolidation Plan (Production-Ready)
 
 ## Executive Summary
 
 **Goal:** Single canonical enricher per feature, backed by Wikipedia/Wikidata for identity/structure, filings for shareholders.
 
-**Current Problem:** `enrich-brand-wiki` does 3 jobs (descriptions + ownership + key people). This creates coupling and makes the pipeline brittle.
+**Current Problem:** `enrich-brand-wiki` does 3 jobs (descriptions + ownership + key people). This creates coupling, hidden duplication, and makes the pipeline brittle.
+
+**Production Improvements:** Idempotency keys, enums, feature flags, observability, rollback plan.
+
+---
+
+## Phase 0: Schema Hardening (Prerequisites)
+
+### 0.1 Add Stronger Constraints
+
+```sql
+-- Idempotency: unique role per company
+ALTER TABLE company_people
+  ADD COLUMN IF NOT EXISTS image_file text,
+  ADD COLUMN IF NOT EXISTS wikipedia_url text,
+  ADD CONSTRAINT company_people_unique_role UNIQUE (company_id, role);
+
+-- Ownership relationship validation
+ALTER TABLE company_ownership
+  ADD CONSTRAINT company_ownership_rel_chk
+  CHECK (relationship_type IN ('parent','subsidiary','parent_organization'));
+
+-- Shareholder data validation
+ALTER TABLE company_shareholders
+  ADD COLUMN IF NOT EXISTS holder_name_raw text,
+  ADD CONSTRAINT company_shareholders_pct_chk
+  CHECK (percent_owned >= 0 AND percent_owned <= 100);
+
+-- People role enum (stronger typing)
+DO $$ BEGIN
+  CREATE TYPE people_role AS ENUM ('chief_executive_officer','founder','chairperson');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+ALTER TABLE company_people
+  ALTER COLUMN role TYPE people_role USING role::people_role;
+```
+
+### 0.2 Add Observability Table
+
+```sql
+CREATE TABLE IF NOT EXISTS enrichment_runs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  brand_id uuid REFERENCES brands(id) ON DELETE CASCADE,
+  company_id uuid REFERENCES companies(id) ON DELETE CASCADE,
+  task text NOT NULL CHECK (task IN ('wiki','ownership','key_people','shareholders','logo')),
+  status text NOT NULL CHECK (status IN ('running','success','failed','skipped')),
+  rows_written integer DEFAULT 0,
+  duration_ms integer,
+  error text,
+  started_at timestamptz NOT NULL DEFAULT now(),
+  finished_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_enrichment_runs_brand ON enrichment_runs(brand_id, task, started_at DESC);
+CREATE INDEX idx_enrichment_runs_status ON enrichment_runs(status, started_at DESC);
+
+-- RLS: Admins can read, service role can write
+ALTER TABLE enrichment_runs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins can read enrichment runs"
+  ON enrichment_runs FOR SELECT
+  USING (has_role(auth.uid(), 'admin'::app_role));
+
+CREATE POLICY "Service role can manage enrichment runs"
+  ON enrichment_runs FOR ALL
+  USING (true)
+  WITH CHECK (true);
+```
 
 ---
 
 ## Phase 1: Function Separation (Week 1)
 
-### 1.1 Refactor `enrich-brand-wiki`
-**Action:** Remove ownership & key people logic; focus ONLY on descriptions.
+### 1.1 Refactor `enrich-brand-wiki` (DESC-ONLY Mode)
+
+**Action:** DELETE (not ignore) ownership & key people code. Add feature flag guard.
 
 **Files to Edit:**
-- `supabase/functions/enrich-brand-wiki/index.ts` (lines 426-762)
+- `supabase/functions/enrich-brand-wiki/index.ts`
 
-**What to Remove:**
-- Parent company enrichment (lines 442-623)
-- Key people enrichment (lines 624-756)
-- Keep only: Wikipedia description fetch + wikidata_qid resolution
+**What to DELETE:**
+- Lines 426-762: All parent company enrichment logic
+- Lines 624-756: All key people enrichment logic
 
-**Result:**
+**What to ADD at function start:**
 ```typescript
-// enrich-brand-wiki should ONLY do:
-1. Resolve name → Wikidata QID
-2. Get enwiki title from QID
-3. Fetch Wikipedia extract
-4. Store: description, wiki_url, wikidata_qid, wiki_en_title
+// Guard: enforce desc-only mode
+const ENRICH_MODE = Deno.env.get('ENRICH_BRAND_WIKI_MODE') || 'desc-only';
+if (ENRICH_MODE !== 'desc-only') {
+  throw new Error('enrich-brand-wiki must run in desc-only mode (ownership/people removed)');
+}
 ```
 
-### 1.2 Enhance `enrich-ownership`
-**Action:** Make it the ONLY ownership enricher.
+**Result Contract:**
+```typescript
+// enrich-brand-wiki ONLY does:
+// Input: { brand_id }
+// Writes: brands.wiki_en_title, brands.wikidata_qid, brands.wiki_url, brands.description
+// Does NOT: ownership, key_people, shareholders
+// Observability: writes to enrichment_runs(task='wiki')
+
+// At end of function:
+await supabase.from('enrichment_runs').insert({
+  brand_id: targetId,
+  task: 'wiki',
+  status: 'success',
+  rows_written: description ? 1 : 0,
+  duration_ms: Date.now() - startTime,
+  finished_at: new Date().toISOString()
+});
+```
+
+### 1.2 Enhance `enrich-ownership` (Canonical Ownership)
+
+**Action:** Make it the ONLY ownership enricher with idempotent writes.
 
 **Source Strategy:**
 - Wikidata P749 (parent organization)
@@ -41,132 +129,279 @@
 
 **Guardrails:**
 - Asset manager trigger already exists (`forbid_asset_managers_as_parents`)
-- Confidence threshold: ≥ 0.7
+- Confidence threshold: ≥ 0.9 (Wikidata is highly structured)
+- CHECK constraint on relationship_type (added in Phase 0)
 
-**Add Fields:**
-```sql
-ALTER TABLE company_ownership
-  ADD COLUMN IF NOT EXISTS source_name text DEFAULT 'Wikidata',
-  ADD COLUMN IF NOT EXISTS source_url text,
-  ADD COLUMN IF NOT EXISTS confidence numeric DEFAULT 0.9,
-  ADD COLUMN IF NOT EXISTS last_verified_at timestamptz DEFAULT now();
+**Idempotency:**
+```typescript
+// UPSERT with soft updates (only overwrite if newer)
+await supabase.from('company_ownership').upsert({
+  parent_company_id,
+  child_brand_id,
+  relationship_type,
+  source: 'wikidata',
+  source_ref: `https://www.wikidata.org/wiki/${wikidata_qid}`,
+  confidence: 0.9,
+  last_verified_at: new Date().toISOString()
+}, {
+  onConflict: 'parent_company_id,child_brand_id',
+  ignoreDuplicates: false // Update if last_verified_at is newer
+});
 ```
 
-### 1.3 Enhance `enrich-key-people`
-**Action:** Make it the ONLY key people enricher.
+**Observability:**
+```typescript
+await supabase.from('enrichment_runs').insert({
+  brand_id,
+  task: 'ownership',
+  status: 'success',
+  rows_written: edgesAdded,
+  duration_ms: Date.now() - startTime,
+  finished_at: new Date().toISOString()
+});
+```
+
+### 1.3 Enhance `enrich-key-people` (Canonical Key People)
+
+**Action:** Make it the ONLY key people enricher with proper English links and idempotency.
 
 **Source Strategy:**
 - Wikidata P169 (CEO), P112 (Founder), P488 (Chair)
-- Wikidata P18 (image) → Commons FilePath
-- **CRITICAL:** Store enwiki sitelink as `wikipedia_url` (don't construct on fly)
+- Wikidata P18 (image) → Commons FilePath with width param
+- **CRITICAL:** Store enwiki sitelink as `wikipedia_url` (prefer over constructed URLs)
+- Store both `image_file` (raw filename) and `image_url` (rendered URL)
 
-**Current Bug:** Function exists but doesn't store `wikipedia_url`.
-
-**Fix Required:**
+**Enhanced SPARQL Query:**
 ```typescript
-// In SPARQL query, get enwiki sitelink:
-SELECT ?person ?personLabel ?image ?article WHERE {
-  VALUES ?prop { wd:P169 wd:P112 wd:P488 }
-  wd:${qid} ?p ?statement .
-  ?statement ?ps ?person .
-  ?p wikibase:directClaim ?prop .
-  OPTIONAL { ?person wdt:P18 ?image }
-  OPTIONAL {
-    ?article schema:about ?person ;
-             schema:isPartOf <https://en.wikipedia.org/> .
+const sparqlQuery = `
+  SELECT ?person ?personLabel ?role ?image ?article WHERE {
+    VALUES (?prop ?role) {
+      (wd:P169 "chief_executive_officer")
+      (wd:P112 "founder")
+      (wd:P488 "chairperson")
+    }
+    wd:${qid} ?p ?statement .
+    ?statement ?ps ?person .
+    ?p wikibase:directClaim ?prop .
+    
+    # Get image (optional)
+    OPTIONAL { ?person wdt:P18 ?image }
+    
+    # Get enwiki sitelink (preferred)
+    OPTIONAL {
+      ?article schema:about ?person ;
+               schema:isPartOf <https://en.wikipedia.org/> .
+    }
+    
+    SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
   }
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
-}
+`;
 
-// Then store:
-{
-  wikipedia_url: article (e.g., "https://en.wikipedia.org/wiki/Doug_McMillon"),
-  image_url: Special:FilePath/...?width=256,
-  person_qid: Q123456,
-  source_name: 'Wikidata',
-  source_url: `https://www.wikidata.org/wiki/${qid}`,
-  confidence: 0.95
+// Process results with proper URL handling
+for (const binding of data.results.bindings) {
+  const personQid = binding.person.value.split('/').pop();
+  const name = binding.personLabel.value;
+  const role = binding.role.value; // enum value
+  
+  // Image handling: store both raw and rendered
+  let imageFile: string | undefined;
+  let imageUrl: string | undefined;
+  if (binding.image?.value) {
+    const filename = decodeURIComponent(binding.image.value.split('/').pop());
+    imageFile = filename;
+    imageUrl = `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(filename)}?width=256`;
+  }
+  
+  // Wikipedia URL: prefer enwiki sitelink
+  const wikipediaUrl = binding.article?.value || null;
+  
+  await supabase.from('company_people').upsert({
+    company_id,
+    person_name: name,
+    role: role as people_role, // typed enum
+    person_qid: personQid,
+    image_file: imageFile,
+    image_url: imageUrl,
+    wikipedia_url: wikipediaUrl,
+    source: 'wikidata',
+    source_ref: `https://www.wikidata.org/wiki/${personQid}`,
+    confidence: 0.95,
+    last_verified_at: new Date().toISOString()
+  }, {
+    onConflict: 'company_id,role',
+    // Only update if newer or has more data
+    ignoreDuplicates: false
+  });
 }
 ```
 
-**Add Fields:**
-```sql
-ALTER TABLE company_people
-  ADD COLUMN IF NOT EXISTS wikipedia_url text,
-  ADD COLUMN IF NOT EXISTS person_qid text,
-  ADD COLUMN IF NOT EXISTS source_name text DEFAULT 'Wikidata',
-  ADD COLUMN IF NOT EXISTS source_url text,
-  ADD COLUMN IF NOT EXISTS confidence numeric DEFAULT 0.95,
-  ADD COLUMN IF NOT EXISTS last_verified_at timestamptz DEFAULT now();
+**Idempotency:**
+- UNIQUE constraint on `(company_id, role)` ensures one CEO, one Founder, one Chair
+- Soft updates: only overwrite if `last_verified_at` is newer
+
+**Observability:**
+```typescript
+await supabase.from('enrichment_runs').insert({
+  company_id,
+  task: 'key_people',
+  status: 'success',
+  rows_written: people.length,
+  duration_ms: Date.now() - startTime,
+  finished_at: new Date().toISOString()
+});
 ```
 
 ---
 
 ## Phase 2: New Shareholder Enricher (Week 2)
 
-### 2.1 Create `enrich-shareholders`
-**Why NOT use Wikidata:** Wikipedia/Wikidata are patchy/stale for institutional holders.
+### 2.1 Create `enrich-shareholders` (SEC-First)
 
-**Source Strategy:**
-1. SEC 13F filings aggregator (e.g., WhaleWisdom API, SEC EDGAR bulk)
-2. Company IR pages (last resort)
-3. Manual flagging for non-US public cos
+**Why NOT use Wikidata:** Wikipedia/Wikidata are patchy/stale for institutional holders. Use filings-based sources.
 
-**Table Schema:**
+**Source Strategy (Priority Order):**
+1. SEC 13F filings aggregator (WhaleWisdom API, SEC EDGAR bulk data)
+2. Company IR pages (quarterly reports)
+3. Manual entry for non-US public companies
+
+**Schema (Already Exists, Adding Fields):**
 ```sql
-CREATE TABLE IF NOT EXISTS company_shareholders (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  company_id uuid NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
-  holder_name text NOT NULL,
-  holder_type text NOT NULL CHECK (holder_type IN ('institutional','insider','retail_estimate')),
-  pct numeric NOT NULL CHECK (pct >= 0 AND pct <= 100),
-  is_asset_manager boolean DEFAULT false,
-  as_of_date date,
-  source_name text,
-  source_url text,
-  created_at timestamptz DEFAULT now(),
-  UNIQUE(company_id, holder_name, as_of_date)
-);
+ALTER TABLE company_shareholders
+  ADD COLUMN IF NOT EXISTS holder_name_raw text,
+  ADD CONSTRAINT company_shareholders_pct_chk
+  CHECK (percent_owned >= 0 AND percent_owned <= 100);
 ```
 
-**Edge Function Skeleton:**
+**Edge Function (Production-Ready):**
 ```typescript
 // supabase/functions/enrich-shareholders/index.ts
-export default async (req: Request) => {
-  const { company_id, ticker } = await req.json();
-  
-  // Fetch top 10 institutional holders
-  const holders = await fetchInstitutionalHolders(ticker);
-  
-  // Upsert with provenance
-  for (const h of holders) {
-    await supabase.from('company_shareholders').upsert({
-      company_id,
-      holder_name: h.name,
-      holder_type: 'institutional',
-      pct: h.percent,
-      is_asset_manager: isAssetManager(h.name),
-      as_of_date: h.filingDate,
-      source_name: 'SEC 13F',
-      source_url: h.filingUrl
-    }, {
-      onConflict: 'company_id,holder_name,as_of_date'
-    });
-  }
-  
-  return { success: true, inserted: holders.length };
-};
-```
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { corsHeaders } from '../_shared/cors.ts';
 
-**Asset Manager Detection:**
-```typescript
+interface Shareholder {
+  name: string;
+  name_raw: string;
+  percent: number;
+  filing_date: string;
+  filing_url: string;
+  holder_type: 'institutional' | 'insider' | 'retail_estimate';
+}
+
+// Asset manager detection with normalization
 const ASSET_MANAGERS = [
   'BlackRock', 'Vanguard', 'State Street', 'Fidelity',
-  'Invesco', 'Capital Group', 'T. Rowe Price'
+  'Invesco', 'Capital Group', 'T. Rowe Price', 'BNY Mellon',
+  'Morgan Stanley', 'Goldman Sachs', 'JPMorgan'
 ];
 
+function normalizeName(name: string): string {
+  // "The Vanguard Group, Inc." → "Vanguard"
+  return name
+    .replace(/^The\s+/i, '')
+    .replace(/\s+(Inc|LLC|LP|Ltd|Corporation|Corp)\.?$/i, '')
+    .trim();
+}
+
 function isAssetManager(name: string): boolean {
-  return ASSET_MANAGERS.some(am => name.includes(am));
+  const normalized = normalizeName(name);
+  return ASSET_MANAGERS.some(am => normalized.includes(am));
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  const startTime = Date.now();
+
+  try {
+    const { company_id, ticker } = await req.json();
+    
+    if (!company_id || !ticker) {
+      return new Response(
+        JSON.stringify({ error: 'company_id and ticker required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    // Fetch top institutional holders (from your chosen provider)
+    const holders: Shareholder[] = await fetchInstitutionalHolders(ticker);
+    
+    // Validate and filter
+    const cleaned = holders
+      .filter(h => h.holder_type === 'institutional' && h.percent > 0)
+      .slice(0, 10); // Top 10 only
+
+    let inserted = 0;
+    for (const h of cleaned) {
+      const { error } = await supabase.from('company_shareholders').upsert({
+        company_id,
+        holder_name: normalizeName(h.name),
+        holder_name_raw: h.name_raw,
+        holder_type: h.holder_type,
+        percent_owned: Math.round(h.percent * 100) / 100, // Round to 2 decimals
+        is_asset_manager: isAssetManager(h.name),
+        as_of: h.filing_date,
+        source: 'SEC 13F',
+        source_name: 'SEC EDGAR',
+        source_url: h.filing_url,
+      }, {
+        onConflict: 'company_id,holder_name,as_of',
+        ignoreDuplicates: true
+      });
+
+      if (!error) inserted++;
+    }
+
+    // Observability
+    await supabase.from('enrichment_runs').insert({
+      company_id,
+      task: 'shareholders',
+      status: 'success',
+      rows_written: inserted,
+      duration_ms: Date.now() - startTime,
+      finished_at: new Date().toISOString()
+    });
+
+    return new Response(
+      JSON.stringify({ success: true, inserted, total_fetched: holders.length }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('Error enriching shareholders:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});
+
+// Placeholder for actual data fetch (implement based on your provider)
+async function fetchInstitutionalHolders(ticker: string): Promise<Shareholder[]> {
+  // TODO: Integrate with SEC EDGAR API or WhaleWisdom
+  // For now, return empty array
+  return [];
+}
+```
+
+**Batching + Rate Limits:**
+```typescript
+// Add to all enrichers
+const BATCH_SIZE = 50;
+const SLEEP_MS = 100; // Jitter between API calls
+
+for (let i = 0; i < items.length; i += BATCH_SIZE) {
+  const batch = items.slice(i, i + BATCH_SIZE);
+  await processBatch(batch);
+  if (i + BATCH_SIZE < items.length) {
+    await new Promise(resolve => setTimeout(resolve, SLEEP_MS));
+  }
 }
 ```
 
@@ -374,58 +609,134 @@ WHERE is_active = true;
 
 ---
 
-## Rollout Checklist
+## Rollout Checklist (Production-Ready)
 
-### Week 1: Separation
-- [ ] Remove ownership/people logic from `enrich-brand-wiki`
-- [ ] Test `enrich-brand-wiki` only sets description + QID
-- [ ] Add `wikipedia_url` to `enrich-key-people` SPARQL
-- [ ] Add provenance fields to `company_ownership` and `company_people`
+### Phase 0: Prerequisites (Day 1-2)
+- [ ] Run schema hardening migration (constraints, enums, observability)
+- [ ] Verify `enrichment_runs` table created with RLS policies
+- [ ] Create backup of current `enrich-brand-wiki` function
+- [ ] Set `ENRICH_BRAND_WIKI_MODE=desc-only` environment variable
 
-### Week 2: Shareholders
-- [ ] Create `company_shareholders` table with constraints
-- [ ] Implement `enrich-shareholders` edge function
+### Week 1: Separation (Day 3-7)
+- [ ] DELETE lines 426-762 from `enrich-brand-wiki/index.ts` (ownership + people)
+- [ ] ADD feature flag guard at function start
+- [ ] ADD observability tracking to `enrichment_runs`
+- [ ] Test `enrich-brand-wiki` only sets description + QID (3 test brands)
+- [ ] Verify no console errors or data corruption
+
+### Week 1.5: Key People (Day 8-10)
+- [ ] ADD `wikipedia_url`, `image_file` to `enrich-key-people` SPARQL
+- [ ] ADD idempotency with `ON CONFLICT (company_id, role)`
+- [ ] ADD observability tracking
+- [ ] Test with Walmart, Kroger, Dove (expect CEO + Founder)
+- [ ] Verify English Wikipedia links work
+
+### Week 2: Shareholders (Day 11-14)
+- [ ] Implement `enrich-shareholders/index.ts` with SEC-first strategy
+- [ ] ADD `holder_name_raw` to `company_shareholders` table
 - [ ] Test with 3 public companies (Walmart, Starbucks, Nike)
-- [ ] Verify asset manager badges render
+- [ ] Verify ≥4 institutional holders for each
+- [ ] Verify asset manager badges render correctly
 
-### Week 3: Migration
-- [ ] Run ownership migration SQL
-- [ ] Backfill key people for top 20 brands
-- [ ] Verify no asset managers in `company_ownership`
-- [ ] Update UI components to use new tables
+### Week 3: Migration (Day 15-21)
+- [ ] Run ownership migration SQL (legacy → `company_ownership`)
+- [ ] Verify no asset managers in `company_ownership` (trigger test)
+- [ ] Backfill key people for top 20 brands using enhanced enricher
+- [ ] Check coverage: `SELECT * FROM brand_profile_coverage;`
+- [ ] Update UI components to consume new data structure
 
-### Week 4: Automation
+### Week 4: Automation (Day 22-28)
 - [ ] Deploy unified `enrich-brand` orchestrator
-- [ ] Schedule weekly description batch
-- [ ] Schedule weekly shareholder refresh
-- [ ] Set up coverage metrics dashboard
+- [ ] Schedule weekly description batch (Monday 2am)
+- [ ] Schedule weekly shareholder refresh (Friday 3am)
+- [ ] Create admin dashboard: `/admin/enrichment-monitor`
+- [ ] Set up Slack alerts for failed enrichment runs
 
-### Week 5: QA
-- [ ] Run gap detection queries
-- [ ] Fix failures (target: <5% gaps for top features)
-- [ ] Run Playwright smoke tests
-- [ ] Document enrichment SLAs
+### Week 5: QA & Documentation (Day 29-35)
+- [ ] Run gap detection queries (target: <5% gaps)
+- [ ] Fix failures and document edge cases
+- [ ] Run Playwright smoke tests (ownership, key people, shareholders)
+- [ ] Document enrichment SLAs:
+  - Descriptions: 95% coverage, refresh quarterly
+  - Ownership: 90% coverage, refresh quarterly
+  - Key People: 80% for top 50 brands, refresh quarterly
+  - Shareholders: 100% for public cos, refresh monthly
+- [ ] Delete backup function (after 7-day grace period)
+
+### Acceptance Criteria
+
+**Must Pass Before Production:**
+1. Zero console errors in browser dev tools
+2. No asset managers in `company_ownership` table
+3. ≥90% of brands have descriptions
+4. Walmart profile shows: parent (Walton family), CEO (Doug McMillon), ≥4 shareholders
+5. `enrichment_runs` table shows all tasks completing in <5s per brand
+6. Dark mode snapshot matches baseline (Playwright)
+
+---
+
+## Rollback Plan
+
+### Safety Measures
+
+1. **Feature Flags:**
+   - `ENRICH_BRAND_WIKI_MODE=desc-only` enforced at function entry
+   - If new pipeline fails, temporarily set to `legacy` to use backup
+
+2. **Backup Function:**
+   - Keep `enrich-brand-wiki-backup.ts` (frozen copy) for 7 days
+   - Feature-flagged off by default
+   - Allows quick rollback if critical issues arise
+
+3. **Migration Reversibility:**
+   - Ownership migration uses UPSERT (safe to re-run)
+   - Legacy `brand_ownerships` table NOT dropped (soft deprecation)
+   - Can reconstruct from backup if needed
+
+4. **Gradual Rollout:**
+   - Test with 3-5 brands first (Walmart, Starbucks, Nike)
+   - Monitor `enrichment_runs` for errors
+   - Scale to batch mode only after validation
+
+### Rollback Steps (If Needed)
+
+```bash
+# 1. Revert feature flag
+ENRICH_BRAND_WIKI_MODE=legacy
+
+# 2. Restore backup function (if deleted)
+cp enrich-brand-wiki-backup.ts enrich-brand-wiki/index.ts
+
+# 3. Clear bad data (if any)
+DELETE FROM company_ownership WHERE confidence < 0.8;
+DELETE FROM company_people WHERE source = 'wikidata' AND created_at > '2025-01-23';
+
+# 4. Re-run legacy enricher for affected brands
+POST /functions/v1/enrich-brand-wiki?brand_id={id}
+```
 
 ---
 
 ## Files to Edit
 
-### Edge Functions
-- `supabase/functions/enrich-brand-wiki/index.ts` (refactor lines 426-762)
-- `supabase/functions/enrich-ownership/index.ts` (add provenance)
-- `supabase/functions/enrich-key-people/index.ts` (add wikipedia_url)
-- `supabase/functions/enrich-shareholders/index.ts` (NEW)
-- `supabase/functions/enrich-brand/index.ts` (NEW orchestrator)
+### Edge Functions (DELETE/REFACTOR)
+- `supabase/functions/enrich-brand-wiki/index.ts` (DELETE lines 426-762, ADD desc-only guard)
+- `supabase/functions/enrich-ownership/index.ts` (ADD idempotency + observability)
+- `supabase/functions/enrich-key-people/index.ts` (ADD wikipedia_url + image_file + observability)
+- `supabase/functions/enrich-shareholders/index.ts` (NEW - SEC-first shareholder enricher)
+- `supabase/functions/enrich-brand/index.ts` (NEW - unified orchestrator)
 
-### Migrations
-- `20250123_add_shareholder_table.sql`
-- `20250123_add_provenance_fields.sql`
-- `20250123_migrate_legacy_ownership.sql`
+### Migrations (SQL)
+- `20250123_schema_hardening.sql` (Phase 0: constraints, enums, observability table)
+- `20250123_migrate_legacy_ownership.sql` (Phase 3: brand_ownerships → company_ownership)
 
 ### UI Components (Already Created ✅)
 - `src/components/brand/OwnershipSimple.tsx`
 - `src/components/brand/KeyPeopleSimple.tsx`
 - `src/components/brand/ShareholdersSimple.tsx`
+
+### Admin Dashboard (NEW)
+- `src/pages/AdminEnrichmentMonitor.tsx` (view enrichment_runs table, gap analysis)
 
 ---
 
