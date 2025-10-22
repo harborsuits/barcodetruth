@@ -119,6 +119,16 @@ export default function BrandProfile() {
   const queryClient = useQueryClient();
   const actualId = id || brandId;
   
+  // Debug log to track brand ID
+  useEffect(() => {
+    console.log('[BrandProfile] Component mounted with:', {
+      id,
+      brandId,
+      actualId,
+      route: window.location.pathname
+    });
+  }, [id, brandId, actualId]);
+  
   const [data, setData] = useState<BrandProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -636,13 +646,13 @@ export default function BrandProfile() {
         </Card>
 
         {/* Ownership Trail */}
-        <OwnershipTrail brandId={id!} />
+        {actualId && <OwnershipTrail brandId={actualId} />}
 
         {/* Ownership Structure */}
-        <OwnershipGraph brandId={id!} />
+        {actualId && <OwnershipGraph brandId={actualId} />}
 
         {/* Consolidated Scores (if has subsidiaries) */}
-        <RollupScores brandId={id!} />
+        {actualId && <RollupScores brandId={actualId} />}
 
         {/* Evidence - Grouped by Category */}
         <Card>
