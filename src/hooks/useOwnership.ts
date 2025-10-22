@@ -59,6 +59,8 @@ export function useOwnership(brandId: string | undefined) {
           p_brand_id: brandId
         });
 
+      console.debug('[Ownership] brandId=', brandId, 'error=', error, 'data=', data);
+
       if (error) {
         console.error('[useOwnership] Error fetching ownership:', error);
         throw error;

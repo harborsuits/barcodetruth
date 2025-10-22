@@ -146,7 +146,7 @@ export default function BrandProfile() {
   // Check for new ownership data to hide legacy cards
   const { data: ownership } = useOwnership(actualId);
   const hasOwnershipData = 
-    (ownership?.structure?.chain?.length ?? 0) > 0 ||
+    (ownership?.structure?.chain?.length ?? 0) > 1 ||
     (ownership?.shareholders?.top?.length ?? 0) > 0;
 
   // Get current user for personalized scoring
