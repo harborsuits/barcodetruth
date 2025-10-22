@@ -25,6 +25,7 @@ import { OwnershipTabs } from '@/components/brand/OwnershipTabs';
 import { KeyPeopleRow } from '@/components/brand/KeyPeopleRow';
 import { ValuationChip } from '@/components/brand/ValuationChip';
 import { CommunityOutlookCard } from '@/components/brand/CommunityOutlookCard';
+import { useOwnership } from '@/hooks/useOwnership';
 
 type BrandProfile = {
   brand: { 
@@ -142,6 +143,11 @@ export default function BrandProfile() {
   const [suggestDialogOpen, setSuggestDialogOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>();
 
+  // Check for new ownership data to hide legacy cards
+  const { data: ownership } = useOwnership(actualId);
+  const hasOwnershipData = 
+    (ownership?.structure?.chain?.length ?? 0) > 0 ||
+    (ownership?.shareholders?.top?.length ?? 0) > 0;
 
   // Get current user for personalized scoring
   const [user, setUser] = useState<any>(null);
@@ -436,8 +442,8 @@ export default function BrandProfile() {
               <div className="flex-1 min-w-0">
                 <h2 className="text-2xl font-bold truncate">{data.brand.name}</h2>
                 
-                {/* Ownership badges */}
-                {data.ownership?.upstream && data.ownership.upstream.length > 0 && (
+                {/* Legacy ownership badges - hidden when new ownership data exists */}
+                {!hasOwnershipData && data.ownership?.upstream && data.ownership.upstream.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
                     {data.ownership.upstream.map((o, i) => (
                       <Badge 
@@ -452,7 +458,7 @@ export default function BrandProfile() {
                     ))}
                   </div>
                 )}
-                {data.ownership?.downstream && data.ownership.downstream.length > 0 && (
+                {!hasOwnershipData && data.ownership?.downstream && data.ownership.downstream.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
                     {data.ownership.downstream.map((o, i) => (
                       <Badge 
@@ -468,7 +474,7 @@ export default function BrandProfile() {
                   </div>
                 )}
                 
-                {data.brand.parent_company && (
+                {!hasOwnershipData && data.brand.parent_company && (
                   <p className="text-sm text-muted-foreground mt-1">
                     Parent: {data.brand.parent_company}
                   </p>
