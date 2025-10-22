@@ -43,6 +43,54 @@ function isAssetManager(holderName: string): boolean {
 }
 
 async function fetchTopShareholders(ticker: string, companyId: string): Promise<Shareholder[]> {
+  // DEV SEED: return sample data in dev mode
+  const DEV_SEED = Deno.env.get('ENRICH_SHAREHOLDERS_DEV_SEED') === '1';
+  if (DEV_SEED) {
+    console.log(`[enrich-shareholders] DEV MODE: returning seed data for ${ticker}`);
+    return [
+      {
+        holder_name: 'Vanguard',
+        holder_name_raw: 'The Vanguard Group, Inc.',
+        holder_type: 'institutional',
+        percent_owned: 8.73,
+        is_asset_manager: true,
+        as_of_date: '2025-06-30',
+        source_name: 'DEV_SEED',
+        source_url: '',
+      },
+      {
+        holder_name: 'BlackRock',
+        holder_name_raw: 'BlackRock Fund Advisors',
+        holder_type: 'institutional',
+        percent_owned: 6.12,
+        is_asset_manager: true,
+        as_of_date: '2025-06-30',
+        source_name: 'DEV_SEED',
+        source_url: '',
+      },
+      {
+        holder_name: 'State Street',
+        holder_name_raw: 'State Street Global Advisors',
+        holder_type: 'institutional',
+        percent_owned: 4.02,
+        is_asset_manager: true,
+        as_of_date: '2025-06-30',
+        source_name: 'DEV_SEED',
+        source_url: '',
+      },
+      {
+        holder_name: 'Capital Group',
+        holder_name_raw: 'Capital Research Global Investors',
+        holder_type: 'institutional',
+        percent_owned: 3.30,
+        is_asset_manager: false,
+        as_of_date: '2025-06-30',
+        source_name: 'DEV_SEED',
+        source_url: '',
+      },
+    ];
+  }
+
   // PLACEHOLDER: In production, integrate with:
   // - SEC EDGAR API for 13F filings
   // - Alpha Vantage (institutional_ownership)

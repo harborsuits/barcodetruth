@@ -211,6 +211,18 @@ export type Database = {
           },
         ]
       }
+      asset_managers: {
+        Row: {
+          name: string
+        }
+        Insert: {
+          name: string
+        }
+        Update: {
+          name?: string
+        }
+        Relationships: []
+      }
       brand_aliases: {
         Row: {
           canonical_brand_id: string

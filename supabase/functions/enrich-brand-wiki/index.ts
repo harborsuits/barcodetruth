@@ -67,7 +67,8 @@ serve(async (req) => {
             headers: { 'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` }
           });
           processed++;
-          await new Promise(resolve => setTimeout(resolve, 200)); // Rate limiting
+          // Rate limiting with jitter
+          await new Promise(resolve => setTimeout(resolve, 150 + Math.floor(Math.random() * 150)));
         } catch (e) {
           console.error(`[enrich-brand-wiki] Failed to enrich ${brand.name}:`, e);
         }

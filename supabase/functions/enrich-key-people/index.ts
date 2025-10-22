@@ -126,6 +126,7 @@ Deno.serve(async (req) => {
           ? `https://en.wikipedia.org/wiki/${person.wikipediaTitle}`
           : `https://en.wikipedia.org/wiki/${encodeURIComponent(person.name.replace(/ /g, '_'))}`;
 
+        // Idempotent upsert: only overwrite nulls or older data
         const { error: upsertError } = await supabase
           .from('company_people')
           .upsert({
