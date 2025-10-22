@@ -177,7 +177,10 @@ export function RateBrandModal({ brandId, brandName, open, onOpenChange }: RateB
                         <SelectValue placeholder="Select an event..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {recentEvents?.filter(e => e.category === key).map((event) => (
+                        {recentEvents?.filter(e => {
+                          const eventCat = e.category?.toLowerCase().replace(/\s+/g, '');
+                          return eventCat === key;
+                        }).map((event) => (
                           <SelectItem key={event.event_id} value={event.event_id}>
                             {event.title || 'Untitled event'} ({new Date(event.event_date).toLocaleDateString()})
                           </SelectItem>

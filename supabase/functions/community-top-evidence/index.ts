@@ -16,9 +16,18 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
-    const url = new URL(req.url);
-    const brand_id = url.searchParams.get('brand_id');
-    const limit = parseInt(url.searchParams.get('limit') || '3', 10);
+    // Support both GET (query params) and POST (JSON body)
+    let brand_id: string | null;
+    let limit: number;
+    if (req.method === 'GET') {
+      const url = new URL(req.url);
+      brand_id = url.searchParams.get('brand_id');
+      limit = parseInt(url.searchParams.get('limit') || '3', 10);
+    } else {
+      const body = await req.json();
+      brand_id = body.brand_id;
+      limit = parseInt(body.limit || '3', 10);
+    }
 
     if (!brand_id) {
       return new Response(

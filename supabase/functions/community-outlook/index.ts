@@ -33,8 +33,15 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
-    const url = new URL(req.url);
-    const brand_id = url.searchParams.get('brand_id');
+    // Support both GET (query params) and POST (JSON body)
+    let brand_id: string | null;
+    if (req.method === 'GET') {
+      const url = new URL(req.url);
+      brand_id = url.searchParams.get('brand_id');
+    } else {
+      const body = await req.json();
+      brand_id = body.brand_id;
+    }
 
     if (!brand_id) {
       return new Response(

@@ -95,10 +95,12 @@ Deno.serve(async (req) => {
       let weight = 1.0;
 
       if (rating.evidence_url) {
-        // Extract domain from URL
+        // Extract domain from URL (defensive parsing)
         try {
           const url = new URL(rating.evidence_url);
-          const domain = url.hostname.replace(/^www\./, '');
+          const domain = url.hostname?.toLowerCase()?.replace(/^www\./, '') ?? null;
+          
+          if (!domain) continue;
 
           // Look up in source_credibility table
           const { data: credData } = await supabase
@@ -162,8 +164,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Trigger materialized view refresh (async, don't wait)
-    supabase.rpc('refresh_community_outlook').then();
+    // Trigger materialized view refresh (async, fire-and-forget)
+    void supabase.rpc('refresh_community_outlook');
 
     return new Response(
       JSON.stringify({ ok: true, results }),

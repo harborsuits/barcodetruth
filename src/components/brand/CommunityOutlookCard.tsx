@@ -45,10 +45,10 @@ export function CommunityOutlookCard({ brandId, brandName }: CommunityOutlookCar
 
   const getConfidenceBadge = (confidence: string) => {
     const variants = {
-      none: { label: "Not enough data", variant: "secondary" as const },
-      low: { label: "Low confidence", variant: "outline" as const },
-      medium: { label: "Medium confidence", variant: "default" as const },
-      high: { label: "High confidence", variant: "default" as const },
+      none: { label: "Not enough community input yet", variant: "secondary" as const },
+      low: { label: "Low confidence (≥10 ratings)", variant: "outline" as const },
+      medium: { label: "Medium confidence (≥30 ratings)", variant: "default" as const },
+      high: { label: "High confidence (≥100 ratings)", variant: "default" as const },
     };
     return variants[confidence as keyof typeof variants] || variants.none;
   };
@@ -134,7 +134,7 @@ export function CommunityOutlookCard({ brandId, brandName }: CommunityOutlookCar
               <Badge variant="outline" className="text-xs">Beta</Badge>
             </div>
             <p className="text-sm text-muted-foreground">
-              Community perspectives on {brandName}'s conduct based on available evidence
+              Community perspectives on {brandName}'s conduct, by category. Ratings should be based on the evidence you've read. Confidence grows with more responses.
             </p>
           </div>
           <TooltipProvider>
@@ -144,11 +144,14 @@ export function CommunityOutlookCard({ brandId, brandName }: CommunityOutlookCar
                   <Info className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                <p className="text-xs">
-                  Ratings reflect how community members feel in each category. 
-                  Confidence increases with more responses. Minimum 10 responses required per category.
-                </p>
+               <TooltipContent className="max-w-xs">
+                <p className="text-xs font-semibold mb-2">Category Ratings:</p>
+                <ul className="text-xs space-y-1">
+                  <li><strong>Labor</strong> – treatment, wages, safety, unions</li>
+                  <li><strong>Environment</strong> – emissions, waste, resource use</li>
+                  <li><strong>Politics</strong> – lobbying, regulation, policy stances</li>
+                  <li><strong>Social</strong> – DEI, donations, community impact</li>
+                </ul>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
