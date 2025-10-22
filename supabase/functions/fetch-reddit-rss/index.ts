@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
     // Fetch RSS feed
     const response = await fetch(feedUrl, {
       headers: {
-        'User-Agent': 'BrandMonitor/1.0 (https://brandmonitor.app)',
+        'User-Agent': 'BrandMonitorBot/1.0 (contact: support@brandmonitor.app; Reddit community monitoring)',
       },
     });
 
@@ -146,8 +146,8 @@ Deno.serve(async (req) => {
 
       inserted++;
 
-      // Small delay to avoid hammering DB
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Throttle to avoid DB contention and respect Reddit rate limits
+      await new Promise((resolve) => setTimeout(resolve, 400));
     }
 
     console.log(`[fetch-reddit-rss] Complete. Inserted: ${inserted}, Skipped: ${skipped}`);

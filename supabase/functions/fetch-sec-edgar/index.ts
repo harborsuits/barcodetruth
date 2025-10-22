@@ -66,10 +66,10 @@ Deno.serve(async (req) => {
 
     console.log(`[fetch-sec-edgar] Fetching: ${feedUrl}`);
 
-    // Fetch Atom feed
+    // Fetch Atom feed (SEC requires contact email in User-Agent)
     const response = await fetch(feedUrl, {
       headers: {
-        'User-Agent': 'BrandMonitor contact@brandmonitor.app',
+        'User-Agent': 'BrandMonitorBot/1.0 (contact: support@brandmonitor.app; SEC EDGAR monitoring)',
         'Accept': 'application/atom+xml',
       },
     });
@@ -186,8 +186,8 @@ Deno.serve(async (req) => {
 
       inserted++;
 
-      // Small delay to avoid hammering DB
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Throttle to avoid DB contention
+      await new Promise((resolve) => setTimeout(resolve, 300));
     }
 
     console.log(`[fetch-sec-edgar] Complete. Inserted: ${inserted}, Skipped: ${skipped}`);
