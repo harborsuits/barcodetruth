@@ -7,19 +7,14 @@ const corsHeaders = {
 };
 
 /**
- * Background job to enrich brand ownership data from Wikidata/Wikipedia
- * 
- * Usage:
- * POST /enrich-ownership
- * Body: { brand_id: "uuid", brand_name: "Nike" }
- * 
- * Returns: { success: true, edges_added: 2, confidence: 92 }
+ * Enrich brand ownership from Wikidata
+ * Writes to: company_ownership (canonical table)
+ * Properties: P749 (parent org), P355 (subsidiary)
  */
 
 interface WikidataEntity {
   labels?: { en?: { value: string } };
   claims?: {
-    P127?: Array<{ mainsnak: { datavalue?: { value: { id: string } } } }>; // owned by
     P749?: Array<{ mainsnak: { datavalue?: { value: { id: string } } } }>; // parent org
     P355?: Array<{ mainsnak: { datavalue?: { value: { id: string } } } }>; // subsidiary
   };
@@ -30,193 +25,229 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const { brand_id, brand_name, wikidata_qid } = await req.json();
+  const startTime = Date.now();
+  let brandId: string | null = null;
+  let rowsWritten = 0;
+  let status = 'success';
+  let errorMsg: string | null = null;
 
-    if (!brand_id || !brand_name) {
-      return new Response(JSON.stringify({ error: 'brand_id and brand_name required' }), {
+  try {
+    const { brand_id, wikidata_qid } = await req.json();
+
+    if (!brand_id) {
+      return new Response(JSON.stringify({ error: 'brand_id required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    brandId = brand_id;
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    console.log(`[Enrich] Starting enrichment for ${brand_name} (${brand_id})`);
+    console.log(`[enrich-ownership] Starting enrichment for brand ${brand_id}`);
 
     let qid = wikidata_qid;
-    let confidence = 70;
-    const edgesAdded: string[] = [];
+    
+    // Get brand and its company if exists
+    const { data: brand, error: brandError } = await supabase
+      .from('brands')
+      .select(`
+        id,
+        name,
+        wikidata_qid,
+        company_ownership!company_ownership_child_brand_id_fkey (
+          parent_company_id,
+          companies!company_ownership_parent_company_id_fkey (
+            id,
+            wikidata_qid
+          )
+        )
+      `)
+      .eq('id', brand_id)
+      .single();
 
-    // Step 1: If no QID, try to find it via Wikidata search
+    if (brandError || !brand) {
+      errorMsg = 'Brand not found';
+      status = 'failed';
+      throw new Error(errorMsg);
+    }
+
     if (!qid) {
-      console.log(`[Enrich] No QID provided, searching Wikidata for "${brand_name}"`);
-      const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(brand_name)}&language=en&format=json&type=item&limit=1`;
+      qid = brand.wikidata_qid;
+    }
+
+    // If no QID, try to find it
+    if (!qid) {
+      console.log(`[enrich-ownership] No QID, searching Wikidata for "${brand.name}"`);
+      const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(brand.name)}&language=en&format=json&type=item&limit=1`;
       
       const searchRes = await fetch(searchUrl);
       const searchData = await searchRes.json();
       
       if (searchData.search && searchData.search.length > 0) {
         qid = searchData.search[0].id;
-        confidence = 75; // Lower confidence for auto-matched QID
-        console.log(`[Enrich] Found QID: ${qid}`);
+        console.log(`[enrich-ownership] Found QID: ${qid}`);
+        
+        // Update brand with QID
+        await supabase
+          .from('brands')
+          .update({ wikidata_qid: qid })
+          .eq('id', brand_id);
       } else {
-        console.log(`[Enrich] No Wikidata entity found for "${brand_name}"`);
-        return new Response(JSON.stringify({ 
-          success: false, 
-          message: `No Wikidata entity found for "${brand_name}"` 
-        }), {
-          status: 404,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        errorMsg = 'No Wikidata entity found';
+        status = 'failed';
+        throw new Error(errorMsg);
       }
     }
 
-    // Step 2: Fetch entity data from Wikidata
-    console.log(`[Enrich] Fetching Wikidata entity ${qid}`);
+    // Fetch entity data from Wikidata
+    console.log(`[enrich-ownership] Fetching Wikidata entity ${qid}`);
     const entityUrl = `https://www.wikidata.org/wiki/Special:EntityData/${qid}.json`;
     const entityRes = await fetch(entityUrl);
     const entityData = await entityRes.json();
     
     const entity = entityData.entities?.[qid] as WikidataEntity | undefined;
     if (!entity) {
-      console.log(`[Enrich] Entity ${qid} not found in Wikidata`);
-      return new Response(JSON.stringify({ 
-        success: false, 
-        message: `Entity ${qid} not found` 
-      }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      errorMsg = `Entity ${qid} not found`;
+      status = 'failed';
+      throw new Error(errorMsg);
     }
 
-    // Step 3: Extract parent relationships
-    const parentQids: Array<{ qid: string; relationship: 'owned_by' | 'parent_org' }> = [];
-
-    // P127: owned by
-    const ownedBy = entity.claims?.P127;
-    if (ownedBy) {
-      for (const claim of ownedBy) {
-        // Safety check for nested property access
-        const parentQid = claim?.mainsnak?.datavalue?.value?.id;
-        if (parentQid && typeof parentQid === 'string') {
-          parentQids.push({ qid: parentQid, relationship: 'owned_by' });
-        }
-      }
-    }
-
-    // P749: parent organization
+    // Extract parent relationships (P749 only - parent organization)
+    const parentQids: string[] = [];
     const parentOrg = entity.claims?.P749;
     if (parentOrg) {
       for (const claim of parentOrg) {
-        // Safety check for nested property access
         const parentQid = claim?.mainsnak?.datavalue?.value?.id;
         if (parentQid && typeof parentQid === 'string') {
-          parentQids.push({ qid: parentQid, relationship: 'parent_org' });
+          parentQids.push(parentQid);
         }
       }
     }
 
-    console.log(`[Enrich] Found ${parentQids.length} parent relationships`);
+    console.log(`[enrich-ownership] Found ${parentQids.length} parent organizations`);
 
-    // Step 4: For each parent, try to find/create in our brands table
-    for (const parent of parentQids) {
-      // Fetch parent entity name
-      const parentEntityUrl = `https://www.wikidata.org/wiki/Special:EntityData/${parent.qid}.json`;
+    // Process each parent
+    for (const parentQid of parentQids) {
+      // Fetch parent entity
+      const parentEntityUrl = `https://www.wikidata.org/wiki/Special:EntityData/${parentQid}.json`;
       const parentEntityRes = await fetch(parentEntityUrl);
       const parentEntityData = await parentEntityRes.json();
-      const parentEntity = parentEntityData.entities?.[parent.qid] as WikidataEntity | undefined;
+      const parentEntity = parentEntityData.entities?.[parentQid] as WikidataEntity | undefined;
       
-      // Safety check for label existence and value
       if (!parentEntity?.labels?.en?.value) {
-        console.log(`[Enrich] No English label for parent ${parent.qid}, skipping`);
+        console.log(`[enrich-ownership] No English label for parent ${parentQid}, skipping`);
         continue;
       }
 
       const parentName = parentEntity.labels.en.value;
-      console.log(`[Enrich] Processing parent: ${parentName} (${parent.qid})`);
+      console.log(`[enrich-ownership] Processing parent: ${parentName} (${parentQid})`);
 
-      // Check if parent brand exists in our DB
-      const { data: existingParent } = await supabase
-        .from('brands')
-        .select('id, name, wikidata_qid')
-        .eq('wikidata_qid', parent.qid)
+      // Find or create parent company
+      let { data: parentCompany } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('wikidata_qid', parentQid)
         .maybeSingle();
 
-      let parentBrandId: string;
+      let parentCompanyId: string;
 
-      if (existingParent) {
-        parentBrandId = existingParent.id;
-        console.log(`[Enrich] Parent already exists: ${existingParent.name}`);
+      if (parentCompany) {
+        parentCompanyId = parentCompany.id;
+        console.log(`[enrich-ownership] Parent company exists: ${parentName}`);
       } else {
-        // Create parent brand
-        const { data: newParent, error: insertError } = await supabase
-          .from('brands')
+        // Create parent company
+        const { data: newCompany, error: insertError } = await supabase
+          .from('companies')
           .insert({ 
             name: parentName, 
-            wikidata_qid: parent.qid 
+            wikidata_qid: parentQid 
           })
           .select('id')
           .single();
 
-        if (insertError || !newParent) {
-          console.error(`[Enrich] Failed to create parent brand: ${insertError?.message}`);
+        if (insertError || !newCompany) {
+          console.error(`[enrich-ownership] Failed to create parent company: ${insertError?.message}`);
           continue;
         }
 
-        parentBrandId = newParent.id;
-        console.log(`[Enrich] Created parent brand: ${parentName}`);
+        parentCompanyId = newCompany.id;
+        console.log(`[enrich-ownership] Created parent company: ${parentName}`);
       }
 
-      // Insert ownership edge
-      const relationshipType = parent.relationship === 'owned_by' ? 'brand_of' : 'subsidiary_of';
-      
+      // Insert ownership relationship (idempotent)
       const { error: ownershipError } = await supabase
-        .from('brand_ownerships')
+        .from('company_ownership')
         .upsert({
-          brand_id,
-          parent_brand_id: parentBrandId,
-          relationship_type: relationshipType,
-          source: 'Wikidata',
-          source_url: `https://www.wikidata.org/wiki/${qid}`,
-          confidence: confidence
+          parent_company_id: parentCompanyId,
+          child_brand_id: brand_id,
+          relationship_type: 'parent_organization',
+          source: 'wikidata',
+          source_ref: `https://www.wikidata.org/wiki/${qid}`,
+          confidence: 0.90,
+          last_verified_at: new Date().toISOString()
         }, {
-          onConflict: 'brand_id,parent_brand_id,relationship_type'
+          onConflict: 'parent_company_id,child_brand_id'
         });
 
       if (ownershipError) {
-        console.error(`[Enrich] Failed to create ownership edge: ${ownershipError.message}`);
+        console.error(`[enrich-ownership] Failed to create ownership edge: ${ownershipError.message}`);
+        if (status === 'success') status = 'partial';
       } else {
-        edgesAdded.push(parentName);
-        console.log(`[Enrich] Added edge: ${brand_name} → ${parentName}`);
+        rowsWritten++;
+        console.log(`[enrich-ownership] Added edge: ${brand.name} → ${parentName}`);
       }
     }
 
-    // Step 5: Update brand with wikidata_qid if not set
-    if (qid) {
-      await supabase
-        .from('brands')
-        .update({ wikidata_qid: qid })
-        .eq('id', brand_id);
-    }
+    // Log enrichment run
+    await supabase.from('enrichment_runs').insert({
+      brand_id: brandId,
+      task: 'ownership',
+      rows_written: rowsWritten,
+      status: rowsWritten > 0 ? 'success' : (status === 'failed' ? 'failed' : 'partial'),
+      error: errorMsg,
+      started_at: new Date(startTime).toISOString(),
+      finished_at: new Date().toISOString(),
+      duration_ms: Date.now() - startTime
+    });
 
-    console.log(`[Enrich] Enrichment complete. Added ${edgesAdded.length} edges.`);
+    console.log(`[enrich-ownership] Enrichment complete. Added ${rowsWritten} edges.`);
 
     return new Response(JSON.stringify({ 
-      success: true, 
-      edges_added: edgesAdded.length,
-      parents: edgesAdded,
-      confidence,
+      success: rowsWritten > 0, 
+      rows_written: rowsWritten,
       wikidata_qid: qid
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('[Enrich] Error:', error);
+    console.error('[enrich-ownership] Error:', error);
+    
+    // Log failed run
+    if (brandId) {
+      try {
+        const supabase = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        );
+        await supabase.from('enrichment_runs').insert({
+          brand_id: brandId,
+          task: 'ownership',
+          rows_written: 0,
+          status: 'failed',
+          error: error instanceof Error ? error.message : 'Unknown error',
+          started_at: new Date(startTime).toISOString(),
+          finished_at: new Date().toISOString(),
+          duration_ms: Date.now() - startTime
+        });
+      } catch {}
+    }
+
     return new Response(JSON.stringify({ 
       error: error instanceof Error ? error.message : 'Unknown error' 
     }), {

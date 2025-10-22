@@ -2014,39 +2014,48 @@ export type Database = {
           confidence: number | null
           created_at: string | null
           id: string
+          image_file: string | null
           image_url: string | null
           last_verified_at: string | null
           person_name: string
           person_qid: string | null
           role: string
           source: string
+          source_name: string | null
           source_ref: string | null
+          wikipedia_url: string | null
         }
         Insert: {
           company_id: string
           confidence?: number | null
           created_at?: string | null
           id?: string
+          image_file?: string | null
           image_url?: string | null
           last_verified_at?: string | null
           person_name: string
           person_qid?: string | null
           role: string
           source: string
+          source_name?: string | null
           source_ref?: string | null
+          wikipedia_url?: string | null
         }
         Update: {
           company_id?: string
           confidence?: number | null
           created_at?: string | null
           id?: string
+          image_file?: string | null
           image_url?: string | null
           last_verified_at?: string | null
           person_name?: string
           person_qid?: string | null
           role?: string
           source?: string
+          source_name?: string | null
           source_ref?: string | null
+          wikipedia_url?: string | null
         }
         Relationships: [
           {
@@ -2098,10 +2107,12 @@ export type Database = {
           created_at: string | null
           directory_id: string | null
           holder_name: string
+          holder_name_raw: string | null
           holder_type: string
           holder_url: string | null
           holder_wikidata_qid: string | null
           id: string
+          is_asset_manager: boolean | null
           logo_url: string | null
           percent_owned: number
           source: string
@@ -2115,10 +2126,12 @@ export type Database = {
           created_at?: string | null
           directory_id?: string | null
           holder_name: string
+          holder_name_raw?: string | null
           holder_type: string
           holder_url?: string | null
           holder_wikidata_qid?: string | null
           id?: string
+          is_asset_manager?: boolean | null
           logo_url?: string | null
           percent_owned: number
           source: string
@@ -2132,10 +2145,12 @@ export type Database = {
           created_at?: string | null
           directory_id?: string | null
           holder_name?: string
+          holder_name_raw?: string | null
           holder_type?: string
           holder_url?: string | null
           holder_wikidata_qid?: string | null
           id?: string
+          is_asset_manager?: boolean | null
           logo_url?: string | null
           percent_owned?: number
           source?: string
@@ -2215,45 +2230,39 @@ export type Database = {
       enrichment_runs: {
         Row: {
           brand_id: string | null
-          country_found: boolean | null
-          description_length: number | null
+          created_at: string
           duration_ms: number | null
-          error_message: string | null
+          error: string | null
+          finished_at: string | null
           id: string
-          logo_found: boolean | null
-          parent_found: boolean | null
-          people_added: number | null
-          properties_found: string[] | null
-          run_at: string | null
-          ticker_added: boolean | null
+          rows_written: number | null
+          started_at: string
+          status: string
+          task: string
         }
         Insert: {
           brand_id?: string | null
-          country_found?: boolean | null
-          description_length?: number | null
+          created_at?: string
           duration_ms?: number | null
-          error_message?: string | null
+          error?: string | null
+          finished_at?: string | null
           id?: string
-          logo_found?: boolean | null
-          parent_found?: boolean | null
-          people_added?: number | null
-          properties_found?: string[] | null
-          run_at?: string | null
-          ticker_added?: boolean | null
+          rows_written?: number | null
+          started_at?: string
+          status: string
+          task: string
         }
         Update: {
           brand_id?: string | null
-          country_found?: boolean | null
-          description_length?: number | null
+          created_at?: string
           duration_ms?: number | null
-          error_message?: string | null
+          error?: string | null
+          finished_at?: string | null
           id?: string
-          logo_found?: boolean | null
-          parent_found?: boolean | null
-          people_added?: number | null
-          properties_found?: string[] | null
-          run_at?: string | null
-          ticker_added?: boolean | null
+          rows_written?: number | null
+          started_at?: string
+          status?: string
+          task?: string
         }
         Relationships: [
           {
@@ -6274,6 +6283,7 @@ export type Database = {
         | "division_of"
         | "subsidiary_of"
         | "acquired_by"
+      people_role: "chief_executive_officer" | "founder" | "chairperson"
       submission_status: "pending" | "verified" | "rejected"
       verification_level: "unverified" | "corroborated" | "official"
     }
@@ -6422,6 +6432,7 @@ export const Constants = {
         "subsidiary_of",
         "acquired_by",
       ],
+      people_role: ["chief_executive_officer", "founder", "chairperson"],
       submission_status: ["pending", "verified", "rejected"],
       verification_level: ["unverified", "corroborated", "official"],
     },

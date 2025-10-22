@@ -17,7 +17,7 @@ export default function AdminEnrichmentMonitor() {
       const { data, error } = await supabase
         .from('enrichment_runs')
         .select('*')
-        .order('run_at', { ascending: false })
+        .order('finished_at', { ascending: false, nullsFirst: false })
         .limit(50);
       
       if (error) throw error;
@@ -29,11 +29,10 @@ export default function AdminEnrichmentMonitor() {
   const { data: stats } = useQuery({
     queryKey: ['enrichment-stats'],
     queryFn: async () => {
-      // Temporarily use direct query until types are updated
       const { data, error } = await supabase
         .from('enrichment_runs')
-        .select('parent_found, people_added, ticker_added')
-        .gte('run_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+        .select('task, status, rows_written')
+        .gte('finished_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
       
       if (error) {
         console.error('Stats error:', error);
@@ -42,9 +41,10 @@ export default function AdminEnrichmentMonitor() {
       
       return {
         total_runs_24h: data?.length || 0,
-        parents_found_24h: data?.filter(r => r.parent_found).length || 0,
-        people_added_24h: data?.reduce((sum, r) => sum + (r.people_added || 0), 0) || 0,
-        tickers_added_24h: data?.filter(r => r.ticker_added).length || 0
+        wiki_runs_24h: data?.filter(r => r.task === 'wiki').length || 0,
+        ownership_runs_24h: data?.filter(r => r.task === 'ownership').length || 0,
+        people_runs_24h: data?.filter(r => r.task === 'key_people').length || 0,
+        success_rate: data?.length ? (data.filter(r => r.status === 'success').length / data.length * 100).toFixed(1) : '0'
       };
     }
   });
@@ -104,12 +104,26 @@ export default function AdminEnrichmentMonitor() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Parents Found</CardTitle>
+              <CardTitle className="text-sm font-medium">Wiki Enrichments</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {stats ? (
+                <div className="text-2xl font-bold">{stats.wiki_runs_24h || 0}</div>
+              ) : (
+                <Skeleton className="h-8 w-16" />
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Ownership Runs</CardTitle>
               <Building2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               {stats ? (
-                <div className="text-2xl font-bold">{stats.parents_found_24h || 0}</div>
+                <div className="text-2xl font-bold">{stats.ownership_runs_24h || 0}</div>
               ) : (
                 <Skeleton className="h-8 w-16" />
               )}
@@ -118,26 +132,12 @@ export default function AdminEnrichmentMonitor() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">People Added</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
+              <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               {stats ? (
-                <div className="text-2xl font-bold">{stats.people_added_24h || 0}</div>
-              ) : (
-                <Skeleton className="h-8 w-16" />
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tickers Added</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {stats ? (
-                <div className="text-2xl font-bold">{stats.tickers_added_24h || 0}</div>
+                <div className="text-2xl font-bold">{stats.success_rate}%</div>
               ) : (
                 <Skeleton className="h-8 w-16" />
               )}
@@ -171,10 +171,17 @@ export default function AdminEnrichmentMonitor() {
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs text-muted-foreground">
-                          {run.brand_id.slice(0, 8)}
+                          {run.brand_id?.slice(0, 8) || 'N/A'}
                         </span>
+                        <Badge variant={
+                          run.status === 'success' ? 'default' : 
+                          run.status === 'partial' ? 'secondary' : 
+                          'destructive'
+                        } className="text-xs">
+                          {run.task}
+                        </Badge>
                         <span className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(run.run_at), { addSuffix: true })}
+                          {run.finished_at ? formatDistanceToNow(new Date(run.finished_at), { addSuffix: true }) : 'Running...'}
                         </span>
                         {run.duration_ms && (
                           <Badge variant="outline" className="text-xs">
@@ -184,59 +191,29 @@ export default function AdminEnrichmentMonitor() {
                       </div>
 
                       <div className="flex flex-wrap gap-2">
-                        {run.parent_found && (
+                        <Badge variant="outline" className="text-xs">
+                          Status: {run.status}
+                        </Badge>
+                        {run.rows_written > 0 && (
                           <Badge variant="secondary" className="text-xs">
-                            <Building2 className="h-3 w-3 mr-1" />
-                            Parent
-                          </Badge>
-                        )}
-                        {run.people_added > 0 && (
-                          <Badge variant="secondary" className="text-xs">
-                            <Users className="h-3 w-3 mr-1" />
-                            {run.people_added} People
-                          </Badge>
-                        )}
-                        {run.ticker_added && (
-                          <Badge variant="secondary" className="text-xs">
-                            <DollarSign className="h-3 w-3 mr-1" />
-                            Ticker
-                          </Badge>
-                        )}
-                        {run.description_length > 0 && (
-                          <Badge variant="secondary" className="text-xs">
-                            <FileText className="h-3 w-3 mr-1" />
-                            {run.description_length} chars
-                          </Badge>
-                        )}
-                        {run.country_found && (
-                          <Badge variant="secondary" className="text-xs">
-                            🌍 Country
-                          </Badge>
-                        )}
-                        {run.logo_found && (
-                          <Badge variant="secondary" className="text-xs">
-                            🖼️ Logo
+                            {run.rows_written} rows written
                           </Badge>
                         )}
                       </div>
 
-                      {run.properties_found && run.properties_found.length > 0 && (
-                        <div className="text-xs text-muted-foreground">
-                          Properties: {run.properties_found.join(', ')}
-                        </div>
-                      )}
-
-                      {run.error_message && (
+                      {run.error && (
                         <div className="flex items-start gap-2 mt-2 text-xs text-destructive">
                           <XCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                          <span>{run.error_message}</span>
+                          <span>{run.error}</span>
                         </div>
                       )}
                     </div>
 
                     <div className="flex-shrink-0">
-                      {run.error_message ? (
+                      {run.status === 'failed' ? (
                         <XCircle className="h-5 w-5 text-destructive" />
+                      ) : run.status === 'partial' ? (
+                        <Clock className="h-5 w-5 text-yellow-600" />
                       ) : (
                         <CheckCircle2 className="h-5 w-5 text-green-600" />
                       )}
