@@ -44,7 +44,7 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
       <Tabs defaultValue="structure" className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-4">
           <TabsTrigger value="structure">Structure</TabsTrigger>
-          <TabsTrigger value="shareholders" disabled={!hasShareholders}>
+          <TabsTrigger value="shareholders">
             Shareholders
           </TabsTrigger>
         </TabsList>
