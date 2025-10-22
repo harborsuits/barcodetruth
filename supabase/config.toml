@@ -126,3 +126,13 @@ verify_jwt = true
 [functions.delete-brand-data]
 verify_jwt = false
 
+# RSS ingestion functions
+[functions.fetch-google-news-rss]
+verify_jwt = false
+
+[functions.fetch-reddit-rss]
+verify_jwt = false
+
+[functions.fetch-sec-edgar]
+verify_jwt = false
+
