@@ -525,8 +525,8 @@ export default function BrandProfile() {
                 {data.brand.description ? (
                   <div className="mt-3 text-sm text-muted-foreground leading-relaxed">
                     <p>
-                      {data.brand.description.length > 150 
-                        ? `${data.brand.description.substring(0, 150)}...` 
+                      {data.brand.description.length > 200 
+                        ? `${data.brand.description.substring(0, 200)}...` 
                         : data.brand.description}
                     </p>
                     {data.brand.description_source === 'wikipedia' && (
