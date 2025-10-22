@@ -5833,6 +5833,18 @@ export type Database = {
         Args: { source_name_param: string }
         Returns: number
       }
+      get_top_shareholders: {
+        Args: { p_brand_id: string; p_limit?: number }
+        Returns: {
+          confidence: number
+          investor_company_id: string
+          investor_name: string
+          is_asset_manager: boolean
+          last_verified_at: string
+          percent_owned: number
+          source: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

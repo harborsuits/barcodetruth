@@ -606,13 +606,6 @@ export default function BrandProfile() {
           <OwnershipTabs brandId={actualId} />
         )}
 
-        {/* Key People (if available) */}
-        {companyInfo?.people && companyInfo.people.length > 0 && (
-          <Card className="p-6">
-            <KeyPeopleRow people={companyInfo.people} />
-          </Card>
-        )}
-
         {/* Valuation */}
         {companyInfo?.valuation && (
           <div className="flex justify-center">
