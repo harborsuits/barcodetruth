@@ -350,16 +350,53 @@ serve(async (req) => {
                     let companyId = existingCompany?.id;
                     
                     if (!companyId) {
-                      // Create parent company
+                      // Create parent company - also fetch Wikipedia data for it
+                      console.log(`[enrich-brand-wiki] Creating new parent company: ${parentName}`);
+                      
+                      // Get Wikipedia title and description for parent
+                      const parentWikiTitle = parentEntity?.sitelinks?.enwiki?.title;
+                      let parentDescription = null;
+                      
+                      if (parentWikiTitle) {
+                        const extractUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&explaintext&titles=${encodeURIComponent(parentWikiTitle)}&format=json`;
+                        const extractRes = await fetch(extractUrl);
+                        if (extractRes.ok) {
+                          const extractJson = await extractRes.json();
+                          const pages = extractJson.query?.pages;
+                          if (pages) {
+                            const pageId = Object.keys(pages)[0];
+                            parentDescription = pages[pageId]?.extract;
+                          }
+                        }
+                      }
+                      
+                      // Get country (P17)
+                      const countryClaim = parentEntity?.claims?.['P17']?.[0];
+                      const countryQid = countryClaim?.mainsnak?.datavalue?.value?.id;
+                      let country = null;
+                      if (countryQid) {
+                        const countryRes = await fetch(`https://www.wikidata.org/wiki/Special:EntityData/${countryQid}.json`);
+                        if (countryRes.ok) {
+                          const countryData = await countryRes.json();
+                          country = countryData.entities?.[countryQid]?.labels?.en?.value;
+                        }
+                      }
+                      
                       const { data: newCompany } = await supabase
                         .from('companies')
                         .insert({
                           name: parentName,
                           wikidata_qid: parentQid,
+                          description: parentDescription,
+                          description_source: parentDescription ? 'wikipedia' : null,
+                          description_lang: parentDescription ? 'en' : null,
+                          country: country,
+                          wikipedia_title: parentWikiTitle
                         })
                         .select('id')
                         .single();
                       companyId = newCompany?.id;
+                      console.log(`[enrich-brand-wiki] Created parent company with description (${parentDescription?.length || 0} chars) and country (${country})`);
                     }
                     
                     if (companyId) {
@@ -392,8 +429,30 @@ serve(async (req) => {
                       
                       // If parent is public and has ticker, add to brand_data_mappings
                       const parentClaims = parentEntity?.claims || {};
-                      const tickerClaim = parentClaims['P249']?.[0]; // ticker symbol property
-                      const tickerValue = tickerClaim?.mainsnak?.datavalue?.value;
+                      
+                      // Check if company is publicly traded (P414 - stock exchange)
+                      const exchangeClaim = parentClaims['P414']?.[0];
+                      const isPublic = !!exchangeClaim;
+                      
+                      // Get ticker symbol (P249 - ticker symbol, or P414 qualifier)
+                      let tickerValue = parentClaims['P249']?.[0]?.mainsnak?.datavalue?.value;
+                      if (!tickerValue && exchangeClaim) {
+                        tickerValue = exchangeClaim.qualifiers?.['P249']?.[0]?.datavalue?.value;
+                      }
+                      
+                      // Update company with public status and ticker if found
+                      if (companyId && (isPublic || tickerValue)) {
+                        const companyUpdate: any = {};
+                        if (isPublic) companyUpdate.is_public = true;
+                        if (tickerValue) companyUpdate.ticker = tickerValue;
+                        
+                        await supabase
+                          .from('companies')
+                          .update(companyUpdate)
+                          .eq('id', companyId);
+                        
+                        console.log(`[enrich-brand-wiki] Updated parent company: is_public=${isPublic}, ticker=${tickerValue || 'none'}`);
+                      }
                       
                       if (tickerValue) {
                         // Check if ticker mapping already exists
@@ -428,10 +487,11 @@ serve(async (req) => {
             }
             
             // Extract key people (CEO P169, Chairperson P488, Founder P112)
+            // IMPORTANT: Store snake_case role names to match RPC function and UI expectations
             const keyPeopleProperties = {
-              'P169': 'CEO',
-              'P488': 'Chairperson', 
-              'P112': 'Founder'
+              'P169': 'chief_executive_officer',  // CEO
+              'P488': 'chairperson',              // Chairperson
+              'P112': 'founder'                   // Founder
             };
             
             for (const [propId, role] of Object.entries(keyPeopleProperties)) {

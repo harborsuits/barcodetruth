@@ -8,6 +8,7 @@ interface KeyPerson {
   name: string;
   image_url?: string;
   source: string;
+  person_qid?: string;
 }
 
 interface KeyPeopleRowProps {
@@ -17,7 +18,12 @@ interface KeyPeopleRowProps {
 const roleLabels: Record<string, string> = {
   chief_executive_officer: "CEO",
   chairperson: "Chair",
-  founder: "Founder"
+  chairman: "Chair",
+  founder: "Founder",
+  // Fallback handling
+  CEO: "CEO",
+  Chairperson: "Chair",
+  Founder: "Founder"
 };
 
 export function KeyPeopleRow({ people }: KeyPeopleRowProps) {
@@ -26,8 +32,12 @@ export function KeyPeopleRow({ people }: KeyPeopleRowProps) {
   }
 
   // Group founders
-  const executives = people.filter(p => p.role !== 'founder');
-  const founders = people.filter(p => p.role === 'founder');
+  const executives = people.filter(p => 
+    p.role !== 'founder' && p.role !== 'Founder'
+  );
+  const founders = people.filter(p => 
+    p.role === 'founder' || p.role === 'Founder'
+  );
 
   return (
     <div className="space-y-3">
@@ -44,7 +54,12 @@ export function KeyPeopleRow({ people }: KeyPeopleRowProps) {
           <TooltipProvider key={index}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-2 cursor-help">
+                <a 
+                  href={person.person_qid ? `https://www.wikidata.org/wiki/${person.person_qid}` : undefined}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                >
                   <Avatar className="h-10 w-10">
                     <AvatarImage src={person.image_url} alt={person.name} />
                     <AvatarFallback className="text-xs">
@@ -54,13 +69,16 @@ export function KeyPeopleRow({ people }: KeyPeopleRowProps) {
                   <div>
                     <div className="text-sm font-medium">{person.name}</div>
                     <div className="text-xs text-muted-foreground">
-                      {roleLabels[person.role] || person.role}
+                      {roleLabels[person.role] || person.role.replace(/_/g, ' ')}
                     </div>
                   </div>
-                </div>
+                </a>
               </TooltipTrigger>
               <TooltipContent>
                 <p className="text-xs">Source: {person.source}</p>
+                {person.person_qid && (
+                  <p className="text-xs text-muted-foreground">Click to view on Wikidata</p>
+                )}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
