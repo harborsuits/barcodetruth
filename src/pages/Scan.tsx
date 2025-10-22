@@ -527,6 +527,17 @@ export const Scan = () => {
               {/* Scanning UI overlay - only visible when scanning */}
               {(isScanning || scanResult === 'processing') && (
                 <>
+                  {/* Center target box */}
+                  <div className="absolute inset-0 pointer-events-none">
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 
+                                    w-64 h-40 border-4 border-blue-500 rounded-lg">
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 
+                                      bg-blue-500 text-white px-3 py-1 rounded text-sm whitespace-nowrap">
+                        Center barcode here
+                      </div>
+                    </div>
+                  </div>
+                  
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
                     {/* Scanning reticle with animated corners */}
                     <div className="w-64 h-48 relative">

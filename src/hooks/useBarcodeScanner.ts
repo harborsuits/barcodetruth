@@ -76,10 +76,37 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
       const result = await readerRef.current.decodeFromVideoElement(videoRef.current);
       if (result) {
         const detectedBarcode = result.getText();
-        console.log('[Scanner] DETECTED barcode:', detectedBarcode, 'at', new Date().toISOString());
+        const points = result.getResultPoints();
         
-        const points = result.getResultPoints().map(p => ({ x: p.getX(), y: p.getY() }));
-        drawBoundingBox(points);
+        // CRITICAL: Only accept barcodes in the CENTER of the frame
+        if (points && points.length >= 2) {
+          const video = videoRef.current;
+          const centerX = video.videoWidth / 2;
+          const centerY = video.videoHeight / 2;
+          
+          // Calculate barcode center
+          const barcodeX = points.reduce((sum, p) => sum + p.getX(), 0) / points.length;
+          const barcodeY = points.reduce((sum, p) => sum + p.getY(), 0) / points.length;
+          
+          // Calculate distance from center
+          const distanceX = Math.abs(barcodeX - centerX);
+          const distanceY = Math.abs(barcodeY - centerY);
+          
+          // Only accept if within 40% of center
+          const maxDistanceX = video.videoWidth * 0.4;
+          const maxDistanceY = video.videoHeight * 0.4;
+          
+          if (distanceX > maxDistanceX || distanceY > maxDistanceY) {
+            console.log('[Scanner] Barcode detected but too far from center - ignoring');
+            animationFrameRef.current = requestAnimationFrame(scanFrame);
+            return;
+          }
+        }
+        
+        console.log('[Scanner] ✅ DETECTED (centered):', detectedBarcode, 'at', new Date().toISOString());
+        
+        const mappedPoints = points.map(p => ({ x: p.getX(), y: p.getY() }));
+        drawBoundingBox(mappedPoints);
         onScan(detectedBarcode);
         
         // Clear bounding box after 500ms
@@ -104,7 +131,26 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
 
   const startScanning = useCallback(async () => {
     try {
-      console.log('[Scanner] Starting scan...');
+      console.log('[Scanner] Starting scanner...');
+      
+      // IMPORTANT: Reset state before starting
+      setIsScanning(false);
+      setIsPaused(false);
+      
+      // Stop any existing stream first
+      if (streamRef.current) {
+        console.log('[Scanner] Stopping existing stream before restart');
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+      
+      // Cancel any pending animation frames
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      
+      // Initialize reader
       const hints = new Map();
       hints.set(DecodeHintType.POSSIBLE_FORMATS, [
         BarcodeFormat.UPC_A,
@@ -120,6 +166,8 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
       const constraints: MediaStreamConstraints = {
         video: {
           facingMode,
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
           ...(currentResolution !== 'auto' && {
             width: { ideal: parseInt(currentResolution.split('x')[0]) },
             height: { ideal: parseInt(currentResolution.split('x')[1]) }
@@ -127,11 +175,23 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
         }
       };
 
+      console.log('[Scanner] Getting camera stream...');
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        
+        // CRITICAL: Wait for video to be ready before scanning
+        await new Promise((resolve) => {
+          if (videoRef.current) {
+            videoRef.current.onloadedmetadata = () => {
+              console.log('[Scanner] Video loaded, starting detection loop');
+              resolve(true);
+            };
+          }
+        });
+        
         await videoRef.current.play();
       }
 
@@ -145,13 +205,14 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
       setAvailableResolutions([settings]);
 
       setHasPermission(true);
+      
+      // NOW start scanning
       setIsScanning(true);
-      console.log('[Scanner] Camera started, beginning detection loop');
-
-      // Start scanning loop
       scanFrame();
+      
+      console.log('[Scanner] ✅ Scanner started successfully');
     } catch (error: any) {
-      console.error('[Scanner] Start error:', error);
+      console.error('[Scanner] Failed to start:', error);
       setHasPermission(false);
       onError?.(error);
       toast({
