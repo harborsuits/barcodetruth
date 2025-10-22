@@ -34,12 +34,31 @@ interface TopHolder {
   source_url?: string;
 }
 
+interface OwnershipDetail {
+  type: 'employee' | 'family' | 'private_equity' | 'founder' | 'institutional' | 'government' | 'public_float';
+  name?: string;
+  percent?: number;
+  description?: string;
+  source?: string;
+  source_url?: string;
+}
+
+interface OwnershipStructure {
+  type?: string;
+  employee_percent?: number;
+  is_largest_esop?: boolean;
+  details?: string;
+  source?: string;
+}
+
 interface OwnershipData {
   company_id: string | null;
   structure: {
     chain: OwnershipChainNode[];
     siblings: OwnershipChainNode[];
   };
+  ownership_structure?: OwnershipStructure;
+  ownership_details?: OwnershipDetail[];
   shareholders: {
     subject_company?: string;
     as_of?: string;

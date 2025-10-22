@@ -1666,6 +1666,7 @@ export type Database = {
           logo_source: string | null
           logo_url: string | null
           name: string
+          ownership_structure: Json | null
           ticker: string | null
           updated_at: string | null
           wikidata_qid: string | null
@@ -1683,6 +1684,7 @@ export type Database = {
           logo_source?: string | null
           logo_url?: string | null
           name: string
+          ownership_structure?: Json | null
           ticker?: string | null
           updated_at?: string | null
           wikidata_qid?: string | null
@@ -1700,6 +1702,7 @@ export type Database = {
           logo_source?: string | null
           logo_url?: string | null
           name?: string
+          ownership_structure?: Json | null
           ticker?: string | null
           updated_at?: string | null
           wikidata_qid?: string | null
@@ -1841,6 +1844,59 @@ export type Database = {
           {
             foreignKeyName: "company_ownership_parent_company_id_fkey"
             columns: ["parent_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_ownership_details: {
+        Row: {
+          as_of: string | null
+          company_id: string
+          confidence: number | null
+          created_at: string | null
+          description: string | null
+          id: string
+          owner_name: string | null
+          owner_type: string
+          percent_owned: number | null
+          source: string
+          source_url: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          as_of?: string | null
+          company_id: string
+          confidence?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          owner_name?: string | null
+          owner_type: string
+          percent_owned?: number | null
+          source: string
+          source_url?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          as_of?: string | null
+          company_id?: string
+          confidence?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          owner_name?: string | null
+          owner_type?: string
+          percent_owned?: number | null
+          source?: string
+          source_url?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_ownership_details_company_id_fkey"
+            columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]

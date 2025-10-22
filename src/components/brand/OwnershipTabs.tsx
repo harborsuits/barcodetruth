@@ -2,6 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { OwnershipStructure } from "./OwnershipStructure";
 import { OwnershipShareholders } from "./OwnershipShareholders";
+import { OwnershipDetails } from "./OwnershipDetails";
 import { useOwnership } from "@/hooks/useOwnership";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -36,17 +37,30 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
 
   const hasStructure = ownership.structure?.chain?.length > 0;
   const hasShareholders = ownership.shareholders?.top && ownership.shareholders.top.length > 0;
+  const hasOwnershipDetails = ownership.ownership_details && ownership.ownership_details.length > 0;
+  const companyName = ownership.structure?.chain?.[0]?.name;
+
+  // Determine tab configuration based on available data
+  const showOwnershipTab = hasOwnershipDetails;
+  const showShareholdersTab = hasShareholders || !hasOwnershipDetails; // Always show for public companies
 
   return (
     <Card className="p-6 bg-muted/30 border-2">
       <h3 className="font-bold text-lg mb-4">Ownership</h3>
       
       <Tabs defaultValue="structure" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-4">
+        <TabsList className={`grid w-full ${showOwnershipTab ? 'grid-cols-3' : 'grid-cols-2'} mb-4`}>
           <TabsTrigger value="structure">Structure</TabsTrigger>
-          <TabsTrigger value="shareholders">
-            Shareholders
-          </TabsTrigger>
+          {showOwnershipTab && (
+            <TabsTrigger value="ownership">
+              Ownership
+            </TabsTrigger>
+          )}
+          {showShareholdersTab && (
+            <TabsTrigger value="shareholders">
+              Shareholders
+            </TabsTrigger>
+          )}
         </TabsList>
         
         <TabsContent value="structure" className="mt-0">
@@ -56,18 +70,30 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
           />
         </TabsContent>
         
-        <TabsContent value="shareholders" className="mt-0">
-          {hasShareholders ? (
-            <OwnershipShareholders shareholders={ownership.shareholders} />
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>Shareholder data not available for this company.</p>
-              <p className="text-sm mt-2">
-                Shareholder information is only available for publicly traded companies.
-              </p>
-            </div>
-          )}
-        </TabsContent>
+        {showOwnershipTab && (
+          <TabsContent value="ownership" className="mt-0">
+            <OwnershipDetails 
+              ownership_structure={ownership.ownership_structure}
+              ownership_details={ownership.ownership_details}
+              companyName={companyName}
+            />
+          </TabsContent>
+        )}
+        
+        {showShareholdersTab && (
+          <TabsContent value="shareholders" className="mt-0">
+            {hasShareholders ? (
+              <OwnershipShareholders shareholders={ownership.shareholders} />
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Shareholder data not available for this company.</p>
+                <p className="text-sm mt-2">
+                  Shareholder information is only available for publicly traded companies.
+                </p>
+              </div>
+            )}
+          </TabsContent>
+        )}
       </Tabs>
     </Card>
   );
