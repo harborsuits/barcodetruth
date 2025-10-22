@@ -21,12 +21,15 @@ interface OwnershipCardProps {
         logo_url?: string;
         wikidata_qid?: string;
       };
-    }[];
+    };
   } | null;
 }
 
 export function OwnershipCard({ companyInfo }: OwnershipCardProps) {
-  const ownership = companyInfo?.ownership?.[0];
+  // Debug log
+  console.log('[OwnershipCard] Received companyInfo:', companyInfo);
+  
+  const ownership = companyInfo?.ownership;
 
   if (!ownership) {
     return (

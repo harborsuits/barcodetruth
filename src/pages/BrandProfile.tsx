@@ -223,15 +223,23 @@ export default function BrandProfile() {
       });
 
       if (error) {
-        console.error('Error fetching company info:', error);
+        console.error('[BrandProfile] Error fetching company info:', error);
         return null;
       }
 
       // Cast to any to handle JSON return type
       const result = data as any;
 
-      // Note: Auto-enrichment removed to prevent infinite loops on missing data
-      // Users can manually trigger deep scan or enrichment via admin tools
+      console.log('[BrandProfile] Company info loaded:', {
+        has_ownership: !!result?.ownership,
+        parent_name: result?.ownership?.parent_name,
+        has_company: !!result?.ownership?.company,
+        company_name: result?.ownership?.company?.name,
+        has_logo: !!result?.ownership?.company?.logo_url,
+        has_description: !!result?.ownership?.company?.description,
+        people_count: result?.people?.length || 0,
+        has_valuation: !!result?.valuation
+      });
 
       return result;
     },
@@ -275,8 +283,19 @@ export default function BrandProfile() {
         }
 
         setData(result);
+        
+        // Debug log brand data
+        console.log('[BrandProfile] Brand data loaded:', {
+          brand_id: actualId,
+          brand_name: result?.brand?.name,
+          has_logo: !!result?.brand?.logo_url,
+          logo_url: result?.brand?.logo_url,
+          has_description: !!result?.brand?.description,
+          description_length: result?.brand?.description?.length || 0,
+          parent_company: result?.brand?.parent_company
+        });
       } catch (e: any) {
-        console.error('Failed to load brand profile:', e);
+        console.error('[BrandProfile] Failed to load brand profile:', e);
         setError(e?.message ?? 'Failed to load brand profile');
         toast({
           title: 'Error loading brand',

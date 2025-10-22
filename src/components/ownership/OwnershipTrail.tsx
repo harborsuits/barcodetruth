@@ -25,13 +25,25 @@ export function OwnershipTrail({ brandId }: OwnershipTrailProps) {
   const { data: trail, isLoading } = useQuery({
     queryKey: ['ownership-trail', brandId],
     queryFn: async () => {
+      console.log('[OwnershipTrail] Fetching trail for brand:', brandId);
+      
+      // Query for all entities in the ownership chain that include this brand
       const { data, error } = await supabase
         .from('v_ownership_trail')
         .select('*')
-        .eq('entity_id', brandId)
+        .contains('path_ids', [brandId])
         .order('level');
       
-      if (error) throw error;
+      if (error) {
+        console.error('[OwnershipTrail] Error fetching trail:', error);
+        throw error;
+      }
+      
+      console.log('[OwnershipTrail] Trail data received:', {
+        count: data?.length || 0,
+        trail: data
+      });
+      
       return data as TrailEntity[];
     },
   });
