@@ -611,14 +611,19 @@ export default function BrandProfile() {
 
         {/* Why this score accordion - hidden, replaced by Community Outlook */}
 
-        {/* Ownership Trail */}
-        {actualId && <OwnershipTrail brandId={actualId} />}
+        {/* Legacy ownership components - hidden when new ownership data exists */}
+        {!hasOwnershipData && (
+          <>
+            {/* Ownership Trail */}
+            {actualId && <OwnershipTrail brandId={actualId} />}
 
-        {/* Ownership Structure */}
-        {actualId && <OwnershipGraph brandId={actualId} />}
+            {/* Ownership Structure */}
+            {actualId && <OwnershipGraph brandId={actualId} />}
 
-        {/* Consolidated Scores (if has subsidiaries) */}
-        {actualId && <RollupScores brandId={actualId} />}
+            {/* Consolidated Scores (if has subsidiaries) */}
+            {actualId && <RollupScores brandId={actualId} />}
+          </>
+        )}
 
         {/* Evidence - Grouped by Category */}
         <Card>
