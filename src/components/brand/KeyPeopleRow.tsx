@@ -55,7 +55,7 @@ export function KeyPeopleRow({ people }: KeyPeopleRowProps) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <a 
-                  href={person.person_qid ? `https://en.wikipedia.org/wiki/Special:EntityPage/${person.person_qid}` : undefined}
+                  href={`https://en.wikipedia.org/wiki/${encodeURIComponent(person.name.replace(/ /g, '_'))}`}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
