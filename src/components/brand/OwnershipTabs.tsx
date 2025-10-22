@@ -12,6 +12,8 @@ interface OwnershipTabsProps {
 export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
   const { data: ownership, isLoading } = useOwnership(brandId);
 
+  console.log('[OwnershipTabs] Rendering with:', { brandId, ownership, isLoading });
+
   if (isLoading) {
     return (
       <Card className="p-6">

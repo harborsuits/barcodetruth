@@ -49,10 +49,12 @@ interface OwnershipData {
 }
 
 export function useOwnership(brandId: string | undefined) {
-  return useQuery({
+  return useQuery<OwnershipData | null, Error>({
     queryKey: ['ownership', brandId],
     queryFn: async () => {
       if (!brandId) return null;
+      
+      console.log('[useOwnership] Fetching for brandId:', brandId);
       
       const { data, error } = await supabase
         .rpc('get_brand_ownership' as any, {
@@ -66,9 +68,12 @@ export function useOwnership(brandId: string | undefined) {
         throw error;
       }
 
+      console.log('[useOwnership] Received data:', JSON.stringify(data, null, 2));
+
       return data as OwnershipData | null;
     },
     enabled: !!brandId,
-    staleTime: 1000 * 60 * 60, // 1 hour
+    staleTime: 0, // Force fresh fetch for debugging
+    gcTime: 0, // Don't cache (v5 renamed from cacheTime)
   });
 }
