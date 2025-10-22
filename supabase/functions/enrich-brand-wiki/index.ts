@@ -414,6 +414,12 @@ serve(async (req) => {
                         .select('id')
                         .single();
                       companyId = newCompany?.id;
+                      
+                      if (country) {
+                        enrichmentMetrics.country_found = true;
+                        enrichmentMetrics.properties_found.push('P17');
+                      }
+                      
                       console.log(`[enrich-brand-wiki] Created parent company with description (${parentDescription?.length || 0} chars) and country (${country})`);
                     }
                     
@@ -496,6 +502,7 @@ serve(async (req) => {
                           
                           if (!tickerError) {
                             tickerAdded = true;
+                            enrichmentMetrics.ticker_added = true;
                             console.log(`[enrich-brand-wiki] Added SEC ticker from parent: ${tickerValue}`);
                           }
                         }
@@ -611,6 +618,25 @@ serve(async (req) => {
         }
       }
 
+      // Log enrichment run to database
+      if (brandId) {
+        try {
+          const duration = Date.now() - startTime;
+          enrichmentMetrics.parent_found = parentCompanyAdded;
+          enrichmentMetrics.people_added = keyPeopleAdded;
+          enrichmentMetrics.ticker_added = tickerAdded;
+          enrichmentMetrics.description_length = description.length;
+          
+          await supabase.from('enrichment_runs').insert({
+            brand_id: brandId,
+            duration_ms: duration,
+            ...enrichmentMetrics
+          });
+        } catch (logError) {
+          console.error('[enrich-brand-wiki] Failed to log enrichment run:', logError);
+        }
+      }
+
       return new Response(
         JSON.stringify({
           success: true,
@@ -632,6 +658,22 @@ serve(async (req) => {
 
     console.log(`[enrich-brand-wiki] No Wikipedia description found for ${targetName}`);
 
+    // Log failed enrichment attempt
+    if (brandId) {
+      try {
+        const duration = Date.now() - startTime;
+        enrichmentMetrics.error_message = "No Wikipedia description found";
+        
+        await supabase.from('enrichment_runs').insert({
+          brand_id: brandId,
+          duration_ms: duration,
+          ...enrichmentMetrics
+        });
+      } catch (logError) {
+        console.error('[enrich-brand-wiki] Failed to log enrichment run:', logError);
+      }
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true,
@@ -645,6 +687,27 @@ serve(async (req) => {
   } catch (error) {
     console.error('[enrich-brand-wiki] Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Log error to enrichment_runs
+    if (brandId) {
+      try {
+        const duration = Date.now() - startTime;
+        const supabase = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        );
+        enrichmentMetrics.error_message = errorMessage;
+        
+        await supabase.from('enrichment_runs').insert({
+          brand_id: brandId,
+          duration_ms: duration,
+          ...enrichmentMetrics
+        });
+      } catch (logError) {
+        console.error('[enrich-brand-wiki] Failed to log enrichment run:', logError);
+      }
+    }
+    
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
