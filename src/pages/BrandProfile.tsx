@@ -24,6 +24,7 @@ import { SuggestEvidenceDialog } from '@/components/SuggestEvidenceDialog';
 import { OwnershipCard } from '@/components/brand/OwnershipCard';
 import { KeyPeopleRow } from '@/components/brand/KeyPeopleRow';
 import { ValuationChip } from '@/components/brand/ValuationChip';
+import { CommunityOutlookCard } from '@/components/brand/CommunityOutlookCard';
 
 type BrandProfile = {
   brand: { 
@@ -497,40 +498,13 @@ export default function BrandProfile() {
                   </div>
                 )}
               </div>
-              {confidenceData && confidenceData.confidence_level === 'high' ? (
-                <div className="text-right flex-shrink-0">
-                  <div className="text-5xl font-bold">
-                    {displayScore !== null && displayScore !== undefined ? Math.round(displayScore) : '—'}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1 flex flex-col gap-1">
-                    {personalizedScore ? (
-                      <span className="text-primary font-medium">Your personalized score</span>
-                    ) : data.score?.updated_at ? (
-                      `Updated ${formatDistanceToNow(new Date(data.score.updated_at), { addSuffix: true })}`
-                    ) : (
-                      'Not scored yet'
-                    )}
-                     {/* Trend indicators */}
-                    {coverage.events_30d > 0 && (
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className="text-muted-foreground">
-                          {coverage.events_30d} events (30d)
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-right flex-shrink-0">
-                  <div className="text-5xl font-bold text-muted-foreground">—</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Monitoring
-                  </div>
-                </div>
-              )}
+              {/* Overall company score hidden - replaced by Community Outlook */}
             </div>
           </CardContent>
         </Card>
+
+        {/* Community Outlook - replaces overall company score */}
+        <CommunityOutlookCard brandId={actualId!} brandName={data.brand.name} />
 
         {/* 4 Category Score Cards - Always show with baseline 50 if no data */}
         <div className="grid grid-cols-2 gap-4">
@@ -621,29 +595,7 @@ export default function BrandProfile() {
           </Badge>
         </section>
 
-        {/* Why this score accordion */}
-        <Card>
-          <CardHeader>
-            <details className="cursor-pointer">
-              <summary className="font-semibold text-lg list-none flex items-center justify-between">
-                Why this score?
-                <span className="text-muted-foreground text-sm">▼</span>
-              </summary>
-              <div className="mt-4 pt-4 border-t">
-                {data.score?.reason_json ? (
-                  <pre className="text-xs overflow-auto bg-muted p-4 rounded">
-                    {JSON.stringify(data.score.reason_json, null, 2)}
-                  </pre>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No detailed breakdown available yet. Scores are calculated based on verified events, 
-                    source credibility, and recency.
-                  </p>
-                )}
-              </div>
-            </details>
-          </CardHeader>
-        </Card>
+        {/* Why this score accordion - hidden, replaced by Community Outlook */}
 
         {/* Ownership Trail */}
         {actualId && <OwnershipTrail brandId={actualId} />}

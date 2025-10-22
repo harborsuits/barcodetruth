@@ -1503,6 +1503,156 @@ export type Database = {
           },
         ]
       }
+      community_ratings: {
+        Row: {
+          brand_id: string
+          category: string
+          context_note: string | null
+          created_at: string
+          evidence_event_id: string | null
+          evidence_url: string | null
+          id: string
+          ip_hash: string | null
+          score: number
+          source_trust_tier: number | null
+          ua_hash: string | null
+          updated_at: string
+          user_id: string
+          weight: number
+        }
+        Insert: {
+          brand_id: string
+          category: string
+          context_note?: string | null
+          created_at?: string
+          evidence_event_id?: string | null
+          evidence_url?: string | null
+          id?: string
+          ip_hash?: string | null
+          score: number
+          source_trust_tier?: number | null
+          ua_hash?: string | null
+          updated_at?: string
+          user_id: string
+          weight?: number
+        }
+        Update: {
+          brand_id?: string
+          category?: string
+          context_note?: string | null
+          created_at?: string
+          evidence_event_id?: string | null
+          evidence_url?: string | null
+          id?: string
+          ip_hash?: string | null
+          score?: number
+          source_trust_tier?: number | null
+          ua_hash?: string | null
+          updated_at?: string
+          user_id?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_ratings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "community_ratings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_monitoring_status"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "community_ratings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_standings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_ratings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_trending"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "community_ratings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_ratings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "community_ratings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "community_ratings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_ratings_evidence_event_id_fkey"
+            columns: ["evidence_event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_events"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "community_ratings_evidence_event_id_fkey"
+            columns: ["evidence_event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_evidence_view_base"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "community_ratings_evidence_event_id_fkey"
+            columns: ["evidence_event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_latest_verified_event"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "community_ratings_evidence_event_id_fkey"
+            columns: ["evidence_event_id"]
+            isOneToOne: false
+            referencedRelation: "company_feed_grouped"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "community_ratings_evidence_event_id_fkey"
+            columns: ["evidence_event_id"]
+            isOneToOne: false
+            referencedRelation: "company_profile_feed"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "community_ratings_evidence_event_id_fkey"
+            columns: ["evidence_event_id"]
+            isOneToOne: false
+            referencedRelation: "v_brand_sources_inline"
+            referencedColumns: ["event_id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           country: string | null
@@ -3681,6 +3831,79 @@ export type Database = {
       }
     }
     Views: {
+      brand_category_outlook: {
+        Row: {
+          brand_id: string | null
+          category: string | null
+          mean_score: number | null
+          n: number | null
+          s1: number | null
+          s2: number | null
+          s3: number | null
+          s4: number | null
+          s5: number | null
+          sd: number | null
+          total_weight: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_ratings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "community_ratings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_monitoring_status"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "community_ratings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_standings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_ratings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_trending"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "community_ratings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_ratings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "community_ratings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "community_ratings_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brand_data_coverage: {
         Row: {
           brand_id: string | null
@@ -5239,6 +5462,10 @@ export type Database = {
         }[]
       }
       refresh_brand_coverage: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      refresh_community_outlook: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
