@@ -41,6 +41,9 @@ const AdminCategoryTester = lazyNamed(() => import("./pages/AdminCategoryTester"
 const AdminTestScorer = lazyNamed(() => import("./pages/AdminTestScorer"), "default");
 const AdminOpsHealth = lazyNamed(() => import("./pages/AdminOpsHealth"), "default");
 const BootstrapAdmin = lazyNamed(() => import("./pages/BootstrapAdmin"), "default");
+const Privacy = lazyNamed(() => import("./pages/Privacy"), "default");
+const Terms = lazyNamed(() => import("./pages/Terms"), "default");
+const Methodology = lazyNamed(() => import("./pages/Methodology"), "default");
 
 const queryClient = new QueryClient();
 
@@ -400,6 +403,30 @@ const App = () => {
                   </Suspense>
                 </RouteErrorBoundary>
               </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/privacy"
+            element={
+              <Suspense fallback={<RouteFallback label="Loading…" />}>
+                <Privacy />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/terms"
+            element={
+              <Suspense fallback={<RouteFallback label="Loading…" />}>
+                <Terms />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/methodology"
+            element={
+              <Suspense fallback={<RouteFallback label="Loading…" />}>
+                <Methodology />
+              </Suspense>
             }
           />
           <Route path="*" element={<NotFound />} />

@@ -16,7 +16,7 @@ export function AttributionFooter() {
                 We cite all sources and do not make independent factual claims. 
                 Event verification levels indicate source reliability, not editorial judgment.
               </p>
-              <div className="flex items-center gap-4 pt-2">
+              <div className="flex flex-wrap items-center gap-4 pt-2">
                 <ReportIssue 
                   subjectType="brand" 
                   subjectId="general"
@@ -39,6 +39,13 @@ export function AttributionFooter() {
                   className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
                 >
                   Terms of Service
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+                <a 
+                  href="/methodology" 
+                  className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                >
+                  Methodology
                   <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
