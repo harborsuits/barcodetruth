@@ -26,15 +26,15 @@ export function confidenceMeta(
   
   if (events === 0) {
     return { 
-      label: 'No data', 
+      label: 'Researching', 
       level: 'none',
-      color: 'text-destructive' 
+      color: 'text-warning' 
     };
   }
   
   if (w < 0.35) {
     return { 
-      label: 'Limited', 
+      label: 'Researching', 
       level: 'low',
       color: 'text-warning' 
     };
