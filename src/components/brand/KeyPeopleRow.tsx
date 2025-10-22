@@ -55,7 +55,7 @@ export function KeyPeopleRow({ people }: KeyPeopleRowProps) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <a 
-                  href={person.person_qid ? `https://www.wikidata.org/wiki/${person.person_qid}` : undefined}
+                  href={person.person_qid ? `https://en.wikipedia.org/wiki/Special:EntityPage/${person.person_qid}` : undefined}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
@@ -77,7 +77,7 @@ export function KeyPeopleRow({ people }: KeyPeopleRowProps) {
               <TooltipContent>
                 <p className="text-xs">Source: {person.source}</p>
                 {person.person_qid && (
-                  <p className="text-xs text-muted-foreground">Click to view on Wikidata</p>
+                  <p className="text-xs text-muted-foreground">Click to view on Wikipedia</p>
                 )}
               </TooltipContent>
             </Tooltip>
