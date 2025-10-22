@@ -2721,6 +2721,59 @@ export type Database = {
         }
         Relationships: []
       }
+      person_ratings: {
+        Row: {
+          category: string
+          context_note: string | null
+          created_at: string
+          evidence_url: string | null
+          id: string
+          ip_hash: string | null
+          person_id: string
+          score: number
+          ua_hash: string | null
+          updated_at: string
+          user_id: string
+          weight: number
+        }
+        Insert: {
+          category: string
+          context_note?: string | null
+          created_at?: string
+          evidence_url?: string | null
+          id?: string
+          ip_hash?: string | null
+          person_id: string
+          score: number
+          ua_hash?: string | null
+          updated_at?: string
+          user_id: string
+          weight?: number
+        }
+        Update: {
+          category?: string
+          context_note?: string | null
+          created_at?: string
+          evidence_url?: string | null
+          id?: string
+          ip_hash?: string | null
+          person_id?: string
+          score?: number
+          ua_hash?: string | null
+          updated_at?: string
+          user_id?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_ratings_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "company_people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pilot_brands: {
         Row: {
           brand_id: string

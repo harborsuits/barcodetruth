@@ -163,6 +163,16 @@ export default function AdminDashboard() {
       metrics: metrics ? `${metrics.pending_claims} pending` : "—"
     },
     {
+      title: "Community Ratings",
+      description: "Monitor and moderate brand & people ratings",
+      icon: Users,
+      route: "/admin/community-ratings",
+      color: "text-indigo-600 dark:text-indigo-400",
+      bgColor: "bg-indigo-600/10",
+      priority: "medium",
+      metrics: "Community feedback"
+    },
+    {
       title: "Ingestion Control",
       description: "Monitor queue status and brand processing",
       icon: Database,

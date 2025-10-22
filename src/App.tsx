@@ -42,6 +42,7 @@ const AdminTestScorer = lazyNamed(() => import("./pages/AdminTestScorer"), "defa
 const AdminOpsHealth = lazyNamed(() => import("./pages/AdminOpsHealth"), "default");
 const AdminRSSMonitor = lazyNamed(() => import("./pages/AdminRSSMonitor"), "default");
 const AdminEnrichmentMonitor = lazyNamed(() => import("./pages/AdminEnrichmentMonitor"), "default");
+const AdminCommunityRatings = lazyNamed(() => import("./pages/AdminCommunityRatings"), "default");
 const BootstrapAdmin = lazyNamed(() => import("./pages/BootstrapAdmin"), "default");
 const Privacy = lazyNamed(() => import("./pages/Privacy"), "default");
 const Terms = lazyNamed(() => import("./pages/Terms"), "default");
@@ -303,6 +304,20 @@ const App = () => {
                   <RouteErrorBoundary>
                     <Suspense fallback={<RouteFallback label="Loading enrichment monitor…" />}>
                       <AdminEnrichmentMonitor />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/community-ratings"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading community ratings…" />}>
+                      <AdminCommunityRatings />
                     </Suspense>
                   </RouteErrorBoundary>
                 </AdminRoute>
