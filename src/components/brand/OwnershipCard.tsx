@@ -31,14 +31,23 @@ export function OwnershipCard({ companyInfo }: OwnershipCardProps) {
   
   const ownership = companyInfo?.ownership;
 
-  if (!ownership) {
+  // CRITICAL: Only show "Your purchase supports" for true parent relationships
+  // NOT for shareholders like BlackRock, Vanguard, etc.
+  const isVerifiedParent = ownership && 
+    ownership.relationship && 
+    ['parent', 'subsidiary', 'parent_organization'].includes(ownership.relationship) &&
+    ownership.confidence >= 0.7;
+
+  if (!isVerifiedParent) {
     return (
       <Card className="p-6 bg-muted/30 border-2">
         <div className="flex items-start gap-3">
           <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
           <div>
             <h3 className="font-semibold mb-1">Parent Company</h3>
-            <p className="text-sm text-muted-foreground">Not yet verified</p>
+            <p className="text-sm text-muted-foreground">
+              {ownership ? 'Relationship verification in progress' : 'Not yet verified'}
+            </p>
             <button className="text-xs text-primary hover:underline mt-2">
               Suggest correction
             </button>

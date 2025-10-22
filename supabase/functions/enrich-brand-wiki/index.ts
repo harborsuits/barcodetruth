@@ -440,7 +440,30 @@ serve(async (req) => {
             const entityData = await entityRes.json();
             const claims = entityData.entities?.[wikidata_qid]?.claims || {};
             
-            // Extract parent organization (P749)
+            // Known asset manager/investor QIDs to exclude from parent relationships
+            const ASSET_MANAGER_QIDS = [
+              'Q2282548',   // BlackRock
+              'Q1046794',   // The Vanguard Group
+              'Q1365136',   // State Street Corporation
+              'Q533132',    // Fidelity Investments
+              'Q5026421',   // Capital Group Companies
+              'Q7603790',   // T. Rowe Price
+              'Q7964773',   // Wellington Management
+              'Q1049556',   // Invesco
+            ];
+            
+            // Asset manager keywords to detect in descriptions
+            const ASSET_MANAGER_KEYWORDS = [
+              'asset management',
+              'investment management',
+              'institutional investor',
+              'mutual fund',
+              'investment fund',
+              'pension fund',
+              'hedge fund'
+            ];
+            
+            // Extract parent organization (P749) - preferred for true ownership
             const parentOrgClaim = claims['P749']?.[0];
             if (parentOrgClaim) {
               const parentQid = parentOrgClaim.mainsnak?.datavalue?.value?.id;
@@ -453,14 +476,22 @@ serve(async (req) => {
                   const parentName = parentEntity?.labels?.en?.value;
                   
                   if (parentName) {
-                    // Check if parent company already exists
-                    const { data: existingCompany } = await supabase
-                      .from('companies')
-                      .select('id, is_public, ticker')
-                      .eq('wikidata_qid', parentQid)
-                      .maybeSingle();
+                    // Check if this is an asset manager (skip if so)
+                    const isAssetManager = ASSET_MANAGER_QIDS.includes(parentQid);
+                    const parentDescription = parentEntity?.descriptions?.en?.value?.toLowerCase() || '';
+                    const isAssetManagerByDesc = ASSET_MANAGER_KEYWORDS.some(kw => parentDescription.includes(kw));
                     
-                    let companyId = existingCompany?.id;
+                    if (isAssetManager || isAssetManagerByDesc) {
+                      console.log(`[enrich-brand-wiki] ⚠️ Skipping asset manager as parent: ${parentName} (${parentQid})`);
+                    } else {
+                      // Check if parent company already exists
+                      const { data: existingCompany } = await supabase
+                        .from('companies')
+                        .select('id, is_public, ticker')
+                        .eq('wikidata_qid', parentQid)
+                        .maybeSingle();
+                      
+                      let companyId = existingCompany?.id;
                     
                     if (!companyId) {
                       // Create parent company - also fetch Wikipedia data for it
@@ -527,78 +558,81 @@ serve(async (req) => {
                         .eq('parent_company_id', companyId)
                         .maybeSingle();
                       
-                      if (!existingOwnership) {
-                        // Insert ownership relationship
-                        const { error: ownershipError } = await supabase
-                          .from('company_ownership')
-                          .insert({
-                            parent_company_id: companyId,
-                            child_brand_id: brandId,
-                            parent_name: parentName,
-                            source: 'wikidata',
-                            source_ref: `https://www.wikidata.org/wiki/${parentQid}`,
-                            confidence: 0.9
-                          });
-                        
-                        if (!ownershipError) {
-                          parentCompanyAdded = true;
-                          enrichmentMetrics.parent_found = true;
-                          enrichmentMetrics.properties_found.push('P749');
-                          console.log(`[enrich-brand-wiki] Added parent company: ${parentName}`);
-                        }
-                      }
-                      
-                      // If parent is public and has ticker, add to brand_data_mappings
-                      const parentClaims = parentEntity?.claims || {};
-                      
-                      // Check if company is publicly traded (P414 - stock exchange)
-                      const exchangeClaim = parentClaims['P414']?.[0];
-                      const isPublic = !!exchangeClaim;
-                      
-                      // Get ticker symbol (P249 - ticker symbol, or P414 qualifier)
-                      let tickerValue = parentClaims['P249']?.[0]?.mainsnak?.datavalue?.value;
-                      if (!tickerValue && exchangeClaim) {
-                        tickerValue = exchangeClaim.qualifiers?.['P249']?.[0]?.datavalue?.value;
-                      }
-                      
-                      // Update company with public status and ticker if found
-                      if (companyId && (isPublic || tickerValue)) {
-                        const companyUpdate: any = {};
-                        if (isPublic) companyUpdate.is_public = true;
-                        if (tickerValue) companyUpdate.ticker = tickerValue;
-                        
-                        await supabase
-                          .from('companies')
-                          .update(companyUpdate)
-                          .eq('id', companyId);
-                        
-                        console.log(`[enrich-brand-wiki] Updated parent company: is_public=${isPublic}, ticker=${tickerValue || 'none'}`);
-                      }
-                      
-                      if (tickerValue) {
-                        // Check if ticker mapping already exists
-                        const { data: existingTicker } = await supabase
-                          .from('brand_data_mappings')
-                          .select('id')
-                          .eq('brand_id', brandId)
-                          .eq('source', 'sec')
-                          .eq('label', 'ticker')
-                          .maybeSingle();
-                        
-                        if (!existingTicker) {
-                          const { error: tickerError } = await supabase
-                            .from('brand_data_mappings')
+                        if (!existingOwnership) {
+                          // Insert ownership relationship with proper relationship type
+                          const { error: ownershipError } = await supabase
+                            .from('company_ownership')
                             .insert({
-                              brand_id: brandId,
-                              source: 'sec',
-                              label: 'ticker',
-                              external_id: tickerValue
+                              parent_company_id: companyId,
+                              child_brand_id: brandId,
+                              parent_name: parentName,
+                              relationship: 'parent',
+                              relationship_type: 'control',
+                              source: 'wikidata',
+                              source_ref: `https://www.wikidata.org/wiki/${parentQid}`,
+                              confidence: 0.9
                             });
                           
-                          if (!tickerError) {
-                            tickerAdded = true;
-                            enrichmentMetrics.ticker_added = true;
-                            console.log(`[enrich-brand-wiki] Added SEC ticker from parent: ${tickerValue}`);
+                          if (!ownershipError) {
+                            parentCompanyAdded = true;
+                            enrichmentMetrics.parent_found = true;
+                            enrichmentMetrics.properties_found.push('P749');
+                            console.log(`[enrich-brand-wiki] Added parent company: ${parentName}`);
+                          }
+                        }
+                        
+                        // If parent is public and has ticker, add to brand_data_mappings
+                        const parentClaims = parentEntity?.claims || {};
+                        
+                        // Check if company is publicly traded (P414 - stock exchange)
+                        const exchangeClaim = parentClaims['P414']?.[0];
+                        const isPublic = !!exchangeClaim;
+                        
+                        // Get ticker symbol (P249 - ticker symbol, or P414 qualifier)
+                        let tickerValue = parentClaims['P249']?.[0]?.mainsnak?.datavalue?.value;
+                        if (!tickerValue && exchangeClaim) {
+                          tickerValue = exchangeClaim.qualifiers?.['P249']?.[0]?.datavalue?.value;
+                        }
+                        
+                        // Update company with public status and ticker if found
+                        if (companyId && (isPublic || tickerValue)) {
+                          const companyUpdate: any = {};
+                          if (isPublic) companyUpdate.is_public = true;
+                          if (tickerValue) companyUpdate.ticker = tickerValue;
+                          
+                          await supabase
+                            .from('companies')
+                            .update(companyUpdate)
+                            .eq('id', companyId);
+                          
+                          console.log(`[enrich-brand-wiki] Updated parent company: is_public=${isPublic}, ticker=${tickerValue || 'none'}`);
+                        }
+                        
+                        if (tickerValue) {
+                          // Check if ticker mapping already exists
+                          const { data: existingTicker } = await supabase
+                            .from('brand_data_mappings')
+                            .select('id')
+                            .eq('brand_id', brandId)
+                            .eq('source', 'sec')
+                            .eq('label', 'ticker')
+                            .maybeSingle();
+                          
+                          if (!existingTicker) {
+                            const { error: tickerError } = await supabase
+                              .from('brand_data_mappings')
+                              .insert({
+                                brand_id: brandId,
+                                source: 'sec',
+                                label: 'ticker',
+                                external_id: tickerValue
+                              });
+                            
+                            if (!tickerError) {
+                              tickerAdded = true;
+                              enrichmentMetrics.ticker_added = true;
+                              console.log(`[enrich-brand-wiki] Added SEC ticker from parent: ${tickerValue}`);
+                            }
                           }
                         }
                       }

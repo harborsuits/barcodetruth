@@ -1718,6 +1718,7 @@ export type Database = {
           parent_company_id: string | null
           parent_name: string
           relationship: string | null
+          relationship_type: string | null
           source: string
           source_ref: string | null
         }
@@ -1731,6 +1732,7 @@ export type Database = {
           parent_company_id?: string | null
           parent_name: string
           relationship?: string | null
+          relationship_type?: string | null
           source: string
           source_ref?: string | null
         }
@@ -1744,6 +1746,7 @@ export type Database = {
           parent_company_id?: string | null
           parent_name?: string
           relationship?: string | null
+          relationship_type?: string | null
           source?: string
           source_ref?: string | null
         }
