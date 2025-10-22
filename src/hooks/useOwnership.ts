@@ -61,7 +61,7 @@ export function useOwnership(brandId: string | undefined) {
           p_brand_id: brandId
         });
 
-      console.debug('[Ownership] brandId=', brandId, 'error=', error, 'data=', data);
+      console.debug('[useOwnership] brandId=', brandId, 'error=', error, 'data=', data);
 
       if (error) {
         console.error('[useOwnership] Error fetching ownership:', error);
@@ -73,7 +73,9 @@ export function useOwnership(brandId: string | undefined) {
       return data as OwnershipData | null;
     },
     enabled: !!brandId,
-    staleTime: 0, // Force fresh fetch for debugging
-    gcTime: 0, // Don't cache (v5 renamed from cacheTime)
+    staleTime: 0, // Force fresh fetch
+    gcTime: 0, // Don't cache
+    refetchOnMount: 'always', // Always refetch when component mounts
+    refetchOnWindowFocus: false, // Don't refetch on focus
   });
 }

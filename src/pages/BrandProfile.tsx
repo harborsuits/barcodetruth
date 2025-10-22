@@ -144,6 +144,24 @@ export default function BrandProfile() {
       console.log('Shareholders count:', data?.shareholders?.top?.length);
       return { data, error };
     };
+    
+    // Add service worker unregister helper
+    (window as any).clearServiceWorkerCache = async () => {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      console.log('Found', regs.length, 'service worker(s)');
+      for (const reg of regs) {
+        await reg.unregister();
+        console.log('Unregistered service worker:', reg.scope);
+      }
+      console.log('Service workers cleared. Reloading...');
+      location.reload();
+    };
+    
+    // Check environment
+    console.log('Environment check:', {
+      SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
+      HAS_ANON_KEY: !!import.meta.env.VITE_SUPABASE_ANON_KEY
+    });
   }, [id, brandId, actualId]);
   
   const [data, setData] = useState<BrandProfile | null>(null);

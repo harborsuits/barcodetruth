@@ -12,7 +12,14 @@ interface OwnershipTabsProps {
 export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
   const { data: ownership, isLoading } = useOwnership(brandId);
 
-  console.log('[OwnershipTabs] Rendering with:', { brandId, ownership, isLoading });
+  console.log('[OwnershipTabs] Rendering:', { 
+    brandId, 
+    isLoading,
+    hasData: !!ownership,
+    chainLength: ownership?.structure?.chain?.length,
+    shareholdersCount: ownership?.shareholders?.top?.length,
+    fullData: ownership
+  });
 
   if (isLoading) {
     return (
