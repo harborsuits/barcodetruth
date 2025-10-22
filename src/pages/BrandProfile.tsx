@@ -524,7 +524,11 @@ export default function BrandProfile() {
                 {/* Wikipedia description */}
                 {data.brand.description ? (
                   <div className="mt-3 text-sm text-muted-foreground leading-relaxed">
-                    <p>{data.brand.description}</p>
+                    <p>
+                      {data.brand.description.length > 150 
+                        ? `${data.brand.description.substring(0, 150)}...` 
+                        : data.brand.description}
+                    </p>
                     {data.brand.description_source === 'wikipedia' && (
                       <a
                         href={`https://en.wikipedia.org/wiki/${encodeURIComponent(data.brand.name)}`}
