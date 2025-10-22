@@ -31,16 +31,17 @@ export function DataCollectionBadge({
   domains90d = 0,
   ingestStatus = 'Active'
 }: DataCollectionBadgeProps) {
-  const significantCategories = categoriesCovered.filter(cat => 
-    ['labor', 'environment', 'political', 'social', 'esg', 'regulatory', 'legal', 'product_safety', 'privacy_ai', 'human_rights_supply', 'antitrust_tax', 'policy'].includes(cat.toLowerCase())
-  );
+  const significantCategories = categoriesCovered.filter(cat => {
+    const normalized = cat.toLowerCase();
+    return ['labor', 'environment', 'political', 'politics', 'social', 'esg', 'regulatory', 'legal', 'product_safety', 'privacy_ai', 'human_rights_supply', 'antitrust_tax', 'policy'].includes(normalized);
+  });
   const getStatusConfig = () => {
     if (confidenceLevel === 'high') {
       return {
         icon: CheckCircle,
-        color: "text-green-600 dark:text-green-400",
-        bgColor: "bg-green-50 dark:bg-green-950/20",
-        borderColor: "border-green-200 dark:border-green-800",
+        color: "text-primary",
+        bgColor: "bg-primary/5",
+        borderColor: "border-primary/20",
         label: "High Confidence Data",
         description: "Sufficient events collected for reliable scoring"
       };
@@ -48,9 +49,9 @@ export function DataCollectionBadge({
     if (confidenceLevel === 'medium') {
       return {
         icon: TrendingUp,
-        color: "text-blue-600 dark:text-blue-400",
-        bgColor: "bg-blue-50 dark:bg-blue-950/20",
-        borderColor: "border-blue-200 dark:border-blue-800",
+        color: "text-primary",
+        bgColor: "bg-primary/5",
+        borderColor: "border-primary/20",
         label: "Building Coverage",
         description: "Collecting more events for comprehensive scoring"
       };
@@ -58,18 +59,18 @@ export function DataCollectionBadge({
     if (confidenceLevel === 'low') {
       return {
         icon: Database,
-        color: "text-yellow-600 dark:text-yellow-400",
-        bgColor: "bg-yellow-50 dark:bg-yellow-950/20",
-        borderColor: "border-yellow-200 dark:border-yellow-800",
+        color: "text-muted-foreground",
+        bgColor: "bg-muted/30",
+        borderColor: "border-muted",
         label: "Early Monitoring",
         description: "Initial data collection in progress"
       };
     }
     return {
       icon: AlertCircle,
-      color: "text-gray-600 dark:text-gray-400",
-      bgColor: "bg-gray-50 dark:bg-gray-950/20",
-      borderColor: "border-gray-200 dark:border-gray-800",
+      color: "text-muted-foreground",
+      bgColor: "bg-muted/20",
+      borderColor: "border-muted",
       label: "Monitoring in Progress",
       description: "Actively searching for events"
     };
@@ -128,20 +129,20 @@ export function DataCollectionBadge({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
             <div>
               <div className="text-2xl font-bold">{eventCount}</div>
-              <div className="text-xs text-muted-foreground">Events (90d)</div>
+              <div className="text-xs text-muted-foreground">Evidence Items</div>
             </div>
             
             <div>
               <div className="text-2xl font-bold">{domains90d}</div>
-              <div className="text-xs text-muted-foreground">Independent Sources</div>
+              <div className="text-xs text-muted-foreground">Sources</div>
             </div>
             
             <div>
               <div className="text-2xl font-bold">
-                {significantCategories.length > 0 ? significantCategories.length : 'None'}
+                {significantCategories.length > 0 ? significantCategories.length : '0'}
               </div>
               <div className="text-xs text-muted-foreground">
-                Signals in E/L/Env
+                Key Categories
               </div>
             </div>
           </div>
@@ -162,13 +163,18 @@ export function DataCollectionBadge({
           )}
           {significantCategories.length === 0 && eventCount > 0 && (
             <div className="pt-2 text-xs text-muted-foreground italic">
-              All events are general business news or financial market chatter. No ethical/labor/environmental signals yet.
+              Current evidence is general business news. Monitoring for labor, environmental, social, and regulatory signals.
+            </div>
+          )}
+          {eventCount === 0 && domains90d > 0 && (
+            <div className="pt-2 text-xs text-muted-foreground italic">
+              Monitoring {domains90d} potential sources. Evidence collection starting soon.
             </div>
           )}
 
           <div className="pt-2 border-t">
             {completeness >= 90 && confidenceLevel !== 'high' && (
-              <div className="mb-3 text-xs px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-100">
+              <div className="mb-3 text-xs px-3 py-2 rounded-lg bg-primary/10 border border-primary/20 text-foreground">
                 <span className="font-semibold">🎯 Scores unlocking soon</span> — evidence coverage at {completeness}%
               </div>
             )}
