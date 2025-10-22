@@ -404,7 +404,11 @@ export default function BrandProfile() {
       <BrandWikiEnrichment 
         brandId={actualId!} 
         hasDescription={!!data.brand.description}
-        onEnriched={() => setRefreshKey(k => k + 1)}
+        hasParentCompany={!!companyInfo?.ownership}
+        onEnriched={() => {
+          setRefreshKey(k => k + 1);
+          refetchCompanyInfo();
+        }}
       />
       <header className="sticky top-0 z-10 bg-card border-b">
         <div className="container max-w-4xl mx-auto px-4 py-4">

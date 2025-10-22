@@ -2,21 +2,23 @@ import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Auto-enriches brands with Wikipedia descriptions when they're viewed
+ * Auto-enriches brands with Wikipedia data (description, parent company, key people)
  * Runs silently in the background - no UI needed
  */
 export function BrandWikiEnrichment({ 
   brandId, 
-  hasDescription, 
+  hasDescription,
+  hasParentCompany,
   onEnriched 
 }: { 
   brandId: string, 
   hasDescription: boolean,
+  hasParentCompany: boolean,
   onEnriched?: () => void 
 }) {
   useEffect(() => {
-    // Only enrich if description is missing
-    if (hasDescription) return;
+    // Enrich if description OR parent company is missing
+    if (hasDescription && hasParentCompany) return;
     
     // Trigger Wikipedia enrichment in the background
     const enrichBrand = async () => {
@@ -43,7 +45,7 @@ export function BrandWikiEnrichment({
     // Trigger after a short delay to avoid race conditions
     const timer = setTimeout(enrichBrand, 1000);
     return () => clearTimeout(timer);
-  }, [brandId, hasDescription]);
+  }, [brandId, hasDescription, hasParentCompany, onEnriched]);
   
   return null; // No UI needed
 }
