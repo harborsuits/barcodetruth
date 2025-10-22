@@ -1823,6 +1823,7 @@ export type Database = {
       company_people: {
         Row: {
           company_id: string
+          confidence: number | null
           created_at: string | null
           id: string
           image_url: string | null
@@ -1835,6 +1836,7 @@ export type Database = {
         }
         Insert: {
           company_id: string
+          confidence?: number | null
           created_at?: string | null
           id?: string
           image_url?: string | null
@@ -1847,6 +1849,7 @@ export type Database = {
         }
         Update: {
           company_id?: string
+          confidence?: number | null
           created_at?: string | null
           id?: string
           image_url?: string | null
@@ -1925,6 +1928,108 @@ export type Database = {
           last_run?: string
         }
         Relationships: []
+      }
+      enrichment_runs: {
+        Row: {
+          brand_id: string | null
+          country_found: boolean | null
+          description_length: number | null
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          logo_found: boolean | null
+          parent_found: boolean | null
+          people_added: number | null
+          properties_found: string[] | null
+          run_at: string | null
+          ticker_added: boolean | null
+        }
+        Insert: {
+          brand_id?: string | null
+          country_found?: boolean | null
+          description_length?: number | null
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          logo_found?: boolean | null
+          parent_found?: boolean | null
+          people_added?: number | null
+          properties_found?: string[] | null
+          run_at?: string | null
+          ticker_added?: boolean | null
+        }
+        Update: {
+          brand_id?: string | null
+          country_found?: boolean | null
+          description_length?: number | null
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          logo_found?: boolean | null
+          parent_found?: boolean | null
+          people_added?: number | null
+          properties_found?: string[] | null
+          run_at?: string | null
+          ticker_added?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrichment_runs_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "enrichment_runs_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_monitoring_status"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "enrichment_runs_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_standings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrichment_runs_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_trending"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "enrichment_runs_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrichment_runs_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "enrichment_runs_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "enrichment_runs_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       event_rules: {
         Row: {
@@ -5383,6 +5488,10 @@ export type Database = {
           event_ids: string[]
           title_fp: string
         }[]
+      }
+      get_enrichment_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       get_next_brands_fair_rotation: {
         Args: { p_limit?: number }

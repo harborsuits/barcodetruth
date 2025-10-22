@@ -41,6 +41,7 @@ const AdminCategoryTester = lazyNamed(() => import("./pages/AdminCategoryTester"
 const AdminTestScorer = lazyNamed(() => import("./pages/AdminTestScorer"), "default");
 const AdminOpsHealth = lazyNamed(() => import("./pages/AdminOpsHealth"), "default");
 const AdminRSSMonitor = lazyNamed(() => import("./pages/AdminRSSMonitor"), "default");
+const AdminEnrichmentMonitor = lazyNamed(() => import("./pages/AdminEnrichmentMonitor"), "default");
 const BootstrapAdmin = lazyNamed(() => import("./pages/BootstrapAdmin"), "default");
 const Privacy = lazyNamed(() => import("./pages/Privacy"), "default");
 const Terms = lazyNamed(() => import("./pages/Terms"), "default");
@@ -288,6 +289,20 @@ const App = () => {
                   <RouteErrorBoundary>
                     <Suspense fallback={<RouteFallback label="Loading RSS monitor…" />}>
                       <AdminRSSMonitor />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/enrichment"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading enrichment monitor…" />}>
+                      <AdminEnrichmentMonitor />
                     </Suspense>
                   </RouteErrorBoundary>
                 </AdminRoute>

@@ -113,13 +113,19 @@ export function OwnershipCard({ companyInfo }: OwnershipCardProps) {
               )}
 
               {company.is_public && company.ticker && (
-                <Badge variant="secondary" className="font-medium">
-                  Public: {company.exchange || 'Exchange'}: {company.ticker}
+                <Badge variant="secondary" className="font-medium px-3 py-1">
+                  📈 Public • {company.exchange || 'Exchange'}:{company.ticker}
+                </Badge>
+              )}
+
+              {company.is_public && !company.ticker && (
+                <Badge variant="secondary" className="font-medium px-3 py-1">
+                  📈 Public Company
                 </Badge>
               )}
 
               {!company.is_public && (
-                <Badge variant="secondary">
+                <Badge variant="outline" className="px-3 py-1">
                   Private Company
                 </Badge>
               )}

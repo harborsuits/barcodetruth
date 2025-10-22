@@ -11,6 +11,21 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+  let brandId: string | null = null;
+  
+  // Track enrichment metrics
+  const enrichmentMetrics = {
+    parent_found: false,
+    people_added: 0,
+    ticker_added: false,
+    description_length: 0,
+    logo_found: false,
+    country_found: false,
+    properties_found: [] as string[],
+    error_message: null as string | null
+  };
+
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -18,7 +33,7 @@ serve(async (req) => {
     );
 
     const url = new URL(req.url);
-    const brandId = url.searchParams.get('brand_id');
+    brandId = url.searchParams.get('brand_id');
     const mode = url.searchParams.get('mode'); // 'missing' for batch mode
     
     // Batch mode: process brands missing descriptions
@@ -285,6 +300,8 @@ serve(async (req) => {
 
     // Step 5: Update target table if we got description
     if (description) {
+      enrichmentMetrics.description_length = description.length;
+      
       const updates: any = {
         description,
         description_source: 'wikipedia',
@@ -302,6 +319,7 @@ serve(async (req) => {
 
       if (updateError) {
         console.error('[enrich-brand-wiki] Update error:', updateError);
+        enrichmentMetrics.error_message = `Failed to update ${targetTable}: ${updateError.message}`;
         return new Response(
           JSON.stringify({ error: `Failed to update ${targetTable}` }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -423,6 +441,8 @@ serve(async (req) => {
                         
                         if (!ownershipError) {
                           parentCompanyAdded = true;
+                          enrichmentMetrics.parent_found = true;
+                          enrichmentMetrics.properties_found.push('P749');
                           console.log(`[enrich-brand-wiki] Added parent company: ${parentName}`);
                         }
                       }
@@ -557,7 +577,9 @@ serve(async (req) => {
                         .maybeSingle();
                       
                       if (!existingPerson) {
-                        // Insert key person
+                        // Insert key person with confidence scoring
+                        const personConfidence = (personQid && imageUrl) ? 0.9 : (personQid ? 0.8 : 0.6);
+                        
                         const { error: personError } = await supabase
                           .from('company_people')
                           .insert({
@@ -567,12 +589,14 @@ serve(async (req) => {
                             role: role,
                             source: 'wikidata',
                             source_ref: `https://www.wikidata.org/wiki/${personQid}`,
-                            image_url: imageUrl
+                            image_url: imageUrl,
+                            confidence: personConfidence
                           });
                         
                         if (!personError) {
                           keyPeopleAdded++;
-                          console.log(`[enrich-brand-wiki] Added ${role}: ${personName}`);
+                          enrichmentMetrics.people_added++;
+                          console.log(`[enrich-brand-wiki] Added ${role}: ${personName} (confidence: ${personConfidence})`);
                         }
                       }
                     }
