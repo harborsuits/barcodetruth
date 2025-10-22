@@ -6,12 +6,21 @@ import { Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Tooltip }
 interface ShareholderBucket {
   key: 'institutional' | 'insider' | 'strategic' | 'gov' | 'other';
   percent: number;
+  source_name?: string;
+  source_url?: string;
 }
 
 interface TopHolder {
   name: string;
   type: string;
   percent: number;
+  url?: string;
+  official_url?: string;
+  wikipedia_url?: string;
+  wikidata_qid?: string;
+  logo_url?: string;
+  source_name?: string;
+  source_url?: string;
 }
 
 interface ShareholdersData {
@@ -49,6 +58,13 @@ export function OwnershipShareholders({ shareholders }: OwnershipShareholdersPro
     value: bucket.percent,
     key: bucket.key,
   }));
+
+  const handleSliceClick = (index: number) => {
+    const bucket = buckets[index];
+    if (bucket?.source_url) {
+      window.open(bucket.source_url, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -94,6 +110,8 @@ export function OwnershipShareholders({ shareholders }: OwnershipShareholdersPro
                 paddingAngle={2}
                 dataKey="value"
                 label={({ name, value }) => `${name}: ${value.toFixed(1)}%`}
+                onClick={(_, index) => handleSliceClick(index)}
+                style={{ cursor: buckets.some(b => b.source_url) ? 'pointer' : 'default' }}
               >
                 {chartData.map((entry) => (
                   <Cell key={entry.key} fill={BUCKET_COLORS[entry.key]} />
@@ -123,17 +141,46 @@ export function OwnershipShareholders({ shareholders }: OwnershipShareholdersPro
                 className="flex items-center justify-between p-3 rounded-lg bg-background border"
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center font-semibold text-sm">
-                    {idx + 1}
-                  </div>
+                  {holder.logo_url ? (
+                    <img 
+                      src={holder.logo_url} 
+                      alt={holder.name}
+                      className="w-8 h-8 rounded object-contain"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center font-semibold text-sm">
+                      {idx + 1}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
-                    <h5 className="font-medium text-sm truncate">{holder.name}</h5>
+                    {holder.url ? (
+                      <a 
+                        href={holder.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="font-medium text-sm truncate hover:underline block"
+                      >
+                        {holder.name}
+                      </a>
+                    ) : (
+                      <h5 className="font-medium text-sm truncate">{holder.name}</h5>
+                    )}
                     <Badge variant="outline" className="text-xs mt-1 capitalize">
-                      {holder.type}
+                      {BUCKET_LABELS[holder.type] || holder.type}
                     </Badge>
                   </div>
                 </div>
-                <div className="text-right ml-3">
+                <div className="flex items-center gap-3 ml-3">
+                  {holder.source_url && (
+                    <a 
+                      href={holder.source_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-xs text-muted-foreground hover:underline"
+                    >
+                      {holder.source_name || 'Proof'}
+                    </a>
+                  )}
                   <Badge variant="secondary" className="font-mono">
                     {holder.percent.toFixed(2)}%
                   </Badge>

@@ -1935,36 +1935,62 @@ export type Database = {
           as_of: string | null
           company_id: string
           created_at: string | null
+          directory_id: string | null
           holder_name: string
           holder_type: string
+          holder_url: string | null
           holder_wikidata_qid: string | null
           id: string
+          logo_url: string | null
           percent_owned: number
           source: string
+          source_name: string | null
+          source_url: string | null
+          wikipedia_url: string | null
         }
         Insert: {
           as_of?: string | null
           company_id: string
           created_at?: string | null
+          directory_id?: string | null
           holder_name: string
           holder_type: string
+          holder_url?: string | null
           holder_wikidata_qid?: string | null
           id?: string
+          logo_url?: string | null
           percent_owned: number
           source: string
+          source_name?: string | null
+          source_url?: string | null
+          wikipedia_url?: string | null
         }
         Update: {
           as_of?: string | null
           company_id?: string
           created_at?: string | null
+          directory_id?: string | null
           holder_name?: string
           holder_type?: string
+          holder_url?: string | null
           holder_wikidata_qid?: string | null
           id?: string
+          logo_url?: string | null
           percent_owned?: number
           source?: string
+          source_name?: string | null
+          source_url?: string | null
+          wikipedia_url?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_shareholder_directory"
+            columns: ["directory_id"]
+            isOneToOne: false
+            referencedRelation: "shareholders_directory"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_valuation: {
         Row: {
@@ -3524,6 +3550,36 @@ export type Database = {
           ip_address?: string | null
           record_id?: string | null
           table_name?: string
+        }
+        Relationships: []
+      }
+      shareholders_directory: {
+        Row: {
+          display_name: string
+          id: string
+          last_verified: string | null
+          logo_url: string | null
+          official_url: string | null
+          wikidata_qid: string | null
+          wikipedia_url: string | null
+        }
+        Insert: {
+          display_name: string
+          id?: string
+          last_verified?: string | null
+          logo_url?: string | null
+          official_url?: string | null
+          wikidata_qid?: string | null
+          wikipedia_url?: string | null
+        }
+        Update: {
+          display_name?: string
+          id?: string
+          last_verified?: string | null
+          logo_url?: string | null
+          official_url?: string | null
+          wikidata_qid?: string | null
+          wikipedia_url?: string | null
         }
         Relationships: []
       }

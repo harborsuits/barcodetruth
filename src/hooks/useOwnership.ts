@@ -17,12 +17,21 @@ interface OwnershipChainNode {
 interface ShareholderBucket {
   key: 'institutional' | 'insider' | 'strategic' | 'gov' | 'other';
   percent: number;
+  source_name?: string;
+  source_url?: string;
 }
 
 interface TopHolder {
   name: string;
   type: string;
   percent: number;
+  url?: string;
+  official_url?: string;
+  wikipedia_url?: string;
+  wikidata_qid?: string;
+  logo_url?: string;
+  source_name?: string;
+  source_url?: string;
 }
 
 interface OwnershipData {
