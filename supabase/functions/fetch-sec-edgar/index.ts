@@ -27,12 +27,13 @@ Deno.serve(async (req) => {
 
     console.log(`[fetch-sec-edgar] Starting for brand ${brandId}, dryrun=${dryrun}`);
 
-    // Look up SEC ticker in brand_data_mappings
+    // Look up SEC ticker in brand_data_mappings  
     const { data: mapping, error: mappingError } = await supabase
       .from('brand_data_mappings')
-      .select('query, external_id')
+      .select('external_id')
       .eq('brand_id', brandId)
       .eq('source', 'sec')
+      .eq('label', 'ticker')
       .maybeSingle();
 
     if (mappingError || !mapping) {
@@ -49,8 +50,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Use query field for ticker (or external_id as fallback)
-    const ticker = mapping.query || mapping.external_id;
+    const ticker = mapping.external_id;
     
     if (!ticker) {
       return new Response(JSON.stringify({ error: 'No ticker found in mapping' }), {

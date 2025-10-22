@@ -123,6 +123,9 @@ function getSourceLogo(sourceName?: string) {
   if (sourceName === "EPA") return Shield;
   if (sourceName === "OSHA") return Shield;
   if (sourceName === "FEC") return Building2;
+  if (sourceName === "SEC EDGAR" || sourceName === "SEC") return FileText;
+  if (sourceName === "Reddit") return Users;
+  if (sourceName === "Google News") return Newspaper;
   if (sourceName === "The Guardian") return Newspaper;
   if (sourceName === "The New York Times") return Newspaper;
   if (sourceName?.includes("News")) return Newspaper;
@@ -295,7 +298,7 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
     return null;
   }, [event, politicalAlignment]);
   
-  // Enhanced tooltip for FEC sources
+  // Enhanced tooltip for sources
   const sourceTooltip = useMemo(() => {
     if (primarySource?.name === "FEC") {
       return "Official: Federal Election Commission";
@@ -305,6 +308,15 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
     }
     if (primarySource?.name === "OSHA") {
       return "Official: Occupational Safety and Health Administration";
+    }
+    if (primarySource?.name === "SEC EDGAR" || primarySource?.name === "SEC") {
+      return "Official: Securities and Exchange Commission";
+    }
+    if (primarySource?.name === "Reddit") {
+      return "Social Media: Reddit community discussions";
+    }
+    if (primarySource?.name === "Google News") {
+      return "News Aggregator: Google News";
     }
     return primarySource?.url ?? attributionLine;
   }, [primarySource, attributionLine]);
