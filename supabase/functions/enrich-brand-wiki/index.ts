@@ -310,15 +310,237 @@ serve(async (req) => {
 
       console.log(`[enrich-brand-wiki] ✅ Updated ${targetTable} ${targetName} with Wikipedia description`);
 
+      // Step 6: Enrich parent company & key people if we have wikidata_qid
+      let parentCompanyAdded = false;
+      let keyPeopleAdded = 0;
+      let tickerAdded = false;
+      
+      if (wikidata_qid && targetTable === 'brands') {
+        console.log(`[enrich-brand-wiki] Enriching ownership & key people for ${targetName}`);
+        
+        try {
+          // Fetch Wikidata entity details
+          const wikidataEntityUrl = `https://www.wikidata.org/wiki/Special:EntityData/${wikidata_qid}.json`;
+          const entityRes = await fetch(wikidataEntityUrl);
+          
+          if (entityRes.ok) {
+            const entityData = await entityRes.json();
+            const claims = entityData.entities?.[wikidata_qid]?.claims || {};
+            
+            // Extract parent organization (P749)
+            const parentOrgClaim = claims['P749']?.[0];
+            if (parentOrgClaim) {
+              const parentQid = parentOrgClaim.mainsnak?.datavalue?.value?.id;
+              if (parentQid) {
+                // Fetch parent details
+                const parentEntityRes = await fetch(`https://www.wikidata.org/wiki/Special:EntityData/${parentQid}.json`);
+                if (parentEntityRes.ok) {
+                  const parentData = await parentEntityRes.json();
+                  const parentEntity = parentData.entities?.[parentQid];
+                  const parentName = parentEntity?.labels?.en?.value;
+                  
+                  if (parentName) {
+                    // Check if parent company already exists
+                    const { data: existingCompany } = await supabase
+                      .from('companies')
+                      .select('id, is_public, ticker')
+                      .eq('wikidata_qid', parentQid)
+                      .maybeSingle();
+                    
+                    let companyId = existingCompany?.id;
+                    
+                    if (!companyId) {
+                      // Create parent company
+                      const { data: newCompany } = await supabase
+                        .from('companies')
+                        .insert({
+                          name: parentName,
+                          wikidata_qid: parentQid,
+                        })
+                        .select('id')
+                        .single();
+                      companyId = newCompany?.id;
+                    }
+                    
+                    if (companyId) {
+                      // Check if ownership relationship already exists
+                      const { data: existingOwnership } = await supabase
+                        .from('company_ownership')
+                        .select('id')
+                        .eq('child_brand_id', brandId)
+                        .eq('parent_company_id', companyId)
+                        .maybeSingle();
+                      
+                      if (!existingOwnership) {
+                        // Insert ownership relationship
+                        const { error: ownershipError } = await supabase
+                          .from('company_ownership')
+                          .insert({
+                            parent_company_id: companyId,
+                            child_brand_id: brandId,
+                            parent_name: parentName,
+                            source: 'wikidata',
+                            source_ref: `https://www.wikidata.org/wiki/${parentQid}`,
+                            confidence: 0.9
+                          });
+                        
+                        if (!ownershipError) {
+                          parentCompanyAdded = true;
+                          console.log(`[enrich-brand-wiki] Added parent company: ${parentName}`);
+                        }
+                      }
+                      
+                      // If parent is public and has ticker, add to brand_data_mappings
+                      const parentClaims = parentEntity?.claims || {};
+                      const tickerClaim = parentClaims['P249']?.[0]; // ticker symbol property
+                      const tickerValue = tickerClaim?.mainsnak?.datavalue?.value;
+                      
+                      if (tickerValue) {
+                        // Check if ticker mapping already exists
+                        const { data: existingTicker } = await supabase
+                          .from('brand_data_mappings')
+                          .select('id')
+                          .eq('brand_id', brandId)
+                          .eq('source', 'sec')
+                          .eq('label', 'ticker')
+                          .maybeSingle();
+                        
+                        if (!existingTicker) {
+                          const { error: tickerError } = await supabase
+                            .from('brand_data_mappings')
+                            .insert({
+                              brand_id: brandId,
+                              source: 'sec',
+                              label: 'ticker',
+                              external_id: tickerValue
+                            });
+                          
+                          if (!tickerError) {
+                            tickerAdded = true;
+                            console.log(`[enrich-brand-wiki] Added SEC ticker from parent: ${tickerValue}`);
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            
+            // Extract key people (CEO P169, Chairperson P488, Founder P112)
+            const keyPeopleProperties = {
+              'P169': 'CEO',
+              'P488': 'Chairperson', 
+              'P112': 'Founder'
+            };
+            
+            for (const [propId, role] of Object.entries(keyPeopleProperties)) {
+              const peopleClaims = claims[propId] || [];
+              
+              for (const claim of peopleClaims.slice(0, 2)) { // Limit to 2 per role
+                const personQid = claim.mainsnak?.datavalue?.value?.id;
+                if (!personQid) continue;
+                
+                // Fetch person details
+                const personEntityRes = await fetch(`https://www.wikidata.org/wiki/Special:EntityData/${personQid}.json`);
+                if (personEntityRes.ok) {
+                  const personData = await personEntityRes.json();
+                  const personEntity = personData.entities?.[personQid];
+                  const personName = personEntity?.labels?.en?.value;
+                  
+                  if (personName) {
+                    // Get company ID (parent if exists, or create for brand)
+                    let targetCompanyId = null;
+                    
+                    const { data: ownershipRel } = await supabase
+                      .from('company_ownership')
+                      .select('parent_company_id')
+                      .eq('child_brand_id', brandId)
+                      .eq('source', 'wikidata')
+                      .maybeSingle();
+                    
+                    if (ownershipRel?.parent_company_id) {
+                      targetCompanyId = ownershipRel.parent_company_id;
+                    } else {
+                      // Create company for brand itself
+                      const { data: brandCompany } = await supabase
+                        .from('companies')
+                        .upsert({
+                          name: targetName,
+                          wikidata_qid: wikidata_qid
+                        }, {
+                          onConflict: 'wikidata_qid'
+                        })
+                        .select('id')
+                        .single();
+                      targetCompanyId = brandCompany?.id;
+                    }
+                    
+                    if (targetCompanyId) {
+                      // Get image if available (P18)
+                      const imageClaim = personEntity?.claims?.['P18']?.[0];
+                      const imageFile = imageClaim?.mainsnak?.datavalue?.value;
+                      let imageUrl = null;
+                      
+                      if (imageFile) {
+                        // Convert Wiki Commons filename to URL
+                        const imageFilename = imageFile.replace(/ /g, '_');
+                        imageUrl = `https://commons.wikimedia.org/wiki/Special:FilePath/${imageFilename}?width=300`;
+                      }
+                      
+                      // Check if person already exists
+                      const { data: existingPerson } = await supabase
+                        .from('company_people')
+                        .select('id')
+                        .eq('company_id', targetCompanyId)
+                        .eq('person_qid', personQid)
+                        .maybeSingle();
+                      
+                      if (!existingPerson) {
+                        // Insert key person
+                        const { error: personError } = await supabase
+                          .from('company_people')
+                          .insert({
+                            company_id: targetCompanyId,
+                            person_name: personName,
+                            person_qid: personQid,
+                            role: role,
+                            source: 'wikidata',
+                            source_ref: `https://www.wikidata.org/wiki/${personQid}`,
+                            image_url: imageUrl
+                          });
+                        
+                        if (!personError) {
+                          keyPeopleAdded++;
+                          console.log(`[enrich-brand-wiki] Added ${role}: ${personName}`);
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } catch (enrichError) {
+          console.error('[enrich-brand-wiki] Error enriching ownership/people:', enrichError);
+          // Don't fail the whole operation if enrichment fails
+        }
+      }
+
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           success: true,
+          updated: true,
           brand_id: brandId,
           target_table: targetTable,
           target_name: targetName,
-          updated: true,
           wikidata_qid,
-          description_length: description.length
+          description_length: description.length,
+          enrichment: {
+            parent_company_added: parentCompanyAdded,
+            key_people_added: keyPeopleAdded,
+            ticker_added: tickerAdded
+          }
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
