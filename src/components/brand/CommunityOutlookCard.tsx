@@ -44,6 +44,8 @@ export function CommunityOutlookCard({ brandId, brandName }: CommunityOutlookCar
     },
   });
 
+  const THRESHOLD = 25;
+
   const getConfidenceBadge = (confidence: string, n: number) => {
     const variants = {
       none: { label: "Awaiting community ratings", variant: "secondary" as const, icon: "⏳" },
@@ -58,24 +60,57 @@ export function CommunityOutlookCard({ brandId, brandName }: CommunityOutlookCar
     const total = category.histogram.s1 + category.histogram.s2 + category.histogram.s3 + 
                   category.histogram.s4 + category.histogram.s5;
     
-    if (total === 0 || category.n < 10) {
-      const badge = getConfidenceBadge("none", category.n);
+    const hasEnoughData = category.n >= THRESHOLD;
+    
+    if (total === 0) {
       return (
         <div className="py-4 space-y-2">
           <div className="text-center">
             <p className="text-sm font-medium text-muted-foreground">
-              To Be Determined — awaiting more input
+              No ratings yet
             </p>
           </div>
           <div className="flex items-center justify-center">
-            <Badge variant={badge.variant} className="text-xs">
-              {badge.icon} {badge.label} {category.n > 0 ? `(${category.n}/10 needed)` : ''}
+            <Badge variant="secondary" className="text-xs">
+              ⏳ 0/{THRESHOLD} ratings needed
+            </Badge>
+          </div>
+        </div>
+      );
+    }
+    
+    if (!hasEnoughData) {
+      // Show distribution but mark as "To Be Determined"
+      return (
+        <div className="space-y-2">
+          <div className="text-center mb-2">
+            <p className="text-xs font-medium text-muted-foreground">
+              To Be Determined — awaiting more input
+            </p>
+          </div>
+          <div className="space-y-1">
+            {SCORE_LABELS.map((score) => {
+              const key = `s${score.value}` as keyof typeof category.histogram;
+              const count = category.histogram[key];
+              return (
+                <div key={score.value} className="flex items-center gap-2 text-xs">
+                  <div className={`w-3 h-3 rounded ${score.color}`} />
+                  <span className="text-muted-foreground flex-1">{score.label}</span>
+                  <span className="font-medium">{count} rating{count !== 1 ? 's' : ''}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex items-center justify-center pt-2">
+            <Badge variant="secondary" className="text-xs">
+              📊 {category.n}/{THRESHOLD} ratings — {THRESHOLD - category.n} more needed
             </Badge>
           </div>
         </div>
       );
     }
 
+    // Has enough data - show scored distribution
     const percentages = {
       s1: (category.histogram.s1 / total) * 100,
       s2: (category.histogram.s2 / total) * 100,
@@ -96,7 +131,7 @@ export function CommunityOutlookCard({ brandId, brandName }: CommunityOutlookCar
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div
-                      className={`${score.color} h-full rounded transition-all`}
+                      className={`${score.color} h-full rounded transition-all cursor-pointer`}
                       style={{ width: `${width}%` }}
                     />
                   </TooltipTrigger>
@@ -111,7 +146,7 @@ export function CommunityOutlookCard({ brandId, brandName }: CommunityOutlookCar
           })}
         </div>
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Responses: {category.n}</span>
+          <span>Total ratings: {category.n}</span>
           <Badge variant={getConfidenceBadge(category.confidence, category.n).variant} className="text-xs">
             {getConfidenceBadge(category.confidence, category.n).icon} {getConfidenceBadge(category.confidence, category.n).label}
           </Badge>
