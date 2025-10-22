@@ -3,17 +3,17 @@ import { CheckCircle2, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const LIVE_SOURCES = [
-  { name: "EPA", description: "Facility/violation data (ECHO)", type: "government" },
-  { name: "OSHA", description: "Inspections/violations", type: "government" },
-  { name: "FEC", description: "Campaign finance data", type: "government" },
-  { name: "GDELT", description: "24-month sentiment baseline", type: "data" },
-  { name: "Wayback", description: "Link preservation for citations", type: "archive" },
+  { name: "Wikipedia", description: "Brand & company information", type: "reference" },
+  { name: "OpenFoodFacts", description: "Product barcode database", type: "data" },
+  { name: "Corporate Registries", description: "Ownership & subsidiary data", type: "public" },
+  { name: "News APIs", description: "Real-time brand monitoring", type: "news" },
+  { name: "Public Records", description: "Executive & shareholder info", type: "public" },
 ];
 
 const PLANNED_SOURCES = [
-  { name: "SEC", description: "Financial disclosures", type: "government" },
-  { name: "ILO", description: "International labor standards", type: "international" },
-  { name: "Reuters/AP", description: "Direct news feeds", type: "news" },
+  { name: "SEC Filings", description: "Financial disclosures & ownership", type: "government" },
+  { name: "LinkedIn", description: "Executive profiles & history", type: "professional" },
+  { name: "Crunchbase", description: "Investor & funding data", type: "business" },
 ];
 
 export function TrustedSources() {
@@ -21,9 +21,9 @@ export function TrustedSources() {
     <section className="py-12 px-4">
       <div className="max-w-5xl mx-auto space-y-8">
         <div className="text-center space-y-2">
-          <h2 className="text-2xl font-bold">Trusted Sources</h2>
+          <h2 className="text-2xl font-bold">Where We Get Our Data</h2>
           <p className="text-muted-foreground">
-            Evidence from public records and archived articles. Every source is transparent.
+            Ownership, key people, and brand info from trusted public sources.
           </p>
         </div>
 
