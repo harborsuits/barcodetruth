@@ -85,25 +85,24 @@ export function CommunityOutlookCard({ brandId, brandName }: CommunityOutlookCar
         <div className="space-y-2">
           <div className="text-center mb-2">
             <p className="text-xs font-medium text-muted-foreground">
-              To Be Determined — awaiting more input
+              TBD
             </p>
           </div>
-          <div className="grid grid-cols-5 gap-2">
+          <div className="space-y-1">
             {SCORE_LABELS.map((score) => {
               const key = `s${score.value}` as keyof typeof category.histogram;
               const count = category.histogram[key];
               return (
-                <div key={score.value} className="flex flex-col items-center gap-2 text-xs">
-                  <div className={`w-full h-3 rounded ${score.color}`} />
-                  <span className="text-muted-foreground text-center">{score.label}</span>
+                <div key={score.value} className="flex flex-col items-center gap-1 text-xs">
+                  <div className={`w-full h-2 rounded ${score.color}`} />
                   <span className="font-medium">{count}</span>
                 </div>
               );
             })}
           </div>
-          <div className="flex items-center justify-center pt-2">
+          <div className="text-center pt-2">
             <Badge variant="secondary" className="text-xs">
-              📊 {category.n}/{THRESHOLD} ratings — {THRESHOLD - category.n} more needed
+              {category.n}/{THRESHOLD}
             </Badge>
           </div>
         </div>
@@ -121,22 +120,25 @@ export function CommunityOutlookCard({ brandId, brandName }: CommunityOutlookCar
 
     return (
       <div className="space-y-2">
-        <div className="grid grid-cols-5 gap-2 h-24 items-end">
+        <div className="space-y-1">
           {SCORE_LABELS.map((score, idx) => {
             const key = `s${score.value}` as keyof typeof percentages;
             const height = percentages[key];
             const count = category.histogram[key as keyof typeof category.histogram];
-            if (height === 0) return <div key={idx} className="flex flex-col justify-end" />;
             return (
               <TooltipProvider key={idx}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex flex-col items-center gap-1">
-                      <span className="text-xs font-medium">{count}</span>
-                      <div
-                        className={`${score.color} w-full rounded transition-all cursor-pointer`}
-                        style={{ height: `${height}%` }}
-                      />
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-6 bg-muted rounded overflow-hidden">
+                        {height > 0 && (
+                          <div
+                            className={`${score.color} h-full rounded transition-all`}
+                            style={{ width: `${height}%` }}
+                          />
+                        )}
+                      </div>
+                      <span className="text-xs font-medium w-8 text-right">{count}</span>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -149,17 +151,9 @@ export function CommunityOutlookCard({ brandId, brandName }: CommunityOutlookCar
             );
           })}
         </div>
-        <div className="grid grid-cols-5 gap-2 text-xs text-muted-foreground">
-          {SCORE_LABELS.map((score) => (
-            <div key={score.value} className="text-center truncate">
-              {score.label}
-            </div>
-          ))}
-        </div>
-        <div className="flex items-center justify-between text-xs text-muted-foreground pt-2">
-          <span>Total ratings: {category.n}</span>
+        <div className="text-center pt-2">
           <Badge variant={getConfidenceBadge(category.confidence, category.n).variant} className="text-xs">
-            {getConfidenceBadge(category.confidence, category.n).icon} {getConfidenceBadge(category.confidence, category.n).label}
+            {getConfidenceBadge(category.confidence, category.n).icon} n={category.n}
           </Badge>
         </div>
       </div>
@@ -203,10 +197,10 @@ export function CommunityOutlookCard({ brandId, brandName }: CommunityOutlookCar
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="grid grid-cols-4 gap-4">
           {outlook?.categories?.map((category: CategoryOutlook) => (
             <div key={category.category} className="space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="text-center">
                 <h4 className="font-medium">{CATEGORY_LABELS[category.category]}</h4>
               </div>
               {renderHistogram(category)}
