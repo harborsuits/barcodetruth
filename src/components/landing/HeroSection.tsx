@@ -16,7 +16,7 @@ export function HeroSection() {
   return <section className="py-12 px-4">
       <div className="max-w-2xl mx-auto text-center space-y-6">
         <div className="space-y-3">
-          <img src={logo} alt="Barcode Truth" className="h-24 w-auto mx-auto" />
+          <img src={logo} alt="Barcode Truth" className="h-32 w-auto mx-auto" />
           <p className="text-lg text-muted-foreground max-w-xl mx-auto">Discover Who Really Owns What You Buy</p>
         </div>
 
