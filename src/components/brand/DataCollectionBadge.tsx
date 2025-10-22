@@ -129,12 +129,16 @@ export function DataCollectionBadge({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
             <div>
               <div className="text-2xl font-bold">{eventCount}</div>
-              <div className="text-xs text-muted-foreground">Evidence Items</div>
+              <div className="text-xs text-muted-foreground">
+                {eventCount === 0 ? 'Events Collected' : 'Evidence Items'}
+              </div>
             </div>
             
             <div>
               <div className="text-2xl font-bold">{domains90d}</div>
-              <div className="text-xs text-muted-foreground">Sources</div>
+              <div className="text-xs text-muted-foreground">
+                {eventCount === 0 ? 'Monitoring' : 'Independent'} Sources
+              </div>
             </div>
             
             <div>
@@ -142,7 +146,7 @@ export function DataCollectionBadge({
                 {significantCategories.length > 0 ? significantCategories.length : '0'}
               </div>
               <div className="text-xs text-muted-foreground">
-                Key Categories
+                Category {significantCategories.length === 1 ? 'Signal' : 'Signals'}
               </div>
             </div>
           </div>
@@ -161,14 +165,20 @@ export function DataCollectionBadge({
               </div>
             </div>
           )}
+          {eventCount === 0 && domains90d > 0 && (
+            <div className="pt-2 px-3 py-2 rounded-lg bg-muted/50 border border-muted">
+              <p className="text-sm text-foreground mb-1">
+                <span className="font-semibold">What is "evidence"?</span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Evidence includes verified news events, regulatory actions, labor incidents, environmental reports, 
+                and documented corporate conduct. Currently monitoring {domains90d} sources for relevant events.
+              </p>
+            </div>
+          )}
           {significantCategories.length === 0 && eventCount > 0 && (
             <div className="pt-2 text-xs text-muted-foreground italic">
               Current evidence is general business news. Monitoring for labor, environmental, social, and regulatory signals.
-            </div>
-          )}
-          {eventCount === 0 && domains90d > 0 && (
-            <div className="pt-2 text-xs text-muted-foreground italic">
-              Monitoring {domains90d} potential sources. Evidence collection starting soon.
             </div>
           )}
 
