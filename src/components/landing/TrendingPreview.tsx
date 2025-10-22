@@ -8,6 +8,8 @@ import { TrendingUp, ArrowRight, AlertTriangle, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { confidenceMeta } from "@/lib/confidence";
 import { useBrandLogo } from "@/hooks/useBrandLogo";
+import { FEATURES } from "@/config/features";
+import { OutlookConfidenceBadge } from "@/components/brand/OutlookConfidenceBadge";
 
 interface TrendingBrand {
   brand_id: string;
@@ -219,14 +221,16 @@ export function TrendingPreview() {
                     )}
                   </div>
                 </div>
-                <div className="text-right">
-                  {brand.overall_score != null ? (
+                <div className="text-right flex-shrink-0">
+                  {FEATURES.companyScore && brand.overall_score != null ? (
                     <>
                       <div className={`text-2xl font-bold ${getScoreColor(brand.overall_score)}`}>
                         {brand.overall_score}
                       </div>
                       <div className="text-xs text-muted-foreground">/100</div>
                     </>
+                  ) : FEATURES.communityOutlook ? (
+                    <OutlookConfidenceBadge brandId={brand.brand_id} />
                   ) : (
                     <div className="text-sm text-muted-foreground">—</div>
                   )}

@@ -5,6 +5,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate } from "react-router-dom";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { useBrandLogo } from "@/hooks/useBrandLogo";
+import { FEATURES } from "@/config/features";
+import { OutlookConfidenceBadge } from "@/components/brand/OutlookConfidenceBadge";
 
 interface Mover {
   brand_id: string;
@@ -48,6 +50,7 @@ export function TopMovers24h() {
 
   const { data: movers, isLoading } = useQuery({
     queryKey: ['top-movers-24h'],
+    enabled: FEATURES.companyScore, // Only fetch if company scores are enabled
     queryFn: async () => {
       // First get movers
       const { data: moverData, error: moverError } = await supabase
@@ -77,6 +80,11 @@ export function TopMovers24h() {
     },
     refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
   });
+
+  // Don't show this section if company scores are disabled
+  if (!FEATURES.companyScore) {
+    return null;
+  }
 
   if (isLoading) {
     return <Skeleton className="h-64 w-full" />;
