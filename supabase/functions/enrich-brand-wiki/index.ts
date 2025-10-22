@@ -251,18 +251,113 @@ serve(async (req) => {
       }
     }
 
-    // Step 2: Get Wikipedia page title from Wikidata
+    // Step 2: Get Wikipedia page title from Wikidata AND validate entity type
     let wikipediaTitle = null;
     if (wikidata_qid) {
-      console.log(`[enrich-brand-wiki] Fetching Wikipedia title from Wikidata ${wikidata_qid}`);
-      const wikidataEntityUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${wikidata_qid}&format=json&props=sitelinks`;
+      console.log(`[enrich-brand-wiki] Fetching and validating Wikidata entity ${wikidata_qid}`);
+      const wikidataEntityUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${wikidata_qid}&format=json&props=sitelinks|claims`;
       
       const entityRes = await fetch(wikidataEntityUrl);
       if (entityRes.ok) {
         const entityJson = await entityRes.json();
         const entity = entityJson.entities?.[wikidata_qid];
-        wikipediaTitle = entity?.sitelinks?.enwiki?.title;
-        console.log(`[enrich-brand-wiki] Wikipedia title: ${wikipediaTitle}`);
+        
+        // CRITICAL: Validate entity type using P31 (instance of)
+        const instanceOf = entity?.claims?.['P31'];
+        const instanceOfIds = instanceOf?.map((claim: any) => claim.mainsnak?.datavalue?.value?.id) || [];
+        
+        console.log(`[enrich-brand-wiki] Entity P31 (instance of): ${instanceOfIds.join(', ')}`);
+        
+        // EXCLUDE sports events, tournaments, competitions, etc.
+        const badEntityTypes = [
+          'Q18608583', // sports competition
+          'Q500834',   // association football competition  
+          'Q27020041', // sports season
+          'Q15061018', // FIFA Women's World Cup
+          'Q19317',    // tournament
+          'Q2990593',  // sports event
+          'Q1656682',  // sports championship
+          'Q1194951',  // association football tournament
+        ];
+        
+        // CHECK if any instance is a bad type
+        const isBadEntity = instanceOfIds.some((id: string) => badEntityTypes.includes(id));
+        
+        if (isBadEntity) {
+          console.log(`[enrich-brand-wiki] ❌ REJECTED: Entity is a sports event/tournament, not a company`);
+          wikidata_qid = null; // Clear it and search for correct entity
+        } else {
+          // REQUIRE entity to be a company/brand/organization
+          const goodEntityTypes = [
+            'Q4830453',  // business
+            'Q783794',   // company
+            'Q891723',   // public company
+            'Q6881511',  // enterprise
+            'Q167037',   // corporation
+            'Q658255',   // conglomerate
+            'Q1664720',  // institute
+            'Q4830453',  // business enterprise
+            'Q431289',   // brand
+            'Q1664720',  // organization
+            'Q43229',    // organization
+            'Q20202269', // brand
+          ];
+          
+          const isGoodEntity = instanceOfIds.some((id: string) => goodEntityTypes.includes(id));
+          
+          if (!isGoodEntity && instanceOfIds.length > 0) {
+            console.log(`[enrich-brand-wiki] ⚠️ WARNING: Entity might not be a company (${instanceOfIds.join(', ')})`);
+            // Don't reject outright, but log it
+          }
+          
+          wikipediaTitle = entity?.sitelinks?.enwiki?.title;
+          console.log(`[enrich-brand-wiki] ✅ Valid entity - Wikipedia title: ${wikipediaTitle}`);
+        }
+      }
+    }
+    
+    // If entity was invalid, search again
+    if (!wikidata_qid && targetName) {
+      console.log(`[enrich-brand-wiki] Previous entity invalid, searching again for: ${targetName}`);
+      
+      const searchQueries = [
+        `${targetName} company`,
+        `${targetName} brand`,
+        `${targetName} corporation`,
+        targetName
+      ];
+      
+      for (const query of searchQueries) {
+        const wikidataSearchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(query)}&language=en&format=json&limit=5&type=item`;
+        
+        const wikidataRes = await fetch(wikidataSearchUrl);
+        if (wikidataRes.ok) {
+          const wikidataJson = await wikidataRes.json();
+          
+          if (wikidataJson.search && wikidataJson.search.length > 0) {
+            // Filter and validate
+            for (const result of wikidataJson.search) {
+              const desc = (result.description || '').toLowerCase();
+              
+              // Skip obvious non-companies
+              if (desc.includes('tournament') || desc.includes('championship') || 
+                  desc.includes('world cup') || desc.includes('competition') ||
+                  desc.includes('sport event') || desc.includes('disambiguation')) {
+                continue;
+              }
+              
+              // Prefer company descriptions
+              if (desc.includes('company') || desc.includes('brand') || 
+                  desc.includes('corporation') || desc.includes('manufacturer')) {
+                wikidata_qid = result.id;
+                console.log(`[enrich-brand-wiki] ✅ Found validated entity: ${result.label} - ${desc}`);
+                break;
+              }
+            }
+          }
+        }
+        
+        if (wikidata_qid) break;
       }
     }
 
