@@ -21,6 +21,7 @@ interface OwnershipStructureProps {
 }
 
 export function OwnershipStructure({ chain, siblings }: OwnershipStructureProps) {
+  // If chain only has 1 entity (the company itself), show simplified view
   if (!chain || chain.length === 0) {
     return (
       <div className="text-center py-8">
@@ -32,6 +33,44 @@ export function OwnershipStructure({ chain, siblings }: OwnershipStructureProps)
         <Badge variant="outline" className="mt-3">
           Independent
         </Badge>
+      </div>
+    );
+  }
+
+  if (chain.length === 1) {
+    const company = chain[0];
+    return (
+      <div className="text-center py-8">
+        <div className="flex items-center justify-center gap-3 mb-4">
+          {company.logo_url ? (
+            <img 
+              src={company.logo_url} 
+              alt={`${company.name} logo`}
+              className="w-16 h-16 rounded-lg object-contain bg-muted p-2"
+            />
+          ) : (
+            <Building2 className="h-12 w-12 text-muted-foreground opacity-50" />
+          )}
+        </div>
+        <h4 className="font-semibold mb-2">{company.name}</h4>
+        <p className="text-sm text-muted-foreground mb-3">
+          Independent company with no parent organization
+        </p>
+        <div className="flex justify-center gap-2">
+          <Badge variant="outline" className="capitalize">
+            {company.type}
+          </Badge>
+          {company.is_public && company.ticker && (
+            <Badge variant="secondary">
+              📈 {company.ticker}
+            </Badge>
+          )}
+          {company.is_public && !company.ticker && (
+            <Badge variant="secondary">
+              Public Company
+            </Badge>
+          )}
+        </div>
       </div>
     );
   }

@@ -46,8 +46,25 @@ export function OwnershipDetails({ ownership_structure, ownership_details, compa
     return null;
   }
 
+  // Calculate if employee-owned
+  const employeeOwned = ownership_details.find(d => d.type === 'employee');
+  const isEmployeeControlled = employeeOwned && employeeOwned.percent && employeeOwned.percent > 50;
+
   return (
     <div className="space-y-4">
+      {/* Your Purchase Supports Banner */}
+      <Alert className="border-primary/20 bg-primary/5">
+        <Info className="h-4 w-4 text-primary" />
+        <AlertDescription className="text-foreground">
+          <span className="font-semibold">Your purchase supports: </span>
+          {isEmployeeControlled ? (
+            <>The employees and workers of {companyName || 'this company'}</>
+          ) : (
+            <>{companyName || 'This company'} and its stakeholders</>
+          )}
+        </AlertDescription>
+      </Alert>
+
       {ownership_structure?.details && (
         <Alert>
           <Info className="h-4 w-4" />

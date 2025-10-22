@@ -39,7 +39,13 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
   const hasShareholders = ownership.shareholders?.top && ownership.shareholders.top.length > 0;
   const hasOwnershipDetails = ownership.ownership_details && ownership.ownership_details.length > 0;
   const companyName = ownership.structure?.chain?.[0]?.name;
-
+  
+  // Determine if structure is meaningful (more than just the current entity)
+  const hasMeaningfulStructure = hasStructure && ownership.structure.chain.length > 1;
+  
+  // For employee-owned/private companies with ownership details, prioritize ownership view
+  const defaultTab = hasOwnershipDetails ? "ownership" : "structure";
+  
   // Determine tab configuration based on available data
   const showOwnershipTab = hasOwnershipDetails;
   const showShareholdersTab = hasShareholders || !hasOwnershipDetails; // Always show for public companies
@@ -48,9 +54,11 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
     <Card className="p-6 bg-muted/30 border-2">
       <h3 className="font-bold text-lg mb-4">Ownership</h3>
       
-      <Tabs defaultValue="structure" className="w-full">
+      <Tabs defaultValue={defaultTab} className="w-full">
         <TabsList className={`grid w-full ${showOwnershipTab ? 'grid-cols-3' : 'grid-cols-2'} mb-4`}>
-          <TabsTrigger value="structure">Structure</TabsTrigger>
+          <TabsTrigger value="structure">
+            {hasMeaningfulStructure ? 'Structure' : 'Company'}
+          </TabsTrigger>
           {showOwnershipTab && (
             <TabsTrigger value="ownership">
               Ownership
