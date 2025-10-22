@@ -440,19 +440,19 @@ serve(async (req) => {
             const entityData = await entityRes.json();
             const claims = entityData.entities?.[wikidata_qid]?.claims || {};
             
-            // Known asset manager/investor QIDs to exclude from parent relationships
-            const ASSET_MANAGER_QIDS = [
-              'Q2282548',   // BlackRock
-              'Q1046794',   // The Vanguard Group
-              'Q1365136',   // State Street Corporation
-              'Q533132',    // Fidelity Investments
-              'Q5026421',   // Capital Group Companies
-              'Q7603790',   // T. Rowe Price
-              'Q7964773',   // Wellington Management
-              'Q1049556',   // Invesco
-            ];
+            // Fetch asset managers from database registry
+            const { data: investorFirms } = await supabase
+              .from('investor_firms')
+              .select('wikidata_qid, name');
             
-            // Asset manager keywords to detect in descriptions
+            const assetManagerQids = new Set(
+              (investorFirms || [])
+                .map(f => f.wikidata_qid)
+                .filter(Boolean) as string[]
+            );
+            
+            const assetManagerNames = (investorFirms || []).map(f => f.name.toLowerCase());
+            
             const ASSET_MANAGER_KEYWORDS = [
               'asset management',
               'investment management',
@@ -462,6 +462,22 @@ serve(async (req) => {
               'pension fund',
               'hedge fund'
             ];
+            
+            // Helper to check if entity is an asset manager
+            const isAssetManager = (qid: string, description: string, name: string): boolean => {
+              // Check against known QIDs
+              if (assetManagerQids.has(qid)) return true;
+              
+              // Check if name matches known asset managers
+              const lowerName = name.toLowerCase();
+              if (assetManagerNames.some(am => lowerName.includes(am) || am.includes(lowerName))) {
+                return true;
+              }
+              
+              // Check description for keywords
+              const lowerDesc = description.toLowerCase();
+              return ASSET_MANAGER_KEYWORDS.some(kw => lowerDesc.includes(kw));
+            };
             
             // Extract parent organization (P749) - preferred for true ownership
             const parentOrgClaim = claims['P749']?.[0];
@@ -477,11 +493,9 @@ serve(async (req) => {
                   
                   if (parentName) {
                     // Check if this is an asset manager (skip if so)
-                    const isAssetManager = ASSET_MANAGER_QIDS.includes(parentQid);
-                    const parentDescription = parentEntity?.descriptions?.en?.value?.toLowerCase() || '';
-                    const isAssetManagerByDesc = ASSET_MANAGER_KEYWORDS.some(kw => parentDescription.includes(kw));
+                    const parentDescription = parentEntity?.descriptions?.en?.value || '';
                     
-                    if (isAssetManager || isAssetManagerByDesc) {
+                    if (isAssetManager(parentQid, parentDescription, parentName)) {
                       console.log(`[enrich-brand-wiki] ⚠️ Skipping asset manager as parent: ${parentName} (${parentQid})`);
                     } else {
                       // Check if parent company already exists

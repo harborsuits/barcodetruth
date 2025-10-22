@@ -46,9 +46,16 @@ export function OwnershipCard({ companyInfo }: OwnershipCardProps) {
           <div>
             <h3 className="font-semibold mb-1">Parent Company</h3>
             <p className="text-sm text-muted-foreground">
-              {ownership ? 'Relationship verification in progress' : 'Not yet verified'}
+              {ownership 
+                ? 'Relationship verification in progress' 
+                : 'This company appears to be independent with no parent organization'}
             </p>
-            <button className="text-xs text-primary hover:underline mt-2">
+            {!ownership && (
+              <Badge variant="outline" className="mt-2">
+                Independent
+              </Badge>
+            )}
+            <button className="text-xs text-primary hover:underline mt-2 block">
               Suggest correction
             </button>
           </div>
