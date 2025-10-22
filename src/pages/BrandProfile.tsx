@@ -131,6 +131,19 @@ export default function BrandProfile() {
       actualId,
       route: window.location.pathname
     });
+    
+    // Add global test helper for debugging
+    (window as any).testOwnershipRPC = async (brandIdToTest?: string) => {
+      const testId = brandIdToTest || actualId;
+      console.log('Testing RPC for brand:', testId);
+      const { data, error } = await supabase.rpc('get_brand_ownership' as any, {
+        p_brand_id: testId
+      });
+      console.log('RPC Result:', { data, error });
+      console.log('Structure chain length:', data?.structure?.chain?.length);
+      console.log('Shareholders count:', data?.shareholders?.top?.length);
+      return { data, error };
+    };
   }, [id, brandId, actualId]);
   
   const [data, setData] = useState<BrandProfile | null>(null);
