@@ -27,11 +27,30 @@ export function OwnershipTrail({ brandId }: OwnershipTrailProps) {
     queryFn: async () => {
       console.log('[OwnershipTrail] Fetching trail for brand:', brandId);
       
-      // Query for all entities in the ownership chain that include this brand
+      // FIXED: Query for the specific brand's ownership chain
+      // Start by getting the brand at level 0
+      const { data: brandLevel, error: brandError } = await supabase
+        .from('v_ownership_trail')
+        .select('*')
+        .eq('entity_id', brandId)
+        .eq('level', 0)
+        .maybeSingle();
+      
+      if (brandError) {
+        console.error('[OwnershipTrail] Error fetching brand:', brandError);
+        throw brandError;
+      }
+      
+      if (!brandLevel) {
+        console.log('[OwnershipTrail] No ownership data found for brand');
+        return [];
+      }
+      
+      // Now get all entities in this specific path
       const { data, error } = await supabase
         .from('v_ownership_trail')
         .select('*')
-        .contains('path_ids', [brandId])
+        .overlaps('path_ids', [brandId])
         .order('level');
       
       if (error) {
