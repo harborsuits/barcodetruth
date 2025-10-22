@@ -56,7 +56,7 @@ export function AttributionFooter() {
       
       <div className="text-center py-6 text-sm text-muted-foreground border-t">
         <p>© 2025 BarcodeTruth™ — All rights reserved.</p>
-        <p className="mt-1">Concept and software by Ben Dickinson.</p>
+        <p className="mt-1">Concept and software by Pleasant Cove Design.</p>
         <p className="mt-1 text-xs">Unauthorized reproduction or use is prohibited.</p>
       </div>
     </div>
