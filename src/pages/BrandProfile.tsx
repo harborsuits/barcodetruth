@@ -21,12 +21,10 @@ import { RollupScores } from '@/components/ownership/RollupScores';
 import { DataCollectionBadge } from '@/components/brand/DataCollectionBadge';
 import { ReportIssueDialog } from '@/components/ReportIssueDialog';
 import { SuggestEvidenceDialog } from '@/components/SuggestEvidenceDialog';
-import { OwnershipCard } from '@/components/brand/OwnershipCard';
+import { OwnershipTabs } from '@/components/brand/OwnershipTabs';
 import { KeyPeopleRow } from '@/components/brand/KeyPeopleRow';
 import { ValuationChip } from '@/components/brand/ValuationChip';
 import { CommunityOutlookCard } from '@/components/brand/CommunityOutlookCard';
-import { TopShareholdersCard } from '@/components/brand/TopShareholdersCard';
-import { useTopShareholders } from '@/hooks/useTopShareholders';
 
 type BrandProfile = {
   brand: { 
@@ -144,8 +142,6 @@ export default function BrandProfile() {
   const [suggestDialogOpen, setSuggestDialogOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>();
 
-  // Fetch top shareholders
-  const { data: shareholders = [] } = useTopShareholders(actualId);
 
   // Get current user for personalized scoring
   const [user, setUser] = useState<any>(null);
@@ -564,27 +560,22 @@ export default function BrandProfile() {
           </div>
         )}
 
-        {/* Ownership & Key People (if available) */}
-        {companyInfo && (
-          <div className="space-y-4">
-            <OwnershipCard companyInfo={companyInfo} />
-            
-            {/* Top Shareholders - separate from control chain */}
-            {shareholders.length > 0 && (
-              <TopShareholdersCard shareholders={shareholders} />
-            )}
-            
-            {companyInfo.people && companyInfo.people.length > 0 && (
-              <Card className="p-6">
-                <KeyPeopleRow people={companyInfo.people} />
-              </Card>
-            )}
+        {/* Ownership Module */}
+        {actualId && (
+          <OwnershipTabs brandId={actualId} />
+        )}
 
-            {companyInfo.valuation && (
-              <div className="flex justify-center">
-                <ValuationChip valuation={companyInfo.valuation} />
-              </div>
-            )}
+        {/* Key People (if available) */}
+        {companyInfo?.people && companyInfo.people.length > 0 && (
+          <Card className="p-6">
+            <KeyPeopleRow people={companyInfo.people} />
+          </Card>
+        )}
+
+        {/* Valuation */}
+        {companyInfo?.valuation && (
+          <div className="flex justify-center">
+            <ValuationChip valuation={companyInfo.valuation} />
           </div>
         )}
 

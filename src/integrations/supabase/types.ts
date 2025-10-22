@@ -1707,6 +1707,30 @@ export type Database = {
         }
         Relationships: []
       }
+      company_groups_cache: {
+        Row: {
+          company_id: string
+          control_chain_json: Json
+          last_refreshed: string | null
+          shareholder_breakdown_json: Json
+          siblings_json: Json
+        }
+        Insert: {
+          company_id: string
+          control_chain_json?: Json
+          last_refreshed?: string | null
+          shareholder_breakdown_json?: Json
+          siblings_json?: Json
+        }
+        Update: {
+          company_id?: string
+          control_chain_json?: Json
+          last_refreshed?: string | null
+          shareholder_breakdown_json?: Json
+          siblings_json?: Json
+        }
+        Relationships: []
+      }
       company_ownership: {
         Row: {
           child_brand_id: string | null
@@ -1872,6 +1896,75 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      company_relations: {
+        Row: {
+          as_of: string | null
+          child_id: string
+          confidence: number | null
+          created_at: string | null
+          parent_id: string
+          percent_owned: number | null
+          relation: string
+          source: string
+        }
+        Insert: {
+          as_of?: string | null
+          child_id: string
+          confidence?: number | null
+          created_at?: string | null
+          parent_id: string
+          percent_owned?: number | null
+          relation: string
+          source: string
+        }
+        Update: {
+          as_of?: string | null
+          child_id?: string
+          confidence?: number | null
+          created_at?: string | null
+          parent_id?: string
+          percent_owned?: number | null
+          relation?: string
+          source?: string
+        }
+        Relationships: []
+      }
+      company_shareholders: {
+        Row: {
+          as_of: string | null
+          company_id: string
+          created_at: string | null
+          holder_name: string
+          holder_type: string
+          holder_wikidata_qid: string | null
+          id: string
+          percent_owned: number
+          source: string
+        }
+        Insert: {
+          as_of?: string | null
+          company_id: string
+          created_at?: string | null
+          holder_name: string
+          holder_type: string
+          holder_wikidata_qid?: string | null
+          id?: string
+          percent_owned: number
+          source: string
+        }
+        Update: {
+          as_of?: string | null
+          company_id?: string
+          created_at?: string | null
+          holder_name?: string
+          holder_type?: string
+          holder_wikidata_qid?: string | null
+          id?: string
+          percent_owned?: number
+          source?: string
+        }
+        Relationships: []
       }
       company_valuation: {
         Row: {
@@ -5380,9 +5473,9 @@ export type Database = {
       }
     }
     Functions: {
-      admin_add_evidence: {
-        Args:
-          | {
+      admin_add_evidence:
+        | {
+            Args: {
               p_brand_id: string
               p_category: string
               p_event_date: string
@@ -5391,7 +5484,13 @@ export type Database = {
               p_title: string
               p_verification: string
             }
-          | {
+            Returns: {
+              event_id: string
+              source_id: string
+            }[]
+          }
+        | {
+            Args: {
               p_brand_id: string
               p_category?: string
               p_notes?: string
@@ -5400,15 +5499,9 @@ export type Database = {
               p_url: string
               p_verification?: string
             }
-        Returns: {
-          event_id: string
-          source_id: string
-        }[]
-      }
-      admin_refresh_coverage: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+            Returns: Json
+          }
+      admin_refresh_coverage: { Args: never; Returns: undefined }
       allow_push_send: {
         Args: { p_brand: string; p_category: string; p_user_id: string }
         Returns: boolean
@@ -5429,22 +5522,13 @@ export type Database = {
           method: string
         }[]
       }
-      assign_credibility_tier: {
-        Args: { domain: string }
-        Returns: string
-      }
+      assign_credibility_tier: { Args: { domain: string }; Returns: string }
       brand_events_last_24h: {
         Args: { brand_id_param: string }
         Returns: number
       }
-      brand_profile_view: {
-        Args: { p_brand_id: string }
-        Returns: Json
-      }
-      can_user_scan: {
-        Args: { p_user_id: string }
-        Returns: Json
-      }
+      brand_profile_view: { Args: { p_brand_id: string }; Returns: Json }
+      can_user_scan: { Args: { p_user_id: string }; Returns: Json }
       canonicalize_source_url: {
         Args: { p_url: string }
         Returns: {
@@ -5454,7 +5538,7 @@ export type Database = {
         }[]
       }
       check_push_encryption_status: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           encrypted_count: number
           encryption_complete: boolean
@@ -5462,10 +5546,7 @@ export type Database = {
           total_subs: number
         }[]
       }
-      cleanup_old_notification_logs: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
+      cleanup_old_notification_logs: { Args: never; Returns: number }
       compute_brand_score: {
         Args: { p_brand: string }
         Returns: {
@@ -5477,14 +5558,8 @@ export type Database = {
           score_social: number
         }[]
       }
-      current_window_start: {
-        Args: { p_kind: string }
-        Returns: string
-      }
-      get_brand_company_info: {
-        Args: { p_brand_id: string }
-        Returns: Json
-      }
+      current_window_start: { Args: { p_kind: string }; Returns: string }
+      get_brand_company_info: { Args: { p_brand_id: string }; Returns: Json }
       get_brand_data_confidence: {
         Args: { p_brand_id: string }
         Returns: {
@@ -5516,12 +5591,10 @@ export type Database = {
           verification: Database["public"]["Enums"]["verification_level"]
         }[]
       }
-      get_brand_rollup_scores: {
-        Args: { p_brand_id: string }
-        Returns: Json
-      }
+      get_brand_ownership: { Args: { p_brand_id: string }; Returns: Json }
+      get_brand_rollup_scores: { Args: { p_brand_id: string }; Returns: Json }
       get_brands_needing_scores: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           event_count: number
           id: string
@@ -5545,10 +5618,7 @@ export type Database = {
           title_fp: string
         }[]
       }
-      get_enrichment_stats: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
+      get_enrichment_stats: { Args: never; Returns: Json }
       get_next_brands_fair_rotation: {
         Args: { p_limit?: number }
         Returns: {
@@ -5557,14 +5627,8 @@ export type Database = {
           company_size: string
         }[]
       }
-      get_ownership_graph: {
-        Args: { p_brand_id: string }
-        Returns: Json
-      }
-      get_scans_used_month: {
-        Args: { p_user: string }
-        Returns: number
-      }
+      get_ownership_graph: { Args: { p_brand_id: string }; Returns: Json }
+      get_scans_used_month: { Args: { p_user: string }; Returns: number }
       get_source_credibility: {
         Args: { source_name_param: string }
         Returns: number
@@ -5584,14 +5648,8 @@ export type Database = {
         Args: { p_source: string; p_window_start: string }
         Returns: undefined
       }
-      is_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_mod_or_admin: {
-        Args: { uid: string }
-        Returns: boolean
-      }
+      is_admin: { Args: never; Returns: boolean }
+      is_mod_or_admin: { Args: { uid: string }; Returns: boolean }
       log_notification: {
         Args: {
           p_brand_id: string
@@ -5617,7 +5675,7 @@ export type Database = {
         Returns: Json
       }
       reclassify_all_events: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           financial_count: number
           legal_count: number
@@ -5626,18 +5684,9 @@ export type Database = {
           updated_count: number
         }[]
       }
-      refresh_brand_coverage: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      refresh_community_outlook: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      refresh_coverage_materialized_view: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      refresh_brand_coverage: { Args: never; Returns: undefined }
+      refresh_community_outlook: { Args: never; Returns: undefined }
+      refresh_coverage_materialized_view: { Args: never; Returns: undefined }
       scan_product_lookup: {
         Args: { p_upc: string }
         Returns: {
@@ -5664,10 +5713,7 @@ export type Database = {
           similarity: number
         }[]
       }
-      search_catalog: {
-        Args: { p_limit?: number; p_q: string }
-        Returns: Json
-      }
+      search_catalog: { Args: { p_limit?: number; p_q: string }; Returns: Json }
       test_article_categorization: {
         Args: {
           p_body: string
@@ -5688,14 +5734,8 @@ export type Database = {
         Args: { p_cost?: number; p_source: string }
         Returns: boolean
       }
-      unlock_stale_jobs: {
-        Args: { timeout_seconds: number }
-        Returns: number
-      }
-      upc_check_digit: {
-        Args: { barcode: string }
-        Returns: string
-      }
+      unlock_stale_jobs: { Args: { timeout_seconds: number }; Returns: number }
+      upc_check_digit: { Args: { barcode: string }; Returns: string }
       upsert_coalesced_job: {
         Args: {
           p_key: string
@@ -5705,10 +5745,7 @@ export type Database = {
         }
         Returns: undefined
       }
-      verification_rank: {
-        Args: { v: string }
-        Returns: number
-      }
+      verification_rank: { Args: { v: string }; Returns: number }
     }
     Enums: {
       app_role: "admin" | "user" | "moderator"
