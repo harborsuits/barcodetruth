@@ -104,6 +104,12 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
 
       {/* Key People Card - always show with empty state */}
       <Card className="p-6 bg-muted/30 border-2">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-lg">Key People</h3>
+          <Button size="sm" variant="secondary" onClick={handleRefresh}>
+            Refresh People & Shareholders
+          </Button>
+        </div>
         <KeyPeopleRow 
           people={keyPeople} 
           emptyMessage="No verified key people yet — we'll show parent data or filings as soon as they're available."
