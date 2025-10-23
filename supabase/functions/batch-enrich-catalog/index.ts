@@ -93,8 +93,14 @@ serve(async (req) => {
       succeeded: 0,
       failed: 0,
       errors: [] as Array<{ brand_id: string; brand_name: string; error: string }>,
-      dry_run
+      dry_run,
+      aborted: false,
+      abort_reason: null as string | null
     };
+
+    // Circuit breaker: abort after N consecutive rate limit errors
+    const MAX_CONSECUTIVE_429 = 5;
+    let consecutive429Count = 0;
 
     if (dry_run) {
       // Release lock before returning
@@ -110,8 +116,29 @@ serve(async (req) => {
       });
     }
 
-    // 4) Process each brand with backoff
+    // 4) Process each brand with backoff + circuit breaker
     for (const brand of brands || []) {
+      // Circuit breaker: stop if too many consecutive rate limits
+      if (consecutive429Count >= MAX_CONSECUTIVE_429) {
+        results.aborted = true;
+        results.abort_reason = `Circuit breaker triggered: ${consecutive429Count} consecutive 429 errors`;
+        console.error(`[Batch Enrich] ${results.abort_reason}`);
+        
+        // Mark remaining brands as skipped
+        for (let i = results.processed; i < (brands?.length || 0); i++) {
+          const remainingBrand = brands![i];
+          await supabase.from('enrichment_run_items').insert({
+            run_id: run.id,
+            brand_id: remainingBrand.id,
+            brand_name: remainingBrand.name,
+            wikidata_qid: remainingBrand.wikidata_qid,
+            status: 'skip',
+            error: 'Aborted due to rate limiting'
+          });
+        }
+        break;
+      }
+
       results.processed++;
       
       try {
@@ -133,6 +160,9 @@ serve(async (req) => {
           if (enrichError) throw enrichError;
         });
 
+        // Success - reset circuit breaker
+        consecutive429Count = 0;
+
         // Log success
         await supabase.from('enrichment_run_items').insert({
           run_id: run.id,
@@ -148,11 +178,21 @@ serve(async (req) => {
         results.succeeded++;
         console.log(`[Success] ${brand.name} enriched successfully`);
 
-      } catch (error) {
+      } catch (error: any) {
         console.error(`[Error] ${brand.name}:`, error);
         results.failed++;
         
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        const status = error?.status || error?.response?.status;
+        
+        // Track consecutive 429s for circuit breaker
+        if (status === 429) {
+          consecutive429Count++;
+          console.warn(`[429 Rate Limit] Count: ${consecutive429Count}/${MAX_CONSECUTIVE_429}`);
+        } else {
+          consecutive429Count = 0; // Reset on non-429 errors
+        }
+        
         results.errors.push({
           brand_id: brand.id,
           brand_name: brand.name,
@@ -186,13 +226,18 @@ serve(async (req) => {
     await supabase.from('enrichment_job_locks').delete().eq('lock_name', lockName);
     lockAcquired = false;
 
-    console.log(`[Batch Enrich] Complete: ${results.succeeded} succeeded, ${results.failed} failed`);
+    const statusMsg = results.aborted 
+      ? `Batch enrichment aborted: ${results.abort_reason}`
+      : `Batch enrichment complete: ${results.succeeded} succeeded, ${results.failed} failed`;
+    
+    console.log(`[Batch Enrich] ${statusMsg}`);
 
     return new Response(JSON.stringify({
-      message: `Batch enrichment complete`,
+      message: statusMsg,
       ...results
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: results.aborted ? 429 : 200
     });
 
   } catch (error) {
