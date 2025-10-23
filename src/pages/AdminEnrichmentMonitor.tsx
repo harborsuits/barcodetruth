@@ -47,12 +47,15 @@ export default function AdminEnrichmentMonitor() {
         return null;
       }
       
+      const successRate = data?.length ? (data.filter(r => r.status === 'success').length / data.length * 100) : 0;
+      
       return {
         total_runs_24h: data?.length || 0,
         wiki_runs_24h: data?.filter(r => r.task === 'wiki').length || 0,
         ownership_runs_24h: data?.filter(r => r.task === 'ownership').length || 0,
         people_runs_24h: data?.filter(r => r.task === 'key_people').length || 0,
-        success_rate: data?.length ? (data.filter(r => r.status === 'success').length / data.length * 100).toFixed(1) : '0'
+        success_rate: successRate.toFixed(1),
+        success_rate_num: successRate
       };
     }
   });
@@ -73,11 +76,25 @@ export default function AdminEnrichmentMonitor() {
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Enrichment Monitor</h1>
-            <p className="text-muted-foreground">
-              Track Wikipedia & Wikidata enrichment runs
-            </p>
+          <div className="flex items-center gap-4">
+            <div>
+              <h1 className="text-3xl font-bold">Enrichment Monitor</h1>
+              <p className="text-muted-foreground">
+                Track Wikipedia & Wikidata enrichment runs
+              </p>
+            </div>
+            {stats && (
+              <Badge 
+                variant={
+                  stats.success_rate_num >= 80 ? "default" : 
+                  stats.success_rate_num >= 60 ? "secondary" : 
+                  "destructive"
+                }
+                className="h-8 text-lg px-4"
+              >
+                Success (24h): {stats.success_rate}%
+              </Badge>
+            )}
           </div>
           <div className="flex gap-2">
             <Select value={taskFilter} onValueChange={setTaskFilter}>

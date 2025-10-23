@@ -51,7 +51,7 @@ SELECT
   'Invalid shareholder percentages' as check_name,
   count(*) as issue_count
 FROM company_shareholders
-WHERE percent_owned < 0 OR percent_owned > 100;
+WHERE pct < 0 OR pct > 100;
 
 -- 5) Enrichment runs visibility (last 24h)
 SELECT 

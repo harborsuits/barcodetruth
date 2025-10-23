@@ -16,7 +16,7 @@ interface Shareholder {
   holder_name: string;
   holder_name_raw: string;
   holder_type: 'institutional' | 'insider' | 'retail_estimate';
-  percent_owned: number;
+  pct: number;
   is_asset_manager: boolean;
   as_of_date: string;
   source_name: string;
@@ -52,40 +52,40 @@ async function fetchTopShareholders(ticker: string, companyId: string): Promise<
         holder_name: 'Vanguard',
         holder_name_raw: 'The Vanguard Group, Inc.',
         holder_type: 'institutional',
-        percent_owned: 8.73,
+        pct: 8.73,
         is_asset_manager: true,
         as_of_date: '2025-06-30',
-        source_name: 'DEV_SEED',
+        source_name: 'DEV (seeded)',
         source_url: '',
       },
       {
         holder_name: 'BlackRock',
         holder_name_raw: 'BlackRock Fund Advisors',
         holder_type: 'institutional',
-        percent_owned: 6.12,
+        pct: 6.12,
         is_asset_manager: true,
         as_of_date: '2025-06-30',
-        source_name: 'DEV_SEED',
+        source_name: 'DEV (seeded)',
         source_url: '',
       },
       {
         holder_name: 'State Street',
         holder_name_raw: 'State Street Global Advisors',
         holder_type: 'institutional',
-        percent_owned: 4.02,
+        pct: 4.02,
         is_asset_manager: true,
         as_of_date: '2025-06-30',
-        source_name: 'DEV_SEED',
+        source_name: 'DEV (seeded)',
         source_url: '',
       },
       {
         holder_name: 'Capital Group',
         holder_name_raw: 'Capital Research Global Investors',
         holder_type: 'institutional',
-        percent_owned: 3.30,
+        pct: 3.30,
         is_asset_manager: false,
         as_of_date: '2025-06-30',
-        source_name: 'DEV_SEED',
+        source_name: 'DEV (seeded)',
         source_url: '',
       },
     ];
@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
     } else {
       // Validate and clean data
       const cleanedShareholders = shareholders
-        .filter(s => s.holder_type === 'institutional' && s.percent_owned > 0)
+        .filter(s => s.holder_type === 'institutional' && s.pct > 0)
         .slice(0, 10); // Top 10 only
 
       // Upsert shareholders (idempotent)
@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
             holder_name: normalizeHolderName(holder.holder_name),
             holder_name_raw: holder.holder_name,
             holder_type: holder.holder_type,
-            percent_owned: Math.round(holder.percent_owned * 100) / 100, // Round to 2 decimals
+            pct: Math.round(holder.pct * 100) / 100, // Round to 2 decimals
             is_asset_manager: isAssetMgr,
             as_of_date: holder.as_of_date,
             source: holder.source_name,
@@ -187,7 +187,7 @@ Deno.serve(async (req) => {
           if (status === 'success') status = 'partial';
         } else {
           rowsWritten++;
-          console.log(`[enrich-shareholders] Added: ${holder.holder_name} (${holder.percent_owned}%)`);
+          console.log(`[enrich-shareholders] Added: ${holder.holder_name} (${holder.pct}%)`);
         }
       }
     }

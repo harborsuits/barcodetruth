@@ -8,7 +8,7 @@ import { format } from "date-fns";
 interface Shareholder {
   investor_name: string;
   investor_company_id: string | null;
-  percent_owned: number | null;
+  pct: number | null;
   confidence: number;
   source: string;
   last_verified_at: string;
@@ -87,10 +87,10 @@ export function TopShareholdersCard({ shareholders }: TopShareholdersCardProps) 
               </div>
             </div>
 
-            {shareholder.percent_owned && (
+            {shareholder.pct && (
               <div className="flex-shrink-0 ml-3">
                 <Badge variant="secondary" className="font-mono">
-                  {shareholder.percent_owned.toFixed(1)}%
+                  {shareholder.pct.toFixed(1)}%
                 </Badge>
               </div>
             )}

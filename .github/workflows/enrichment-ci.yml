@@ -1,0 +1,59 @@
+name: Enrichment CI
+
+on:
+  push:
+    paths:
+      - 'supabase/functions/**/*'
+      - 'supabase/migrations/**/*'
+      - 'docs/ENRICHMENT_VALIDATION.sql'
+      - 'scripts/smoke_test_enrichment.sh'
+  workflow_dispatch:
+
+jobs:
+  validate-and-smoke:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      ENRICH_SHAREHOLDERS_DEV_SEED: "1"
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq postgresql-client curl
+      
+      - name: Run validation SQL
+        run: |
+          echo "Running enrichment validation checks..."
+          psql "$DATABASE_URL" -f docs/ENRICHMENT_VALIDATION.sql
+      
+      - name: Run smoke tests
+        run: |
+          chmod +x scripts/smoke_test_enrichment.sh
+          echo "Running smoke tests with test brand..."
+          ./scripts/smoke_test_enrichment.sh ${{ secrets.TEST_BRAND_UUID }}
+      
+      - name: Verify constraints
+        run: |
+          echo "Checking critical constraints..."
+          psql "$DATABASE_URL" -c "
+            SELECT conname, contype 
+            FROM pg_constraint 
+            WHERE conname IN (
+              'company_ownership_unique_pair',
+              'company_people_unique_role',
+              'companies_qid_unique',
+              'company_shareholders_pct_chk'
+            );"
+      
+      - name: Verify trigger
+        run: |
+          echo "Checking asset manager guardrail trigger..."
+          psql "$DATABASE_URL" -c "
+            SELECT tgname, tgenabled 
+            FROM pg_trigger 
+            WHERE tgname = 'prevent_asset_manager_parent_trigger';"

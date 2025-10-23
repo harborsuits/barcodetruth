@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 interface Shareholder {
   investor_name: string;
   investor_company_id: string | null;
-  percent_owned: number | null;
+  pct: number | null;
   confidence: number;
   source: string;
   last_verified_at: string;
