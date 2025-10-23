@@ -5898,6 +5898,39 @@ export type Database = {
         }
         Relationships: []
       }
+      v_company_people_resolved: {
+        Row: {
+          company_id: string | null
+          full_name: string | null
+          image_url: string | null
+          last_updated: string | null
+          person_id: string | null
+          person_qid: string | null
+          priority: number | null
+          role: string | null
+          source: string | null
+          wikipedia_url: string | null
+        }
+        Relationships: []
+      }
+      v_company_shareholders_resolved: {
+        Row: {
+          as_of: string | null
+          company_id: string | null
+          holder_name: string | null
+          holder_type: string | null
+          holder_url: string | null
+          holder_wikidata_qid: string | null
+          is_asset_manager: boolean | null
+          last_updated: string | null
+          percent_owned: number | null
+          priority: number | null
+          shareholder_id: string | null
+          source: string | null
+          wikipedia_url: string | null
+        }
+        Relationships: []
+      }
       v_notification_metrics_hourly: {
         Row: {
           avg_delta: number | null
@@ -6217,6 +6250,37 @@ export type Database = {
       refresh_brand_coverage: { Args: never; Returns: undefined }
       refresh_community_outlook: { Args: never; Returns: undefined }
       refresh_coverage_materialized_view: { Args: never; Returns: undefined }
+      rpc_get_key_people: {
+        Args: { entity_id: string }
+        Returns: {
+          data_source: string
+          full_name: string
+          image_url: string
+          last_updated: string
+          person_id: string
+          person_qid: string
+          role: string
+          source: string
+          wikipedia_url: string
+        }[]
+      }
+      rpc_get_top_shareholders: {
+        Args: { entity_id: string; result_limit?: number }
+        Returns: {
+          as_of: string
+          data_source: string
+          holder_name: string
+          holder_type: string
+          holder_url: string
+          holder_wikidata_qid: string
+          is_asset_manager: boolean
+          last_updated: string
+          percent_owned: number
+          shareholder_id: string
+          source: string
+          wikipedia_url: string
+        }[]
+      }
       scan_product_lookup: {
         Args: { p_upc: string }
         Returns: {

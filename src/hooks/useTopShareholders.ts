@@ -1,14 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-interface Shareholder {
-  investor_name: string;
-  investor_company_id: string | null;
-  pct: number | null;
-  confidence: number;
+export interface Shareholder {
+  shareholder_id: string | null;
+  holder_name: string;
+  holder_type: string | null;
+  percent_owned: number | null;
+  as_of: string | null;
   source: string;
-  last_verified_at: string;
+  last_updated: string;
   is_asset_manager: boolean;
+  holder_wikidata_qid: string | null;
+  wikipedia_url: string | null;
+  holder_url: string | null;
+  data_source: 'direct' | 'parent' | 'details_direct' | 'details_parent' | 'unknown';
 }
 
 export function useTopShareholders(brandId: string | undefined, limit: number = 10) {
@@ -18,14 +23,15 @@ export function useTopShareholders(brandId: string | undefined, limit: number = 
       if (!brandId) return [];
       
       const { data, error } = await supabase
-        .rpc('get_top_shareholders' as any, {
-          p_brand_id: brandId,
-          p_limit: limit
+        .rpc('rpc_get_top_shareholders' as any, {
+          entity_id: brandId,
+          result_limit: limit
         });
 
       if (error) {
         console.error('[useTopShareholders] Error fetching shareholders:', error);
-        throw error;
+        // Return empty array instead of throwing to ensure uniform rendering
+        return [];
       }
 
       return (data || []) as Shareholder[];
