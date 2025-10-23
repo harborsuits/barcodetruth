@@ -6,6 +6,8 @@ import { TopShareholdersCard } from "./TopShareholdersCard";
 import { KeyPeopleRow } from "./KeyPeopleRow";
 import { useTopShareholders } from "@/hooks/useTopShareholders";
 import { useKeyPeople } from "@/hooks/useKeyPeople";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface OwnershipTabsProps {
   brandId: string;
@@ -16,7 +18,22 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
   const { data: shareholders = [], isLoading: shareholdersLoading } = useTopShareholders(brandId, 10);
   const { data: keyPeople = [], isLoading: peopleLoading } = useKeyPeople(brandId);
 
-  const isLoading = ownershipLoading || shareholdersLoading || peopleLoading;
+  // Fallback company info when ownership RPC returns an empty structure
+  const { data: companyInfo, isLoading: companyInfoLoading } = useQuery({
+    queryKey: ['company-info-inline', brandId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_brand_company_info' as any, { p_brand_id: brandId });
+      if (error) {
+        console.error('[OwnershipTabs] company-info-inline error:', error);
+        return null;
+      }
+      return data as any;
+    },
+    enabled: !!brandId && (!ownership || !ownership.structure || !(ownership as any).structure?.chain?.length),
+    staleTime: 1000 * 60 * 30,
+  });
+
+  const isLoading = ownershipLoading || shareholdersLoading || peopleLoading || companyInfoLoading;
 
   console.log('[OwnershipTabs] Rendering:', { 
     brandId, 
@@ -46,8 +63,22 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
     );
   }
 
-  // Extract the primary company (first in chain)
-  const company = ownership?.structure?.chain?.[0] || null;
+  // Extract the primary company (first in chain) with fallback from company info
+  const companyFromOwnership = ownership?.structure?.chain?.[0] || null;
+  const companyFallback = (companyInfo as any)?.ownership?.company
+    ? {
+        id: (companyInfo as any).ownership.company.id ?? `company-${brandId}`,
+        name: (companyInfo as any).ownership.company.name,
+        type: 'company' as const,
+        logo_url: (companyInfo as any).ownership.company.logo_url ?? undefined,
+        is_public: (companyInfo as any).ownership.company.is_public ?? undefined,
+        ticker: (companyInfo as any).ownership.company.ticker ?? undefined,
+      }
+    : null;
+  const company = companyFromOwnership || companyFallback;
+  
+  // Prefer structured shareholders from ownership API, fallback to simple top-shareholders hook
+  const shareholdersList = (ownership as any)?.shareholders?.top ?? shareholders;
   
   // Extract parent chain (if more than 1 level)
   const parentChain = ownership?.structure?.chain && ownership.structure.chain.length > 1 
@@ -63,10 +94,10 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
         {ownership ? (
           <UnifiedOwnershipDisplay
             company={company}
-            shareholders={ownership.shareholders?.top}
-            ownershipDetails={ownership.ownership_details}
+            shareholders={shareholdersList}
+            ownershipDetails={ownership?.ownership_details}
             parentChain={parentChain}
-            siblings={ownership.structure?.siblings}
+            siblings={ownership?.structure?.siblings}
           />
         ) : (
           <p className="text-sm text-muted-foreground">
