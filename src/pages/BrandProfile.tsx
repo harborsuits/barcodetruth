@@ -26,6 +26,8 @@ import { KeyPeopleRow } from '@/components/brand/KeyPeopleRow';
 import { ValuationChip } from '@/components/brand/ValuationChip';
 import { CommunityOutlookCard } from '@/components/brand/CommunityOutlookCard';
 import { useOwnership } from '@/hooks/useOwnership';
+import { useKeyPeople } from '@/hooks/useKeyPeople';
+import { useTopShareholders } from '@/hooks/useTopShareholders';
 
 type BrandProfile = {
   brand: { 
@@ -179,6 +181,10 @@ export default function BrandProfile() {
   const hasOwnershipData = 
     (ownership?.structure?.chain?.length ?? 0) > 1 ||
     (ownership?.shareholders?.top?.length ?? 0) > 0;
+
+  // Check for key people and shareholders to trigger enrichment
+  const { data: keyPeople = [] } = useKeyPeople(actualId);
+  const { data: shareholders = [] } = useTopShareholders(actualId, 10);
 
   // Get current user for personalized scoring
   const [user, setUser] = useState<any>(null);
@@ -443,9 +449,13 @@ export default function BrandProfile() {
         brandId={actualId!} 
         hasDescription={!!data.brand.description}
         hasParentCompany={!!companyInfo?.ownership}
+        hasKeyPeople={keyPeople.length > 0}
+        hasShareholders={shareholders.length > 0}
         onEnriched={() => {
           setRefreshKey(k => k + 1);
           refetchCompanyInfo();
+          queryClient.invalidateQueries({ queryKey: ['key-people', actualId] });
+          queryClient.invalidateQueries({ queryKey: ['top-shareholders', actualId] });
         }}
       />
       <header className="sticky top-0 z-10 bg-card border-b">
