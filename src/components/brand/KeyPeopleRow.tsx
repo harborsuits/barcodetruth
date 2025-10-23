@@ -55,9 +55,10 @@ export function KeyPeopleRow({ people, emptyMessage }: KeyPeopleRowProps) {
 
       <div className="flex flex-wrap gap-4">
         {executives.map((person, index) => {
-          // Use wikipedia_url from the RPC or construct it from full_name
-          const wikiUrl = person.wikipedia_url || 
-            `https://en.wikipedia.org/wiki/${encodeURIComponent(person.full_name.replace(/ /g, '_'))}`;
+          // Construct Wikipedia URL from person_qid if available
+          const wikiUrl = person.person_qid
+            ? `https://www.wikidata.org/wiki/${person.person_qid}`
+            : `https://en.wikipedia.org/wiki/${encodeURIComponent(person.person_name.replace(/ /g, '_'))}`;
           
           return (
             <TooltipProvider key={index}>
@@ -70,13 +71,13 @@ export function KeyPeopleRow({ people, emptyMessage }: KeyPeopleRowProps) {
                     className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
                   >
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={person.image_url || undefined} alt={person.full_name} />
+                      <AvatarImage src={person.image_url || undefined} alt={person.person_name} />
                       <AvatarFallback className="text-xs">
-                        {person.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        {person.person_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <div className="text-sm font-medium">{person.full_name}</div>
+                      <div className="text-sm font-medium">{person.person_name}</div>
                       <div className="text-xs text-muted-foreground">
                         {roleLabels[person.role] || person.role.replace(/_/g, ' ')}
                       </div>
@@ -85,11 +86,8 @@ export function KeyPeopleRow({ people, emptyMessage }: KeyPeopleRowProps) {
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="text-xs">Source: {person.source}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Data: {person.data_source}
-                  </p>
                   {person.person_qid && (
-                    <p className="text-xs text-muted-foreground">Click to view on Wikipedia</p>
+                    <p className="text-xs text-muted-foreground">Click to view on Wikidata</p>
                   )}
                 </TooltipContent>
               </Tooltip>
@@ -105,14 +103,14 @@ export function KeyPeopleRow({ people, emptyMessage }: KeyPeopleRowProps) {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Avatar className="h-8 w-8 border-2 border-background cursor-help">
-                        <AvatarImage src={person.image_url || undefined} alt={person.full_name} />
+                        <AvatarImage src={person.image_url || undefined} alt={person.person_name} />
                         <AvatarFallback className="text-xs">
-                          {person.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                          {person.person_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                         </AvatarFallback>
                       </Avatar>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="text-xs font-medium">{person.full_name}</p>
+                      <p className="text-xs font-medium">{person.person_name}</p>
                       <p className="text-xs text-muted-foreground">Founder</p>
                     </TooltipContent>
                   </Tooltip>

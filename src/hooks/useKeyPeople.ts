@@ -2,15 +2,16 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface KeyPerson {
-  person_id: string | null;
-  full_name: string;
-  role: string;
-  image_url: string | null;
-  wikipedia_url: string | null;
   person_qid: string | null;
+  person_name: string;
+  role: string;
+  title: string | null;
+  seniority: string | null;
+  start_date: string | null;
+  end_date: string | null;
   source: string;
   last_updated: string;
-  data_source: 'direct' | 'parent' | 'unknown';
+  image_url: string | null;
 }
 
 export function useKeyPeople(brandId: string | undefined) {
@@ -21,7 +22,7 @@ export function useKeyPeople(brandId: string | undefined) {
       
       const { data, error } = await supabase
         .rpc('rpc_get_key_people' as any, {
-          entity_id: brandId
+          p_brand_id: brandId
         });
 
       if (error) {

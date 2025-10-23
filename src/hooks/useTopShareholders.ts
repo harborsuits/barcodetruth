@@ -2,10 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface Shareholder {
-  shareholder_id: string | null;
   holder_name: string;
   holder_type: string | null;
   percent_owned: number | null;
+  shares_owned: number | null;
   as_of: string | null;
   source: string;
   last_updated: string;
@@ -13,7 +13,7 @@ export interface Shareholder {
   holder_wikidata_qid: string | null;
   wikipedia_url: string | null;
   holder_url: string | null;
-  data_source: 'direct' | 'parent' | 'details_direct' | 'details_parent' | 'unknown';
+  data_source: string;
 }
 
 export function useTopShareholders(brandId: string | undefined, limit: number = 10) {
@@ -24,8 +24,8 @@ export function useTopShareholders(brandId: string | undefined, limit: number = 
       
       const { data, error } = await supabase
         .rpc('rpc_get_top_shareholders' as any, {
-          entity_id: brandId,
-          result_limit: limit
+          p_brand_id: brandId,
+          p_limit: limit
         });
 
       if (error) {
