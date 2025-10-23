@@ -5775,6 +5775,100 @@ export type Database = {
           },
         ]
       }
+      v_brand_quick_take: {
+        Row: {
+          brand_id: string | null
+          composite_score: number | null
+          environment_score: number | null
+          labor_score: number | null
+          last_updated: string | null
+          politics_score: number | null
+          social_score: number | null
+        }
+        Insert: {
+          brand_id?: string | null
+          composite_score?: never
+          environment_score?: number | null
+          labor_score?: number | null
+          last_updated?: string | null
+          politics_score?: number | null
+          social_score?: number | null
+        }
+        Update: {
+          brand_id?: string | null
+          composite_score?: never
+          environment_score?: number | null
+          labor_score?: number | null
+          last_updated?: string | null
+          politics_score?: number | null
+          social_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_scores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_scores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brand_monitoring_status"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_scores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brand_profile_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_scores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brand_standings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_scores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brand_trending"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_scores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_scores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_scores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_scores_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_brand_sources_inline: {
         Row: {
           amount: number | null
@@ -6221,6 +6315,17 @@ export type Database = {
       resolve_company_for_brand: {
         Args: { p_brand_id: string }
         Returns: string
+      }
+      rpc_get_brand_quick_take: {
+        Args: { p_brand_id: string }
+        Returns: {
+          composite_score: number
+          environment_score: number
+          labor_score: number
+          last_updated: string
+          politics_score: number
+          social_score: number
+        }[]
       }
       rpc_get_brand_subsidiaries: {
         Args: { p_brand_id: string }

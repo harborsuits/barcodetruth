@@ -29,6 +29,10 @@ import { OwnershipBanner } from '@/components/brand/OwnershipBanner';
 import { useOwnership } from '@/hooks/useOwnership';
 import { useKeyPeople } from '@/hooks/useKeyPeople';
 import { useTopShareholders } from '@/hooks/useTopShareholders';
+import { SectionHeader } from '@/components/brand/SectionHeader';
+import { QuickTakeSnapshot } from '@/components/brand/QuickTakeSnapshot';
+import { WhoProfits } from '@/components/brand/WhoProfits';
+import { EvidenceCommunityTabs } from '@/components/brand/EvidenceCommunityTabs';
 
 type BrandProfile = {
   brand: { 
@@ -566,10 +570,27 @@ export default function BrandProfile() {
           </CardContent>
         </Card>
 
-        {/* Community Outlook - replaces overall company score */}
-        <CommunityOutlookCard brandId={actualId!} brandName={data.brand.name} />
+        {/* 2) Quick Take Snapshot */}
+        <SectionHeader>How is {data.brand.name} doing overall?</SectionHeader>
+        <QuickTakeSnapshot brandId={actualId!} />
 
-        {/* 4 Category Score Cards - Always show with baseline 50 if no data */}
+        {/* 3) Who Profits */}
+        <SectionHeader>Who owns {data.brand.name}?</SectionHeader>
+        <WhoProfits brandId={actualId!} brandName={data.brand.name} />
+
+        {/* 4) Evidence + Community Tabs */}
+        <SectionHeader>What's happening at {data.brand.name}?</SectionHeader>
+        <EvidenceCommunityTabs
+          brandId={actualId!}
+          brandName={data.brand.name}
+          evidenceContent={
+            // Evidence rendering code will go here
+            <div>Evidence content placeholder</div>
+          }
+        />
+
+        {/* 5) Detailed Category Scores */}
+        <SectionHeader>How is {data.brand.name} rated by category?</SectionHeader>
         <div className="grid grid-cols-2 gap-4">
           <CategoryScoreCard 
             category="labor" 
@@ -597,25 +618,8 @@ export default function BrandProfile() {
           />
         </div>
 
-        {/* Data Collection Status - Show when confidence is not high */}
-        {confidenceData && confidenceData.confidence_level !== 'high' && (
-          <div className="space-y-4">
-            <DataCollectionBadge
-              eventCount={confidenceData.event_count}
-              categoriesCovered={confidenceData.categories_covered || []}
-              hasSignificantEvents={confidenceData.has_significant_events || false}
-              completeness={confidenceData.completeness_percent || 0}
-              confidenceLevel={confidenceData.confidence_level || 'none'}
-              lastIngestAt={confidenceData.last_ingest_at}
-              domains90d={confidenceData.domains_90d}
-              ingestStatus={confidenceData.ingest_status}
-            />
-
-            {/* Deep scan temporarily disabled - will enable when ready */}
-          </div>
-        )}
-
-        {/* Ownership Module */}
+        {/* 6) Who's Behind the Brand - Ownership, People, Shareholders */}
+        <SectionHeader>Who's behind {data.brand.name}?</SectionHeader>
         {actualId && (
           <OwnershipTabs brandId={actualId} />
         )}
@@ -1050,6 +1054,24 @@ export default function BrandProfile() {
             Suggest evidence
           </Button>
         </div>
+
+        {/* 7) Can You Trust This Data? - Data Collection Badge */}
+        <SectionHeader>Can you trust this data?</SectionHeader>
+        {confidenceData && (
+          <div className="mb-10">
+            <DataCollectionBadge
+              eventCount={confidenceData.event_count}
+              categoriesCovered={confidenceData.categories_covered || []}
+              hasSignificantEvents={confidenceData.has_significant_events || false}
+              completeness={confidenceData.completeness_percent || 0}
+              confidenceLevel={confidenceData.confidence_level || 'none'}
+              lastIngestAt={confidenceData.last_ingest_at}
+              domains90d={confidenceData.domains_90d}
+              ingestStatus={confidenceData.ingest_status}
+            />
+          </div>
+        )}
+
         {/* Report/Suggest dialogs */}
         <ReportIssueDialog
           open={reportDialogOpen}
