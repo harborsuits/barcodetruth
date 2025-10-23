@@ -25,6 +25,7 @@ import { OwnershipTabs } from '@/components/brand/OwnershipTabs';
 import { KeyPeopleRow } from '@/components/brand/KeyPeopleRow';
 import { ValuationChip } from '@/components/brand/ValuationChip';
 import { CommunityOutlookCard } from '@/components/brand/CommunityOutlookCard';
+import { OwnershipBanner } from '@/components/brand/OwnershipBanner';
 import { useOwnership } from '@/hooks/useOwnership';
 import { useKeyPeople } from '@/hooks/useKeyPeople';
 import { useTopShareholders } from '@/hooks/useTopShareholders';
@@ -480,15 +481,18 @@ export default function BrandProfile() {
                 brandName={data.brand.name}
                 monogram={monogram}
               />
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 space-y-2">
                 <h2 className="text-2xl font-bold truncate">{data.brand.name}</h2>
+                
+                {/* Ownership banner */}
+                {actualId && <OwnershipBanner brandId={actualId} />}
                 
                 {/* Legacy ownership badges - hidden when new ownership data exists */}
                 {!hasOwnershipData && data.ownership?.upstream && data.ownership.upstream.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
                     {data.ownership.upstream.map((o, i) => (
                       <Badge 
-                        key={i} 
+                        key={i}
                         variant="outline" 
                         className="text-xs gap-1 cursor-pointer hover:bg-muted/50 transition-colors"
                         onClick={() => navigate(`/brand/${o.brand_id}`)}

@@ -65,22 +65,18 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
 
   return (
     <div className="space-y-6">
-      {/* Ownership Card - always show */}
-      <Card className="p-6 bg-muted/30 border-2">
-        <h3 className="font-bold text-lg mb-4">Ownership</h3>
-        
-        {ownershipHeader ? (
+      {/* Subsidiaries/Sister Brands - only show if there are any to display */}
+      {subsidiaries && subsidiaries.length > 0 && (
+        <Card className="p-6 bg-muted/30 border-2">
           <UnifiedOwnershipDisplay
-            ownershipHeader={ownershipHeader}
-            shareholders={shareholders}
+            header={ownershipHeader || { 
+              brand_id: brandId, 
+              is_ultimate_parent: false 
+            }}
             subsidiaries={subsidiaries}
           />
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            No verified ownership structure available yet. Data will appear as soon as we parse filings or parent data.
-          </p>
-        )}
-      </Card>
+        </Card>
+      )}
 
       {/* Key People Card - always show with empty state */}
       <Card className="p-6 bg-muted/30 border-2">
