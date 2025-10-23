@@ -6,6 +6,38 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Logging helpers
+const log = (...args: any[]) => console.log('[enrich-brand-wiki]', ...args);
+const warn = (...args: any[]) => console.warn('[enrich-brand-wiki]', ...args);
+const err = (...args: any[]) => console.error('[enrich-brand-wiki]', ...args);
+
+// Reliable entity fetch that handles redirects/normalized QIDs
+async function fetchWikidataEntity(qid: string) {
+  const url = `https://www.wikidata.org/wiki/Special:EntityData/${qid}.json`;
+  const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+  if (!res.ok) throw new Error(`Entity fetch failed ${res.status} for ${qid}`);
+  const json = await res.json();
+
+  // Handle normalized redirects (common cause of "entity empty")
+  const normalized = json?.entities;
+  if (!normalized || !normalized[qid]) {
+    const actualQid = Object.keys(normalized ?? {})[0];
+    if (!actualQid) throw new Error(`No entity payload for ${qid}`);
+    if (actualQid !== qid) log(`QID normalized: ${qid} -> ${actualQid}`);
+    return { qid: actualQid, entity: normalized[actualQid] };
+  }
+  return { qid, entity: normalized[qid] };
+}
+
+const getLabel = (entity: any, lang = 'en') => entity?.labels?.[lang]?.value ?? null;
+const getDesc = (entity: any, lang = 'en') => entity?.descriptions?.[lang]?.value ?? null;
+
+function claimIds(entity: any, prop: string): string[] {
+  return (entity?.claims?.[prop] ?? [])
+    .map((c: any) => c?.mainsnak?.datavalue?.value?.id)
+    .filter(Boolean);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -17,21 +49,13 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { brand_id, wikidata_qid, mode = 'desc-only' } = await req.json();
-    
-    if (!brand_id) {
-      return new Response(
-        JSON.stringify({ error: "brand_id is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const { brand_id, wikidata_qid, mode } = await req.json();
+    log('Start', { brand_id, mode });
 
-    console.log(`[enrich-brand-wiki] Enriching brand ${brand_id} (mode: ${mode})`);
-
-    // Get brand data
+    // Fetch brand info
     const { data: brand, error: brandError } = await supabase
       .from('brands')
-      .select('id, name, wikidata_qid, description, description_source')
+      .select('*')
       .eq('id', brand_id)
       .single();
 
@@ -39,361 +63,186 @@ serve(async (req) => {
       throw new Error('Brand not found');
     }
 
-    let qid = wikidata_qid || brand.wikidata_qid;
-    let wiki_en_title: string | null = null;
-    let description: string | null = null;
-
-    // Step 1: Find Wikidata QID if not provided
+    // Step 1: Resolve or search for QID
+    let qid = wikidata_qid ?? brand.wikidata_qid;
+    
     if (!qid) {
-      console.log(`[enrich-brand-wiki] Searching Wikidata for: ${brand.name}`);
-      
-      const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(brand.name + ' company')}&language=en&format=json&limit=5&type=item`;
+      log('No QID, searching Wikidata for', brand.name);
+      const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(brand.name)}&language=en&format=json&type=item&limit=1`;
       const searchRes = await fetch(searchUrl);
+      const searchData = await searchRes.json();
       
-      if (searchRes.ok) {
-        const searchJson = await searchRes.json();
-        const filtered = searchJson.search?.filter((r: any) => {
-          const desc = (r.description || '').toLowerCase();
-          return !desc.includes('disambiguation') && 
-                 !desc.includes('surname') &&
-                 (desc.includes('company') || desc.includes('brand') || desc.includes('corporation'));
-        });
+      if (searchData.search?.[0]?.id) {
+        qid = searchData.search[0].id;
+        log('Found QID via search:', qid);
+      } else {
+        throw new Error('Could not find Wikidata QID for brand');
+      }
+    }
+
+    // Step 2: Fetch brand entity
+    const { qid: brandQid, entity: brandEntity } = await fetchWikidataEntity(qid);
+    log('Brand entity fetched', brandQid);
+
+    const result: any = {
+      success: true,
+      wikidata_qid: brandQid,
+      updated: false
+    };
+
+    // Step 3: Update description if needed
+    const wikiEnTitle = brandEntity?.sitelinks?.enwiki?.title;
+    result.wiki_en_title = wikiEnTitle;
+
+    if (wikiEnTitle && brand.description_source !== 'wikipedia') {
+      log('Fetching Wikipedia extract');
+      const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=true&explaintext=true&titles=${encodeURIComponent(wikiEnTitle)}&format=json`;
+      const wikiRes = await fetch(wikiUrl);
+      const wikiData = await wikiRes.json();
+      
+      const pages = wikiData.query?.pages;
+      const pageId = Object.keys(pages)[0];
+      const extract = pages[pageId]?.extract;
+
+      if (extract) {
+        await supabase
+          .from('brands')
+          .update({
+            description: extract,
+            description_source: 'wikipedia',
+            wikidata_qid: brandQid
+          })
+          .eq('id', brand_id);
         
-        if (filtered?.length > 0) {
-          qid = filtered[0].id;
-          console.log(`[enrich-brand-wiki] Found QID: ${qid}`);
-        }
+        result.updated = true;
+        result.description_updated = true;
+        log('Description updated from Wikipedia');
       }
-    }
-
-    if (!qid) {
-      return new Response(
-        JSON.stringify({ error: 'Could not find Wikidata QID' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Step 2: Fetch Wikidata entity
-    console.log(`[enrich-brand-wiki] Fetching Wikidata entity ${qid}`);
-    const entityUrl = `https://www.wikidata.org/wiki/Special:EntityData/${qid}.json`;
-    const entityRes = await fetch(entityUrl);
-    
-    if (!entityRes.ok) {
-      throw new Error('Failed to fetch Wikidata entity');
-    }
-
-    const entityJson = await entityRes.json();
-    const entity = entityJson.entities?.[qid];
-    
-    if (!entity) {
-      throw new Error('Wikidata entity not found');
-    }
-
-    // Get Wikipedia title
-    wiki_en_title = entity.sitelinks?.enwiki?.title;
-
-    // Step 3: Get Wikipedia description
-    if (wiki_en_title && (!brand.description || brand.description_source !== 'wikipedia')) {
-      console.log(`[enrich-brand-wiki] Fetching Wikipedia extract`);
-      const extractUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&explaintext&titles=${encodeURIComponent(wiki_en_title)}&format=json`;
-      const extractRes = await fetch(extractUrl);
-      
-      if (extractRes.ok) {
-        const extractJson = await extractRes.json();
-        const pages = extractJson.query?.pages;
-        if (pages) {
-          const pageId = Object.keys(pages)[0];
-          description = pages[pageId]?.extract;
-        }
-      }
-    }
-
-    // Step 4: Update brand with description and QID
-    if (description && description.length >= 40) {
+    } else {
+      // Update QID even if description not updated
       await supabase
         .from('brands')
-        .update({
-          description,
-          description_source: 'wikipedia',
-          description_lang: 'en',
-          wikidata_qid: qid
-        })
-        .eq('id', brand_id);
-      
-      console.log(`[enrich-brand-wiki] Updated brand description`);
-    } else if (!brand.wikidata_qid) {
-      // At least save the QID
-      await supabase
-        .from('brands')
-        .update({ wikidata_qid: qid })
+        .update({ wikidata_qid: brandQid })
         .eq('id', brand_id);
     }
 
-    // Step 5: FULL MODE - Extract ownership, people, shareholders
+    // Step 4: FULL mode - ownership + key people + shareholders
     if (mode === 'full') {
-      console.log(`[enrich-brand-wiki] Running full enrichment (ownership + people)`);
+      log('Starting FULL enrichment');
       
-      // STEP 1: Resolve target company_id using same logic as RPCs
-      let targetCompanyId: string | null = null;
-      let targetCompanyName: string | null = null;
-      let targetWikidataQid: string | null = null;
-      let targetEntity: any = null;
-      
-      // Try 1: Check existing company_ownership link
-      const { data: existingOwnership } = await supabase
-        .from('company_ownership')
-        .select('parent_company_id')
-        .eq('child_brand_id', brand_id)
-        .single();
-      
-      if (existingOwnership?.parent_company_id) {
-        targetCompanyId = existingOwnership.parent_company_id;
-        console.log(`[enrich-brand-wiki] Resolved via existing ownership: ${targetCompanyId}`);
-      }
-      
-      // Try 2: Check brand_data_mappings for wikidata link
-      if (!targetCompanyId) {
-        const { data: mapping } = await supabase
-          .from('brand_data_mappings')
-          .select('external_id')
-          .eq('brand_id', brand_id)
-          .eq('source', 'wikidata')
-          .single();
+      try {
+        // Resolve target company using new RPC
+        const { data: resolvedCompanyId, error: resolveError } = await supabase
+          .rpc('resolve_company_for_brand', { p_brand_id: brand_id });
         
-        if (mapping?.external_id) {
-          const { data: companyByMapping } = await supabase
-            .from('companies')
-            .select('id, name, wikidata_qid')
-            .eq('wikidata_qid', mapping.external_id)
-            .single();
-          
-          if (companyByMapping) {
-            targetCompanyId = companyByMapping.id;
-            targetCompanyName = companyByMapping.name;
-            targetWikidataQid = companyByMapping.wikidata_qid;
-            console.log(`[enrich-brand-wiki] Resolved via mapping: ${targetCompanyId}`);
-          }
+        if (resolveError || !resolvedCompanyId) {
+          throw new Error('No company_id resolved for brand; cannot enrich people/shareholders');
         }
-      }
-      
-      // Try 3: Check if brand's QID matches a company
-      if (!targetCompanyId && qid) {
-        const { data: companyByQid } = await supabase
+        
+        const companyId = resolvedCompanyId as string;
+        log('Resolved company_id', companyId);
+
+        // Find parent company QID (P749) OR use brandQid if brand is itself the company
+        const parentQids = claimIds(brandEntity, 'P749');
+        const targetQid = parentQids[0] ?? brandQid;
+        
+        const { qid: companyQid, entity: companyEntity } = await fetchWikidataEntity(targetQid);
+        log('Company entity fetched', companyQid);
+
+        // Update companies row with basic facts
+        await supabase
           .from('companies')
-          .select('id, name, wikidata_qid')
-          .eq('wikidata_qid', qid)
-          .single();
+          .upsert({
+            id: companyId,
+            wikidata_qid: companyQid,
+            name: getLabel(companyEntity),
+            description: getDesc(companyEntity)
+          }, { onConflict: 'id' });
         
-        if (companyByQid) {
-          targetCompanyId = companyByQid.id;
-          targetCompanyName = companyByQid.name;
-          targetWikidataQid = companyByQid.wikidata_qid;
-          console.log(`[enrich-brand-wiki] Resolved via brand QID: ${targetCompanyId}`);
-        }
-      }
-      
-      // STEP 2: If no company exists, create one (from parent P749 or brand itself)
-      const claims = entity.claims || {};
-      const parentClaims = claims.P749;
-      
-      if (!targetCompanyId) {
-        // Check for parent organization (P749)
-        if (parentClaims && parentClaims.length > 0) {
-          const parentQid = parentClaims[0].mainsnak?.datavalue?.value?.id;
-          
-          if (parentQid) {
-            console.log(`[enrich-brand-wiki] Found parent P749: ${parentQid}`);
-            
-            // Fetch parent company data
-            const parentUrl = `https://www.wikidata.org/wiki/Special:EntityData/${parentQid}.json`;
-            const parentRes = await fetch(parentUrl);
-            
-            if (parentRes.ok) {
-              const parentJson = await parentRes.json();
-              const parentEntity = parentJson.entities?.[parentQid];
+        log('Company row upserted');
+
+        // === EXTRACT PEOPLE ===
+        const CEO_QIDS = claimIds(companyEntity, 'P169');
+        const CHAIR_QIDS = claimIds(companyEntity, 'P488');
+        const FOUNDER_QIDS = claimIds(companyEntity, 'P112');
+
+        const extractPeople = async (qids: string[], role: string, limit = 2) => {
+          for (const pqid of qids.slice(0, limit)) {
+            try {
+              const { entity: personEnt } = await fetchWikidataEntity(pqid);
+              const personName = getLabel(personEnt);
+              const imageClaim = personEnt?.claims?.P18?.[0]?.mainsnak?.datavalue?.value;
               
-              if (parentEntity) {
-                targetEntity = parentEntity;
-                targetWikidataQid = parentQid;
-                targetCompanyName = parentEntity.labels?.en?.value;
-              }
-            }
-          }
-        } else {
-          // No parent—treat the brand itself as the company
-          console.log(`[enrich-brand-wiki] No parent found, using brand entity as company`);
-          targetEntity = entity;
-          targetWikidataQid = qid;
-          targetCompanyName = brand.name;
-        }
-        
-        // Create company record if we have entity data
-        if (targetEntity && targetWikidataQid && targetCompanyName) {
-          const entityClaims = targetEntity.claims || {};
-          const ticker = entityClaims.P414?.[0]?.mainsnak?.datavalue?.value;
-          const exchange = entityClaims.P414?.[0]?.qualifiers?.P249?.[0]?.datavalue?.value?.id;
-          const isPublic = !!ticker;
-          const country = entityClaims.P17?.[0]?.mainsnak?.datavalue?.value?.id;
-          
-          const { data: newCompany, error: companyError } = await supabase
-            .from('companies')
-            .upsert({
-              wikidata_qid: targetWikidataQid,
-              name: targetCompanyName,
-              ticker: ticker || null,
-              exchange: exchange || null,
-              is_public: isPublic,
-              country: country || null,
-              description: targetEntity.descriptions?.en?.value || null,
-              logo_url: null,
-            }, {
-              onConflict: 'wikidata_qid',
-              ignoreDuplicates: false
-            })
-            .select()
-            .single();
-          
-          if (companyError) {
-            console.error('[enrich-brand-wiki] Company upsert failed:', companyError);
-          } else if (newCompany) {
-            targetCompanyId = newCompany.id;
-            console.log(`[enrich-brand-wiki] Created company: ${targetCompanyName} (${targetCompanyId})`);
-            
-            // Create brand_data_mapping
-            await supabase
-              .from('brand_data_mappings')
-              .upsert({
-                brand_id: brand_id,
+              await supabase.from('company_people').upsert({
+                company_id: companyId,
+                person_qid: pqid,
+                person_name: personName,
+                role,
+                image_url: imageClaim ? `https://commons.wikimedia.org/wiki/Special:FilePath/${imageClaim}` : null,
                 source: 'wikidata',
-                external_id: targetWikidataQid,
-                updated_at: new Date().toISOString()
-              }, {
-                onConflict: 'brand_id,source',
-                ignoreDuplicates: false
-              });
-            
-            // Create ownership link if this was a parent
-            if (parentClaims && parentClaims.length > 0) {
-              await supabase
-                .from('company_ownership')
-                .upsert({
-                  child_brand_id: brand_id,
-                  parent_company_id: targetCompanyId,
-                  parent_name: targetCompanyName,
-                  relationship: 'parent',
-                  confidence: 0.9,
-                  source: 'wikidata'
-                }, {
-                  onConflict: 'child_brand_id',
-                  ignoreDuplicates: false
-                });
+                last_updated_at: new Date().toISOString()
+              }, { onConflict: 'company_id,person_qid' });
               
-              console.log(`[enrich-brand-wiki] Linked ownership: ${brand.name} -> ${targetCompanyName}`);
+              log('Upserted person', { pqid, personName, role });
+              await new Promise(r => setTimeout(r, 150));
+            } catch (e) {
+              warn('Person fetch/upsert failed', pqid, (e as Error).message);
             }
           }
-        }
-      } else {
-        // Company exists—fetch its entity for people extraction
-        const { data: existingCompany } = await supabase
-          .from('companies')
-          .select('wikidata_qid, name')
-          .eq('id', targetCompanyId)
-          .single();
-        
-        if (existingCompany?.wikidata_qid) {
-          targetWikidataQid = existingCompany.wikidata_qid;
-          targetCompanyName = existingCompany.name;
-          
-          const entityUrl = `https://www.wikidata.org/wiki/Special:EntityData/${targetWikidataQid}.json`;
-          const entityRes = await fetch(entityUrl);
-          
-          if (entityRes.ok) {
-            const entityJson = await entityRes.json();
-            if (targetWikidataQid) {
-              targetEntity = entityJson.entities?.[targetWikidataQid];
-            }
-          }
-        }
-      }
-      
-      // STEP 3: Extract people and shareholders for the resolved company
-      if (targetCompanyId && targetEntity) {
-        console.log(`[enrich-brand-wiki] Extracting people for company ${targetCompanyId}`);
-        
-        const entityClaims = targetEntity.claims || {};
-        
-        // Extract key people (CEO, Chairperson, Founder)
-        const peopleRoles = {
-          P169: 'chief_executive_officer',
-          P488: 'chairperson',
-          P112: 'founder'
         };
+
+        log('Extracting people for company', companyQid);
+        await extractPeople(CEO_QIDS, 'chief_executive_officer');
+        await extractPeople(CHAIR_QIDS, 'chairperson');
+        await extractPeople(FOUNDER_QIDS, 'founder');
+
+        // === EXTRACT SHAREHOLDERS (P127 'owned by') ===
+        const OWNER_QIDS = claimIds(companyEntity, 'P127');
+        log('Extracting shareholders', OWNER_QIDS.length, 'found');
         
-        for (const [prop, role] of Object.entries(peopleRoles)) {
-          const peopleClaims = entityClaims[prop];
-          if (peopleClaims) {
-            // Take up to 2 people per role
-            for (const claim of peopleClaims.slice(0, 2)) {
-              const personQid = claim.mainsnak?.datavalue?.value?.id;
-              if (personQid) {
-                // Fetch person data
-                const personUrl = `https://www.wikidata.org/wiki/Special:EntityData/${personQid}.json`;
-                const personRes = await fetch(personUrl);
-                
-                if (personRes.ok) {
-                  const personJson = await personRes.json();
-                  const personEntity = personJson.entities?.[personQid];
-                  
-                  if (personEntity) {
-                    const personName = personEntity.labels?.en?.value;
-                    const imageUrl = personEntity.claims?.P18?.[0]?.mainsnak?.datavalue?.value;
-                    
-                    // Upsert person
-                    await supabase
-                      .from('company_people')
-                      .upsert({
-                        company_id: targetCompanyId,
-                        role: role,
-                        person_name: personName,
-                        person_qid: personQid,
-                        image_url: imageUrl ? `https://commons.wikimedia.org/wiki/Special:FilePath/${imageUrl}` : null,
-                        source: 'wikidata'
-                      }, {
-                        onConflict: 'company_id,person_qid',
-                        ignoreDuplicates: false
-                      });
-                    
-                    console.log(`[enrich-brand-wiki] Added ${role}: ${personName}`);
-                  }
-                }
-                
-                // Small delay between person lookups
-                await new Promise(r => setTimeout(r, 200));
-              }
-            }
+        for (const oqid of OWNER_QIDS.slice(0, 6)) {
+          try {
+            const { entity: ownerEnt } = await fetchWikidataEntity(oqid);
+            const holderName = getLabel(ownerEnt);
+            
+            await supabase.from('company_shareholders').upsert({
+              company_id: companyId,
+              holder_name: holderName,
+              holder_type: 'institution',
+              percent_owned: null,
+              shares_owned: null,
+              as_of: null,
+              source: 'wikidata',
+              last_updated: new Date().toISOString(),
+              is_asset_manager: false,
+              holder_wikidata_qid: oqid,
+              data_source: 'wikidata'
+            }, { onConflict: 'company_id,holder_name' });
+            
+            log('Upserted shareholder', holderName);
+            await new Promise(r => setTimeout(r, 120));
+          } catch (e) {
+            warn('Shareholder fetch/upsert failed', oqid, (e as Error).message);
           }
         }
-      } else {
-        console.log(`[enrich-brand-wiki] WARNING: Could not resolve target company_id for brand ${brand_id}`);
+
+        result.full_enrichment_completed = true;
+        log('Full enrichment completed', { brand_id, company_id: companyId });
+        
+      } catch (fullError) {
+        err('Full enrichment error', { brand_id, error: (fullError as Error).message });
+        result.full_enrichment_error = (fullError as Error).message;
       }
     }
 
-    return new Response(
-      JSON.stringify({ 
-        success: true,
-        wikidata_qid: qid,
-        wiki_en_title,
-        mode,
-        description_updated: !!description
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-
+    return new Response(JSON.stringify(result), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   } catch (error) {
-    console.error('[enrich-brand-wiki] Error:', error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    err('Error in enrich-brand-wiki:', error);
+    return new Response(JSON.stringify({ error: (error as Error).message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
