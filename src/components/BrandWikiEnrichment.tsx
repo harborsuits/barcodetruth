@@ -1,5 +1,20 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+
+const ENRICH_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const getLastEnrichedAt = (key: string) => {
+  try {
+    const ts = sessionStorage.getItem(key);
+    return ts ? parseInt(ts) : 0;
+  } catch {
+    return 0;
+  }
+};
+const setLastEnrichedAt = (key: string) => {
+  try {
+    sessionStorage.setItem(key, String(Date.now()));
+  } catch {}
+};
 
 /**
  * Auto-enriches brands with Wikipedia data (description, parent company, key people, shareholders)
@@ -20,26 +35,42 @@ export function BrandWikiEnrichment({
   hasShareholders: boolean,
   onEnriched?: () => void 
 }) {
+  const inFlightRef = useRef(false);
+
   useEffect(() => {
     // Determine if we need full enrichment (people + shareholders) or just basic
     const needsFullEnrichment = !hasKeyPeople || !hasShareholders;
     const needsBasicEnrichment = !hasDescription || !hasParentCompany;
-    
+
     if (!needsBasicEnrichment && !needsFullEnrichment) return;
-    
+
+    const mode = needsFullEnrichment ? 'full' : undefined;
+    const dedupeKey = `wiki_enrich:${brandId}:${mode ?? 'basic'}`;
+
+    // TTL guard to avoid loops and rate limits
+    const last = getLastEnrichedAt(dedupeKey);
+    if (Date.now() - last < ENRICH_TTL_MS) {
+      console.log('[Wiki] Skipping enrich due to recent attempt:', { brandId, mode });
+      return;
+    }
+
     // Trigger Wikipedia enrichment in the background
     const enrichBrand = async () => {
+      if (inFlightRef.current) {
+        console.log('[Wiki] Enrichment already in-flight, skipping:', brandId);
+        return;
+      }
+      inFlightRef.current = true;
       try {
-        const mode = needsFullEnrichment ? 'full' : undefined;
         console.log('[Wiki] Enriching brand:', brandId, 'mode:', mode);
-        
+
         const { data, error } = await supabase.functions.invoke('enrich-brand-wiki', {
-          body: { 
+          body: {
             brand_id: brandId,
-            mode 
+            mode
           }
         });
-        
+
         if (error) {
           console.error('[Wiki] Error:', error);
         } else {
@@ -52,13 +83,17 @@ export function BrandWikiEnrichment({
       } catch (error) {
         // Silent fail - not critical
         console.error('[Wiki] Exception:', error);
+      } finally {
+        // Record attempt regardless of outcome to prevent tight loops
+        setLastEnrichedAt(dedupeKey);
+        inFlightRef.current = false;
       }
     };
-    
+
     // Trigger after a short delay to avoid race conditions
     const timer = setTimeout(enrichBrand, 1000);
     return () => clearTimeout(timer);
   }, [brandId, hasDescription, hasParentCompany, hasKeyPeople, hasShareholders, onEnriched]);
-  
+
   return null; // No UI needed
 }
