@@ -1,5 +1,8 @@
 -- Enrichment Pipeline Validation Queries
 -- Run these after deployment to verify data integrity
+-- Expected: ALL issue_count values should be 0 for production readiness
+
+-- CRITICAL CHECKS (must be 0)
 
 -- 1) Relationship enum enforcement (should be 0)
 SELECT 
@@ -8,6 +11,14 @@ SELECT
 FROM company_ownership
 WHERE relationship_type NOT IN ('parent','subsidiary','parent_organization');
 
+-- 1b) Verify relationship type constraint exists
+SELECT 
+  'Relationship constraint exists' as check_name,
+  CASE WHEN EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'company_ownership_rel_chk'
+  ) THEN 0 ELSE 1 END as issue_count;
+
 -- 2) Accidental asset-manager parents (should be 0 after trigger)
 SELECT 
   'Asset managers as parents' as check_name,
@@ -15,6 +26,14 @@ SELECT
 FROM company_ownership co
 JOIN companies c ON c.id = co.parent_company_id
 JOIN asset_managers am ON c.name ILIKE '%'||am.name||'%';
+
+-- 2b) Verify trigger exists
+SELECT 
+  'Asset manager trigger exists' as check_name,
+  CASE WHEN EXISTS (
+    SELECT 1 FROM pg_trigger 
+    WHERE tgname = 'prevent_asset_manager_parent_trigger'
+  ) THEN 0 ELSE 1 END as issue_count;
 
 -- 3) People uniqueness violation (should be 0)
 SELECT 
@@ -102,3 +121,53 @@ SELECT
   count(*) as total_active_brands
 FROM brands
 WHERE is_active = true;
+
+-- 11) Constraint verification summary
+SELECT 
+  conname as constraint_name,
+  contype as type,
+  CASE contype 
+    WHEN 'c' THEN 'CHECK'
+    WHEN 'u' THEN 'UNIQUE'
+    WHEN 'f' THEN 'FOREIGN KEY'
+    WHEN 'p' THEN 'PRIMARY KEY'
+  END as constraint_type,
+  convalidated as is_validated
+FROM pg_constraint
+WHERE conname IN (
+  'company_ownership_unique_pair',
+  'company_people_unique_role',
+  'companies_qid_unique',
+  'company_ownership_rel_chk',
+  'company_shareholders_pct_chk'
+)
+ORDER BY conname;
+
+-- 12) Index verification
+SELECT 
+  schemaname,
+  tablename,
+  indexname,
+  indexdef
+FROM pg_indexes
+WHERE indexname IN (
+  'idx_runs_finished_at',
+  'idx_runs_task',
+  'idx_runs_status',
+  'idx_companies_qid'
+)
+ORDER BY indexname;
+
+-- 13) Enrichment tasks summary (all time)
+SELECT 
+  task,
+  count(*) as total_runs,
+  count(*) FILTER (WHERE status = 'success') as success_count,
+  count(*) FILTER (WHERE status = 'failed') as failed_count,
+  count(*) FILTER (WHERE status = 'partial') as partial_count,
+  round(avg(duration_ms)::numeric, 0) as avg_duration_ms,
+  sum(rows_written) as total_rows_written,
+  max(finished_at) as last_run_at
+FROM enrichment_runs
+GROUP BY task
+ORDER BY task;
