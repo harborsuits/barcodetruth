@@ -27,11 +27,13 @@ export default function AdminBatchEnrich() {
         has_key_people: number;
         has_shareholders: number;
         coverage_percent: number;
+        stale_count: number;
         brands_needing_enrichment: Array<{ id: string; name: string; wikidata_qid: string }>;
       };
     },
     refetchInterval: 30000, // Refresh every 30s during batch processing
   });
+
 
   // Batch enrichment mutation
   const batchEnrich = useMutation({
@@ -62,7 +64,7 @@ export default function AdminBatchEnrich() {
   });
 
   const coveragePercent = coverage?.coverage_percent || 0;
-  const needsEnrichment = coverage?.has_wikidata_qid || 0 - (coverage?.has_company_record || 0);
+  const needsEnrichment = (coverage?.has_wikidata_qid ?? 0) - (coverage?.has_company_record ?? 0);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -122,6 +124,10 @@ export default function AdminBatchEnrich() {
                 <div className="space-y-1">
                   <div className="text-2xl font-bold">{coverage?.has_shareholders}</div>
                   <div className="text-xs text-muted-foreground">Shareholders</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-2xl font-bold text-amber-600">{coverage?.stale_count}</div>
+                  <div className="text-xs text-muted-foreground">Stale (14+ days)</div>
                 </div>
               </div>
 
@@ -242,7 +248,7 @@ export default function AdminBatchEnrich() {
         <Card>
           <CardHeader>
             <CardTitle>Brands Needing Enrichment</CardTitle>
-            <CardDescription>Next {coverage.brands_needing_enrichment.length} brands to process</CardDescription>
+            <CardDescription>Next {coverage.brands_needing_enrichment.length} brands to process (oldest/stale first)</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">

@@ -6,27 +6,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Feature flag enforcement
-const ENRICH_MODE = Deno.env.get('ENRICH_BRAND_WIKI_MODE') || 'desc-only';
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
-
-  // Enforce desc-only mode
-  if (ENRICH_MODE !== 'desc-only') {
-    return new Response(
-      JSON.stringify({ error: 'enrich-brand-wiki must run in desc-only mode (ownership/people removed)' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-
-  const startTime = Date.now();
-  let brandId: string | null = null;
-  let rowsWritten = 0;
-  let status = 'success';
-  let errorMsg: string | null = null;
 
   try {
     const supabase = createClient(
@@ -34,274 +17,275 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const url = new URL(req.url);
-    brandId = url.searchParams.get('brand_id');
-    const mode = url.searchParams.get('mode');
+    const { brand_id, wikidata_qid, mode = 'desc-only' } = await req.json();
     
-    // Batch mode
-    if (mode === 'missing') {
-      console.log('[enrich-brand-wiki] Batch mode: processing brands missing descriptions');
-      
-      const { data: brands, error: fetchError } = await supabase
-        .from('brands')
-        .select('id, name')
-        .is('description', null)
-        .eq('is_active', true)
-        .limit(50); // Increased from 10
-      
-      if (fetchError || !brands || brands.length === 0) {
-        console.log('[enrich-brand-wiki] No brands to enrich');
-        return new Response(
-          JSON.stringify({ success: true, processed: 0, note: 'No brands missing descriptions' }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      
-      console.log(`[enrich-brand-wiki] Found ${brands.length} brands to enrich`);
-      let processed = 0;
-      
-      for (const brand of brands) {
-        try {
-          const enrichUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/enrich-brand-wiki?brand_id=${brand.id}`;
-          await fetch(enrichUrl, {
-            headers: { 'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` }
-          });
-          processed++;
-          // Rate limiting with jitter
-          await new Promise(resolve => setTimeout(resolve, 150 + Math.floor(Math.random() * 150)));
-        } catch (e) {
-          console.error(`[enrich-brand-wiki] Failed to enrich ${brand.name}:`, e);
-        }
-      }
-      
-      return new Response(
-        JSON.stringify({ success: true, processed, total: brands.length }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    
-    // Single brand mode
-    if (!brandId) {
+    if (!brand_id) {
       return new Response(
         JSON.stringify({ error: "brand_id is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`[enrich-brand-wiki] Enriching brand: ${brandId}`);
+    console.log(`[enrich-brand-wiki] Enriching brand ${brand_id} (mode: ${mode})`);
 
     // Get brand data
     const { data: brand, error: brandError } = await supabase
       .from('brands')
       .select('id, name, wikidata_qid, description, description_source')
-      .eq('id', brandId)
+      .eq('id', brand_id)
       .single();
 
     if (brandError || !brand) {
-      errorMsg = 'Brand not found';
-      status = 'failed';
-      throw new Error(errorMsg);
+      throw new Error('Brand not found');
     }
 
-    // Skip if already has Wikipedia description
-    if (brand.description && brand.description_source === 'wikipedia') {
-      console.log(`[enrich-brand-wiki] Brand already has Wikipedia description`);
-      
-      // Log enrichment run
-      await supabase.from('enrichment_runs').insert({
-        brand_id: brandId,
-        task: 'wiki',
-        rows_written: 0,
-        status: 'success',
-        started_at: new Date(startTime).toISOString(),
-        finished_at: new Date().toISOString(),
-        duration_ms: Date.now() - startTime
-      });
+    let qid = wikidata_qid || brand.wikidata_qid;
+    let wiki_en_title: string | null = null;
+    let description: string | null = null;
 
+    // Step 1: Find Wikidata QID if not provided
+    if (!qid) {
+      console.log(`[enrich-brand-wiki] Searching Wikidata for: ${brand.name}`);
+      
+      const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(brand.name + ' company')}&language=en&format=json&limit=5&type=item`;
+      const searchRes = await fetch(searchUrl);
+      
+      if (searchRes.ok) {
+        const searchJson = await searchRes.json();
+        const filtered = searchJson.search?.filter((r: any) => {
+          const desc = (r.description || '').toLowerCase();
+          return !desc.includes('disambiguation') && 
+                 !desc.includes('surname') &&
+                 (desc.includes('company') || desc.includes('brand') || desc.includes('corporation'));
+        });
+        
+        if (filtered?.length > 0) {
+          qid = filtered[0].id;
+          console.log(`[enrich-brand-wiki] Found QID: ${qid}`);
+        }
+      }
+    }
+
+    if (!qid) {
       return new Response(
-        JSON.stringify({ success: true, note: "Already has Wikipedia description" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: 'Could not find Wikidata QID' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    let description: string | null = null;
-    let wikidata_qid = brand.wikidata_qid;
-    let wiki_en_title: string | null = null;
-
-    // Step 1: Search Wikidata if no QID
-    if (!wikidata_qid) {
-      console.log(`[enrich-brand-wiki] Searching Wikidata for: ${brand.name}`);
-      
-      const searchQueries = [
-        `${brand.name} company`,
-        `${brand.name} brand`,
-        `${brand.name} corporation`,
-        brand.name
-      ];
-      
-      for (const query of searchQueries) {
-        if (wikidata_qid) break;
-        
-        const wikidataSearchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(query)}&language=en&format=json&limit=5&type=item`;
-        
-        const wikidataRes = await fetch(wikidataSearchUrl);
-        if (wikidataRes.ok) {
-          const wikidataJson = await wikidataRes.json();
-          
-          if (wikidataJson.search && wikidataJson.search.length > 0) {
-            const filtered = wikidataJson.search.filter((result: any) => {
-              const desc = (result.description || '').toLowerCase();
-              
-              if (desc.includes('disambiguation') || desc.includes('surname') || 
-                  desc.includes('given name') || desc.includes('village') || 
-                  desc.includes('town') || desc.includes('tournament')) {
-                return false;
-              }
-              
-              return desc.includes('company') || desc.includes('brand') || 
-                     desc.includes('corporation') || desc.includes('business') || 
-                     !result.description;
-            });
-            
-            if (filtered.length > 0) {
-              wikidata_qid = filtered[0].id;
-              console.log(`[enrich-brand-wiki] Found QID: ${wikidata_qid}`);
-              break;
-            }
-          }
-        }
-      }
-    }
-
-    // Step 2: Get enwiki sitelink from Wikidata
-    if (wikidata_qid) {
-      console.log(`[enrich-brand-wiki] Fetching Wikidata entity ${wikidata_qid}`);
-      const wikidataEntityUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${wikidata_qid}&format=json&props=sitelinks`;
-      
-      const entityRes = await fetch(wikidataEntityUrl);
-      if (entityRes.ok) {
-        const entityJson = await entityRes.json();
-        const entity = entityJson.entities?.[wikidata_qid];
-        wiki_en_title = entity?.sitelinks?.enwiki?.title;
-        console.log(`[enrich-brand-wiki] Wikipedia title: ${wiki_en_title}`);
-      }
-    }
+    // Step 2: Fetch Wikidata entity
+    console.log(`[enrich-brand-wiki] Fetching Wikidata entity ${qid}`);
+    const entityUrl = `https://www.wikidata.org/wiki/Special:EntityData/${qid}.json`;
+    const entityRes = await fetch(entityUrl);
     
-    // Step 3: Fallback to direct Wikipedia search
-    if (!wiki_en_title) {
-      console.log(`[enrich-brand-wiki] Searching Wikipedia directly for: ${brand.name}`);
-      const wikiSearchUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(brand.name)}&limit=1&format=json`;
-      
-      const wikiSearchRes = await fetch(wikiSearchUrl);
-      if (wikiSearchRes.ok) {
-        const wikiSearchJson = await wikiSearchRes.json();
-        if (wikiSearchJson[1] && wikiSearchJson[1].length > 0) {
-          wiki_en_title = wikiSearchJson[1][0];
-          console.log(`[enrich-brand-wiki] Found Wikipedia title: ${wiki_en_title}`);
-        }
-      }
+    if (!entityRes.ok) {
+      throw new Error('Failed to fetch Wikidata entity');
     }
 
-    // Step 4: Get Wikipedia extract
-    if (wiki_en_title) {
-      console.log(`[enrich-brand-wiki] Fetching extract for: ${wiki_en_title}`);
+    const entityJson = await entityRes.json();
+    const entity = entityJson.entities?.[qid];
+    
+    if (!entity) {
+      throw new Error('Wikidata entity not found');
+    }
+
+    // Get Wikipedia title
+    wiki_en_title = entity.sitelinks?.enwiki?.title;
+
+    // Step 3: Get Wikipedia description
+    if (wiki_en_title && (!brand.description || brand.description_source !== 'wikipedia')) {
+      console.log(`[enrich-brand-wiki] Fetching Wikipedia extract`);
       const extractUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&explaintext&titles=${encodeURIComponent(wiki_en_title)}&format=json`;
-      
       const extractRes = await fetch(extractUrl);
+      
       if (extractRes.ok) {
         const extractJson = await extractRes.json();
         const pages = extractJson.query?.pages;
         if (pages) {
           const pageId = Object.keys(pages)[0];
           description = pages[pageId]?.extract;
-          console.log(`[enrich-brand-wiki] Got description (${description?.length || 0} chars)`);
         }
       }
     }
 
-    // Step 5: Validate and update
+    // Step 4: Update brand with description and QID
     if (description && description.length >= 40) {
-      const updates: any = {
-        description,
-        description_source: 'wikipedia',
-        description_lang: 'en'
-      };
-      
-      if (wikidata_qid && !brand.wikidata_qid) {
-        updates.wikidata_qid = wikidata_qid;
-      }
-
-      const { error: updateError } = await supabase
+      await supabase
         .from('brands')
-        .update(updates)
-        .eq('id', brandId);
-
-      if (updateError) {
-        errorMsg = `Failed to update brand: ${updateError.message}`;
-        status = 'failed';
-        throw updateError;
-      }
-
-      rowsWritten = 1;
-      console.log(`[enrich-brand-wiki] ✅ Updated brand with Wikipedia description`);
-    } else if (description && description.length < 40) {
-      // Description too short, flag for review
-      status = 'partial';
-      errorMsg = `Description too short (${description.length} chars)`;
-      console.log(`[enrich-brand-wiki] ⚠️ Description too short, skipping`);
-    } else {
-      status = 'failed';
-      errorMsg = 'No description found';
-      console.log(`[enrich-brand-wiki] ❌ No description found`);
+        .update({
+          description,
+          description_source: 'wikipedia',
+          description_lang: 'en',
+          wikidata_qid: qid
+        })
+        .eq('id', brand_id);
+      
+      console.log(`[enrich-brand-wiki] Updated brand description`);
+    } else if (!brand.wikidata_qid) {
+      // At least save the QID
+      await supabase
+        .from('brands')
+        .update({ wikidata_qid: qid })
+        .eq('id', brand_id);
     }
 
-    // Log enrichment run
-    await supabase.from('enrichment_runs').insert({
-      brand_id: brandId,
-      task: 'wiki',
-      rows_written: rowsWritten,
-      status,
-      error: errorMsg,
-      started_at: new Date(startTime).toISOString(),
-      finished_at: new Date().toISOString(),
-      duration_ms: Date.now() - startTime
-    });
+    // Step 5: FULL MODE - Extract ownership, people, shareholders
+    if (mode === 'full') {
+      console.log(`[enrich-brand-wiki] Running full enrichment (ownership + people)`);
+      
+      const claims = entity.claims || {};
+      
+      // Parent organization (P749)
+      const parentClaims = claims.P749;
+      if (parentClaims && parentClaims.length > 0) {
+        const parentQid = parentClaims[0].mainsnak?.datavalue?.value?.id;
+        
+        if (parentQid) {
+          console.log(`[enrich-brand-wiki] Found parent: ${parentQid}`);
+          
+          // Fetch parent company data
+          const parentUrl = `https://www.wikidata.org/wiki/Special:EntityData/${parentQid}.json`;
+          const parentRes = await fetch(parentUrl);
+          
+          if (parentRes.ok) {
+            const parentJson = await parentRes.json();
+            const parentEntity = parentJson.entities?.[parentQid];
+            
+            if (parentEntity) {
+              const parentName = parentEntity.labels?.en?.value;
+              const parentClaims = parentEntity.claims || {};
+              
+              // Extract parent company details
+              const ticker = parentClaims.P414?.[0]?.mainsnak?.datavalue?.value;
+              const exchange = parentClaims.P414?.[0]?.qualifiers?.P249?.[0]?.datavalue?.value?.id;
+              const isPublic = !!ticker;
+              const country = parentClaims.P17?.[0]?.mainsnak?.datavalue?.value?.id;
+              
+              // Upsert company (idempotent on wikidata_qid)
+              const { data: company, error: companyError } = await supabase
+                .from('companies')
+                .upsert({
+                  wikidata_qid: parentQid,
+                  name: parentName,
+                  ticker: ticker || null,
+                  exchange: exchange || null,
+                  is_public: isPublic,
+                  country: country || null,
+                  description: parentEntity.descriptions?.en?.value || null,
+                  logo_url: null, // Will be resolved separately
+                }, {
+                  onConflict: 'wikidata_qid',
+                  ignoreDuplicates: false
+                })
+                .select()
+                .single();
+              
+              if (companyError) {
+                console.error('[enrich-brand-wiki] Company upsert failed:', companyError);
+              } else if (company) {
+                console.log(`[enrich-brand-wiki] Upserted company: ${parentName}`);
+                
+                // Upsert brand_data_mappings (idempotent on brand_id + source)
+                await supabase
+                  .from('brand_data_mappings')
+                  .upsert({
+                    brand_id: brand_id,
+                    source: 'wikidata',
+                    external_id: parentQid,
+                    updated_at: new Date().toISOString()
+                  }, {
+                    onConflict: 'brand_id,source',
+                    ignoreDuplicates: false
+                  });
+                
+                // Upsert company_ownership (idempotent on child_brand_id)
+                await supabase
+                  .from('company_ownership')
+                  .upsert({
+                    child_brand_id: brand_id,
+                    parent_company_id: company.id,
+                    parent_name: parentName,
+                    relationship: 'parent',
+                    confidence: 0.9,
+                    source: 'wikidata'
+                  }, {
+                    onConflict: 'child_brand_id',
+                    ignoreDuplicates: false
+                  });
+                
+                console.log(`[enrich-brand-wiki] Linked ownership: ${brand.name} -> ${parentName}`);
+                
+                // Extract key people (CEO, Chairperson, Founder)
+                const peopleRoles = {
+                  P169: 'chief_executive_officer',
+                  P488: 'chairperson',
+                  P112: 'founder'
+                };
+                
+                for (const [prop, role] of Object.entries(peopleRoles)) {
+                  const peopleClaims = parentClaims[prop];
+                  if (peopleClaims) {
+                    // Take up to 2 people per role
+                    for (const claim of peopleClaims.slice(0, 2)) {
+                      const personQid = claim.mainsnak?.datavalue?.value?.id;
+                      if (personQid) {
+                        // Fetch person data
+                        const personUrl = `https://www.wikidata.org/wiki/Special:EntityData/${personQid}.json`;
+                        const personRes = await fetch(personUrl);
+                        
+                        if (personRes.ok) {
+                          const personJson = await personRes.json();
+                          const personEntity = personJson.entities?.[personQid];
+                          
+                          if (personEntity) {
+                            const personName = personEntity.labels?.en?.value;
+                            const imageUrl = personEntity.claims?.P18?.[0]?.mainsnak?.datavalue?.value;
+                            
+                            // Upsert person (allow duplicates per role)
+                            await supabase
+                              .from('company_people')
+                              .upsert({
+                                company_id: company.id,
+                                role: role,
+                                person_name: personName,
+                                person_qid: personQid,
+                                image_url: imageUrl ? `https://commons.wikimedia.org/wiki/Special:FilePath/${imageUrl}` : null,
+                                source: 'wikidata'
+                              }, {
+                                onConflict: 'company_id,person_qid',
+                                ignoreDuplicates: false
+                              });
+                            
+                            console.log(`[enrich-brand-wiki] Added ${role}: ${personName}`);
+                          }
+                        }
+                        
+                        // Small delay between person lookups
+                        await new Promise(r => setTimeout(r, 200));
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
 
     return new Response(
       JSON.stringify({ 
-        success: status === 'success', 
-        rows_written: rowsWritten,
-        status,
-        error: errorMsg,
-        wikidata_qid,
-        wiki_en_title
+        success: true,
+        wikidata_qid: qid,
+        wiki_en_title,
+        mode,
+        description_updated: !!description
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
     console.error('[enrich-brand-wiki] Error:', error);
-    
-    // Log failed run
-    if (brandId) {
-      try {
-        const supabase = createClient(
-          Deno.env.get("SUPABASE_URL")!,
-          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-        );
-        await supabase.from('enrichment_runs').insert({
-          brand_id: brandId,
-          task: 'wiki',
-          rows_written: 0,
-          status: 'failed',
-          error: error instanceof Error ? error.message : 'Unknown error',
-          started_at: new Date(startTime).toISOString(),
-          finished_at: new Date().toISOString(),
-          duration_ms: Date.now() - startTime
-        });
-      } catch {}
-    }
-
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
