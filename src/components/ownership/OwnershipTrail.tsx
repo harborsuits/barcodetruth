@@ -205,16 +205,41 @@ export function OwnershipTrail({ brandId }: OwnershipTrailProps) {
       </div>
       
       <div className="space-y-4">
-        {trail.map((entity, index) => (
-          <div key={entity.entity_id}>
-            {index > 0 && (
-              <div className="flex justify-center my-3">
-                <ChevronRight className="h-5 w-5 text-muted-foreground rotate-90" />
-              </div>
-            )}
-            <EntityWithShareholders entity={entity} />
-          </div>
-        ))}
+        {trail.map((entity, index, arr) => {
+          // Check if this entity_id appeared earlier in the chain to avoid duplicate shareholders
+          const isDuplicate = arr.slice(0, index).some(e => e.entity_id === entity.entity_id);
+          
+          return (
+            <div key={`${entity.entity_id}-${index}`}>
+              {index > 0 && (
+                <div className="flex justify-center my-3">
+                  <ChevronRight className="h-5 w-5 text-muted-foreground rotate-90" />
+                </div>
+              )}
+              {isDuplicate ? (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-card border border-border">
+                  {entity.logo_url && (
+                    <img 
+                      src={entity.logo_url} 
+                      alt={entity.entity_name}
+                      className="h-10 w-10 object-contain flex-shrink-0"
+                    />
+                  )}
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="font-semibold text-base truncate">{entity.entity_name}</span>
+                    {entity.relationship && (
+                      <Badge variant="outline" className="text-xs w-fit mt-1">
+                        {entity.relationship}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <EntityWithShareholders entity={entity} />
+              )}
+            </div>
+          );
+        })}
       </div>
       
       {trail.length > 1 && (
