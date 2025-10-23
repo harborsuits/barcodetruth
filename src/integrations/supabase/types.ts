@@ -6222,6 +6222,16 @@ export type Database = {
         Args: { p_brand_id: string }
         Returns: string
       }
+      rpc_get_brand_subsidiaries: {
+        Args: { p_brand_id: string }
+        Returns: {
+          brand_id: string
+          brand_name: string
+          confidence: number
+          logo_url: string
+          relationship: string
+        }[]
+      }
       rpc_get_key_people: {
         Args: { p_brand_id: string }
         Returns: {

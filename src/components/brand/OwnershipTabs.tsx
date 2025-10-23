@@ -28,8 +28,21 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
 
   const { data: shareholders = [], isLoading: shareholdersLoading } = useTopShareholders(brandId, 10);
   const { data: keyPeople = [], isLoading: peopleLoading } = useKeyPeople(brandId);
+  
+  // Get subsidiaries/sister brands (for context/reinforcement)
+  const { data: subsidiaries, isLoading: subsidiariesLoading } = useQuery({
+    queryKey: ['brand-subsidiaries', brandId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .rpc('rpc_get_brand_subsidiaries' as any, { p_brand_id: brandId });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!brandId,
+    staleTime: 1000 * 60 * 30,
+  });
 
-  const isLoading = headerLoading || shareholdersLoading || peopleLoading;
+  const isLoading = headerLoading || shareholdersLoading || peopleLoading || subsidiariesLoading;
 
   if (isLoading) {
     return (
@@ -60,6 +73,7 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
           <UnifiedOwnershipDisplay
             ownershipHeader={ownershipHeader}
             shareholders={shareholders}
+            subsidiaries={subsidiaries}
           />
         ) : (
           <p className="text-sm text-muted-foreground">
