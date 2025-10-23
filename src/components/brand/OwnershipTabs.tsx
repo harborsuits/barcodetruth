@@ -7,7 +7,6 @@ import { KeyPeopleRow } from "./KeyPeopleRow";
 import { useTopShareholders } from "@/hooks/useTopShareholders";
 import { useKeyPeople } from "@/hooks/useKeyPeople";
 import { Button } from "@/components/ui/button";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,7 +20,6 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
   const { data: shareholders = [], isLoading: shareholdersLoading } = useTopShareholders(brandId, 10);
   const { data: keyPeople = [], isLoading: peopleLoading } = useKeyPeople(brandId);
 
-  const isAdmin = useIsAdmin();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -85,11 +83,9 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
       <Card className="p-6 bg-muted/30 border-2">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-lg">Ownership</h3>
-          {isAdmin && (
-            <Button size="sm" variant="secondary" onClick={handleRefresh}>
-              Refresh People & Shareholders
-            </Button>
-          )}
+          <Button size="sm" variant="secondary" onClick={handleRefresh}>
+            Refresh People & Shareholders
+          </Button>
         </div>
           {ownership ? (
             <UnifiedOwnershipDisplay
