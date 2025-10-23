@@ -6169,6 +6169,7 @@ export type Database = {
           title_fp: string
         }[]
       }
+      get_enrichment_coverage: { Args: never; Returns: Json }
       get_enrichment_stats: { Args: never; Returns: Json }
       get_next_brands_fair_rotation: {
         Args: { p_limit?: number }

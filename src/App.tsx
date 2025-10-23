@@ -43,6 +43,7 @@ const AdminOpsHealth = lazyNamed(() => import("./pages/AdminOpsHealth"), "defaul
 const AdminRSSMonitor = lazyNamed(() => import("./pages/AdminRSSMonitor"), "default");
 const AdminEnrichmentMonitor = lazyNamed(() => import("./pages/AdminEnrichmentMonitor"), "default");
 const AdminCommunityRatings = lazyNamed(() => import("./pages/AdminCommunityRatings"), "default");
+const AdminBatchEnrich = lazyNamed(() => import("./pages/AdminBatchEnrich"), "default");
 const BootstrapAdmin = lazyNamed(() => import("./pages/BootstrapAdmin"), "default");
 const Privacy = lazyNamed(() => import("./pages/Privacy"), "default");
 const Terms = lazyNamed(() => import("./pages/Terms"), "default");
@@ -318,6 +319,20 @@ const App = () => {
                   <RouteErrorBoundary>
                     <Suspense fallback={<RouteFallback label="Loading community ratings…" />}>
                       <AdminCommunityRatings />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/batch-enrich"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading batch enrichment…" />}>
+                      <AdminBatchEnrich />
                     </Suspense>
                   </RouteErrorBoundary>
                 </AdminRoute>
