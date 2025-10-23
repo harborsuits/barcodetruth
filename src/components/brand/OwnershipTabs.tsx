@@ -79,6 +79,16 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
   
   // Prefer structured shareholders from ownership API, fallback to simple top-shareholders hook
   const shareholdersList = (ownership as any)?.shareholders?.top ?? shareholders;
+  const normalizedShareholders = (shareholdersList || []).map((h: any) => ({
+    name: h.name ?? h.holder_name,
+    type: h.type ?? h.holder_type ?? 'institutional',
+    percent: typeof h.percent === 'number' ? h.percent : (typeof h.percent_owned === 'number' ? h.percent_owned : undefined),
+    official_url: h.official_url ?? h.holder_url,
+    wikipedia_url: h.wikipedia_url,
+    logo_url: h.logo_url,
+    source_name: h.source_name,
+    source_url: h.source_url,
+  }));
   
   // Extract parent chain (if more than 1 level)
   const parentChain = ownership?.structure?.chain && ownership.structure.chain.length > 1 
@@ -94,7 +104,7 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
         {ownership ? (
           <UnifiedOwnershipDisplay
             company={company}
-            shareholders={shareholdersList}
+            shareholders={normalizedShareholders}
             ownershipDetails={ownership?.ownership_details}
             parentChain={parentChain}
             siblings={ownership?.structure?.siblings}

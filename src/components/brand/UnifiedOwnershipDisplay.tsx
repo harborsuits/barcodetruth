@@ -239,9 +239,11 @@ export function UnifiedOwnershipDisplay({
                       <Badge variant="outline" className="text-xs">
                         {holder.type}
                       </Badge>
-                      <Badge variant="secondary" className="font-mono text-xs">
-                        {holder.percent.toFixed(2)}%
-                      </Badge>
+                      {typeof holder.percent === 'number' && (
+                        <Badge variant="secondary" className="font-mono text-xs">
+                          {holder.percent.toFixed(2)}%
+                        </Badge>
+                      )}
                     </div>
                     {(holder.official_url || holder.wikipedia_url) && (
                       <div className="flex gap-2 mt-2">
