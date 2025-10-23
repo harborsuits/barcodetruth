@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertCircle, ExternalLink } from 'lucide-react';
@@ -8,15 +8,15 @@ import { getCategoryDisplay } from '@/lib/categoryConfig';
 type EvidenceItem = {
   event_id?: string;
   event_date: string;
-  title: string;
-  verification: string | null;
-  source_name: string | null;
-  canonical_url: string | null;
-  category: string | null;
+  title: string | null;
+  verification?: "official" | "corroborated" | "unverified" | string | null;
+  source_name?: string | null;
+  canonical_url?: string | null;
+  category?: "labor" | "environment" | "politics" | "social" | string | null;
   category_code?: string | null;
   ai_summary?: string | null;
-  secondary_categories?: string[];
-  noise_reason?: string;
+  secondary_categories?: string[] | null;
+  noise_reason?: string | null;
 };
 
 type Props = {
@@ -25,10 +25,7 @@ type Props = {
   onSuggest: () => void;
 };
 
-export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
-
-  const categoryGroups: Record<string, number> = {
+const CATEGORY_GROUPS: Record<string, number> = {
     'Product Safety': 10,
     'Regulatory': 20,
     'Legal': 30,
@@ -40,7 +37,7 @@ export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
     'Noise': 90
   };
 
-  const codeToGroup: Record<string, string> = {
+const CODE_TO_GROUP: Record<string, string> = {
     'FIN.EARNINGS': 'Financial',
     'FIN.MARKETS': 'Financial',
     'FIN.MNA': 'Financial',
@@ -69,84 +66,100 @@ export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
     'NOISE.FINANCIAL': 'Noise'
   };
 
-  const getGroupName = (code: string | null, legacyCategory: string | null): string => {
-    if (code && codeToGroup[code]) {
-      return codeToGroup[code];
-    }
-    if (code) {
-      const prefix = code.split('.')[0];
-      if (prefix === 'FIN') return 'Financial';
-      if (prefix === 'PRODUCT') return 'Product Safety';
-      if (prefix === 'LEGAL') return 'Legal';
-      if (prefix === 'REGULATORY') return 'Regulatory';
-      if (prefix === 'LABOR') return 'Labor';
-      if (prefix === 'ESG' || prefix === 'ENV') return 'ESG (Environment)';
-      if (prefix === 'SOC') return 'Social & Cultural';
-      if (prefix === 'POLICY') return 'Policy';
-      if (prefix === 'NOISE') return 'Noise';
-    }
-    if (legacyCategory === 'labor') return 'Labor';
-    if (legacyCategory === 'environment') return 'ESG (Environment)';
-    if (legacyCategory === 'politics') return 'Policy';
-    if (legacyCategory === 'social') return 'Social & Cultural';
-    return 'Noise';
-  };
+export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
-  const getVerificationRank = (v: string | null) =>
-    v === 'official' ? 1 : v === 'corroborated' ? 2 : 3;
+  // Analytics: track filter changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).rudderstack?.track) {
+      (window as any).rudderstack.track('EvidenceCategoryFilter', { category: categoryFilter });
+    }
+  }, [categoryFilter]);
 
-  const evidenceWithGroups = evidence.map(ev => {
-    const groupName = getGroupName(ev.category_code, ev.category);
-    return {
-      ...ev,
-      group_name: groupName,
-      group_order: categoryGroups[groupName] ?? 90,
-      verification_rank: getVerificationRank(ev.verification)
+  // Memoize heavy transforms for performance
+  const evidenceWithGroups = useMemo(() => {
+    const getGroupName = (code?: string | null, legacyCategory?: string | null): string => {
+      if (code && CODE_TO_GROUP[code]) {
+        return CODE_TO_GROUP[code];
+      }
+      if (code) {
+        const prefix = code.split('.')[0];
+        if (prefix === 'FIN') return 'Financial';
+        if (prefix === 'PRODUCT') return 'Product Safety';
+        if (prefix === 'LEGAL') return 'Legal';
+        if (prefix === 'REGULATORY') return 'Regulatory';
+        if (prefix === 'LABOR') return 'Labor';
+        if (prefix === 'ESG' || prefix === 'ENV') return 'ESG (Environment)';
+        if (prefix === 'SOC') return 'Social & Cultural';
+        if (prefix === 'POLICY') return 'Policy';
+        if (prefix === 'NOISE') return 'Noise';
+      }
+      if (legacyCategory === 'labor') return 'Labor';
+      if (legacyCategory === 'environment') return 'ESG (Environment)';
+      if (legacyCategory === 'politics') return 'Policy';
+      if (legacyCategory === 'social') return 'Social & Cultural';
+      return 'Noise';
     };
-  });
 
-  const clusterKey = (ev: any) => {
-    const normalized = (ev.title || '').trim().toLowerCase();
-    const url = ev.canonical_url || '';
-    return `${normalized}|${url}`;
-  };
+    const getVerificationRank = (v?: string | null) =>
+      v === 'official' ? 1 : v === 'corroborated' ? 2 : 3;
 
-  const clusterMap = evidenceWithGroups.reduce((acc, ev) => {
-    const key = clusterKey(ev);
-    if (!acc[key]) {
-      acc[key] = { ...ev, _outlets: new Set(), _count: 0 };
+    return evidence.map(ev => ({
+      ...ev,
+      group_name: getGroupName(ev.category_code, ev.category),
+      group_order: CATEGORY_GROUPS[getGroupName(ev.category_code, ev.category)] ?? 90,
+      verification_rank: getVerificationRank(ev.verification ?? null),
+    }));
+  }, [evidence]);
+
+  const clusteredEvidence = useMemo(() => {
+    // Cluster by title + URL + day bucket (so same headline on different days doesn't always merge)
+    const dayBucket = (iso: string) => new Date(iso).toISOString().slice(0, 10);
+    const clusterKey = (ev: typeof evidenceWithGroups[0]) =>
+      `${(ev.title ?? '').trim().toLowerCase()}|${ev.canonical_url ?? ''}|${dayBucket(ev.event_date)}`;
+
+    const map: Record<string, any> = {};
+    for (const ev of evidenceWithGroups) {
+      const key = clusterKey(ev);
+      if (!map[key]) {
+        map[key] = { ...ev, _outlets: new Set<string>(), _count: 0 };
+      }
+      map[key]._count++;
+      if (ev.source_name) map[key]._outlets.add(ev.source_name);
     }
-    acc[key]._count++;
-    if (ev.source_name) acc[key]._outlets.add(ev.source_name);
+    return Object.values(map);
+  }, [evidenceWithGroups]);
+
+  const filteredEvidence = useMemo(() => {
+    return categoryFilter === 'all'
+      ? clusteredEvidence
+      : clusteredEvidence.filter((e: any) => e.group_name === categoryFilter);
+  }, [clusteredEvidence, categoryFilter]);
+
+  const sortedEvidence = useMemo(() => {
+    return [...filteredEvidence].sort((a: any, b: any) => {
+      if (a.group_order !== b.group_order) return a.group_order - b.group_order;
+      if (a.verification_rank !== b.verification_rank) return a.verification_rank - b.verification_rank;
+      return new Date(b.event_date).getTime() - new Date(a.event_date).getTime();
+    });
+  }, [filteredEvidence]);
+
+  const grouped = useMemo(() => {
+    const acc: Record<string, any[]> = {};
+    for (const ev of sortedEvidence) {
+      (acc[ev.group_name] ??= []).push(ev);
+    }
     return acc;
-  }, {} as Record<string, any>);
+  }, [sortedEvidence]);
 
-  const clusteredEvidence = Object.values(clusterMap);
-
-  const filteredEvidence = categoryFilter === 'all'
-    ? clusteredEvidence
-    : clusteredEvidence.filter(e => e.group_name === categoryFilter);
-
-  const sortedEvidence = [...filteredEvidence].sort((a, b) => {
-    if (a.group_order !== b.group_order) return a.group_order - b.group_order;
-    if (a.verification_rank !== b.verification_rank) return a.verification_rank - b.verification_rank;
-    return new Date(b.event_date).getTime() - new Date(a.event_date).getTime();
-  });
-
-  const grouped = sortedEvidence.reduce((acc, ev) => {
-    if (!acc[ev.group_name]) acc[ev.group_name] = [];
-    acc[ev.group_name].push(ev);
-    return acc;
-  }, {} as Record<string, typeof sortedEvidence>);
-
-  const groupOrder = Object.keys(grouped).sort((a, b) =>
-    (categoryGroups[a] ?? 90) - (categoryGroups[b] ?? 90)
-  );
+  const groupOrder = useMemo(() => {
+    return Object.keys(grouped).sort((a, b) => (CATEGORY_GROUPS[a] ?? 90) - (CATEGORY_GROUPS[b] ?? 90));
+  }, [grouped]);
 
   return (
     <div className="space-y-4">
-      {/* Category Filter */}
-      <div className="flex flex-wrap gap-2">
+      {/* Category Filter with semantic roles */}
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Evidence categories">
         {[
           { label: 'All', value: 'all' },
           { label: 'Product Safety', value: 'Product Safety' },
@@ -161,6 +174,8 @@ export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
         ].map((filter) => (
           <button
             key={filter.value}
+            role="tab"
+            aria-selected={categoryFilter === filter.value}
             onClick={() => setCategoryFilter(filter.value)}
             className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
               categoryFilter === filter.value
@@ -180,7 +195,7 @@ export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
         </div>
       )}
 
-      {/* Evidence list */}
+      {/* Evidence list with semantic structure */}
       {!sortedEvidence.length ? (
         <div className="text-center py-12 text-muted-foreground">
           <AlertCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
@@ -204,30 +219,32 @@ export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
           )}
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-6" role="list" aria-label="Evidence timeline">
           {groupOrder.map(groupName => (
-            <div key={groupName} className="space-y-3">
+            <section key={groupName} className="space-y-3" aria-labelledby={`group-${groupName}`}>
               {/* Group Header */}
               <div className="flex items-center gap-2 pb-2 border-b">
-                <h4 className="font-semibold text-sm">{groupName}</h4>
+                <h4 id={`group-${groupName}`} className="font-semibold text-sm">{groupName}</h4>
                 <Badge variant="secondary" className="text-xs">
                   {grouped[groupName].length}
                 </Badge>
               </div>
 
-              {/* Events */}
+              {/* Events - use stable keys */}
               {grouped[groupName].map((ev, idx) => {
                 const isOfficial = ev.verification === 'official';
                 const isCorroborated = ev.verification === 'corroborated';
+                const isNoise = ev.category_code?.startsWith('NOISE');
 
                 return (
-                  <div
-                    key={idx}
+                  <article
+                    key={ev.event_id ?? `ev-${idx}`}
                     className={`p-4 rounded-lg border transition-colors ${
                       isOfficial ? 'border-destructive/50 bg-destructive/5' :
                       isCorroborated ? 'border-primary/50 bg-primary/5' :
                       'border-border bg-card'
-                    }`}
+                    } ${isNoise ? 'opacity-70' : ''}`}
+                    role="listitem"
                   >
                     <div className="flex items-start gap-3">
                       <div className={`mt-0.5 flex-shrink-0 ${
@@ -298,9 +315,9 @@ export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
                           </span>
                         </div>
 
-                        {/* Title */}
+                        {/* Title with null safety */}
                         <h4 className="font-semibold text-base leading-tight mb-2">
-                          {ev.title || 'Untitled Event'}
+                          {ev.title ?? 'Untitled Event'}
                           {ev._count > 1 && (
                             <span className="ml-2 text-xs border rounded-full px-2 py-0.5 text-muted-foreground">
                               +{ev._count - 1} {ev._count === 2 ? 'outlet' : 'outlets'}
@@ -330,14 +347,16 @@ export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
                           )}
                           <div className="flex gap-3 text-xs text-muted-foreground">
                             <button
-                              onClick={() => onReport(ev.event_id)}
+                              onClick={() => onReport(ev.event_id ?? undefined)}
                               className="underline hover:text-foreground"
+                              aria-label="Report issue with this event"
                             >
                               Report issue
                             </button>
                             <button
                               onClick={onSuggest}
                               className="underline hover:text-foreground"
+                              aria-label="Suggest additional evidence"
                             >
                               Suggest evidence
                             </button>
@@ -345,10 +364,10 @@ export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </article>
                 );
               })}
-            </div>
+            </section>
           ))}
         </div>
       )}

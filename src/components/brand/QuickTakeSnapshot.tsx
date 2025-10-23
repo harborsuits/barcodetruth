@@ -55,6 +55,7 @@ export function QuickTakeSnapshot({ brandId }: QuickTakeSnapshotProps) {
       <div className="mt-4 text-xs text-muted-foreground">
         Snapshot based on current verified data •{" "}
         Updated {data.last_updated ? new Date(data.last_updated).toLocaleDateString() : "—"}
+        {data.composite_score === null && " • Baseline until more events arrive"}
       </div>
     </div>
   );
