@@ -6159,7 +6159,7 @@ export type Database = {
           investor_name: string
           is_asset_manager: boolean
           last_verified_at: string
-          percent_owned: number
+          pct: number
           source: string
         }[]
       }
