@@ -5,20 +5,28 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDistanceToNow } from 'date-fns';
 import { CheckCircle2, XCircle, Clock, RefreshCw, Users, Building2, DollarSign, FileText } from 'lucide-react';
 
 export default function AdminEnrichmentMonitor() {
   const [triggeringBatch, setTriggeringBatch] = useState(false);
+  const [taskFilter, setTaskFilter] = useState<string>('all');
 
   const { data: runs, isLoading, refetch } = useQuery({
-    queryKey: ['enrichment-runs'],
+    queryKey: ['enrichment-runs', taskFilter],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('enrichment_runs')
         .select('*')
         .order('finished_at', { ascending: false, nullsFirst: false })
         .limit(50);
+      
+      if (taskFilter !== 'all') {
+        query = query.eq('task', taskFilter);
+      }
+      
+      const { data, error } = await query;
       
       if (error) throw error;
       return data;
@@ -72,6 +80,18 @@ export default function AdminEnrichmentMonitor() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Select value={taskFilter} onValueChange={setTaskFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by task" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Tasks</SelectItem>
+                <SelectItem value="wiki">Wiki</SelectItem>
+                <SelectItem value="ownership">Ownership</SelectItem>
+                <SelectItem value="key_people">Key People</SelectItem>
+                <SelectItem value="shareholders">Shareholders</SelectItem>
+              </SelectContent>
+            </Select>
             <Button onClick={() => refetch()} variant="outline" size="sm">
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh

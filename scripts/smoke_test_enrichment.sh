@@ -1,8 +1,13 @@
 #!/bin/bash
 # Enrichment Pipeline Smoke Tests
 # Run this script to verify all enrichers are working correctly
+# Usage: ./smoke_test_enrichment.sh <BRAND_UUID>
 
 set -e
+
+# Check required commands
+command -v jq >/dev/null || { echo "ERROR: jq required (brew install jq)"; exit 1; }
+command -v curl >/dev/null || { echo "ERROR: curl required"; exit 1; }
 
 # Colors for output
 RED='\033[0;31m'
@@ -12,16 +17,10 @@ NC='\033[0m' # No Color
 
 # Configuration
 SUPABASE_URL="${SUPABASE_URL:-https://midmvcwtywnexzdwbekp.supabase.co}"
-SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY:-}"
+SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY:?ERROR: Set SUPABASE_SERVICE_ROLE_KEY}"
 
-if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
-  echo -e "${RED}ERROR: SUPABASE_SERVICE_ROLE_KEY not set${NC}"
-  echo "Set it with: export SUPABASE_SERVICE_ROLE_KEY='your-key'"
-  exit 1
-fi
-
-# Test brand (replace with actual UUID)
-TEST_BRAND_ID="${TEST_BRAND_ID:-08bfcb05-e7be-4e41-a326-6c31b28c0830}"
+# Test brand (required argument)
+TEST_BRAND_ID="${1:?Usage: $0 <BRAND_UUID>}"
 
 echo "================================================"
 echo "  Enrichment Pipeline Smoke Tests"
