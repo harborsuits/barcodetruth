@@ -22,6 +22,27 @@ export default tseslint.config(
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
       "no-duplicate-imports": "error",
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@/components/brand/OwnershipCard",
+              message: "Use OwnershipBanner instead.",
+            },
+            {
+              name: "src/components/brand/OwnershipCard",
+              message: "Use OwnershipBanner instead.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["**/OwnershipCard"],
+              message: "Use OwnershipBanner instead.",
+            },
+          ],
+        },
+      ],
       "no-restricted-syntax": [
         "error",
         {
