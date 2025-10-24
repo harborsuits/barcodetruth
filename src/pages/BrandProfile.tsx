@@ -274,6 +274,27 @@ export default function BrandProfile() {
     enabled: !!actualId,
   });
 
+  // Fetch community ratings to determine if we have enough data for scores
+  const RATING_THRESHOLD = 25;
+  const { data: communityOutlook } = useQuery({
+    queryKey: ['community-outlook', actualId],
+    queryFn: async () => {
+      if (!actualId) return null;
+      const { data, error } = await supabase.functions.invoke('community-outlook', {
+        body: { brand_id: actualId },
+      });
+      if (error) {
+        console.error('Error fetching community outlook:', error);
+        return null;
+      }
+      return data;
+    },
+    enabled: !!actualId,
+  });
+
+  const totalCommunityRatings = communityOutlook?.categories?.reduce((sum: number, cat: any) => sum + (cat.n || 0), 0) || 0;
+  const hasEnoughRatings = totalCommunityRatings >= RATING_THRESHOLD;
+
   // Fetch company info (ownership, key people, valuation)
   const { data: companyInfo, refetch: refetchCompanyInfo } = useQuery({
     queryKey: ['company-info', actualId],
@@ -586,24 +607,28 @@ export default function BrandProfile() {
             score={personalizedScore?.score_labor ?? data.score?.score_labor ?? 50}
             eventCount={data.evidence?.filter(e => e.category === 'labor').length || 0}
             onClick={() => setCategoryFilter('labor')}
+            hasEnoughRatings={hasEnoughRatings}
           />
           <CategoryScoreCard 
             category="environment" 
             score={personalizedScore?.score_environment ?? data.score?.score_environment ?? 50}
             eventCount={data.evidence?.filter(e => e.category === 'environment').length || 0}
             onClick={() => setCategoryFilter('environment')}
+            hasEnoughRatings={hasEnoughRatings}
           />
           <CategoryScoreCard 
             category="politics" 
             score={personalizedScore?.score_politics ?? data.score?.score_politics ?? 50}
             eventCount={data.evidence?.filter(e => e.category === 'politics').length || 0}
             onClick={() => setCategoryFilter('politics')}
+            hasEnoughRatings={hasEnoughRatings}
           />
           <CategoryScoreCard 
             category="social" 
             score={personalizedScore?.score_social ?? data.score?.score_social ?? 50}
             eventCount={data.evidence?.filter(e => e.category === 'social').length || 0}
             onClick={() => setCategoryFilter('social')}
+            hasEnoughRatings={hasEnoughRatings}
           />
         </div>
 

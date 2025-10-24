@@ -7,6 +7,7 @@ interface CategoryScoreCardProps {
   score: number;
   eventCount: number;
   onClick?: () => void;
+  hasEnoughRatings?: boolean;
 }
 
 const categoryConfig = {
@@ -32,7 +33,7 @@ const categoryConfig = {
   }
 };
 
-export function CategoryScoreCard({ category, score, eventCount, onClick }: CategoryScoreCardProps) {
+export function CategoryScoreCard({ category, score, eventCount, onClick, hasEnoughRatings = true }: CategoryScoreCardProps) {
   const config = categoryConfig[category];
   const Icon = config.icon;
   
@@ -62,10 +63,18 @@ export function CategoryScoreCard({ category, score, eventCount, onClick }: Cate
       </div>
       
       <div className="flex items-baseline gap-2">
-        <span className={`text-3xl font-bold ${getScoreColor(score)}`}>
-          {score}
-        </span>
-        <span className="text-muted-foreground text-sm">/100</span>
+        {hasEnoughRatings ? (
+          <>
+            <span className={`text-3xl font-bold ${getScoreColor(score)}`}>
+              {score}
+            </span>
+            <span className="text-muted-foreground text-sm">/100</span>
+          </>
+        ) : (
+          <span className="text-3xl font-bold text-muted-foreground">
+            TBD
+          </span>
+        )}
       </div>
     </Card>
   );
