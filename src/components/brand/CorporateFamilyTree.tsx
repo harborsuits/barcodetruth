@@ -1,6 +1,9 @@
-import { Link } from 'react-router-dom';
-import { Building2, ArrowRight } from 'lucide-react';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Building2, ArrowRight, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface RelatedEntity {
   id: string;
@@ -23,6 +26,52 @@ interface CorporateFamilyTreeProps {
 }
 
 export function CorporateFamilyTree({ graph }: CorporateFamilyTreeProps) {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [loadingSubsidiary, setLoadingSubsidiary] = useState<string | null>(null);
+
+  const handleSubsidiaryClick = async (subsidiary: RelatedEntity) => {
+    if (!subsidiary.qid) {
+      toast({
+        title: "Error",
+        description: "Unable to load brand profile - missing data",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    console.log('[Subsidiary Click] Creating/loading:', subsidiary.name);
+    setLoadingSubsidiary(subsidiary.qid);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('create-brand-from-wikidata', {
+        body: { 
+          qid: subsidiary.qid, 
+          name: subsidiary.name,
+          parent_qid: graph.entity_qid
+        }
+      });
+      
+      if (error) throw error;
+      
+      if (data?.success && data.brand_id) {
+        console.log('[Subsidiary Click] Navigating to brand:', data.brand_id);
+        navigate(`/brand/${data.brand_id}`);
+      } else {
+        throw new Error('Failed to create brand');
+      }
+    } catch (error) {
+      console.error('[Subsidiary Click] Error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load brand profile",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingSubsidiary(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Parent */}
@@ -76,15 +125,20 @@ export function CorporateFamilyTree({ graph }: CorporateFamilyTreeProps) {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {graph.subsidiaries.map((sub) => (
-              <Link 
+              <button
                 key={sub.qid}
-                to={`/brand/${sub.qid}`}
-                className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-accent/50 transition-colors text-sm group"
+                onClick={() => handleSubsidiaryClick(sub)}
+                disabled={loadingSubsidiary === sub.qid}
+                className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-accent/50 transition-colors text-sm group disabled:opacity-50 disabled:cursor-not-allowed text-left w-full"
               >
                 <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="truncate flex-1">{sub.name}</span>
-                <ArrowRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-              </Link>
+                {loadingSubsidiary === sub.qid ? (
+                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />
+                ) : (
+                  <ArrowRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                )}
+              </button>
             ))}
           </div>
         </div>
