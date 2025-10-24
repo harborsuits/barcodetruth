@@ -19,6 +19,12 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
 
   if (isLoading || !data) return null;
 
+  // If this is an ultimate parent (self-owned/independent), don't show the chain
+  if (data.is_ultimate_parent) return null;
+
+  // Only show if there's a real parent company
+  if (!data.owner_company_name) return null;
+
   return (
     <div className="rounded-2xl border-2 border-border p-6 bg-card">
       <div className="text-sm text-muted-foreground mb-4">
@@ -29,13 +35,8 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
         <Node label="You" />
         <Arrow />
         <Node label={brandName} emphasis />
-        
-        {!data.is_ultimate_parent && data.owner_company_name && (
-          <>
-            <Arrow />
-            <Node label={data.owner_company_name} />
-          </>
-        )}
+        <Arrow />
+        <Node label={data.owner_company_name} />
         
         {data.ultimate_parent_name && (
           <>
