@@ -30,19 +30,9 @@ async function getOwnershipGraph(brandName: string): Promise<OwnershipGraph> {
     throw new Error('Entity not found in Wikidata');
   }
   
-  // Filter for companies/brands
-  const entity = searchData.search.find((r: any) => {
-    const desc = (r.description || '').toLowerCase();
-    return desc.includes('company') || desc.includes('brand') || desc.includes('corporation') || desc.includes('business');
-  });
-  
-  if (!entity) {
-    // Fallback to first result if no company description found
-    const firstEntity = searchData.search[0];
-    console.log('[Wikidata] No company description, using first result:', firstEntity.id);
-  }
-  
-  const selectedEntity = entity || searchData.search[0];
+  // Use first result - Wikidata search is already relevant
+  const selectedEntity = searchData.search[0];
+  console.log('[Wikidata] Using first result:', selectedEntity.id, selectedEntity.label);
   const qid = selectedEntity.id;
   console.log('[Wikidata] Found QID:', qid, 'for', brandName);
   

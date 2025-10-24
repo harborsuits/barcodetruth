@@ -14,7 +14,6 @@ import { toast } from '@/hooks/use-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBrandLogo } from '@/hooks/useBrandLogo';
 import { getCategoryDisplay, type CategoryGroup } from '@/lib/categoryConfig';
-import { OwnershipGraph } from '@/components/ownership/OwnershipGraph';
 import { OwnershipTrail } from '@/components/ownership/OwnershipTrail';
 import { SubsidiaryFeed } from '@/components/ownership/SubsidiaryFeed';
 import { RollupScores } from '@/components/ownership/RollupScores';
@@ -652,9 +651,6 @@ export default function BrandProfile() {
           <>
             {/* Ownership Trail */}
             {actualId && <OwnershipTrail brandId={actualId} />}
-
-            {/* Ownership Structure */}
-            {actualId && <OwnershipGraph brandId={actualId} />}
 
             {/* Consolidated Scores (if has subsidiaries) */}
             {actualId && <RollupScores brandId={actualId} />}
