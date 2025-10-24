@@ -6316,6 +6316,14 @@ export type Database = {
         Args: { p_brand_id: string }
         Returns: string
       }
+      rpc_get_brand_ownership_header: {
+        Args: { p_brand_id: string }
+        Returns: {
+          is_ultimate_parent: boolean
+          owner_company_name: string
+          ultimate_parent_name: string
+        }[]
+      }
       rpc_get_brand_quick_take: {
         Args: { p_brand_id: string }
         Returns: {

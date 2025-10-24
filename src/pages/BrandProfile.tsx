@@ -579,17 +579,6 @@ export default function BrandProfile() {
         <SectionHeader>Who owns {data.brand.name}?</SectionHeader>
         <WhoProfits brandId={actualId!} brandName={data.brand.name} />
 
-        {/* 4) Evidence + Community Tabs */}
-        <SectionHeader>What's happening at {data.brand.name}?</SectionHeader>
-        <EvidenceCommunityTabs
-          brandId={actualId!}
-          brandName={data.brand.name}
-          evidenceContent={
-            // Evidence rendering code will go here
-            <div>Evidence content placeholder</div>
-          }
-        />
-
         {/* 5) Detailed Category Scores */}
         <SectionHeader>How is {data.brand.name} rated by category?</SectionHeader>
         <div className="grid grid-cols-2 gap-4">
