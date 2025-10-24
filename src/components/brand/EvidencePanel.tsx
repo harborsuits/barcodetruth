@@ -4,6 +4,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { AlertCircle, ExternalLink } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { getCategoryDisplay } from '@/lib/categoryConfig';
+import { deduplicateEvents } from '@/lib/deduplicateEvents';
 
 type EvidenceItem = {
   event_id?: string;
@@ -69,6 +70,7 @@ const CODE_TO_GROUP: Record<string, string> = {
 export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [showAll, setShowAll] = useState(false);
+  const [showDuplicates, setShowDuplicates] = useState(false);
 
   // Analytics: track filter changes
   useEffect(() => {
@@ -76,6 +78,11 @@ export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
       (window as any).rudderstack.track('EvidenceCategoryFilter', { category: categoryFilter });
     }
   }, [categoryFilter]);
+
+  // First deduplicate using string similarity
+  const deduplicatedEvidence = useMemo(() => {
+    return deduplicateEvents(evidence);
+  }, [evidence]);
 
   // Memoize heavy transforms for performance
   const evidenceWithGroups = useMemo(() => {
@@ -105,30 +112,16 @@ export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
     const getVerificationRank = (v?: string | null) =>
       v === 'official' ? 1 : v === 'corroborated' ? 2 : 3;
 
-    return evidence.map(ev => ({
+    return deduplicatedEvidence.map(ev => ({
       ...ev,
       group_name: getGroupName(ev.category_code, ev.category),
       group_order: CATEGORY_GROUPS[getGroupName(ev.category_code, ev.category)] ?? 90,
       verification_rank: getVerificationRank(ev.verification ?? null),
     }));
-  }, [evidence]);
+  }, [deduplicatedEvidence]);
 
   const clusteredEvidence = useMemo(() => {
-    // Cluster by title + URL + day bucket (so same headline on different days doesn't always merge)
-    const dayBucket = (iso: string) => new Date(iso).toISOString().slice(0, 10);
-    const clusterKey = (ev: typeof evidenceWithGroups[0]) =>
-      `${(ev.title ?? '').trim().toLowerCase()}|${ev.canonical_url ?? ''}|${dayBucket(ev.event_date)}`;
-
-    const map: Record<string, any> = {};
-    for (const ev of evidenceWithGroups) {
-      const key = clusterKey(ev);
-      if (!map[key]) {
-        map[key] = { ...ev, _outlets: new Set<string>(), _count: 0 };
-      }
-      map[key]._count++;
-      if (ev.source_name) map[key]._outlets.add(ev.source_name);
-    }
-    return Object.values(map);
+    return evidenceWithGroups;
   }, [evidenceWithGroups]);
 
   const filteredEvidence = useMemo(() => {
@@ -177,8 +170,29 @@ export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
 
   const hasMore = sortedEvidence.length > 5;
 
+  const uniqueCount = deduplicatedEvidence.length;
+  const totalCount = evidence.length;
+
   return (
     <div className="space-y-4">
+      {/* Header with stats and toggle */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="text-sm text-muted-foreground">
+          Showing {uniqueCount} unique {uniqueCount === 1 ? 'story' : 'stories'}
+          {totalCount > uniqueCount && (
+            <span> from {totalCount} {totalCount === 1 ? 'source' : 'sources'}</span>
+          )}
+        </div>
+        {totalCount > uniqueCount && (
+          <button
+            onClick={() => setShowDuplicates(!showDuplicates)}
+            className="text-xs text-primary hover:underline"
+          >
+            {showDuplicates ? 'Hide' : 'Show'} duplicate sources
+          </button>
+        )}
+      </div>
+
       {/* Category Filter with semantic roles */}
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Evidence categories">
         {[
@@ -340,12 +354,32 @@ export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
                         {/* Title with null safety */}
                         <h4 className="font-semibold text-base leading-tight mb-2">
                           {ev.title ?? 'Untitled Event'}
-                          {ev._count > 1 && (
-                            <span className="ml-2 text-xs border rounded-full px-2 py-0.5 text-muted-foreground">
-                              +{ev._count - 1} {ev._count === 2 ? 'outlet' : 'outlets'}
-                            </span>
-                          )}
                         </h4>
+
+                        {/* Show duplicate sources */}
+                        {ev.duplicates && ev.duplicates.length > 0 && (
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
+                            <span className="text-xs text-muted-foreground">
+                              Also reported by:
+                            </span>
+                            {(showDuplicates ? ev.duplicates : ev.duplicates.slice(0, 3)).map((dup: any, idx: number) => (
+                              <a
+                                key={idx}
+                                href={dup.source_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs bg-muted px-2 py-1 rounded hover:bg-muted/80 transition-colors"
+                              >
+                                {dup.source_name}
+                              </a>
+                            ))}
+                            {!showDuplicates && ev.duplicates.length > 3 && (
+                              <span className="text-xs text-muted-foreground">
+                                +{ev.duplicates.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        )}
 
                         {/* AI Summary */}
                         {ev.ai_summary && (
