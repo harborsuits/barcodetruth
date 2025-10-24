@@ -44,6 +44,9 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
 
   const isLoading = headerLoading || shareholdersLoading || peopleLoading || subsidiariesLoading;
 
+  // Detect if company is likely private (no shareholders data)
+  const isLikelyPrivate = !shareholdersLoading && shareholders.length === 0;
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -82,14 +85,22 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
       <Card className="p-6 bg-muted/30 border-2">
         <KeyPeopleRow 
           people={keyPeople} 
-          emptyMessage="No verified key people yet — we'll show parent data or filings as soon as they're available."
+          emptyMessage={
+            isLikelyPrivate 
+              ? "Executive data not yet available. Private companies are not required to publicly disclose leadership information."
+              : "No verified key people yet — we'll show executive data as soon as filings are available."
+          }
         />
       </Card>
 
       {/* Top Shareholders Card - always show with empty state */}
       <TopShareholdersCard 
         shareholders={shareholders}
-        emptyMessage="Ownership structure will appear as soon as we parse filings or parent data."
+        emptyMessage={
+          isLikelyPrivate
+            ? "This company appears to be privately held and is not required to file public shareholder disclosures."
+            : "Shareholder data will appear once SEC 13F filings are processed."
+        }
       />
     </div>
   );
