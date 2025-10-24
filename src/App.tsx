@@ -45,6 +45,7 @@ const AdminEnrichmentMonitor = lazyNamed(() => import("./pages/AdminEnrichmentMo
 const AdminCommunityRatings = lazyNamed(() => import("./pages/AdminCommunityRatings"), "default");
 const AdminBatchEnrich = lazyNamed(() => import("./pages/AdminBatchEnrich"), "default");
 const AdminUsers = lazyNamed(() => import("./pages/AdminUsers"), "default");
+const Feed = lazyNamed(() => import("./pages/Feed"), "default");
 const BootstrapAdmin = lazyNamed(() => import("./pages/BootstrapAdmin"), "default");
 const Privacy = lazyNamed(() => import("./pages/Privacy"), "default");
 const Terms = lazyNamed(() => import("./pages/Terms"), "default");
@@ -189,6 +190,18 @@ const App = () => {
                 <RouteErrorBoundary>
                   <Suspense fallback={<RouteFallback label="Loading trending…" />}>
                     <Trending />
+                  </Suspense>
+                </RouteErrorBoundary>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/feed"
+            element={
+              <ProtectedRoute>
+                <RouteErrorBoundary>
+                  <Suspense fallback={<RouteFallback label="Loading feed…" />}>
+                    <Feed />
                   </Suspense>
                 </RouteErrorBoundary>
               </ProtectedRoute>

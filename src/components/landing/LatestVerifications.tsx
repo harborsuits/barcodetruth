@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Clock } from "lucide-react";
+import { formatEventTime } from "@/lib/formatTime";
 
 export function LatestVerifications() {
   const { data: recentSources, isLoading } = useQuery({
@@ -19,15 +20,6 @@ export function LatestVerifications() {
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
-
-  const timeAgo = (dateStr: string) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    if (days > 0) return `${days}d ago`;
-    if (hours > 0) return `${hours}h ago`;
-    return "Just now";
-  };
 
   if (isLoading) {
     return (
@@ -77,7 +69,7 @@ export function LatestVerifications() {
                 {item.domain_owner || item.source_name}
               </span>
               <span className="text-muted-foreground">·</span>
-              <span className="text-muted-foreground">{timeAgo(item.source_date!)}</span>
+              <span className="text-muted-foreground">{formatEventTime(item.source_date!)}</span>
             </div>
           ))}
         </div>

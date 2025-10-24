@@ -7,6 +7,7 @@ import { TrendingPreview } from "@/components/landing/TrendingPreview";
 import { TrustedSources } from "@/components/landing/TrustedSources";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { LatestVerifications } from "@/components/landing/LatestVerifications";
+import { RecentVerifications } from "@/components/landing/RecentVerifications";
 import { TopMovers24h } from "@/components/landing/TopMovers24h";
 import { AttributionFooter } from "@/components/AttributionFooter";
 import { SubscriptionBanner } from "@/components/SubscriptionBanner";
@@ -26,6 +27,7 @@ export const Home = () => {
         <HeroSection />
         <SubscriptionBanner />
         <TopMovers24h />
+        <RecentVerifications />
         <LatestVerifications />
         <TrendingPreview />
         <HowItWorks />
