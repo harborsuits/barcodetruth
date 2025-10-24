@@ -23,11 +23,16 @@ export function useScanLimit() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
+        // Anonymous users get 5 free scans
+        const anonScans = localStorage.getItem('anon_scans_used');
+        const scansUsed = anonScans ? parseInt(anonScans, 10) : 0;
+        const scansRemaining = Math.max(0, 5 - scansUsed);
+        
         setLimit({
-          can_scan: false,
+          can_scan: scansRemaining > 0,
           is_subscribed: false,
-          scans_remaining: 0,
-          scans_used: 0,
+          scans_remaining: scansRemaining,
+          scans_used: scansUsed,
           loading: false,
         });
         return;
@@ -81,7 +86,15 @@ export function useScanLimit() {
   const trackScan = async (brandId?: string, barcode?: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      
+      if (!user) {
+        // Track anonymous scans in localStorage
+        const anonScans = localStorage.getItem('anon_scans_used');
+        const scansUsed = anonScans ? parseInt(anonScans, 10) : 0;
+        localStorage.setItem('anon_scans_used', String(scansUsed + 1));
+        await checkLimit();
+        return;
+      }
 
       await supabase.from('user_scans').insert({
         user_id: user.id,
