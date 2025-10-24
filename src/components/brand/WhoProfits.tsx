@@ -19,12 +19,6 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
 
   if (isLoading || !data) return null;
 
-  // If this is an ultimate parent (self-owned/independent), don't show the chain
-  if (data.is_ultimate_parent) return null;
-
-  // Only show if there's a real parent company
-  if (!data.owner_company_name) return null;
-
   return (
     <div className="rounded-2xl border-2 border-border p-6 bg-card">
       <div className="text-sm text-muted-foreground mb-4">
@@ -35,8 +29,13 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
         <Node label="You" />
         <Arrow />
         <Node label={brandName} emphasis />
-        <Arrow />
-        <Node label={data.owner_company_name} />
+        
+        {!data.is_ultimate_parent && data.owner_company_name && (
+          <>
+            <Arrow />
+            <Node label={data.owner_company_name} />
+          </>
+        )}
         
         {data.ultimate_parent_name && (
           <>
@@ -50,9 +49,7 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
       </div>
       
       <div className="mt-4 text-xs text-muted-foreground bg-muted/30 p-3 rounded-lg">
-        <strong>Note:</strong> Institutional shareholders (e.g., index funds) are
-        passive investors and do not control the company. They are listed
-        separately in the shareholders section below.
+        <strong>Note:</strong> Revenue flows to {data.is_ultimate_parent ? brandName : "controlling entities"} and then to their shareholders (e.g., index funds, institutional investors) who are listed in the shareholders section below.
       </div>
     </div>
   );
