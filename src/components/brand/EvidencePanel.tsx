@@ -68,6 +68,7 @@ const CODE_TO_GROUP: Record<string, string> = {
 
 export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [showAll, setShowAll] = useState(false);
 
   // Analytics: track filter changes
   useEffect(() => {
@@ -156,6 +157,26 @@ export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
     return Object.keys(grouped).sort((a, b) => (CATEGORY_GROUPS[a] ?? 90) - (CATEGORY_GROUPS[b] ?? 90));
   }, [grouped]);
 
+  // Limit to 5 articles initially
+  const displayedEvidence = useMemo(() => {
+    if (showAll || sortedEvidence.length <= 5) return sortedEvidence;
+    return sortedEvidence.slice(0, 5);
+  }, [sortedEvidence, showAll]);
+
+  const displayedGrouped = useMemo(() => {
+    const acc: Record<string, any[]> = {};
+    for (const ev of displayedEvidence) {
+      (acc[ev.group_name] ??= []).push(ev);
+    }
+    return acc;
+  }, [displayedEvidence]);
+
+  const displayedGroupOrder = useMemo(() => {
+    return Object.keys(displayedGrouped).sort((a, b) => (CATEGORY_GROUPS[a] ?? 90) - (CATEGORY_GROUPS[b] ?? 90));
+  }, [displayedGrouped]);
+
+  const hasMore = sortedEvidence.length > 5;
+
   return (
     <div className="space-y-4">
       {/* Category Filter with semantic roles */}
@@ -196,7 +217,7 @@ export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
       )}
 
       {/* Evidence list with semantic structure */}
-      {!sortedEvidence.length ? (
+      {!displayedEvidence.length ? (
         <div className="text-center py-12 text-muted-foreground">
           <AlertCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
           {evidence.length === 0 ? (
@@ -219,19 +240,20 @@ export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
           )}
         </div>
       ) : (
-        <div className="space-y-6" role="list" aria-label="Evidence timeline">
-          {groupOrder.map(groupName => (
-            <section key={groupName} className="space-y-3" aria-labelledby={`group-${groupName}`}>
-              {/* Group Header */}
-              <div className="flex items-center gap-2 pb-2 border-b">
-                <h4 id={`group-${groupName}`} className="font-semibold text-sm">{groupName}</h4>
-                <Badge variant="secondary" className="text-xs">
-                  {grouped[groupName].length}
-                </Badge>
-              </div>
+        <>
+          <div className="space-y-6" role="list" aria-label="Evidence timeline">
+            {displayedGroupOrder.map(groupName => (
+              <section key={groupName} className="space-y-3" aria-labelledby={`group-${groupName}`}>
+                {/* Group Header */}
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <h4 id={`group-${groupName}`} className="font-semibold text-sm">{groupName}</h4>
+                  <Badge variant="secondary" className="text-xs">
+                    {displayedGrouped[groupName].length}
+                  </Badge>
+                </div>
 
-              {/* Events - use stable keys */}
-              {grouped[groupName].map((ev, idx) => {
+                {/* Events - use stable keys */}
+                {displayedGrouped[groupName].map((ev, idx) => {
                 const isOfficial = ev.verification === 'official';
                 const isCorroborated = ev.verification === 'corroborated';
                 const isNoise = ev.category_code?.startsWith('NOISE');
@@ -367,9 +389,25 @@ export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
                   </article>
                 );
               })}
-            </section>
-          ))}
-        </div>
+              </section>
+            ))}
+          </div>
+
+          {/* See More button */}
+          {hasMore && (
+            <div className="pt-4 flex justify-center">
+              <button
+                onClick={() => setShowAll(!showAll)}
+                className="px-6 py-2 rounded-lg border border-border bg-background hover:bg-muted transition-colors text-sm font-medium"
+              >
+                {showAll 
+                  ? 'Show Less' 
+                  : `See ${sortedEvidence.length - 5} More Article${sortedEvidence.length - 5 !== 1 ? 's' : ''}`
+                }
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

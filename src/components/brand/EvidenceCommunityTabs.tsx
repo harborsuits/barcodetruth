@@ -48,17 +48,6 @@ export function EvidenceCommunityTabs({
         )}
       </div>
 
-      {/* Share your view CTA */}
-      {activeTab === "evidence" && (
-        <div className="border-t p-4 bg-muted/20">
-          <button
-            onClick={() => setActiveTab("community")}
-            className="text-sm text-primary hover:underline font-medium"
-          >
-            Share your view →
-          </button>
-        </div>
-      )}
     </div>
   );
 }

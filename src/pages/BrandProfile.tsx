@@ -682,7 +682,11 @@ export default function BrandProfile() {
           </>
         )}
 
-        {/* 4) What's Happening - Evidence + Community Tabs */}
+        {/* 4) Community Rating Card - NEW */}
+        <SectionHeader>Share Your Experience</SectionHeader>
+        <CommunityOutlookCard brandId={actualId!} brandName={data.brand.name} />
+
+        {/* 5) What's Happening - Evidence + Community Tabs */}
         <SectionHeader>What's happening at {data.brand.name}?</SectionHeader>
         <EvidenceCommunityTabs
           brandId={actualId!}
