@@ -137,5 +137,5 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.resolve-wikidata-tree]
-verify_jwt = false
+verify_jwt = true
 

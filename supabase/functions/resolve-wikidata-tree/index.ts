@@ -161,9 +161,20 @@ Deno.serve(async (req) => {
     const { brand_name } = await req.json();
     console.log('[resolve-wikidata-tree] Brand name:', brand_name);
     
-    if (!brand_name) {
+    // Input validation
+    if (!brand_name || typeof brand_name !== 'string') {
       return new Response(
-        JSON.stringify({ success: false, error: 'brand_name is required' }),
+        JSON.stringify({ error: 'brand_name must be a non-empty string' }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+    
+    if (brand_name.length > 100) {
+      return new Response(
+        JSON.stringify({ error: 'brand_name must be less than 100 characters' }),
         { 
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
