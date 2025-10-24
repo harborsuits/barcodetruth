@@ -5,6 +5,7 @@ interface RelatedEntity {
   name: string;
   type: 'parent' | 'sibling' | 'cousin' | 'subsidiary';
   qid: string;
+  logo_url?: string;
 }
 
 interface OwnershipGraph {
@@ -119,11 +120,36 @@ async function getOwnershipGraph(brandName: string): Promise<OwnershipGraph> {
     const itemName = binding.itemLabel.value;
     const type = binding.type.value;
     
+    // Fetch logo for this entity
+    let logoUrl = null;
+    try {
+      const entityUrl = `https://www.wikidata.org/wiki/Special:EntityData/${itemQid}.json`;
+      const entityRes = await fetch(entityUrl, {
+        headers: {
+          'User-Agent': 'BarcodeScanner/1.0',
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (entityRes.ok) {
+        const entityData = await entityRes.json();
+        const entity = entityData.entities[itemQid];
+        
+        if (entity.claims?.P154) {
+          const logoFilename = entity.claims.P154[0].mainsnak.datavalue.value;
+          logoUrl = `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(logoFilename)}`;
+        }
+      }
+    } catch (e) {
+      console.log('[Wikidata] Could not fetch logo for:', itemName);
+    }
+    
     const relatedEntity: RelatedEntity = {
       id: itemQid,
       name: itemName,
       type: type as any,
-      qid: itemQid
+      qid: itemQid,
+      logo_url: logoUrl
     };
     
     if (type === 'parent') {

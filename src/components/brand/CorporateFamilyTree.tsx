@@ -10,6 +10,7 @@ interface RelatedEntity {
   name: string;
   type: string;
   qid: string;
+  logo_url?: string;
 }
 
 interface OwnershipGraph {
@@ -114,7 +115,7 @@ export function CorporateFamilyTree({ graph }: CorporateFamilyTreeProps) {
         </div>
       )}
       
-      {/* Subsidiaries */}
+      {/* Subsidiaries - Logo Grid */}
       {graph.subsidiaries.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-3">
@@ -123,21 +124,51 @@ export function CorporateFamilyTree({ graph }: CorporateFamilyTreeProps) {
               {graph.subsidiaries.length}
             </Badge>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          
+          {/* Logo Grid Layout */}
+          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {graph.subsidiaries.map((sub) => (
               <button
                 key={sub.qid}
                 onClick={() => handleSubsidiaryClick(sub)}
                 disabled={loadingSubsidiary === sub.qid}
-                className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-accent/50 transition-colors text-sm group disabled:opacity-50 disabled:cursor-not-allowed text-left w-full"
+                className="relative group aspect-square border border-border rounded-lg p-3 hover:border-primary hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-card"
               >
-                <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="truncate flex-1">{sub.name}</span>
-                {loadingSubsidiary === sub.qid ? (
-                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />
-                ) : (
-                  <ArrowRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                {/* Logo or Fallback */}
+                {sub.logo_url ? (
+                  <img 
+                    src={sub.logo_url}
+                    alt={sub.name}
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      const parent = e.currentTarget.parentElement;
+                      if (parent) {
+                        const fallback = parent.querySelector('.logo-fallback') as HTMLElement;
+                        if (fallback) fallback.style.display = 'flex';
+                      }
+                    }}
+                  />
+                ) : null}
+                
+                {/* Fallback Initial */}
+                <div 
+                  className={`logo-fallback w-full h-full flex items-center justify-center text-2xl font-bold text-muted-foreground/30 ${sub.logo_url ? 'hidden' : 'flex'}`}
+                >
+                  {sub.name.charAt(0)}
+                </div>
+                
+                {/* Loading Spinner Overlay */}
+                {loadingSubsidiary === sub.qid && (
+                  <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-lg">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
                 )}
+                
+                {/* Brand Name Tooltip on Hover */}
+                <div className="absolute bottom-0 left-0 right-0 bg-black/75 text-white text-xs p-1 text-center rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity truncate">
+                  {sub.name}
+                </div>
               </button>
             ))}
           </div>
