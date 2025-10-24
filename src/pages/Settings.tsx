@@ -29,8 +29,6 @@ export const Settings = () => {
     politics: 50,
     social: 50,
   });
-  const [activePreset, setActivePreset] = useState<ValuePreset>("balanced");
-  const [nuanceMode, setNuanceMode] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [checkingPush, setCheckingPush] = useState(true);
   const [mutedCategories, setMutedCategories] = useState<string[]>([]);
@@ -40,11 +38,6 @@ export const Settings = () => {
   const [excludeSameParent, setExcludeSameParent] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem("userValues");
-    if (saved) {
-      setValues(JSON.parse(saved));
-    }
-    
     // Check if push is already subscribed
     isPushSubscribed().then(subscribed => {
       setPushEnabled(subscribed);
@@ -92,43 +85,15 @@ export const Settings = () => {
     loadPreferences();
   }, []);
 
-  const applyPreset = (preset: ValuePreset) => {
-    setActivePreset(preset);
-    switch (preset) {
-      case "balanced":
-        setValues({ labor: 50, environment: 50, politics: 50, social: 50 });
-        break;
-      case "worker-first":
-        setValues({ labor: 70, environment: 40, politics: 30, social: 60 });
-        break;
-      case "green-first":
-        setValues({ labor: 40, environment: 70, politics: 30, social: 50 });
-        break;
-      case "politics-light":
-        setValues({ labor: 60, environment: 60, politics: 20, social: 60 });
-        break;
-    }
-  };
-
-  const handleValueChange = (category: keyof typeof values, value: number) => {
-    setValues({ ...values, [category]: value });
-    setActivePreset("custom");
-  };
 
   const handleSave = async () => {
-    localStorage.setItem("userValues", JSON.stringify(values));
-    
-    // Save all preferences to database
+    // Save non-value preferences to database (values are saved by ValueSliders component)
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       await supabase
         .from('user_preferences')
         .upsert({
           user_id: user.id,
-          value_labor: values.labor,
-          value_environment: values.environment,
-          value_politics: values.politics,
-          value_social: values.social,
           muted_categories: mutedCategories,
           notification_mode: notificationMode,
           political_alignment: politicalAlignment,
@@ -139,7 +104,7 @@ export const Settings = () => {
     
     toast({
       title: "Settings saved",
-      description: "Your preferences have been updated",
+      description: "Your notification and filter preferences have been updated",
     });
     
     navigate(-1);
@@ -245,151 +210,37 @@ export const Settings = () => {
           </CardContent>
         </Card>
 
-        <TooltipProvider>
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Values</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-8">
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">Quick Presets</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant={activePreset === "balanced" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => applyPreset("balanced")}
-                >
-                  Balanced
-                </Button>
-                <Button
-                  variant={activePreset === "worker-first" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => applyPreset("worker-first")}
-                >
-                  Worker-First
-                </Button>
-                <Button
-                  variant={activePreset === "green-first" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => applyPreset("green-first")}
-                >
-                  Green-First
-                </Button>
-                <Button
-                  variant={activePreset === "politics-light" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => applyPreset("politics-light")}
-                >
-                  Politics-Light
-                </Button>
-              </div>
-              {activePreset === "custom" && (
-                <p className="text-xs text-muted-foreground">Custom weights active</p>
-              )}
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-labor" />
-                  <span className="font-medium">Labor Practices</span>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <Info className="h-4 w-4 text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="max-w-xs">How the company treats workers, including wages, rights, and workplace safety.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-                <span className="text-sm text-muted-foreground">{values.labor}%</span>
-              </div>
-              <Slider
-                value={[values.labor]}
-                onValueChange={(v) => handleValueChange("labor", v[0])}
-                max={100}
-                step={1}
-                className="[&_[role=slider]]:bg-labor"
-              />
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Leaf className="h-5 w-5 text-environment" />
-                  <span className="font-medium">Environment</span>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <Info className="h-4 w-4 text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="max-w-xs">Impact on the planet, including emissions, waste, and sustainability practices.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-                <span className="text-sm text-muted-foreground">{values.environment}%</span>
-              </div>
-              <Slider
-                value={[values.environment]}
-                onValueChange={(v) => handleValueChange("environment", v[0])}
-                max={100}
-                step={1}
-                className="[&_[role=slider]]:bg-environment"
-              />
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Megaphone className="h-5 w-5 text-politics" />
-                  <span className="font-medium">Political Giving</span>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <Info className="h-4 w-4 text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="max-w-xs">Donations and lobbying by the company and its leaders.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-                <span className="text-sm text-muted-foreground">{values.politics}%</span>
-              </div>
-              <Slider
-                value={[values.politics]}
-                onValueChange={(v) => handleValueChange("politics", v[0])}
-                max={100}
-                step={1}
-                className="[&_[role=slider]]:bg-politics"
-              />
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Heart className="h-5 w-5 text-social" />
-                  <span className="font-medium">Community & Culture</span>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <Info className="h-4 w-4 text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="max-w-xs">The company's effect on society, such as inclusion, equity, and community impact.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-                <span className="text-sm text-muted-foreground">{values.social}%</span>
-              </div>
-              <Slider
-                value={[values.social]}
-                onValueChange={(v) => handleValueChange("social", v[0])}
-                max={100}
-                step={1}
-                className="[&_[role=slider]]:bg-social"
-              />
-            </div>
-          </CardContent>
-        </Card>
-        </TooltipProvider>
+        <ValueSliders
+          initialValues={{
+            value_labor: values.labor,
+            value_environment: values.environment,
+            value_politics: values.politics,
+            value_social: values.social,
+          }}
+          onSave={async (newValues) => {
+            setValues({
+              labor: newValues.value_labor,
+              environment: newValues.value_environment,
+              politics: newValues.value_politics,
+              social: newValues.value_social,
+            });
+            
+            const success = await updateUserValues(newValues);
+            
+            if (success) {
+              toast({
+                title: "Values saved",
+                description: "Your preferences have been updated",
+              });
+            } else {
+              toast({
+                title: "Failed to save",
+                description: "Please try again",
+                variant: "destructive",
+              });
+            }
+          }}
+        />
 
         <Card>
           <CardHeader>
@@ -429,27 +280,6 @@ export const Settings = () => {
               >
                 Just Facts
               </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Display Options</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Label htmlFor="nuance-mode">Nuance Mode</Label>
-                <p className="text-sm text-muted-foreground">
-                  Show both positive and negative signals
-                </p>
-              </div>
-              <Switch
-                id="nuance-mode"
-                checked={nuanceMode}
-                onCheckedChange={setNuanceMode}
-              />
             </div>
           </CardContent>
         </Card>
@@ -727,7 +557,7 @@ export const Settings = () => {
         )}
 
         <Button onClick={handleSave} className="w-full" size="lg">
-          Save Changes
+          Save Other Settings
         </Button>
       </main>
     </div>
