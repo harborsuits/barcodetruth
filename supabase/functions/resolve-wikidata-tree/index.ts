@@ -21,12 +21,23 @@ async function getOwnershipGraph(brandName: string): Promise<OwnershipGraph> {
   console.log('[Wikidata] Searching for:', brandName);
   
   // Step 1: Find the brand's QID
-  const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(brandName + ' company')}&language=en&format=json&type=item&limit=5`;
+  const baseUrl = 'https://www.wikidata.org/w/api.php';
+  const makeSearch = async (query: string) => {
+    const url = `${baseUrl}?action=wbsearchentities&search=${encodeURIComponent(query)}&language=en&format=json&type=item&limit=5&origin=*`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'LovableApp/1.0 (+https://lovable.dev)', 'Accept': 'application/json' }
+    });
+    if (!res.ok) throw new Error(`Wikidata search failed: ${res.status}`);
+    return res.json();
+  };
+
+  let searchData = await makeSearch(brandName + ' company');
+  if (!searchData?.search?.length) {
+    console.log('[Wikidata] Primary search empty, retrying with plain name');
+    searchData = await makeSearch(brandName);
+  }
   
-  const searchRes = await fetch(searchUrl);
-  const searchData = await searchRes.json();
-  
-  if (!searchData.search || searchData.search.length === 0) {
+  if (!searchData?.search || searchData.search.length === 0) {
     throw new Error('Entity not found in Wikidata');
   }
   
