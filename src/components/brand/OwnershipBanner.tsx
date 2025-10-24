@@ -3,15 +3,20 @@ import { supabase } from '@/integrations/supabase/client';
 import { Building2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
+interface OwnershipHeader {
+  is_ultimate_parent: boolean;
+  owner_company_name: string | null;
+  ultimate_parent_name: string | null;
+}
+
 interface OwnershipBannerProps {
   brandId: string;
 }
 
 export function OwnershipBanner({ brandId }: OwnershipBannerProps) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<OwnershipHeader>({
     queryKey: ['ownership-header', brandId],
     queryFn: async () => {
-      // Use raw fetch until types are updated
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/rpc_get_brand_ownership_header`,
         {
@@ -45,14 +50,11 @@ export function OwnershipBanner({ brandId }: OwnershipBannerProps) {
   }
 
   // Ownership chain display
-  const showUltimate = data.ultimate_parent_name && 
-    data.ultimate_parent_name !== data.owner_company_name;
-
   return (
     <div className="text-sm text-muted-foreground flex items-center gap-1 flex-wrap">
       <span className="font-medium text-foreground">Owned by</span>
       <span className="text-foreground">{data.owner_company_name ?? '—'}</span>
-      {showUltimate && (
+      {data.ultimate_parent_name && (
         <>
           <span className="text-muted-foreground/60">•</span>
           <span className="font-medium text-foreground">Ultimate parent:</span>

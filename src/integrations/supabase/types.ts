@@ -1965,6 +1965,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_co_parent_company"
+            columns: ["parent_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
         ]
       }
       company_ownership_details: {
@@ -5768,6 +5775,13 @@ export type Database = {
           },
           {
             foreignKeyName: "company_ownership_parent_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_co_parent_company"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"

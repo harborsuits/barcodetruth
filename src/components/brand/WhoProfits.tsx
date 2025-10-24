@@ -1,9 +1,9 @@
 import { useRpc } from "@/hooks/useRpc";
 
 interface OwnershipHeader {
+  is_ultimate_parent: boolean;
   owner_company_name: string | null;
   ultimate_parent_name: string | null;
-  is_ultimate_parent: boolean;
 }
 
 interface WhoProfitsProps {
@@ -37,16 +37,15 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
           </>
         )}
         
-        {data.ultimate_parent_name &&
-          data.ultimate_parent_name !== data.owner_company_name && (
-            <>
-              <Arrow />
-              <Node
-                label={data.ultimate_parent_name}
-                badge="Ultimate parent"
-              />
-            </>
-          )}
+        {data.ultimate_parent_name && (
+          <>
+            <Arrow />
+            <Node
+              label={data.ultimate_parent_name}
+              badge="Ultimate parent"
+            />
+          </>
+        )}
       </div>
       
       <div className="mt-4 text-xs text-muted-foreground bg-muted/30 p-3 rounded-lg">
