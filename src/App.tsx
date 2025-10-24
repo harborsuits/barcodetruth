@@ -44,6 +44,7 @@ const AdminRSSMonitor = lazyNamed(() => import("./pages/AdminRSSMonitor"), "defa
 const AdminEnrichmentMonitor = lazyNamed(() => import("./pages/AdminEnrichmentMonitor"), "default");
 const AdminCommunityRatings = lazyNamed(() => import("./pages/AdminCommunityRatings"), "default");
 const AdminBatchEnrich = lazyNamed(() => import("./pages/AdminBatchEnrich"), "default");
+const AdminUsers = lazyNamed(() => import("./pages/AdminUsers"), "default");
 const BootstrapAdmin = lazyNamed(() => import("./pages/BootstrapAdmin"), "default");
 const Privacy = lazyNamed(() => import("./pages/Privacy"), "default");
 const Terms = lazyNamed(() => import("./pages/Terms"), "default");
@@ -333,6 +334,20 @@ const App = () => {
                   <RouteErrorBoundary>
                     <Suspense fallback={<RouteFallback label="Loading batch enrichment…" />}>
                       <AdminBatchEnrich />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading users…" />}>
+                      <AdminUsers />
                     </Suspense>
                   </RouteErrorBoundary>
                 </AdminRoute>

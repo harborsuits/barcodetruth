@@ -144,13 +144,13 @@ async function getOwnershipGraph(brandName: string): Promise<OwnershipGraph> {
       console.log('[Wikidata] Could not fetch logo for:', itemName);
     }
     
-    const relatedEntity: RelatedEntity = {
-      id: itemQid,
-      name: itemName,
-      type: type as any,
-      qid: itemQid,
-      logo_url: logoUrl
-    };
+      const relatedEntity: RelatedEntity = {
+        id: itemQid,
+        name: itemName,
+        type: type as any,
+        qid: itemQid,
+        logo_url: logoUrl || undefined
+      };
     
     if (type === 'parent') {
       parent = relatedEntity;

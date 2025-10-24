@@ -163,6 +163,16 @@ export default function AdminDashboard() {
       metrics: metrics ? `${metrics.pending_claims} pending` : "—"
     },
     {
+      title: "User Management",
+      description: "View and manage all registered users",
+      icon: Users,
+      route: "/admin/users",
+      color: "text-emerald-600 dark:text-emerald-400",
+      bgColor: "bg-emerald-600/10",
+      priority: "high",
+      metrics: "User profiles"
+    },
+    {
       title: "Community Ratings",
       description: "Monitor and moderate brand & people ratings",
       icon: Users,
