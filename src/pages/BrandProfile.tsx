@@ -31,7 +31,6 @@ import { useTopShareholders } from '@/hooks/useTopShareholders';
 import { SectionHeader } from '@/components/brand/SectionHeader';
 import { QuickTakeSnapshot } from '@/components/brand/QuickTakeSnapshot';
 import { WhoProfits } from '@/components/brand/WhoProfits';
-import { EvidenceCommunityTabs } from '@/components/brand/EvidenceCommunityTabs';
 import { EvidencePanel } from '@/components/brand/EvidencePanel';
 
 type BrandProfile = {
@@ -682,25 +681,19 @@ export default function BrandProfile() {
           </>
         )}
 
-        {/* 4) Community Rating Card - NEW */}
+        {/* 4) Community Rating Card - Prominent */}
         <SectionHeader>Share Your Experience</SectionHeader>
         <CommunityOutlookCard brandId={actualId!} brandName={data.brand.name} />
 
-        {/* 5) What's Happening - Evidence + Community Tabs */}
+        {/* 5) What's Happening - Evidence */}
         <SectionHeader>What's happening at {data.brand.name}?</SectionHeader>
-        <EvidenceCommunityTabs
-          brandId={actualId!}
-          brandName={data.brand.name}
-          evidenceContent={
-            <EvidencePanel
-              evidence={data.evidence || []}
-              onReport={(eventId) => {
-                setSelectedEventId(eventId);
-                setReportDialogOpen(true);
-              }}
-              onSuggest={() => setSuggestDialogOpen(true)}
-            />
-          }
+        <EvidencePanel
+          evidence={data.evidence || []}
+          onReport={(eventId) => {
+            setSelectedEventId(eventId);
+            setReportDialogOpen(true);
+          }}
+          onSuggest={() => setSuggestDialogOpen(true)}
         />
 
         {/* 7) Can You Trust This Data? - Data Collection Badge */}
