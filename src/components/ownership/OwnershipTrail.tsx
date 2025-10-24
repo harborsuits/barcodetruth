@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Building2, ChevronRight, Users } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTopShareholders } from '@/hooks/useTopShareholders';
+import { useMemo } from 'react';
 
 interface OwnershipTrailProps {
   brandId: string;
@@ -22,7 +23,7 @@ interface TrailEntity {
   level: number;
 }
 
-function EntityWithShareholders({ entity }: { entity: TrailEntity }) {
+function EntityWithShareholders({ entity, isUltimateParent }: { entity: TrailEntity; isUltimateParent?: boolean }) {
   const { data: shareholders, isLoading } = useTopShareholders(entity.entity_id, 5);
   
   return (
@@ -37,11 +38,18 @@ function EntityWithShareholders({ entity }: { entity: TrailEntity }) {
         )}
         <div className="flex flex-col min-w-0 flex-1">
           <span className="font-semibold text-base truncate">{entity.entity_name}</span>
-          {entity.relationship && (
-            <Badge variant="outline" className="text-xs w-fit mt-1">
-              {entity.relationship}
-            </Badge>
-          )}
+          <div className="flex items-center gap-1.5 mt-1">
+            {entity.relationship && (
+              <Badge variant="outline" className="text-xs w-fit">
+                {entity.relationship}
+              </Badge>
+            )}
+            {isUltimateParent && (
+              <Badge variant="secondary" className="text-[10px] w-fit">
+                Ultimate parent
+              </Badge>
+            )}
+          </div>
         </div>
       </div>
       
@@ -175,6 +183,29 @@ export function OwnershipTrail({ brandId }: OwnershipTrailProps) {
     },
   });
 
+  const normalizeName = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/\b(inc|inc\.|corp|corporation|company|co\.|ltd|llc|plc)\b/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+
+  const displayChain = useMemo(() => {
+    if (!trail) return [] as TrailEntity[];
+    const res: TrailEntity[] = [];
+    for (const e of trail) {
+      if (
+        res.length > 0 &&
+        normalizeName(res[res.length - 1].entity_name) === normalizeName(e.entity_name)
+      ) {
+        // Collapse adjacent duplicates by (normalized) name
+        continue;
+      }
+      res.push(e);
+    }
+    return res;
+  }, [trail]);
+
   if (isLoading) {
     return (
       <Card className="p-6">
@@ -205,7 +236,7 @@ export function OwnershipTrail({ brandId }: OwnershipTrailProps) {
       </div>
       
       <div className="space-y-4">
-        {trail.map((entity, index, arr) => {
+        {displayChain.map((entity, index, arr) => {
           // Check if this entity_id appeared earlier in the chain to avoid duplicate shareholders
           const isDuplicate = arr.slice(0, index).some(e => e.entity_id === entity.entity_id);
           
@@ -235,16 +266,19 @@ export function OwnershipTrail({ brandId }: OwnershipTrailProps) {
                   </div>
                 </div>
               ) : (
-                <EntityWithShareholders entity={entity} />
+                <EntityWithShareholders 
+                  entity={entity} 
+                  isUltimateParent={index === arr.length - 1}
+                />
               )}
             </div>
           );
         })}
       </div>
       
-      {trail.length > 1 && (
+      {displayChain.length > 1 && (
         <p className="text-sm text-muted-foreground mt-6 pt-4 border-t">
-          Your purchase supports {trail.length} {trail.length === 2 ? 'entity' : 'entities'} and their shareholders in this ownership structure.
+          Your purchase supports {displayChain.length} {displayChain.length === 2 ? 'entity' : 'entities'} and their shareholders in this ownership structure.
         </p>
       )}
     </Card>
