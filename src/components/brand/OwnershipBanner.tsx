@@ -1,7 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Building2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { useRpc } from '@/hooks/useRpc';
 
 interface OwnershipHeader {
   is_ultimate_parent: boolean;
@@ -14,28 +12,11 @@ interface OwnershipBannerProps {
 }
 
 export function OwnershipBanner({ brandId }: OwnershipBannerProps) {
-  const { data, isLoading } = useQuery<OwnershipHeader>({
-    queryKey: ['ownership-header', brandId],
-    queryFn: async () => {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/rpc_get_brand_ownership_header`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
-          },
-          body: JSON.stringify({ p_brand_id: brandId })
-        }
-      );
-      
-      if (!response.ok) throw new Error('Failed to fetch ownership header');
-      const result = await response.json();
-      return result?.[0];
-    },
-    enabled: !!brandId
-  });
+  const { data, isLoading } = useRpc<OwnershipHeader>(
+    'rpc_get_brand_ownership_header',
+    { p_brand_id: brandId },
+    { enabled: !!brandId }
+  );
 
   if (isLoading || !data) return null;
 
