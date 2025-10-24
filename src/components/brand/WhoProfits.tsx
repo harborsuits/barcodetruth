@@ -1,8 +1,7 @@
 import { useRpc } from "@/hooks/useRpc";
 import { Badge } from "@/components/ui/badge";
 import { Building2, ChevronRight, Network } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { CorporateFamilyTree } from "./CorporateFamilyTree";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,57 +37,60 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
     { p_brand_id: brandId }
   );
 
-  const [loadingWikidata, setLoadingWikidata] = useState(false);
+  const [loadingWikidata, setLoadingWikidata] = useState(true);
   const [wikidataGraph, setWikidataGraph] = useState<OwnershipGraph | null>(null);
   const [wikidataError, setWikidataError] = useState<string | null>(null);
 
-  const loadWikidataGraph = async () => {
-    if (!brandName) {
-      console.log('[Wikidata] Cannot load: no brand name');
-      return;
-    }
-    
-    console.log('[Wikidata] Loading graph for:', brandName);
-    setLoadingWikidata(true);
-    setWikidataError(null);
-    
-    try {
-      const { data: response, error } = await supabase.functions.invoke('resolve-wikidata-tree', {
-        body: { brand_name: brandName }
-      });
-      
-      console.log('[Wikidata] Raw response:', { response, error });
-      
-      if (error) {
-        console.error('[Wikidata] Supabase error:', error);
-        throw error;
+  useEffect(() => {
+    const loadWikidataGraph = async () => {
+      if (!brandName) {
+        console.log('[Wikidata] Cannot load: no brand name');
+        setLoadingWikidata(false);
+        return;
       }
       
-      console.log('[Wikidata] Response success:', response?.success);
-      console.log('[Wikidata] Response graph:', response?.graph);
+      console.log('[Wikidata] Auto-loading graph for:', brandName);
       
-      if (response?.success && response?.graph) {
-        console.log('[Wikidata] Setting graph state:', {
-          entity_qid: response.graph.entity_qid,
-          entity_name: response.graph.entity_name,
-          has_parent: !!response.graph.parent,
-          siblings_count: response.graph.siblings?.length || 0,
-          cousins_count: response.graph.cousins?.length || 0,
-          subsidiaries_count: response.graph.subsidiaries?.length || 0
+      try {
+        const { data: response, error } = await supabase.functions.invoke('resolve-wikidata-tree', {
+          body: { brand_name: brandName }
         });
-        setWikidataGraph(response.graph);
-      } else {
-        console.warn('[Wikidata] Response invalid or unsuccessful:', response);
-        setWikidataError(response?.error || 'Failed to load corporate family tree');
+        
+        console.log('[Wikidata] Raw response:', { response, error });
+        
+        if (error) {
+          console.error('[Wikidata] Supabase error:', error);
+          throw error;
+        }
+        
+        console.log('[Wikidata] Response success:', response?.success);
+        console.log('[Wikidata] Response graph:', response?.graph);
+        
+        if (response?.success && response?.graph) {
+          console.log('[Wikidata] Setting graph state:', {
+            entity_qid: response.graph.entity_qid,
+            entity_name: response.graph.entity_name,
+            has_parent: !!response.graph.parent,
+            siblings_count: response.graph.siblings?.length || 0,
+            cousins_count: response.graph.cousins?.length || 0,
+            subsidiaries_count: response.graph.subsidiaries?.length || 0
+          });
+          setWikidataGraph(response.graph);
+        } else {
+          console.warn('[Wikidata] Response invalid or unsuccessful:', response);
+          setWikidataError(response?.error || 'Failed to load corporate family tree');
+        }
+      } catch (err: any) {
+        console.error('[Wikidata] Caught error:', err);
+        setWikidataError(err.message || 'Failed to connect to Wikidata');
+      } finally {
+        console.log('[Wikidata] Loading complete');
+        setLoadingWikidata(false);
       }
-    } catch (err: any) {
-      console.error('[Wikidata] Caught error:', err);
-      setWikidataError(err.message || 'Failed to connect to Wikidata');
-    } finally {
-      console.log('[Wikidata] Loading complete');
-      setLoadingWikidata(false);
-    }
-  };
+    };
+
+    loadWikidataGraph();
+  }, [brandName]);
 
   if (isLoading || !data) return null;
 
@@ -127,21 +129,9 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
 
       {/* Corporate Family Tree Section */}
       <div className="mt-6 pt-6 border-t border-border">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Network className="h-5 w-5 text-primary" />
-            <h3 className="font-semibold">Corporate Family</h3>
-          </div>
-          {!wikidataGraph && (
-            <Button 
-              onClick={loadWikidataGraph} 
-              disabled={loadingWikidata || !brandName}
-              size="sm"
-              variant="outline"
-            >
-              {loadingWikidata ? 'Loading...' : 'Load Family Tree'}
-            </Button>
-          )}
+        <div className="flex items-center gap-2 mb-4">
+          <Network className="h-5 w-5 text-primary" />
+          <h3 className="font-semibold">Corporate Family</h3>
         </div>
 
         {loadingWikidata && (
@@ -160,12 +150,6 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
 
         {wikidataGraph && !loadingWikidata && (
           <CorporateFamilyTree graph={wikidataGraph} />
-        )}
-
-        {!wikidataGraph && !loadingWikidata && !wikidataError && (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            Click "Load Family Tree" to discover parent companies, sister brands, and corporate relationships.
-          </p>
         )}
       </div>
     </div>
