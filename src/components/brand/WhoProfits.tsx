@@ -43,8 +43,12 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
   const [wikidataError, setWikidataError] = useState<string | null>(null);
 
   const loadWikidataGraph = async () => {
-    if (!brandName) return;
+    if (!brandName) {
+      console.log('[Wikidata] Cannot load: no brand name');
+      return;
+    }
     
+    console.log('[Wikidata] Loading graph for:', brandName);
     setLoadingWikidata(true);
     setWikidataError(null);
     
@@ -53,17 +57,35 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
         body: { brand_name: brandName }
       });
       
-      if (error) throw error;
+      console.log('[Wikidata] Raw response:', { response, error });
       
-      if (response?.success) {
+      if (error) {
+        console.error('[Wikidata] Supabase error:', error);
+        throw error;
+      }
+      
+      console.log('[Wikidata] Response success:', response?.success);
+      console.log('[Wikidata] Response graph:', response?.graph);
+      
+      if (response?.success && response?.graph) {
+        console.log('[Wikidata] Setting graph state:', {
+          entity_qid: response.graph.entity_qid,
+          entity_name: response.graph.entity_name,
+          has_parent: !!response.graph.parent,
+          siblings_count: response.graph.siblings?.length || 0,
+          cousins_count: response.graph.cousins?.length || 0,
+          subsidiaries_count: response.graph.subsidiaries?.length || 0
+        });
         setWikidataGraph(response.graph);
       } else {
+        console.warn('[Wikidata] Response invalid or unsuccessful:', response);
         setWikidataError(response?.error || 'Failed to load corporate family tree');
       }
     } catch (err: any) {
-      console.error('[Wikidata] Error:', err);
+      console.error('[Wikidata] Caught error:', err);
       setWikidataError(err.message || 'Failed to connect to Wikidata');
     } finally {
+      console.log('[Wikidata] Loading complete');
       setLoadingWikidata(false);
     }
   };

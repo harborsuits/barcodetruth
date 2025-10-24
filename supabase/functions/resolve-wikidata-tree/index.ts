@@ -102,6 +102,7 @@ async function getOwnershipGraph(brandName: string): Promise<OwnershipGraph> {
   }
   
   const sparqlData = await sparqlRes.json();
+  console.log('[Wikidata] SPARQL returned', sparqlData.results?.bindings?.length || 0, 'results');
   
   // Parse results
   let parent: RelatedEntity | undefined;
@@ -109,7 +110,11 @@ async function getOwnershipGraph(brandName: string): Promise<OwnershipGraph> {
   const cousins: RelatedEntity[] = [];
   const subsidiaries: RelatedEntity[] = [];
   
-  for (const binding of sparqlData.results.bindings) {
+  if (!sparqlData.results?.bindings) {
+    console.log('[Wikidata] WARNING: No bindings in SPARQL response');
+  }
+  
+  for (const binding of sparqlData.results?.bindings || []) {
     const itemQid = binding.item.value.split('/').pop();
     const itemName = binding.itemLabel.value;
     const type = binding.type.value;
@@ -185,6 +190,14 @@ Deno.serve(async (req) => {
     console.log('[resolve-wikidata-tree] Calling getOwnershipGraph');
     const graph = await getOwnershipGraph(brand_name);
     console.log('[resolve-wikidata-tree] Graph received:', JSON.stringify(graph).substring(0, 200));
+    console.log('[resolve-wikidata-tree] Full graph structure:', {
+      entity_qid: graph.entity_qid,
+      entity_name: graph.entity_name,
+      has_parent: !!graph.parent,
+      siblings_count: graph.siblings.length,
+      cousins_count: graph.cousins.length,
+      subsidiaries_count: graph.subsidiaries.length
+    });
     
     return new Response(JSON.stringify({ success: true, graph }), {
       headers: {
