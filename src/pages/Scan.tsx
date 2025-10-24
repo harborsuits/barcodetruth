@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Header } from "@/components/layout/Header";
 import { ReportIssue } from "@/components/ReportIssue";
 import { ScannerDiagnostics } from "@/components/ScannerDiagnostics";
+import { AuthModal } from "@/components/AuthModal";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
@@ -49,6 +50,36 @@ export const Scan = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const lastDetectedRef = useRef<string | null>(null);
   const lastDetectedAtRef = useRef<number>(0);
+  
+  // Auth state
+  const [user, setUser] = useState<any>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  // Check auth on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      
+      if (!user) {
+        console.log('[Scan] No user found, showing auth modal');
+        setShowAuthModal(true);
+      }
+    };
+    
+    checkAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+      
+      if (!session?.user && event === 'SIGNED_OUT') {
+        setShowAuthModal(true);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Check HTTPS (except localhost)
   useEffect(() => {
@@ -260,6 +291,13 @@ export const Scan = () => {
   });
 
   const startScanner = async () => {
+    // Check auth before allowing scan
+    if (!user) {
+      console.log('[Scan] Cannot scan - user not authenticated');
+      setShowAuthModal(true);
+      return;
+    }
+    
     try {
       if (!videoRef.current) {
         console.error('Video element not ready');
@@ -812,6 +850,20 @@ export const Scan = () => {
           </div>
         </details>
       </main>
+
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => {
+            setShowAuthModal(false);
+            navigate('/');
+          }}
+          onSuccess={() => {
+            setShowAuthModal(false);
+            checkLimit();
+          }}
+        />
+      )}
 
       {/* Barcode Confirmation Dialog */}
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>

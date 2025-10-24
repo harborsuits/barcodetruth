@@ -57,24 +57,50 @@ export function useScanLimit() {
         return;
       }
 
-      const { data, error } = await supabase.rpc('can_user_scan', {
-        p_user_id: user.id
-      });
+      // Check subscription status
+      const { data: subscription } = await supabase
+        .from("user_billing")
+        .select("status, current_period_end")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .maybeSingle();
 
-      if (error) throw error;
+      const isSubscribed = subscription && new Date(subscription.current_period_end) > new Date();
 
-      const result = data as { 
-        can_scan: boolean; 
-        is_subscribed: boolean; 
-        scans_remaining: number; 
-        scans_used: number; 
-      };
+      if (isSubscribed) {
+        setLimit({
+          can_scan: true,
+          is_subscribed: true,
+          scans_remaining: 999999,
+          scans_used: 0,
+          loading: false,
+        });
+        return;
+      }
+
+      // Count scans this month for free users
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const { count, error: countError } = await supabase
+        .from('user_scans')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('scanned_at', startOfMonth.toISOString());
+
+      if (countError) throw countError;
+
+      const scansUsed = count || 0;
+      const scansRemaining = Math.max(0, 5 - scansUsed);
+
+      console.log('[Scan Limit]', { scansUsed, scansRemaining, startOfMonth });
 
       setLimit({
-        can_scan: result?.can_scan ?? false,
-        is_subscribed: result?.is_subscribed ?? false,
-        scans_remaining: result?.scans_remaining ?? 0,
-        scans_used: result?.scans_used ?? 0,
+        can_scan: scansRemaining > 0,
+        is_subscribed: false,
+        scans_remaining: scansRemaining,
+        scans_used: scansUsed,
         loading: false,
       });
     } catch (error) {

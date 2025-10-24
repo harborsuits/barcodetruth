@@ -4013,6 +4013,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_profiles: {
+        Row: {
+          age_range: string | null
+          created_at: string | null
+          id: string
+          location: string | null
+          pref_environment: boolean | null
+          pref_labor: boolean | null
+          pref_politics: boolean | null
+          pref_social: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          age_range?: string | null
+          created_at?: string | null
+          id?: string
+          location?: string | null
+          pref_environment?: boolean | null
+          pref_labor?: boolean | null
+          pref_politics?: boolean | null
+          pref_social?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          age_range?: string | null
+          created_at?: string | null
+          id?: string
+          location?: string | null
+          pref_environment?: boolean | null
+          pref_labor?: boolean | null
+          pref_politics?: boolean | null
+          pref_social?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_push_subs: {
         Row: {
           auth_enc: string | null
