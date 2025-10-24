@@ -51,7 +51,7 @@ export async function updateUserValues(values: {
         user_id: user.id,
         ...values,
         updated_at: new Date().toISOString()
-      });
+      }, { onConflict: 'user_id' });
     
     if (error) throw error;
     return true;
@@ -74,7 +74,7 @@ export async function updateUserPreferences(preferences: {
         user_id: user.id,
         ...preferences,
         updated_at: new Date().toISOString()
-      });
+      }, { onConflict: 'user_id' });
     
     if (error) throw error;
     return true;
