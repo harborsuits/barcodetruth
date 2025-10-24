@@ -1,4 +1,11 @@
 import { useRpc } from "@/hooks/useRpc";
+import { Badge } from "@/components/ui/badge";
+import { Building2, ChevronRight, Network } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { CorporateFamilyTree } from "./CorporateFamilyTree";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface OwnershipHeader {
   is_ultimate_parent: boolean;
@@ -11,11 +18,55 @@ interface WhoProfitsProps {
   brandName?: string;
 }
 
+interface OwnershipGraph {
+  entity_qid: string;
+  entity_name: string;
+  parent?: {
+    id: string;
+    name: string;
+    type: string;
+    qid: string;
+  };
+  siblings: Array<{ id: string; name: string; type: string; qid: string }>;
+  cousins: Array<{ id: string; name: string; type: string; qid: string }>;
+  subsidiaries: Array<{ id: string; name: string; type: string; qid: string }>;
+}
+
 export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProps) {
   const { data, isLoading } = useRpc<OwnershipHeader>(
     "rpc_get_brand_ownership_header",
     { p_brand_id: brandId }
   );
+
+  const [loadingWikidata, setLoadingWikidata] = useState(false);
+  const [wikidataGraph, setWikidataGraph] = useState<OwnershipGraph | null>(null);
+  const [wikidataError, setWikidataError] = useState<string | null>(null);
+
+  const loadWikidataGraph = async () => {
+    if (!brandName) return;
+    
+    setLoadingWikidata(true);
+    setWikidataError(null);
+    
+    try {
+      const { data: response, error } = await supabase.functions.invoke('resolve-wikidata-tree', {
+        body: { brand_name: brandName }
+      });
+      
+      if (error) throw error;
+      
+      if (response?.success) {
+        setWikidataGraph(response.graph);
+      } else {
+        setWikidataError(response?.error || 'Failed to load corporate family tree');
+      }
+    } catch (err: any) {
+      console.error('[Wikidata] Error:', err);
+      setWikidataError(err.message || 'Failed to connect to Wikidata');
+    } finally {
+      setLoadingWikidata(false);
+    }
+  };
 
   if (isLoading || !data) return null;
 
@@ -50,6 +101,50 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
       
       <div className="mt-4 text-xs text-muted-foreground bg-muted/30 p-3 rounded-lg">
         <strong>Note:</strong> Revenue flows to {data.is_ultimate_parent ? brandName : "controlling entities"} and then to their shareholders (e.g., index funds, institutional investors) who are listed in the shareholders section below.
+      </div>
+
+      {/* Corporate Family Tree Section */}
+      <div className="mt-6 pt-6 border-t border-border">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Network className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold">Corporate Family</h3>
+          </div>
+          {!wikidataGraph && (
+            <Button 
+              onClick={loadWikidataGraph} 
+              disabled={loadingWikidata || !brandName}
+              size="sm"
+              variant="outline"
+            >
+              {loadingWikidata ? 'Loading...' : 'Load Family Tree'}
+            </Button>
+          )}
+        </div>
+
+        {loadingWikidata && (
+          <div className="space-y-4">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+        )}
+
+        {wikidataError && (
+          <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-lg">
+            {wikidataError}
+          </div>
+        )}
+
+        {wikidataGraph && !loadingWikidata && (
+          <CorporateFamilyTree graph={wikidataGraph} />
+        )}
+
+        {!wikidataGraph && !loadingWikidata && !wikidataError && (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            Click "Load Family Tree" to discover parent companies, sister brands, and corporate relationships.
+          </p>
+        )}
       </div>
     </div>
   );
