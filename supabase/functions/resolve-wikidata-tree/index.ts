@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 interface RelatedEntity {
@@ -150,13 +149,17 @@ async function getOwnershipGraph(brandName: string): Promise<OwnershipGraph> {
   };
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
+  console.log('[resolve-wikidata-tree] Request received');
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
   
   try {
+    console.log('[resolve-wikidata-tree] Parsing request body');
     const { brand_name } = await req.json();
+    console.log('[resolve-wikidata-tree] Brand name:', brand_name);
     
     if (!brand_name) {
       return new Response(
@@ -168,7 +171,9 @@ serve(async (req) => {
       );
     }
     
+    console.log('[resolve-wikidata-tree] Calling getOwnershipGraph');
     const graph = await getOwnershipGraph(brand_name);
+    console.log('[resolve-wikidata-tree] Graph received:', JSON.stringify(graph).substring(0, 200));
     
     return new Response(JSON.stringify({ success: true, graph }), {
       headers: {
@@ -177,9 +182,14 @@ serve(async (req) => {
       }
     });
   } catch (error: any) {
-    console.error('[Wikidata] Error:', error.message);
+    console.error('[resolve-wikidata-tree] ERROR:', error.message);
+    console.error('[resolve-wikidata-tree] Stack:', error.stack);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ 
+        success: false, 
+        error: error.message,
+        stack: error.stack 
+      }),
       { 
         status: 500,
         headers: {
