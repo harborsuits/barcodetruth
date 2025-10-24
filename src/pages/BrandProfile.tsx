@@ -32,6 +32,8 @@ import { SectionHeader } from '@/components/brand/SectionHeader';
 import { QuickTakeSnapshot } from '@/components/brand/QuickTakeSnapshot';
 import { WhoProfits } from '@/components/brand/WhoProfits';
 import { EvidencePanel } from '@/components/brand/EvidencePanel';
+import { ValueMatchCard } from '@/components/ValueMatchCard';
+import { getUserPreferences } from '@/lib/userPreferences';
 
 type BrandProfile = {
   brand: { 
@@ -198,6 +200,16 @@ export default function BrandProfile() {
       setUser(data?.user);
     });
   }, []);
+
+  // Fetch user preferences for value matching
+  const { data: userPreferences } = useQuery({
+    queryKey: ['user-preferences', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      return await getUserPreferences();
+    },
+    enabled: !!user?.id,
+  });
 
   // Auto-switch to Noise tab if all events are noise (only on initial load)
   useEffect(() => {
@@ -593,6 +605,37 @@ export default function BrandProfile() {
         {/* 2) Quick Take Snapshot */}
         <SectionHeader>How is {data.brand.name} doing overall?</SectionHeader>
         <QuickTakeSnapshot brandId={actualId!} />
+
+        {/* Value Match Analysis - Personalized for User */}
+        {userPreferences && data.score && (
+          userPreferences.value_labor !== undefined &&
+          userPreferences.value_environment !== undefined &&
+          userPreferences.value_politics !== undefined &&
+          userPreferences.value_social !== undefined &&
+          data.score.score_labor !== null &&
+          data.score.score_environment !== null &&
+          data.score.score_politics !== null &&
+          data.score.score_social !== null
+        ) && (
+          <>
+            <SectionHeader>Does {data.brand.name} match your values?</SectionHeader>
+            <ValueMatchCard
+              userValues={{
+                value_labor: userPreferences.value_labor,
+                value_environment: userPreferences.value_environment,
+                value_politics: userPreferences.value_politics,
+                value_social: userPreferences.value_social,
+              }}
+              brandScores={{
+                score_labor: data.score.score_labor,
+                score_environment: data.score.score_environment,
+                score_politics: data.score.score_politics,
+                score_social: data.score.score_social,
+              }}
+              brandName={data.brand.name}
+            />
+          </>
+        )}
 
         {/* 3) Who Profits */}
         <SectionHeader>Who owns {data.brand.name}?</SectionHeader>

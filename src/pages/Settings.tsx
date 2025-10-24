@@ -14,6 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { ValueSliders } from "@/components/ValueSliders";
+import { updateUserValues } from "@/lib/userPreferences";
 
 type ValuePreset = "balanced" | "worker-first" | "green-first" | "politics-light" | "custom";
 
@@ -55,11 +57,20 @@ export const Settings = () => {
       if (user) {
         const { data } = await supabase
           .from('user_preferences')
-          .select('muted_categories, notification_mode, political_alignment, value_weights, digest_time, exclude_same_parent')
+          .select('*')
           .eq('user_id', user.id)
           .maybeSingle();
         
         if (data) {
+          // Load new value columns
+          if (data.value_labor !== undefined) {
+            setValues({
+              labor: data.value_labor,
+              environment: data.value_environment ?? 50,
+              politics: data.value_politics ?? 50,
+              social: data.value_social ?? 50,
+            });
+          }
           if (data.muted_categories) {
             setMutedCategories(data.muted_categories);
           }
@@ -68,12 +79,6 @@ export const Settings = () => {
           }
           if (data.political_alignment) {
             setPoliticalAlignment(data.political_alignment);
-          }
-          if (data.value_weights && typeof data.value_weights === 'object') {
-            const weights = data.value_weights as Record<string, number>;
-            if ('labor' in weights && 'environment' in weights && 'politics' in weights && 'social' in weights) {
-              setValues(weights as typeof values);
-            }
           }
           if (data.digest_time) {
             setDigestTime(data.digest_time);
@@ -120,10 +125,13 @@ export const Settings = () => {
         .from('user_preferences')
         .upsert({
           user_id: user.id,
+          value_labor: values.labor,
+          value_environment: values.environment,
+          value_politics: values.politics,
+          value_social: values.social,
           muted_categories: mutedCategories,
           notification_mode: notificationMode,
           political_alignment: politicalAlignment,
-          value_weights: values,
           digest_time: digestTime,
           exclude_same_parent: excludeSameParent,
         });
