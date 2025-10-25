@@ -1,15 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
-import { ShoppingBag, Heart, Leaf, Users, Megaphone, Info } from "lucide-react";
+import { Heart, Leaf, Users, Megaphone, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { supabase } from "@/integrations/supabase/client";
+import { updateUserValues } from "@/lib/userPreferences";
+import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
 
 export const Onboarding = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [step, setStep] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [values, setValues] = useState({
     labor: 50,
     environment: 50,
@@ -17,17 +23,60 @@ export const Onboarding = () => {
     social: 50,
   });
 
-  const handleComplete = () => {
-    localStorage.setItem("onboardingComplete", "true");
-    localStorage.setItem("userValues", JSON.stringify(values));
-    navigate("/");
+  // Check authentication on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "Please sign in to continue",
+          variant: "destructive",
+        });
+        navigate("/auth");
+      } else {
+        setIsAuthenticated(true);
+      }
+    };
+    checkAuth();
+  }, [navigate, toast]);
+
+  const handleComplete = async () => {
+    setLoading(true);
+    
+    // Save to database
+    const success = await updateUserValues({
+      value_labor: values.labor,
+      value_environment: values.environment,
+      value_politics: values.politics,
+      value_social: values.social,
+    });
+
+    if (success) {
+      // Mark onboarding complete in localStorage
+      localStorage.setItem("onboardingComplete", "true");
+      localStorage.setItem("userValues", JSON.stringify(values));
+      
+      toast({
+        title: "Preferences saved",
+        description: "Your values have been saved successfully",
+      });
+      
+      navigate("/");
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to save preferences. Please try again.",
+        variant: "destructive",
+      });
+      setLoading(false);
+    }
   };
 
-  const handleSkip = () => {
-    localStorage.setItem("onboardingComplete", "true");
-    localStorage.setItem("userValues", JSON.stringify({ labor: 50, environment: 50, politics: 50, social: 50 }));
-    navigate("/");
-  };
+  // Don't allow skipping - preferences are required
+  if (!isAuthenticated) {
+    return null;
+  }
 
   if (step === 0) {
     return (
@@ -70,9 +119,6 @@ export const Onboarding = () => {
           <div className="space-y-3">
             <Button onClick={() => setStep(1)} size="lg" className="w-full">
               Get Started
-            </Button>
-            <Button onClick={handleSkip} variant="ghost" size="lg" className="w-full">
-              Skip for now
             </Button>
           </div>
         </div>
@@ -199,8 +245,8 @@ export const Onboarding = () => {
             <Button onClick={() => setStep(0)} variant="outline" className="flex-1">
               Back
             </Button>
-            <Button onClick={handleComplete} className="flex-1">
-              Continue
+            <Button onClick={handleComplete} className="flex-1" disabled={loading}>
+              {loading ? "Saving..." : "Continue"}
             </Button>
           </div>
         </div>

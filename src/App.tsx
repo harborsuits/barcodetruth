@@ -12,6 +12,7 @@ import { lazyNamed } from "@/lib/lazyNamed";
 import { Onboarding } from "./pages/Onboarding";
 import { NotFound } from "./pages/NotFound";
 import { AdminRoute } from "@/components/routes/AdminRoute";
+import { ProtectedRoute } from "@/components/routes/ProtectedRoute";
 
 const Forbidden = lazyNamed(() => import("./pages/Forbidden"), "default");
 const Auth = lazyNamed(() => import("./pages/Auth"), "default");
@@ -53,16 +54,6 @@ const Methodology = lazyNamed(() => import("./pages/Methodology"), "default");
 
 const queryClient = new QueryClient();
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const onboardingComplete = localStorage.getItem("onboardingComplete");
-  
-  if (!onboardingComplete) {
-    return <Navigate to="/onboarding" replace />;
-  }
-  
-  return <>{children}</>;
-};
-
 const App = () => {
   // Dev-mode baseline leak detector
   if (import.meta.env.DEV) {
@@ -86,9 +77,16 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
         <Routes>
-          <Route path="/onboarding" element={<Onboarding />} />
           <Route 
-            path="/auth" 
+            path="/onboarding" 
+            element={
+              <ProtectedRoute requireOnboarding={false}>
+                <Onboarding />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/auth"
             element={
               <Suspense fallback={<RouteFallback label="Loading…" />}>
                 <Auth />
