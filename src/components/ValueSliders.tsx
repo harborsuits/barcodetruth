@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -57,6 +57,17 @@ export function ValueSliders({ initialValues, onSave, isSaving }: ValueSlidersPr
     value_politics: initialValues?.value_politics ?? 50,
     value_social: initialValues?.value_social ?? 50,
   });
+
+  useEffect(() => {
+    if (initialValues) {
+      setValues({
+        value_labor: initialValues.value_labor ?? 50,
+        value_environment: initialValues.value_environment ?? 50,
+        value_politics: initialValues.value_politics ?? 50,
+        value_social: initialValues.value_social ?? 50,
+      });
+    }
+  }, [initialValues]);
 
   const handleSliderChange = (key: string, value: number[]) => {
     setValues(prev => ({ ...prev, [key]: value[0] }));

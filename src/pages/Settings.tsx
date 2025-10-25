@@ -90,7 +90,7 @@ export const Settings = () => {
     // Save non-value preferences to database (values are saved by ValueSliders component)
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      await supabase
+      const { error } = await supabase
         .from('user_preferences')
         .upsert({
           user_id: user.id,
@@ -99,7 +99,18 @@ export const Settings = () => {
           political_alignment: politicalAlignment,
           digest_time: digestTime,
           exclude_same_parent: excludeSameParent,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+
+      if (error) {
+        console.error('Failed to save other settings:', error);
+        toast({
+          title: "Failed to save",
+          description: "Please try again",
+          variant: "destructive",
         });
+        return;
+      }
     }
     
     toast({
