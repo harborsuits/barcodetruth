@@ -188,24 +188,47 @@ serve(async (req) => {
         const companyId = resolvedCompanyId as string;
         log('Resolved company_id', companyId);
 
-        // Find parent company QID (P749) OR use brandQid if brand is itself the company
+        // Find parent company QID (P749 = parent organization, P127 = owned by)
         const parentQids = claimIds(brandEntity, 'P749');
-        const targetQid = parentQids[0] ?? brandQid;
+        const ownedByQids = claimIds(brandEntity, 'P127');
+        
+        // Use parent org first, then owned by, but DON'T fall back to brand itself
+        let targetQid: string | null = null;
+        let isParentRelation = false;
+        
+        if (parentQids.length > 0) {
+          targetQid = parentQids[0];
+          isParentRelation = true;
+          log('Found parent org (P749):', targetQid);
+        } else if (ownedByQids.length > 0) {
+          targetQid = ownedByQids[0];
+          isParentRelation = false;
+          log('Found owner (P127):', targetQid);
+        } else {
+          // No parent/owner found - use brand entity for people/shareholders only
+          targetQid = brandQid;
+          isParentRelation = false;
+          log('No parent found, using brand entity for people extraction only');
+        }
         
         const { qid: companyQid, entity: companyEntity } = await fetchWikidataEntity(targetQid);
         log('Company entity fetched', companyQid);
 
-        // Update companies row with basic facts
-        await supabase
-          .from('companies')
-          .upsert({
-            id: companyId,
-            wikidata_qid: companyQid,
-            name: getLabel(companyEntity),
-            description: getDesc(companyEntity)
-          }, { onConflict: 'id' });
-        
-        log('Company row upserted');
+        // Only update companies table if we found an actual parent (not self)
+        if (companyQid !== brandQid) {
+          await supabase
+            .from('companies')
+            .upsert({
+              id: companyId,
+              wikidata_qid: companyQid,
+              name: getLabel(companyEntity),
+              description: getDesc(companyEntity)
+            }, { onConflict: 'id' });
+          
+          log('Parent company row upserted');
+        } else {
+          log('Skipping self-referential company record');
+        }
 
         // === EXTRACT PEOPLE ===
         const CEO_QIDS = claimIds(companyEntity, 'P169');
