@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, Leaf, Megaphone, Heart, Info, Bell, Crown } from "lucide-react";
+import { Users, Leaf, Megaphone, Heart, Info, Bell, Crown, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -36,6 +36,7 @@ export const Settings = () => {
   const [digestTime, setDigestTime] = useState("18:00");
   const [politicalAlignment, setPoliticalAlignment] = useState<string | null>(null);
   const [excludeSameParent, setExcludeSameParent] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     // Check if push is already subscribed
@@ -161,6 +162,34 @@ export const Settings = () => {
           variant: "destructive",
         });
       }
+    }
+  };
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    
+    try {
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) throw error;
+      
+      // Clear localStorage
+      localStorage.clear();
+      
+      toast({
+        title: "Logged out",
+        description: "You've been successfully logged out",
+      });
+      
+      navigate('/auth');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to log out",
+        variant: "destructive",
+      });
+      setLoggingOut(false);
     }
   };
 
@@ -566,6 +595,31 @@ export const Settings = () => {
             </CardContent>
           </Card>
         )}
+
+        <Card className="border-destructive/20">
+          <CardHeader>
+            <CardTitle className="text-destructive">Account</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium mb-1">Sign Out</h3>
+                <p className="text-sm text-muted-foreground">
+                  Log out of your account on this device
+                </p>
+              </div>
+              <Button
+                variant="destructive"
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="flex items-center gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                {loggingOut ? 'Logging out...' : 'Log Out'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         <Button onClick={handleSave} className="w-full" size="lg">
           Save Other Settings
