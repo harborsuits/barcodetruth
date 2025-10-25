@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     // Get all brands without Wikipedia descriptions
     const { data: brands, error: brandsErr } = await supabase
       .from("brands")
-      .select("id, name")
+      .select("id, name, wikidata_qid")
       .or('description.is.null,description_source.neq.wikipedia')
       .limit(100);
 
@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
 
         console.log(`[bulk-enrich-brands] ${brand.name}: Missing ownership data, enriching...`);
 
-        // Step 2: Create corporate structure first
+        // Step 2: Create corporate structure first (use existing QID if available)
         const treeUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/resolve-wikidata-tree`;
         const treeResponse = await fetch(treeUrl, {
           method: "POST",
@@ -65,7 +65,10 @@ Deno.serve(async (req) => {
             "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ brand_id: brand.id }),
+          body: JSON.stringify({ 
+            brand_name: brand.name,
+            qid: brand.wikidata_qid // CRITICAL: Pass existing QID to avoid wrong entity matches
+          }),
         });
 
         if (!treeResponse.ok) {

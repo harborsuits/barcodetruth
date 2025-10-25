@@ -17,35 +17,69 @@ interface OwnershipGraph {
   subsidiaries: RelatedEntity[];
 }
 
-async function getOwnershipGraph(brandName: string): Promise<OwnershipGraph> {
-  console.log('[Wikidata] Searching for:', brandName);
-  
-  // Step 1: Find the brand's QID
-  const baseUrl = 'https://www.wikidata.org/w/api.php';
-  const makeSearch = async (query: string) => {
-    const url = `${baseUrl}?action=wbsearchentities&search=${encodeURIComponent(query)}&language=en&format=json&type=item&limit=5&origin=*`;
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'LovableApp/1.0 (+https://lovable.dev)', 'Accept': 'application/json' }
-    });
-    if (!res.ok) throw new Error(`Wikidata search failed: ${res.status}`);
-    return res.json();
-  };
+async function getOwnershipGraph(brandName: string, explicitQid?: string): Promise<OwnershipGraph> {
+  let qid: string;
+  let entityLabel: string;
 
-  let searchData = await makeSearch(brandName + ' company');
-  if (!searchData?.search?.length) {
-    console.log('[Wikidata] Primary search empty, retrying with plain name');
-    searchData = await makeSearch(brandName);
+  // CRITICAL: If QID is explicitly provided, use it directly (skips unreliable name search)
+  if (explicitQid) {
+    console.log('[Wikidata] Using explicit QID:', explicitQid);
+    qid = explicitQid;
+    
+    // Fetch entity label for the QID
+    try {
+      const entityUrl = `https://www.wikidata.org/wiki/Special:EntityData/${qid}.json`;
+      const entityRes = await fetch(entityUrl, {
+        headers: {
+          'User-Agent': 'LovableApp/1.0 (+https://lovable.dev)',
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (entityRes.ok) {
+        const entityData = await entityRes.json();
+        const entity = entityData.entities[qid];
+        entityLabel = entity.labels?.en?.value || brandName;
+        console.log('[Wikidata] Fetched label for QID:', entityLabel);
+      } else {
+        console.warn('[Wikidata] Could not fetch entity data, using brand name as label');
+        entityLabel = brandName;
+      }
+    } catch (e) {
+      console.warn('[Wikidata] Error fetching entity:', e);
+      entityLabel = brandName;
+    }
+  } else {
+    // Fallback to name search (less reliable)
+    console.log('[Wikidata] Searching by name:', brandName);
+    
+    const baseUrl = 'https://www.wikidata.org/w/api.php';
+    const makeSearch = async (query: string) => {
+      const url = `${baseUrl}?action=wbsearchentities&search=${encodeURIComponent(query)}&language=en&format=json&type=item&limit=5&origin=*`;
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'LovableApp/1.0 (+https://lovable.dev)', 'Accept': 'application/json' }
+      });
+      if (!res.ok) throw new Error(`Wikidata search failed: ${res.status}`);
+      return res.json();
+    };
+
+    let searchData = await makeSearch(brandName + ' company');
+    if (!searchData?.search?.length) {
+      console.log('[Wikidata] Primary search empty, retrying with plain name');
+      searchData = await makeSearch(brandName);
+    }
+    
+    if (!searchData?.search || searchData.search.length === 0) {
+      throw new Error('Entity not found in Wikidata');
+    }
+    
+    // Use first result - Wikidata search is already relevant
+    const selectedEntity = searchData.search[0];
+    console.log('[Wikidata] Using first result:', selectedEntity.id, selectedEntity.label);
+    qid = selectedEntity.id;
+    entityLabel = selectedEntity.label;
+    console.log('[Wikidata] Found QID:', qid, 'for', brandName);
   }
-  
-  if (!searchData?.search || searchData.search.length === 0) {
-    throw new Error('Entity not found in Wikidata');
-  }
-  
-  // Use first result - Wikidata search is already relevant
-  const selectedEntity = searchData.search[0];
-  console.log('[Wikidata] Using first result:', selectedEntity.id, selectedEntity.label);
-  const qid = selectedEntity.id;
-  console.log('[Wikidata] Found QID:', qid, 'for', brandName);
   
   // Step 2: SPARQL query to get the full graph
   const sparqlQuery = `
@@ -172,7 +206,7 @@ async function getOwnershipGraph(brandName: string): Promise<OwnershipGraph> {
   
   return {
     entity_qid: qid,
-    entity_name: selectedEntity.label,
+    entity_name: entityLabel,
     parent,
     siblings,
     cousins,
@@ -189,13 +223,13 @@ Deno.serve(async (req) => {
   
   try {
     console.log('[resolve-wikidata-tree] Parsing request body');
-    const { brand_name } = await req.json();
-    console.log('[resolve-wikidata-tree] Brand name:', brand_name);
+    const { brand_name, qid } = await req.json();
+    console.log('[resolve-wikidata-tree] Brand name:', brand_name, 'QID:', qid);
     
-    // Input validation
-    if (!brand_name || typeof brand_name !== 'string') {
+    // Input validation: Either qid or brand_name must be provided
+    if (!qid && (!brand_name || typeof brand_name !== 'string')) {
       return new Response(
-        JSON.stringify({ error: 'brand_name must be a non-empty string' }),
+        JSON.stringify({ error: 'Either qid or brand_name must be provided' }),
         { 
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -203,7 +237,7 @@ Deno.serve(async (req) => {
       );
     }
     
-    if (brand_name.length > 100) {
+    if (brand_name && brand_name.length > 100) {
       return new Response(
         JSON.stringify({ error: 'brand_name must be less than 100 characters' }),
         { 
@@ -213,8 +247,8 @@ Deno.serve(async (req) => {
       );
     }
     
-    console.log('[resolve-wikidata-tree] Calling getOwnershipGraph');
-    const graph = await getOwnershipGraph(brand_name);
+    console.log('[resolve-wikidata-tree] Calling getOwnershipGraph with', qid ? 'explicit QID' : 'name search');
+    const graph = await getOwnershipGraph(brand_name || 'Unknown', qid);
     console.log('[resolve-wikidata-tree] Graph received:', JSON.stringify(graph).substring(0, 200));
     console.log('[resolve-wikidata-tree] Full graph structure:', {
       entity_qid: graph.entity_qid,
