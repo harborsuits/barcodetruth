@@ -81,87 +81,147 @@ export const Onboarding = () => {
 
   if (step === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20 flex items-center justify-center p-4">
-        <Card className="max-w-3xl w-full p-8">
+      <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 p-4 flex items-center justify-center">
+        <div className="max-w-4xl w-full animate-fade-in">
+          {/* Hero Section */}
           <div className="text-center mb-8">
-            <img src={logo} alt="BarcodeTruth" className="h-16 mx-auto mb-4" />
-            <h1 className="text-3xl font-bold mb-2">Welcome to BarcodeTruth! 👋</h1>
-            <p className="text-lg text-muted-foreground">
+            <div className="inline-block bg-white/10 backdrop-blur-sm rounded-2xl p-4 mb-4">
+              <img src={logo} alt="BarcodeTruth" className="h-20 mx-auto" />
+            </div>
+            <h1 className="text-5xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
+              Welcome to BarcodeTruth! 👋
+            </h1>
+            <p className="text-xl md:text-2xl text-white/90 font-medium">
               Shop according to YOUR values, not generic ratings
             </p>
           </div>
 
-          {/* How It Works Section */}
-          <div className="bg-primary/5 rounded-lg p-6 mb-6 border-2 border-primary/20">
-            <h2 className="text-xl font-bold mb-4 text-center">How It Works</h2>
+          {/* How It Works - Card Style */}
+          <Card className="bg-white/95 backdrop-blur-lg shadow-2xl mb-6 border-0">
+            <CardContent className="p-8">
+              <h2 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+                How It Works
+              </h2>
+              
+              <div className="grid md:grid-cols-3 gap-6 mb-8">
+                {/* Step 1 */}
+                <div className="text-center group hover-scale">
+                  <div className="bg-gradient-to-br from-blue-500 to-blue-600 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:shadow-xl transition-shadow">
+                    <span className="text-3xl font-bold text-white">1</span>
+                  </div>
+                  <div className="bg-blue-50 rounded-xl p-4 h-full">
+                    <h3 className="font-bold text-lg mb-2 text-gray-900">
+                      Set Your Values
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      4 quick sliders: Labor, Environment, Politics, and Social Issues (0-100)
+                    </p>
+                  </div>
+                </div>
+
+                {/* Step 2 */}
+                <div className="text-center group hover-scale">
+                  <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:shadow-xl transition-shadow">
+                    <span className="text-3xl font-bold text-white">2</span>
+                  </div>
+                  <div className="bg-cyan-50 rounded-xl p-4 h-full">
+                    <h3 className="font-bold text-lg mb-2 text-gray-900">
+                      We Calculate Match
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Brand scores from real news vs. YOUR values = Match %
+                    </p>
+                  </div>
+                </div>
+
+                {/* Step 3 */}
+                <div className="text-center group hover-scale">
+                  <div className="bg-gradient-to-br from-green-500 to-green-600 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:shadow-xl transition-shadow">
+                    <span className="text-3xl font-bold text-white">3</span>
+                  </div>
+                  <div className="bg-green-50 rounded-xl p-4 h-full">
+                    <h3 className="font-bold text-lg mb-2 text-gray-900">
+                      Better Choices
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      See alignment, read evidence, find alternatives
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Example - Make it POP */}
+              <div className="bg-gradient-to-br from-orange-50 to-red-50 border-2 border-orange-200 rounded-2xl p-6 relative overflow-hidden">
+                {/* Decorative element */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-orange-200/20 rounded-full -mr-16 -mt-16"></div>
+                
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="bg-orange-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                    EXAMPLE
+                  </div>
+                  <span className="text-sm text-gray-600">See how it works:</span>
+                </div>
+
+                <div className="space-y-3 relative z-10">
+                  <div className="flex flex-col md:flex-row items-center gap-3">
+                    <div className="bg-white rounded-lg px-4 py-2 flex-1 shadow-sm w-full">
+                      <span className="text-sm text-gray-600">You set</span>
+                      <div className="font-bold text-lg">Labor: 90</div>
+                      <span className="text-xs text-gray-500">(deeply care about worker rights)</span>
+                    </div>
+                    <div className="text-2xl">→</div>
+                    <div className="bg-white rounded-lg px-4 py-2 flex-1 shadow-sm w-full">
+                      <span className="text-sm text-gray-600">Brand X has</span>
+                      <div className="font-bold text-lg text-red-600">Labor: 35</div>
+                      <span className="text-xs text-gray-500">(many violations)</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl p-4 shadow-lg border-2 border-red-300">
+                    <div className="text-center">
+                      <div className="text-4xl font-bold text-red-600 mb-1">45% Match</div>
+                      <div className="text-sm font-semibold text-red-700 mb-2">⚠️ Major Mismatch</div>
+                      <div className="text-sm text-gray-600">
+                        We suggest alternatives with better labor practices
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* CTA Button - Make it HUGE and impossible to miss */}
+          <div className="text-center">
+            <Button 
+              size="lg"
+              onClick={() => setStep(1)}
+              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold text-xl px-12 py-8 rounded-2xl shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-200"
+            >
+              Set My Values →
+            </Button>
             
-            <div className="space-y-4">
-              <div className="flex gap-4">
-                <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center font-bold flex-shrink-0">1</div>
-                <div>
-                  <h3 className="font-semibold mb-1">You Set Your Values (Next Step)</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Tell us what matters to YOU on a 0-100 scale for 4 categories:
-                    Labor, Environment, Politics, and Social Issues.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center font-bold flex-shrink-0">2</div>
-                <div>
-                  <h3 className="font-semibold mb-1">We Calculate Your Match</h3>
-                  <p className="text-sm text-muted-foreground">
-                    When you scan a product, we compare the brand's actual scores 
-                    (based on real news) against YOUR values to calculate a match percentage.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center font-bold flex-shrink-0">3</div>
-                <div>
-                  <h3 className="font-semibold mb-1">You Make Better Choices</h3>
-                  <p className="text-sm text-muted-foreground">
-                    See if a brand aligns with your values, read the evidence, 
-                    and find alternatives if it doesn't match.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <p className="text-white/80 text-sm mt-4 font-medium">
+              Takes 2 minutes • Can be changed anytime in Settings
+            </p>
           </div>
 
-          {/* Example Section */}
-          <div className="bg-muted rounded-lg p-4 mb-6">
-            <h3 className="font-semibold mb-2 text-center">Example</h3>
-            <div className="text-sm space-y-2">
-              <p>
-                <span className="font-medium">You set Labor to 90</span> (you deeply care about worker rights)
-              </p>
-              <p>
-                <span className="font-medium">You scan Brand X</span> → They have Labor score of 35 (many violations)
-              </p>
-              <p>
-                <span className="font-medium">Result:</span> <span className="text-destructive font-bold">45% Match - Major Mismatch</span>
-              </p>
-              <p>
-                <span className="font-medium">We suggest alternatives</span> with better labor practices
-              </p>
+          {/* Trust indicators */}
+          <div className="flex flex-wrap justify-center gap-8 mt-8 text-white/70 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+              <span>Non-partisan</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+              <span>Evidence-based</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+              <span>5 free scans</span>
             </div>
           </div>
-
-          <Button 
-            size="lg" 
-            className="w-full"
-            onClick={() => setStep(1)}
-          >
-            Set My Values →
-          </Button>
-
-          <p className="text-xs text-center text-muted-foreground mt-4">
-            Takes 2 minutes • Can be changed anytime in Settings
-          </p>
-        </Card>
+        </div>
       </div>
     );
   }
