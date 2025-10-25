@@ -40,27 +40,64 @@ Deno.serve(async (req) => {
 
     for (const brand of brands) {
       try {
-        const enrichUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/enrich-brand-wiki?brand_id=${brand.id}`;
-        const response = await fetch(enrichUrl, {
+        // Step 1: Check if brand needs enrichment (ownership + people + shareholders)
+        const { data: ownership } = await supabase
+          .from("company_ownership")
+          .select("id")
+          .eq("child_brand_id", brand.id)
+          .limit(1);
+
+        const hasOwnership = ownership && ownership.length > 0;
+
+        if (hasOwnership) {
+          console.log(`[bulk-enrich-brands] ${brand.name}: Already has complete data, skipping`);
+          results.push({ brand_id: brand.id, name: brand.name, success: true, error: "Already enriched" });
+          continue;
+        }
+
+        console.log(`[bulk-enrich-brands] ${brand.name}: Missing ownership data, enriching...`);
+
+        // Step 2: Create corporate structure first
+        const treeUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/resolve-wikidata-tree`;
+        const treeResponse = await fetch(treeUrl, {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
             "Content-Type": "application/json",
           },
+          body: JSON.stringify({ brand_id: brand.id }),
         });
 
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(`HTTP ${response.status}: ${text}`);
+        if (!treeResponse.ok) {
+          const text = await treeResponse.text();
+          console.warn(`[bulk-enrich-brands] ${brand.name}: Tree resolution failed: ${text}`);
+        } else {
+          console.log(`[bulk-enrich-brands] ${brand.name}: Corporate structure created`);
         }
 
-        const data = await response.json();
-        console.log(`[bulk-enrich-brands] ${brand.name}: ${data.updated ? 'enriched' : 'skipped'}`);
+        // Step 3: Enrich with full data (people + shareholders)
+        const enrichUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/enrich-brand-wiki`;
+        const enrichResponse = await fetch(enrichUrl, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ brand_id: brand.id, mode: "full" }),
+        });
+
+        if (!enrichResponse.ok) {
+          const text = await enrichResponse.text();
+          throw new Error(`HTTP ${enrichResponse.status}: ${text}`);
+        }
+
+        const data = await enrichResponse.json();
+        console.log(`[bulk-enrich-brands] ${brand.name}: Full enrichment ${data.success ? 'complete' : 'failed'}`);
 
         results.push({ brand_id: brand.id, name: brand.name, success: true });
 
         // Rate limit
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 500));
       } catch (error: any) {
         console.error(`[bulk-enrich-brands] Error for ${brand.name}:`, error);
         results.push({ brand_id: brand.id, name: brand.name, success: false, error: error.message });
