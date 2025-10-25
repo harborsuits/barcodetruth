@@ -51,13 +51,18 @@ const CATEGORY_DESCRIPTIONS: Record<string, { user: (val: number) => string; bra
 function CategoryEvidence({ brandId, category }: { brandId: string; category: string }) {
   const { data: evidence, isLoading } = useCategoryEvidence(brandId, category as any);
   
+  // Only show evidence if we have data AND it matches the requested category
   if (isLoading || !evidence || evidence.length === 0) return null;
+  
+  // Extra safety: filter to ensure all evidence matches the category
+  const validEvidence = evidence.filter(ev => ev.category === category);
+  if (validEvidence.length === 0) return null;
   
   return (
     <div className="mt-3 pt-3 border-t border-border/50">
       <p className="text-xs font-medium text-muted-foreground mb-2">Evidence:</p>
       <div className="space-y-2">
-        {evidence.map((ev) => (
+        {validEvidence.map((ev) => (
           <a
             key={ev.event_id}
             href={ev.source_url || '#'}

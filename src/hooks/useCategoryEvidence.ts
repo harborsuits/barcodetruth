@@ -26,8 +26,10 @@ export function useCategoryEvidence(brandId: string, category: CategoryKey, limi
         .limit(limit);
       
       if (error) throw error;
-      return data || [];
+      // Double-check category match to prevent cross-contamination
+      return (data || []).filter(event => event.category === category);
     },
-    enabled: !!brandId
+    enabled: !!brandId && !!category,
+    staleTime: 1000 * 60 * 5 // Cache for 5 minutes
   });
 }
