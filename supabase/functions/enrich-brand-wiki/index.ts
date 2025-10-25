@@ -167,22 +167,32 @@ serve(async (req) => {
         const FOUNDER_QIDS = claimIds(companyEntity, 'P112');
 
         const extractPeople = async (qids: string[], role: string, limit = 2) => {
-          for (const pqid of qids.slice(0, limit)) {
+          // De-duplicate while preserving order
+          const seen = new Set<string>();
+          const uniqueQids = qids.filter((q) => {
+            if (seen.has(q)) return false;
+            seen.add(q);
+            return true;
+          });
+
+          for (const pqid of uniqueQids.slice(0, limit)) {
             try {
               const { entity: personEnt } = await fetchWikidataEntity(pqid);
               const personName = getLabel(personEnt);
               const imageClaim = personEnt?.claims?.P18?.[0]?.mainsnak?.datavalue?.value;
-              
-              await supabase.from('company_people').upsert({
+
+              const { error: upsertErr } = await supabase.from('company_people').upsert({
                 company_id: companyId,
                 person_qid: pqid,
                 person_name: personName,
                 role,
                 image_url: imageClaim ? `https://commons.wikimedia.org/wiki/Special:FilePath/${imageClaim}` : null,
                 source: 'wikidata',
-                last_updated_at: new Date().toISOString()
-              }, { onConflict: 'company_id,person_qid' });
-              
+                last_verified_at: new Date().toISOString()
+              }, { onConflict: 'company_id,person_qid,role' });
+
+              if (upsertErr) throw upsertErr;
+
               log('Upserted person', { pqid, personName, role });
               await new Promise(r => setTimeout(r, 150));
             } catch (e) {
@@ -192,9 +202,18 @@ serve(async (req) => {
         };
 
         log('Extracting people for company', companyQid);
-        await extractPeople(CEO_QIDS, 'chief_executive_officer');
-        await extractPeople(CHAIR_QIDS, 'chairperson');
-        await extractPeople(FOUNDER_QIDS, 'founder');
+        // Fallback to brand-level claims if company entity lacks people
+        const BRAND_CEO_QIDS = claimIds(brandEntity, 'P169');
+        const BRAND_CHAIR_QIDS = claimIds(brandEntity, 'P488');
+        const BRAND_FOUNDER_QIDS = claimIds(brandEntity, 'P112');
+
+        const ceoList = CEO_QIDS.length ? CEO_QIDS : BRAND_CEO_QIDS;
+        const chairList = CHAIR_QIDS.length ? CHAIR_QIDS : BRAND_CHAIR_QIDS;
+        const founderList = FOUNDER_QIDS.length ? FOUNDER_QIDS : BRAND_FOUNDER_QIDS;
+
+        await extractPeople(ceoList, 'chief_executive_officer');
+        await extractPeople(chairList, 'chairperson');
+        await extractPeople(founderList, 'founder');
 
         // === EXTRACT SHAREHOLDERS (P127 'owned by') ===
         const OWNER_QIDS = claimIds(companyEntity, 'P127');
