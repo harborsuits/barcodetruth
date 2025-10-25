@@ -57,56 +57,42 @@ serve(async (req) => {
       });
     }
 
-    // Get upstream ownership (parents) with loop detection and depth limit
+    // Get upstream ownership (parents) - CONTROL RELATIONSHIPS ONLY
     const upstream: Array<{ brand: BrandNode; relationship: string; confidence: number; sources: Array<{name: string; url: string | null}> }> = [];
     const seenIds = new Set<string>([brandId]); // Loop detection
     const MAX_DEPTH = 3;
     let parentIds: string[] = [];
     
-    let currentBrandId = brandId;
-    let depth = 0;
+    // Start by checking company_ownership for parent companies
+    const { data: parentOwnership } = await supabase
+      .from('company_ownership')
+      .select('parent_company_id, relationship, confidence, source, companies!parent_company_id(id, name, wikidata_qid)')
+      .eq('child_brand_id', brandId)
+      .in('relationship', ['parent', 'subsidiary', 'parent_organization'])
+      .gte('confidence', 0.7)
+      .order('confidence', { ascending: false })
+      .limit(1);
     
-    // Walk up the ownership chain
-    while (currentBrandId && depth < MAX_DEPTH) {
-      const { data: edges } = await supabase
-        .from('brand_ownerships')
-        .select('brand_id, parent_brand_id, relationship_type, source, source_url, confidence')
-        .eq('brand_id', currentBrandId)
-        .order('confidence', { ascending: false })
-        .limit(1); // Take highest confidence parent
+    if (parentOwnership && parentOwnership.length > 0) {
+      const parentCompany = parentOwnership[0].companies as any;
       
-      if (!edges || edges.length === 0) break;
-      
-      const edge = edges[0];
-      
-      // Loop detection
-      if (seenIds.has(edge.parent_brand_id)) {
-        console.warn('Loop detected in ownership chain:', edge.parent_brand_id);
-        break;
-      }
-      seenIds.add(edge.parent_brand_id);
-      
-      // Get parent brand details
+      // Find the brand record for this parent company
       const { data: parentBrand } = await supabase
         .from('brands')
         .select('id, name, wikidata_qid, website')
-        .eq('id', edge.parent_brand_id)
-        .single();
+        .eq('wikidata_qid', parentCompany.wikidata_qid)
+        .maybeSingle();
       
       if (parentBrand) {
         upstream.push({
           brand: parentBrand,
-          relationship: edge.relationship_type,
-          confidence: edge.confidence || 75,
-          sources: [{ name: edge.source, url: edge.source_url }]
+          relationship: parentOwnership[0].relationship,
+          confidence: parentOwnership[0].confidence || 75,
+          sources: [{ name: parentOwnership[0].source, url: null }]
         });
         parentIds.push(parentBrand.id);
-        currentBrandId = parentBrand.id; // Move up the chain
-      } else {
-        break;
+        seenIds.add(parentBrand.id);
       }
-      
-      depth++;
     }
 
     // Get downstream siblings (brands with same parent)
@@ -138,10 +124,7 @@ serve(async (req) => {
       : 0;
 
     // Log outcome for monitoring
-    const stoppedReason = upstream.length === 0 ? 'no_parent' 
-      : depth === MAX_DEPTH ? 'max_depth' 
-      : seenIds.size > upstream.length + 1 ? 'loop' 
-      : 'complete';
+    const stoppedReason = upstream.length === 0 ? 'no_parent' : 'complete';
     
     const topParent = upstream.length > 0 ? upstream[upstream.length - 1].brand : null;
     const sanitizedBrandName = brand.name.replace(/[^\w\s-]/g, '').substring(0, 50);

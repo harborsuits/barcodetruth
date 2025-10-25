@@ -27,6 +27,29 @@ export async function getAlternatives(
   const API = import.meta.env.VITE_SUPABASE_URL + "/functions/v1/v1-brands";
   const userWeights = getUserWeights();
 
+  // Get parent company of current brand if needed
+  let currentParentQid: string | null = null;
+  if (excludeSameParent) {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/get_brand_company_info`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+        },
+        body: JSON.stringify({ p_brand_id: currentBrandId })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        currentParentQid = data?.ownership?.company?.wikidata_qid || null;
+        console.log('[Alternatives] Current brand parent QID:', currentParentQid);
+      }
+    } catch (err) {
+      console.error('[Alternatives] Failed to get parent company:', err);
+    }
+  }
+
   // Fetch trending brands (already verified with events)
   const trendingRes = await fetch(`${API}/trending?limit=100`);
   if (!trendingRes.ok) {
@@ -36,8 +59,8 @@ export async function getAlternatives(
   
   const trending = await trendingRes.json();
   
-  // Filter out current brand and get details for each
-  const pool = trending.filter((b: any) => b.brand_id !== currentBrandId);
+  // Filter out current brand
+  let pool = trending.filter((b: any) => b.brand_id !== currentBrandId);
   
   // Sort by verified signals: events_30d desc, verified_rate desc, trend_score desc
   pool.sort((a: any, b: any) => {
@@ -51,7 +74,7 @@ export async function getAlternatives(
   });
 
   // Take top candidates and fetch full details
-  const candidates = pool.slice(0, 20);
+  const candidates = pool.slice(0, 30); // Fetch more to account for filtering
   const alternatives: Alternative[] = [];
 
   for (const candidate of candidates) {
@@ -63,6 +86,32 @@ export async function getAlternatives(
       
       // Skip if no verified events/evidence (realOnly gate)
       if (!brandData.last_event_at || !brandData.score) continue;
+
+      // If excluding same parent, check parent company
+      if (excludeSameParent && currentParentQid) {
+        try {
+          const parentResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/get_brand_company_info`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+            },
+            body: JSON.stringify({ p_brand_id: candidate.brand_id })
+          });
+          if (parentResponse.ok) {
+            const parentData = await parentResponse.json();
+            const candidateParentQid = parentData?.ownership?.company?.wikidata_qid || null;
+            if (candidateParentQid && candidateParentQid === currentParentQid) {
+              console.log('[Alternatives] Skipping same-parent brand:', brandData.name);
+              continue; // Skip brands with same parent
+            }
+          }
+        } catch (err) {
+          console.error('[Alternatives] Failed to check parent for candidate:', err);
+          // Continue anyway - don't block on errors
+        }
+      }
 
       // Calculate value fit using verified score (no defaults!)
       const scores: BrandScores = {

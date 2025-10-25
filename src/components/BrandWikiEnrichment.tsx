@@ -41,6 +41,7 @@ export function BrandWikiEnrichment({
     // Determine if we need full enrichment (people + shareholders) or just basic
     const needsFullEnrichment = !hasKeyPeople || !hasShareholders;
     const needsBasicEnrichment = !hasDescription || !hasParentCompany;
+    const needsLogo = !brandId; // Will be checked in the enrichment call
 
     if (!needsBasicEnrichment && !needsFullEnrichment) return;
 
@@ -91,6 +92,27 @@ export function BrandWikiEnrichment({
             console.error('[Wiki] Ownership enrichment error:', ownershipError);
           } else {
             console.log('[Wiki] Ownership enrichment success:', ownershipData);
+          }
+        }
+
+        // Auto-trigger logo resolution if brand doesn't have one
+        console.log('[Wiki] Checking for logo...');
+        const { data: brandCheck } = await supabase
+          .from('brands')
+          .select('logo_url')
+          .eq('id', brandId)
+          .single();
+        
+        if (!brandCheck?.logo_url) {
+          console.log('[Wiki] No logo found, triggering logo resolution');
+          const { data: logoData, error: logoError } = await supabase.functions.invoke('resolve-brand-logo', {
+            body: { brand_id: brandId }
+          });
+          
+          if (logoError) {
+            console.error('[Wiki] Logo resolution error:', logoError);
+          } else {
+            console.log('[Wiki] Logo resolution success:', logoData);
           }
         }
 
