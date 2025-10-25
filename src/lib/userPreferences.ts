@@ -45,15 +45,23 @@ export async function updateUserValues(values: {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
     
-    const { error } = await supabase
+    console.log('Saving values for user:', user.id, values);
+    
+    const { data, error } = await supabase
       .from('user_preferences')
       .upsert({
         user_id: user.id,
         ...values,
         updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id' });
+      }, { onConflict: 'user_id' })
+      .select();
     
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
+    
+    console.log('Values saved successfully:', data);
     return true;
   } catch (err) {
     console.error('Failed to update values:', err);
