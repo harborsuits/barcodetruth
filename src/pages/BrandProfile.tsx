@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ArrowLeft, ExternalLink, AlertCircle, Building2, Link as LinkIcon } from 'lucide-react';
+import { Header } from '@/components/layout/Header';
 import { CategoryScoreCard } from '@/components/brand/CategoryScoreCard';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
@@ -418,11 +419,7 @@ export default function BrandProfile() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <header className="sticky top-0 z-10 bg-card border-b">
-          <div className="container max-w-4xl mx-auto px-4 py-4">
-            <Skeleton className="h-8 w-48" />
-          </div>
-        </header>
+        <Header showBack={true} />
         <main className="container max-w-4xl mx-auto px-4 py-6 space-y-6">
           <div className="flex items-center gap-4">
             <Skeleton className="w-16 h-16 rounded-2xl" />
@@ -447,13 +444,7 @@ export default function BrandProfile() {
   if (error || !data?.brand) {
     return (
       <div className="min-h-screen bg-background">
-        <header className="sticky top-0 z-10 bg-card border-b">
-          <div className="container max-w-4xl mx-auto px-4 py-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </div>
-        </header>
+        <Header showBack={true} />
         <main className="container max-w-2xl mx-auto px-4 py-12 text-center space-y-4">
           <AlertCircle className="h-16 w-16 mx-auto text-muted-foreground" />
           <h1 className="text-2xl font-semibold">Brand not found</h1>
@@ -495,16 +486,7 @@ export default function BrandProfile() {
           queryClient.invalidateQueries({ queryKey: ['top-shareholders', actualId] });
         }}
       />
-      <header className="sticky top-0 z-10 bg-card border-b">
-        <div className="container max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="text-xl font-bold">Brand Profile</h1>
-          </div>
-        </div>
-      </header>
+      <Header showBack={true} />
 
       <main className="container max-w-4xl mx-auto px-4 py-6 space-y-6">
         {/* Header with brand info and score */}
