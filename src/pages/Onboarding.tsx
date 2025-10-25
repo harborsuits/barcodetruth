@@ -10,6 +10,141 @@ import { updateUserValues } from "@/lib/userPreferences";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
 
+interface ValueCardProps {
+  icon: React.ReactNode;
+  title: string;
+  color: 'blue' | 'green' | 'purple' | 'pink';
+  value: number;
+  onChange: (value: number) => void;
+  shortDesc: string;
+  examples: {
+    low: string;
+    mid: string;
+    high: string;
+  };
+  scaleLabels?: {
+    left: string;
+    right: string;
+  };
+}
+
+const ValueCard = ({
+  icon,
+  title,
+  color,
+  value,
+  onChange,
+  shortDesc,
+  examples,
+  scaleLabels = { left: "Don't care", right: "Very important" }
+}: ValueCardProps) => {
+  const [isActive, setIsActive] = useState(false);
+  
+  const colorMap = {
+    blue: {
+      bg: 'from-blue-500 to-blue-600',
+      light: 'bg-blue-50',
+      border: 'border-blue-200',
+      text: 'text-blue-600',
+    },
+    green: {
+      bg: 'from-green-500 to-green-600',
+      light: 'bg-green-50',
+      border: 'border-green-200',
+      text: 'text-green-600',
+    },
+    purple: {
+      bg: 'from-purple-500 to-purple-600',
+      light: 'bg-purple-50',
+      border: 'border-purple-200',
+      text: 'text-purple-600',
+    },
+    pink: {
+      bg: 'from-pink-500 to-pink-600',
+      light: 'bg-pink-50',
+      border: 'border-pink-200',
+      text: 'text-pink-600',
+    }
+  };
+
+  const colors = colorMap[color];
+
+  // Determine which example to show
+  const getCurrentExample = () => {
+    if (value < 35) return examples.low;
+    if (value < 65) return examples.mid;
+    return examples.high;
+  };
+
+  // Determine intensity
+  const getIntensity = () => {
+    if (value < 35) return { label: "Low Priority", emoji: "😌" };
+    if (value < 65) return { label: "Moderate", emoji: "🤔" };
+    return { label: "High Priority", emoji: "🔥" };
+  };
+
+  const intensity = getIntensity();
+
+  return (
+    <div
+      className={`
+        bg-white rounded-2xl p-6 shadow-lg border-2 transition-all duration-300
+        ${isActive ? `${colors.border} scale-[1.02]` : 'border-gray-200'}
+      `}
+    >
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colors.bg} flex items-center justify-center text-white shadow-md`}>
+            {icon}
+          </div>
+          <div>
+            <h3 className="font-bold text-lg text-gray-900">{title}</h3>
+            <p className="text-sm text-gray-500">{shortDesc}</p>
+          </div>
+        </div>
+        
+        {/* Live Value Display */}
+        <div className="text-right">
+          <div className={`text-3xl font-bold ${colors.text}`}>{value}</div>
+          <div className="text-xs text-gray-500">/100</div>
+        </div>
+      </div>
+
+      {/* Slider */}
+      <div className="mb-4">
+        <Slider
+          value={[value]}
+          onValueChange={(vals) => onChange(vals[0])}
+          min={0}
+          max={100}
+          step={5}
+          onPointerDown={() => setIsActive(true)}
+          onPointerUp={() => setIsActive(false)}
+          className="mb-2"
+        />
+        
+        <div className="flex justify-between text-xs text-gray-500">
+          <span>{scaleLabels.left} (0)</span>
+          <span>{scaleLabels.right} (100)</span>
+        </div>
+      </div>
+
+      {/* Live Feedback */}
+      <div className={`${colors.light} rounded-xl p-4 border ${colors.border}`}>
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-lg">{intensity.emoji}</span>
+          <span className={`font-semibold text-sm ${colors.text}`}>
+            {intensity.label}
+          </span>
+        </div>
+        <p className="text-sm text-gray-700 italic">
+          "{getCurrentExample()}"
+        </p>
+      </div>
+    </div>
+  );
+};
+
 export const Onboarding = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -227,163 +362,150 @@ export const Onboarding = () => {
   }
 
   if (step === 1) {
+    // Calculate overall profile
+    const getProfile = () => {
+      const avg = (values.labor + values.environment + values.politics + values.social) / 4;
+      if (avg >= 70) return { label: "Highly Values-Driven", color: "text-blue-600" };
+      if (avg >= 40) return { label: "Balanced Approach", color: "text-gray-600" };
+      return { label: "Focused on Specific Issues", color: "text-purple-600" };
+    };
+
+    const profile = getProfile();
+
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-2xl space-y-8">
-          <div className="space-y-2 text-center">
-            <h2 className="text-3xl font-bold">What matters to you?</h2>
-            <p className="text-muted-foreground">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-4 flex items-center justify-center">
+        <div className="max-w-4xl w-full">
+          {/* Header with live feedback */}
+          <div className="text-center mb-6">
+            <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+              What matters to you?
+            </h1>
+            <p className="text-gray-600 mb-4">
               Set your values on a 0-100 scale. Higher = more important to you.
             </p>
+            
+            {/* Live Profile Indicator */}
+            <div className="inline-block bg-white rounded-full px-6 py-2 shadow-md border border-gray-200">
+              <span className="text-sm text-gray-500 mr-2">Your Profile:</span>
+              <span className={`font-bold ${profile.color}`}>{profile.label}</span>
+            </div>
           </div>
 
-          <TooltipProvider>
-          <div className="space-y-6">
-            <Card className="p-4 border-2">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-labor" />
-                    <span className="font-medium">Worker Rights & Labor Practices</span>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <Info className="h-4 w-4 text-muted-foreground" />
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p className="text-sm">How much do you care about how companies treat their workers, pay wages, and handle unions?</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <span className="text-2xl font-bold text-labor">{values.labor}</span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  How much do you care about fair wages, working conditions, and union rights?
-                </p>
-                <Slider
-                  value={[values.labor]}
-                  onValueChange={(v) => setValues({ ...values, labor: v[0] })}
-                  max={100}
-                  step={1}
-                  className="[&_[role=slider]]:bg-labor"
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Don't prioritize (0)</span>
-                  <span>Very important (100)</span>
-                </div>
-              </div>
-            </Card>
+          <div className="space-y-4">
+            {/* Labor Card */}
+            <ValueCard
+              icon={<Users className="w-6 h-6" />}
+              title="Worker Rights & Labor"
+              color="blue"
+              value={values.labor}
+              onChange={(v) => setValues({ ...values, labor: v })}
+              shortDesc="How companies treat their workers"
+              examples={{
+                low: "I don't factor this into shopping decisions",
+                mid: "I consider it, but it's not a dealbreaker",
+                high: "I actively avoid companies with poor labor records"
+              }}
+            />
 
-            <Card className="p-4 border-2">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Leaf className="h-5 w-5 text-environment" />
-                    <span className="font-medium">Environmental Impact & Sustainability</span>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <Info className="h-4 w-4 text-muted-foreground" />
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p className="text-sm">Impact on the planet, including emissions, waste, and sustainability practices.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <span className="text-2xl font-bold text-environment">{values.environment}</span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  How much do you care about climate change, pollution, and sustainable practices?
-                </p>
-                <Slider
-                  value={[values.environment]}
-                  onValueChange={(v) => setValues({ ...values, environment: v[0] })}
-                  max={100}
-                  step={1}
-                  className="[&_[role=slider]]:bg-environment"
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Don't prioritize (0)</span>
-                  <span>Very important (100)</span>
-                </div>
-              </div>
-            </Card>
+            {/* Environment Card */}
+            <ValueCard
+              icon={<Leaf className="w-6 h-6" />}
+              title="Environmental Impact"
+              color="green"
+              value={values.environment}
+              onChange={(v) => setValues({ ...values, environment: v })}
+              shortDesc="Climate change and sustainability"
+              examples={{
+                low: "Environmental impact doesn't affect my choices",
+                mid: "I prefer eco-friendly when convenient",
+                high: "I prioritize sustainability and avoid polluters"
+              }}
+            />
 
-            <Card className="p-4 border-2">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Megaphone className="h-5 w-5 text-politics" />
-                    <span className="font-medium">Political Donations & Lobbying</span>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <Info className="h-4 w-4 text-muted-foreground" />
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p className="text-sm">How much do you care about corporate political spending, PAC donations, and lobbying?</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <span className="text-2xl font-bold text-politics">{values.politics}</span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  How much do you care about where companies donate politically and their lobbying activities?
-                </p>
-                <Slider
-                  value={[values.politics]}
-                  onValueChange={(v) => setValues({ ...values, politics: v[0] })}
-                  max={100}
-                  step={1}
-                  className="[&_[role=slider]]:bg-politics"
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Don't care (0)</span>
-                  <span>Very important (100)</span>
-                </div>
-              </div>
-            </Card>
+            {/* Politics Card */}
+            <ValueCard
+              icon={<Megaphone className="w-6 h-6" />}
+              title="Political Influence"
+              color="purple"
+              value={values.politics}
+              onChange={(v) => setValues({ ...values, politics: v })}
+              shortDesc="Corporate lobbying and donations"
+              examples={{
+                low: "I don't care about corporate political spending",
+                mid: "I'm curious but it doesn't change my shopping",
+                high: "I want to know where my money goes politically"
+              }}
+            />
 
-            <Card className="p-4 border-2">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Heart className="h-5 w-5 text-social" />
-                    <span className="font-medium">Diversity, Inclusion & Social Values</span>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <Info className="h-4 w-4 text-muted-foreground" />
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p className="text-sm">Where do you stand on DEI programs, LGBTQ+ support, and social justice initiatives?</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <span className="text-2xl font-bold text-social">{values.social}</span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  How do you feel about diversity programs, inclusion initiatives, and social justice efforts?
-                </p>
-                <Slider
-                  value={[values.social]}
-                  onValueChange={(v) => setValues({ ...values, social: v[0] })}
-                  max={100}
-                  step={1}
-                  className="[&_[role=slider]]:bg-social"
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Traditional values (0)</span>
-                  <span>Progressive values (100)</span>
-                </div>
-              </div>
-            </Card>
+            {/* Social Card */}
+            <ValueCard
+              icon={<Heart className="w-6 h-6" />}
+              title="Social Values"
+              color="pink"
+              value={values.social}
+              onChange={(v) => setValues({ ...values, social: v })}
+              shortDesc="Diversity, inclusion & social justice"
+              examples={{
+                low: "I prefer traditional companies",
+                mid: "I'm neutral on DEI initiatives",
+                high: "I support diverse, inclusive companies"
+              }}
+              scaleLabels={{
+                left: "Traditional",
+                right: "Progressive"
+              }}
+            />
           </div>
-          </TooltipProvider>
 
-          <div className="flex gap-3">
-            <Button onClick={() => setStep(0)} variant="outline" className="flex-1">
+          {/* Action Buttons */}
+          <div className="flex gap-4 mt-8">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => setStep(0)}
+              className="flex-1"
+            >
               Back
             </Button>
-            <Button onClick={handleComplete} className="flex-1" disabled={loading}>
-              {loading ? "Saving..." : "Continue"}
+            <Button
+              size="lg"
+              onClick={handleComplete}
+              className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
+              disabled={loading}
+            >
+              {loading ? "Saving..." : "Continue →"}
             </Button>
+          </div>
+
+          {/* Quick Set Options */}
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-500 mb-3">Not sure where to start?</p>
+            <div className="flex justify-center gap-3 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setValues({ labor: 20, environment: 20, politics: 20, social: 20 })}
+                className="text-xs"
+              >
+                🎯 Price Focused (20s)
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setValues({ labor: 50, environment: 50, politics: 50, social: 50 })}
+                className="text-xs"
+              >
+                ⚖️ Balanced (50s)
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setValues({ labor: 85, environment: 85, politics: 85, social: 85 })}
+                className="text-xs"
+              >
+                💚 Highly Conscious (85s)
+              </Button>
+            </div>
           </div>
         </div>
       </div>
