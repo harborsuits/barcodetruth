@@ -5,7 +5,7 @@ import { TopShareholdersCard } from "./TopShareholdersCard";
 import { KeyPeopleRow } from "./KeyPeopleRow";
 import { useTopShareholders } from "@/hooks/useTopShareholders";
 import { useKeyPeople } from "@/hooks/useKeyPeople";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 interface OwnershipTabsProps {
@@ -13,6 +13,24 @@ interface OwnershipTabsProps {
 }
 
 export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
+  const queryClient = useQueryClient();
+  
+  // Fetch brand data to get wikidata_qid
+  const { data: brand } = useQuery({
+    queryKey: ['brand-basic', brandId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('brands')
+        .select('id, name, wikidata_qid')
+        .eq('id', brandId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!brandId,
+    staleTime: 1000 * 60 * 30,
+  });
+
   // Single source of truth for ownership
   const { data: ownershipHeader, isLoading: headerLoading } = useQuery({
     queryKey: ['brand-ownership-header', brandId],
@@ -85,6 +103,12 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
       <Card className="p-6 bg-muted/30 border-2">
         <KeyPeopleRow 
           people={keyPeople} 
+          brandId={brandId}
+          brandName={brand?.name}
+          wikidataQid={brand?.wikidata_qid || undefined}
+          onRefetch={() => {
+            queryClient.invalidateQueries({ queryKey: ['key-people', brandId] });
+          }}
           emptyMessage={
             isLikelyPrivate 
               ? "Executive data not yet available. Private companies are not required to publicly disclose leadership information."

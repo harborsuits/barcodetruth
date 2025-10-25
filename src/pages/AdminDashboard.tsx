@@ -153,6 +153,17 @@ export default function AdminDashboard() {
       metrics: "One-time fix"
     },
     {
+      title: "Enrich Key People",
+      description: "Bulk enrich key people for all brands with Wikidata QIDs",
+      icon: Users,
+      route: null,
+      action: "enrich-people",
+      color: "text-indigo-600 dark:text-indigo-400",
+      bgColor: "bg-indigo-600/10",
+      priority: "high",
+      metrics: "Bulk enrichment"
+    },
+    {
       title: "Claims Moderation",
       description: "Review user-submitted product-to-brand mappings",
       icon: Package,
@@ -405,6 +416,75 @@ export default function AdminDashboard() {
                       variant: "destructive",
                     });
                   }
+                } else if (tool.action === "enrich-people") {
+                  try {
+                    toast({
+                      title: "Starting bulk enrichment...",
+                      description: "Fetching key people for all brands. This may take several minutes.",
+                    });
+
+                    // Fetch all brands with Wikidata QIDs
+                    const { data: brands, error: fetchError } = await supabase
+                      .from('brands')
+                      .select('id, name, wikidata_qid')
+                      .not('wikidata_qid', 'is', null)
+                      .eq('is_active', true)
+                      .limit(50); // Process 50 brands at a time to avoid timeout
+
+                    if (fetchError) throw fetchError;
+
+                    let processed = 0;
+                    let succeeded = 0;
+                    let failed = 0;
+
+                    for (const brand of brands || []) {
+                      try {
+                        console.log(`[Bulk Enrich] Processing: ${brand.name}`);
+                        const { error } = await supabase.functions.invoke('enrich-brand-wiki', {
+                          body: {
+                            brand_id: brand.id,
+                            wikidata_qid: brand.wikidata_qid,
+                            mode: 'full'
+                          }
+                        });
+
+                        if (error) {
+                          console.error(`[Bulk Enrich] Error for ${brand.name}:`, error);
+                          failed++;
+                        } else {
+                          succeeded++;
+                        }
+                        
+                        processed++;
+                        
+                        // Rate limit: 2 seconds between brands
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        
+                        // Update progress
+                        if (processed % 5 === 0) {
+                          toast({
+                            title: `Progress: ${processed}/${brands?.length || 0}`,
+                            description: `${succeeded} succeeded, ${failed} failed`
+                          });
+                        }
+                      } catch (err: any) {
+                        console.error(`[Bulk Enrich] Exception for ${brand.name}:`, err);
+                        failed++;
+                        processed++;
+                      }
+                    }
+
+                    toast({
+                      title: "Bulk enrichment complete!",
+                      description: `Processed ${processed} brands: ${succeeded} succeeded, ${failed} failed`,
+                    });
+                  } catch (error: any) {
+                    toast({
+                      title: "Bulk enrichment failed",
+                      description: error.message,
+                      variant: "destructive",
+                    });
+                  }
                 } else if (tool.route) {
                   navigate(tool.route);
                 }
@@ -424,7 +504,9 @@ export default function AdminDashboard() {
                   </CardHeader>
                   <CardContent>
                     <Button className="w-full" variant="outline">
-                      {tool.action === "reclassify" ? "Run Now" : "Open Tool"}
+                      {tool.action === "reclassify" ? "Run Now" : 
+                       tool.action === "enrich-people" ? "Enrich All" : 
+                       "Open Tool"}
                     </Button>
                   </CardContent>
                 </Card>

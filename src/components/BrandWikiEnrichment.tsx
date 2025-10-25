@@ -44,6 +44,7 @@ export function BrandWikiEnrichment({
 
     if (!needsBasicEnrichment && !needsFullEnrichment) return;
 
+    // ALWAYS force full mode if key people are missing - this is critical
     const mode = needsFullEnrichment ? 'full' : undefined;
     const dedupeKey = `wiki_enrich:${brandId}:${mode ?? 'basic'}`;
 
@@ -62,7 +63,7 @@ export function BrandWikiEnrichment({
       }
       inFlightRef.current = true;
       try {
-        console.log('[Wiki] Enriching brand:', brandId, 'mode:', mode);
+        console.log('[Wiki] Enriching brand:', brandId, 'mode:', mode, 'needs key people:', !hasKeyPeople);
 
         const { data, error } = await supabase.functions.invoke('enrich-brand-wiki', {
           body: {
@@ -77,7 +78,11 @@ export function BrandWikiEnrichment({
           console.log('[Wiki] Success:', data);
           // If enrichment was successful and updated the brand, trigger refetch
           if (data?.updated || data?.full_enrichment_completed) {
-            onEnriched?.();
+            // Delay refetch to give background processes time to complete
+            setTimeout(() => {
+              console.log('[Wiki] Triggering data refetch after enrichment');
+              onEnriched?.();
+            }, 2000);
           }
         }
       } catch (error) {

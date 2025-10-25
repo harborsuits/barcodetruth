@@ -1,12 +1,20 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Users } from "lucide-react";
+import { Users, RefreshCw } from "lucide-react";
 import type { KeyPerson } from "@/hooks/useKeyPeople";
+import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { toast } from "@/hooks/use-toast";
 
 interface KeyPeopleRowProps {
   people: KeyPerson[];
   emptyMessage?: string;
+  brandId?: string;
+  brandName?: string;
+  wikidataQid?: string;
+  onRefetch?: () => void;
 }
 
 const roleLabels: Record<string, string> = {
@@ -20,7 +28,59 @@ const roleLabels: Record<string, string> = {
   Founder: "Founder"
 };
 
-export function KeyPeopleRow({ people, emptyMessage }: KeyPeopleRowProps) {
+export function KeyPeopleRow({ people, emptyMessage, brandId, brandName, wikidataQid, onRefetch }: KeyPeopleRowProps) {
+  const [enriching, setEnriching] = useState(false);
+
+  const triggerManualEnrichment = async () => {
+    if (!brandId || !wikidataQid) {
+      toast({
+        title: "Cannot enrich",
+        description: "Missing brand ID or Wikidata QID",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setEnriching(true);
+    console.log('[KeyPeopleRow] Triggering manual enrichment for:', brandName);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('enrich-brand-wiki', {
+        body: {
+          brand_id: brandId,
+          wikidata_qid: wikidataQid,
+          mode: 'full'  // Force full enrichment including key people
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Enriching...",
+        description: "Fetching key people from Wikidata. This may take a few seconds."
+      });
+
+      // Wait 3 seconds then refetch
+      setTimeout(() => {
+        console.log('[KeyPeopleRow] Refetching after enrichment');
+        onRefetch?.();
+        setEnriching(false);
+        toast({
+          title: "Success",
+          description: "Key people data updated"
+        });
+      }, 3000);
+    } catch (error: any) {
+      console.error('[KeyPeopleRow] Enrichment error:', error);
+      setEnriching(false);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to enrich key people",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (!people || people.length === 0) {
     return (
       <div>
@@ -28,9 +88,32 @@ export function KeyPeopleRow({ people, emptyMessage }: KeyPeopleRowProps) {
           <Users className="h-4 w-4 text-muted-foreground" />
           <h3 className="font-semibold text-lg">Key People</h3>
         </div>
-        <p className="text-sm text-muted-foreground">
-          {emptyMessage || "No key people data available."}
-        </p>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {emptyMessage || "No key people data available."}
+          </p>
+          {brandId && wikidataQid && (
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={triggerManualEnrichment}
+              disabled={enriching}
+              className="gap-2"
+            >
+              {enriching ? (
+                <>
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                  Enriching...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-3 w-3" />
+                  Find Key People
+                </>
+              )}
+            </Button>
+          )}
+        </div>
       </div>
     );
   }
