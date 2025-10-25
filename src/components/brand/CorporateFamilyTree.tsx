@@ -283,13 +283,13 @@ export function CorporateFamilyTree({ graph }: CorporateFamilyTreeProps) {
       {!graph.parent && graph.siblings.length === 0 && graph.subsidiaries.length === 0 && graph.cousins.length === 0 && (
         <div className="text-center py-8 px-4">
           <Building2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
-          <h4 className="font-semibold mb-2">No Corporate Family Relationships Found</h4>
+          <h4 className="font-semibold mb-2">No Parent or Subsidiary Relationships</h4>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            {graph.entity_name} appears to be an independent company or ultimate parent with no parent organization, 
-            sister brands, or subsidiaries recorded in Wikidata's corporate structure database.
+            {graph.entity_name} appears to operate independently with no controlling parent company or owned subsidiaries 
+            recorded in Wikidata.
           </p>
           <p className="text-xs text-muted-foreground/70 mt-3">
-            This could mean the company is privately held, independently operated, or Wikidata's data is incomplete.
+            Note: This shows corporate control relationships only. Shareholder and investor information may exist separately.
           </p>
         </div>
       )}
