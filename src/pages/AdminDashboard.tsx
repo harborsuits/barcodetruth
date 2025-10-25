@@ -164,6 +164,16 @@ export default function AdminDashboard() {
       metrics: "Bulk enrichment"
     },
     {
+      title: "Fortune 500 Enrichment",
+      description: "One-click bulk enrichment for major public companies",
+      icon: Users,
+      route: "/admin/fortune-500-enrich",
+      color: "text-emerald-600 dark:text-emerald-400",
+      bgColor: "bg-emerald-600/10",
+      priority: "high",
+      metrics: "Batch tool"
+    },
+    {
       title: "Claims Moderation",
       description: "Review user-submitted product-to-brand mappings",
       icon: Package,

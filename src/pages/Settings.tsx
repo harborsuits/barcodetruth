@@ -612,6 +612,13 @@ export const Settings = () => {
                 >
                   Add Evidence
                 </Button>
+                <Button 
+                  onClick={() => navigate('/admin/fortune-500-enrich')}
+                  variant="outline"
+                  size="sm"
+                >
+                  Fortune 500 Enrich
+                </Button>
               </div>
             </CardContent>
           </Card>
