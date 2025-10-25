@@ -2,6 +2,16 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { parse } from "https://esm.sh/tldts@6.1.9";
 
+// Category normalization for evidence integrity
+function normalizeCategory(raw: string | null | undefined): 'labor' | 'environment' | 'politics' | 'social' {
+  if (!raw) return 'social';
+  const normalized = raw.toLowerCase().trim();
+  if (normalized.startsWith('labor') || normalized.includes('worker') || normalized.includes('employment')) return 'labor';
+  if (normalized.startsWith('env') || normalized.includes('climate') || normalized.includes('pollution')) return 'environment';
+  if (normalized.startsWith('politic') || normalized.includes('lobby') || normalized.includes('campaign')) return 'politics';
+  return 'social';
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -587,7 +597,7 @@ serve(async (req) => {
         brand_id: brandId,
         title: article.title,
         description: article.summary || article.title,
-        category: article.category,
+        category: normalizeCategory(article.category),
         event_date: article.published_at,
         verification: verificationLevel as 'official' | 'corroborated' | 'unverified',
         orientation: 'negative',

@@ -4,6 +4,16 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { extractQuote } from "../_shared/extractQuote.ts";
 import { extractFacts } from "../_shared/extractFacts.ts";
 
+// Category normalization for evidence integrity
+function normalizeCategory(raw: string | null | undefined): 'labor' | 'environment' | 'politics' | 'social' {
+  if (!raw) return 'social';
+  const normalized = raw.toLowerCase().trim();
+  if (normalized.startsWith('labor') || normalized.includes('worker') || normalized.includes('employment')) return 'labor';
+  if (normalized.startsWith('env') || normalized.includes('climate') || normalized.includes('pollution')) return 'environment';
+  if (normalized.startsWith('politic') || normalized.includes('lobby') || normalized.includes('campaign')) return 'politics';
+  return 'social';
+}
+
 // URL normalization utilities
 function canonicalizeUrl(raw: string): string {
   try {
@@ -193,7 +203,7 @@ serve(async (req) => {
       // Create new event
       const eventData = {
         brand_id,
-        category,
+        category: normalizeCategory(category),
         title,
         description: quote || title,
         severity: severity || 'moderate',

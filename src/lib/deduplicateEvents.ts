@@ -14,6 +14,31 @@ export interface EventWithSources {
   }[];
 }
 
+/**
+ * Deduplicates events by title similarity (>75% match).
+ * 
+ * ⚠️ CRITICAL CONTRACT: This function MUST receive events that are already
+ * filtered to a single category. Cross-category deduplication is forbidden
+ * to prevent evidence contamination in the UI.
+ * 
+ * Category filtering should happen in the database query layer before calling
+ * this function. See useCategoryEvidence hook for proper usage.
+ * 
+ * @param events - Array of events from the SAME category only
+ * @returns Deduplicated events with duplicate references attached
+ * 
+ * @example
+ * // ✅ CORRECT: Filter by category first
+ * const laborEvents = await supabase
+ *   .from('brand_events')
+ *   .eq('category', 'labor')
+ *   .then(deduplicateEvents);
+ * 
+ * // ❌ WRONG: Mixed categories will cause UI contamination
+ * const allEvents = await supabase
+ *   .from('brand_events')
+ *   .then(deduplicateEvents); // DON'T DO THIS
+ */
 export function deduplicateEvents(events: any[]): EventWithSources[] {
   if (!events || events.length === 0) return [];
   
