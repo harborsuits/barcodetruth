@@ -21,20 +21,29 @@ export default function Auth() {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/`,
+            emailRedirectTo: `${window.location.origin}/onboarding`,
           },
         });
 
         if (error) throw error;
 
-        toast({
-          title: "Check your email",
-          description: "We sent you a confirmation link",
-        });
+        // If email confirmation is disabled (auto-confirm), redirect to onboarding
+        if (data.user && data.session) {
+          toast({
+            title: "Account created!",
+            description: "Let's set up your preferences",
+          });
+          navigate("/onboarding");
+        } else {
+          toast({
+            title: "Check your email",
+            description: "We sent you a confirmation link",
+          });
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -43,11 +52,22 @@ export default function Auth() {
 
         if (error) throw error;
 
-        toast({
-          title: "Welcome back!",
-          description: "You've successfully signed in",
-        });
-        navigate("/");
+        // Check if onboarding is complete
+        const onboardingComplete = localStorage.getItem("onboardingComplete");
+        
+        if (!onboardingComplete) {
+          toast({
+            title: "Welcome back!",
+            description: "Let's complete your profile setup",
+          });
+          navigate("/onboarding");
+        } else {
+          toast({
+            title: "Welcome back!",
+            description: "You've successfully signed in",
+          });
+          navigate("/");
+        }
       }
     } catch (error: any) {
       toast({
