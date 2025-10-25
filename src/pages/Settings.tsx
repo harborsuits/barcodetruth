@@ -23,6 +23,8 @@ export const Settings = () => {
   const navigate = useNavigate();
   const { subscribed, subscription_end, loading, startCheckout, manageSubscription } = useSubscription();
   const isAdmin = useIsAdmin();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [values, setValues] = useState({
     labor: 50,
     environment: 50,
@@ -37,6 +39,25 @@ export const Settings = () => {
   const [politicalAlignment, setPoliticalAlignment] = useState<string | null>(null);
   const [excludeSameParent, setExcludeSameParent] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    // Check authentication status
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsAuthenticated(!!user);
+      setCheckingAuth(false);
+    };
+    checkAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsAuthenticated(!!session);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     // Check if push is already subscribed
@@ -206,9 +227,9 @@ export const Settings = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {loading ? (
+            {checkingAuth || loading ? (
               <p className="text-sm text-muted-foreground">Loading subscription status...</p>
-            ) : !loading && subscribed === false && subscription_end === undefined ? (
+            ) : !isAuthenticated ? (
               <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
                 <p className="font-medium text-destructive mb-2">Authentication Required</p>
                 <p className="text-sm text-muted-foreground mb-4">
