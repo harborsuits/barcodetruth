@@ -23,30 +23,46 @@ const SLIDER_CONFIG = [
   {
     key: 'value_labor',
     label: 'Worker Rights & Labor Practices',
-    leftLabel: "Don't care",
-    rightLabel: "Very important",
-    description: "How much do you care about fair wages, working conditions, and union rights?"
+    leftLabel: "Don't prioritize (0)",
+    rightLabel: "Very important (100)",
+    description: "How much do you care about how companies treat their workers, pay wages, and handle unions?",
+    examples: {
+      low: "I don't factor labor practices into buying decisions",
+      high: "I actively avoid companies with poor labor records and support union-friendly businesses"
+    }
   },
   {
     key: 'value_environment',
     label: 'Environmental Impact & Sustainability',
-    leftLabel: "Don't care",
-    rightLabel: "Very important",
-    description: "How much do you care about climate action, pollution, and sustainability efforts?"
+    leftLabel: "Don't prioritize (0)",
+    rightLabel: "Very important (100)",
+    description: "How much do you care about climate change, pollution, and sustainable practices?",
+    examples: {
+      low: "Environmental impact doesn't affect my shopping choices",
+      high: "I prioritize eco-friendly companies and avoid polluters"
+    }
   },
   {
     key: 'value_politics',
-    label: 'Corporate Lobbying & Political Donations',
-    leftLabel: "Don't care",
-    rightLabel: "Very important",
-    description: "How much do you care about corporate PAC donations and political influence?"
+    label: 'Political Donations & Lobbying',
+    leftLabel: "Don't care (0)",
+    rightLabel: "Very important (100)",
+    description: "How much do you care about corporate political spending, PAC donations, and lobbying?",
+    examples: {
+      low: "I don't care what politicians companies support",
+      high: "I want to know where my money goes politically and support aligned companies"
+    }
   },
   {
     key: 'value_social',
     label: 'Diversity, Inclusion & Social Values',
-    leftLabel: "Traditional values",
-    rightLabel: "Progressive values",
-    description: "0 = Prefer traditional, avoid DEI/LGBTQ initiatives | 100 = Support diverse, inclusive companies"
+    leftLabel: "Traditional values (0)",
+    rightLabel: "Progressive values (100)",
+    description: "Where do you stand on DEI programs, LGBTQ+ support, and social justice initiatives?",
+    examples: {
+      low: "I prefer traditional companies without DEI/LGBTQ programs",
+      high: "I support diverse, inclusive companies with strong DEI initiatives"
+    }
   }
 ];
 
@@ -83,29 +99,42 @@ export function ValueSliders({ initialValues, onSave, isSaving }: ValueSlidersPr
           </p>
         </div>
 
-        {SLIDER_CONFIG.map(({ key, label, leftLabel, rightLabel, description }) => (
-          <div key={key}>
-            <label className="block text-sm font-medium mb-3">
+        {SLIDER_CONFIG.map(({ key, label, leftLabel, rightLabel, description, examples }) => (
+          <div key={key} className="border rounded-lg p-4 bg-card">
+            <label className="block text-base font-semibold mb-2">
               {label}
             </label>
+            <p className="text-sm text-muted-foreground mb-4">{description}</p>
+            
             <Slider
               value={[values[key as keyof typeof values]]}
               onValueChange={(val) => handleSliderChange(key, val)}
               min={0}
               max={100}
               step={1}
-              className="mb-2"
+              className="mb-3"
             />
-            <div className="flex justify-between items-center text-xs text-muted-foreground mt-2">
-              <span>{leftLabel} (0)</span>
-              <span className="font-semibold text-lg text-foreground">
+            
+            <div className="text-center mb-3">
+              <span className="text-3xl font-bold text-primary">
                 {values[key as keyof typeof values]}
               </span>
-              <span>{rightLabel} (100)</span>
+              <span className="text-sm text-muted-foreground">/100</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-              {description}
-            </p>
+            
+            <div className="flex justify-between text-xs text-muted-foreground mb-4">
+              <span>{leftLabel}</span>
+              <span>{rightLabel}</span>
+            </div>
+            
+            <div className="bg-muted/50 rounded-md p-3 text-xs space-y-2">
+              <div>
+                <span className="font-medium">0-30:</span> {examples.low}
+              </div>
+              <div>
+                <span className="font-medium">70-100:</span> {examples.high}
+              </div>
+            </div>
           </div>
         ))}
 

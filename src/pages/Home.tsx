@@ -11,6 +11,7 @@ import { RecentVerifications } from "@/components/landing/RecentVerifications";
 import { TopMovers24h } from "@/components/landing/TopMovers24h";
 import { AttributionFooter } from "@/components/AttributionFooter";
 import { SubscriptionBanner } from "@/components/SubscriptionBanner";
+import { WelcomeTour } from "@/components/WelcomeTour";
 import { useSnapshotPrewarm } from "@/hooks/useSnapshotPrewarm";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 
@@ -22,6 +23,7 @@ export const Home = () => {
   return (
     <div className="min-h-screen bg-[var(--bg)]">
       <Header showSettings={true} showBack={false} />
+      <WelcomeTour />
 
       <main className="max-w-screen-md mx-auto px-4 sm:px-6 space-y-8 pb-24">
         <HeroSection />
