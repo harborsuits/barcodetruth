@@ -45,6 +45,7 @@ const AdminRSSMonitor = lazyNamed(() => import("./pages/AdminRSSMonitor"), "defa
 const AdminEnrichmentMonitor = lazyNamed(() => import("./pages/AdminEnrichmentMonitor"), "default");
 const AdminCommunityRatings = lazyNamed(() => import("./pages/AdminCommunityRatings"), "default");
 const AdminBatchEnrich = lazyNamed(() => import("./pages/AdminBatchEnrich"), "default");
+const AdminBulkEnrichFortune500 = lazyNamed(() => import("./pages/AdminBulkEnrichFortune500"), "default");
 const AdminUsers = lazyNamed(() => import("./pages/AdminUsers"), "default");
 const Feed = lazyNamed(() => import("./pages/Feed"), "default");
 const BootstrapAdmin = lazyNamed(() => import("./pages/BootstrapAdmin"), "default");
@@ -345,6 +346,20 @@ const App = () => {
                   <RouteErrorBoundary>
                     <Suspense fallback={<RouteFallback label="Loading batch enrichment…" />}>
                       <AdminBatchEnrich />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/fortune-500-enrich"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading Fortune 500 enrichment…" />}>
+                      <AdminBulkEnrichFortune500 />
                     </Suspense>
                   </RouteErrorBoundary>
                 </AdminRoute>

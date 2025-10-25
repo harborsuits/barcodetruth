@@ -14,6 +14,13 @@ interface TopShareholdersCardProps {
 export function TopShareholdersCard({ shareholders, emptyMessage }: TopShareholdersCardProps) {
   const hasData = shareholders && shareholders.length > 0;
 
+  // Detect employee ownership
+  const isEmployeeOwned = shareholders?.some(s => 
+    s.holder_name.toLowerCase().includes('employee') || 
+    s.holder_name.toLowerCase().includes('esop') ||
+    s.holder_name.toLowerCase().includes('stock ownership plan')
+  );
+
   return (
     <Card className="p-6 bg-muted/30 border-2">
       <div className="flex items-start gap-3 mb-4">
@@ -28,6 +35,16 @@ export function TopShareholdersCard({ shareholders, emptyMessage }: TopSharehold
 
       {hasData ? (
         <>
+          {isEmployeeOwned && (
+            <Alert className="mb-4 bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
+              <AlertCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <AlertDescription className="text-sm text-green-900 dark:text-green-100 font-medium">
+                Employee-Owned Company — This company is partially or fully owned by its employees 
+                through an Employee Stock Ownership Plan (ESOP) or similar structure.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <Alert className="mb-4 bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
             <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             <AlertDescription className="text-sm text-blue-900 dark:text-blue-100">

@@ -6284,6 +6284,16 @@ export type Database = {
           name: string
         }[]
       }
+      get_brands_with_event_counts: {
+        Args: never
+        Returns: {
+          event_count: number
+          id: string
+          last_ingestion: string
+          name: string
+          wikidata_qid: string
+        }[]
+      }
       get_corroboration_clusters: {
         Args: {
           min_credibility?: number

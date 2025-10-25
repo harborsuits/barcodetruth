@@ -103,12 +103,6 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
       <Card className="p-6 bg-muted/30 border-2">
         <KeyPeopleRow 
           people={keyPeople} 
-          brandId={brandId}
-          brandName={brand?.name}
-          wikidataQid={brand?.wikidata_qid || undefined}
-          onRefetch={() => {
-            queryClient.invalidateQueries({ queryKey: ['key-people', brandId] });
-          }}
           emptyMessage={
             isLikelyPrivate 
               ? "Executive data not yet available. Private companies are not required to publicly disclose leadership information."
