@@ -45,23 +45,29 @@ export default function Auth() {
           });
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
         if (error) throw error;
 
-        // Check if onboarding is complete
-        const onboardingComplete = localStorage.getItem("onboardingComplete");
+        // Check if onboarding is complete in database
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('onboarding_complete')
+          .eq('id', data.user.id)
+          .single();
         
-        if (!onboardingComplete) {
+        if (!profile?.onboarding_complete) {
           toast({
             title: "Welcome back!",
             description: "Let's complete your profile setup",
           });
           navigate("/onboarding");
         } else {
+          // Update localStorage cache
+          localStorage.setItem("onboardingComplete", "true");
           toast({
             title: "Welcome back!",
             description: "You've successfully signed in",

@@ -170,7 +170,19 @@ export const Onboarding = () => {
         });
         navigate("/auth");
       } else {
-        setIsAuthenticated(true);
+        // Check if onboarding is already complete in database
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('onboarding_complete')
+          .eq('id', user.id)
+          .single();
+        
+        if (profile?.onboarding_complete) {
+          // User already completed onboarding, redirect to home
+          navigate("/");
+        } else {
+          setIsAuthenticated(true);
+        }
       }
     };
     checkAuth();
@@ -179,19 +191,39 @@ export const Onboarding = () => {
   const handleComplete = async () => {
     setLoading(true);
     
-    // Save to database
-    const success = await updateUserValues({
-      value_labor: values.labor,
-      value_environment: values.environment,
-      value_politics: values.politics,
-      value_social: values.social,
-    });
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error("No user found");
+      }
 
-    if (success) {
-      // Mark onboarding complete in localStorage
+      // Save values to database
+      const success = await updateUserValues({
+        value_labor: values.labor,
+        value_environment: values.environment,
+        value_politics: values.politics,
+        value_social: values.social,
+      });
+
+      if (!success) {
+        throw new Error("Failed to save preferences");
+      }
+
+      // Mark onboarding complete in database
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ onboarding_complete: true })
+        .eq('id', user.id);
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      // Also update localStorage as cache
       localStorage.setItem("onboardingComplete", "true");
       localStorage.setItem("userValues", JSON.stringify(values));
-      sessionStorage.setItem("justCompletedOnboarding", "true"); // Trigger welcome tour
+      sessionStorage.setItem("justCompletedOnboarding", "true");
       
       toast({
         title: "Preferences saved",
@@ -199,7 +231,8 @@ export const Onboarding = () => {
       });
       
       navigate("/");
-    } else {
+    } catch (error) {
+      console.error("Error completing onboarding:", error);
       toast({
         title: "Error",
         description: "Failed to save preferences. Please try again.",
