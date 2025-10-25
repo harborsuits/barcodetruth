@@ -52,19 +52,35 @@ export default function Auth() {
 
         if (error) throw error;
 
-        // Check if onboarding is complete in database
+        // Check if onboarding is complete in database (handle missing rows)
         const { data: profile } = await supabase
           .from('profiles')
           .select('onboarding_complete')
           .eq('id', data.user.id)
-          .single();
+          .maybeSingle();
         
         if (!profile?.onboarding_complete) {
-          toast({
-            title: "Welcome back!",
-            description: "Let's complete your profile setup",
-          });
-          navigate("/onboarding");
+          // Fallback: if user has saved preferences already, mark complete and continue
+          const { data: prefs } = await supabase
+            .from('user_preferences')
+            .select('user_id')
+            .eq('user_id', data.user.id)
+            .maybeSingle();
+
+          if (prefs) {
+            await supabase
+              .from('profiles')
+              .upsert({ id: data.user.id, onboarding_complete: true });
+            localStorage.setItem("onboardingComplete", "true");
+            toast({ title: "Welcome back!", description: "You're all set." });
+            navigate("/");
+          } else {
+            toast({
+              title: "Welcome back!",
+              description: "Let's complete your profile setup",
+            });
+            navigate("/onboarding");
+          }
         } else {
           // Update localStorage cache
           localStorage.setItem("onboardingComplete", "true");

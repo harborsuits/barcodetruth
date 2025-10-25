@@ -170,19 +170,32 @@ export const Onboarding = () => {
         });
         navigate("/auth");
       } else {
-        // Check if onboarding is already complete in database
+        // Check onboarding status from database; handle missing profile rows (pre-migration users)
         const { data: profile } = await supabase
           .from('profiles')
           .select('onboarding_complete')
           .eq('id', user.id)
-          .single();
-        
+          .maybeSingle();
+
         if (profile?.onboarding_complete) {
-          // User already completed onboarding, redirect to home
           navigate("/");
-        } else {
-          setIsAuthenticated(true);
+          return;
         }
+
+        // Fallback: if user has saved preferences, consider onboarding complete
+        const { data: prefs } = await supabase
+          .from('user_preferences')
+          .select('user_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (prefs) {
+          await supabase.from('profiles').upsert({ id: user.id, onboarding_complete: true });
+          navigate("/");
+          return;
+        }
+
+        setIsAuthenticated(true);
       }
     };
     checkAuth();
@@ -213,8 +226,7 @@ export const Onboarding = () => {
       // Mark onboarding complete in database
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ onboarding_complete: true })
-        .eq('id', user.id);
+        .upsert({ id: user.id, onboarding_complete: true });
 
       if (profileError) {
         throw profileError;
