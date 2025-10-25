@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { RouteFallback } from "@/components/RouteFallback";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
@@ -13,6 +13,7 @@ import { Onboarding } from "./pages/Onboarding";
 import { NotFound } from "./pages/NotFound";
 import { AdminRoute } from "@/components/routes/AdminRoute";
 import { ProtectedRoute } from "@/components/routes/ProtectedRoute";
+import { Header } from "@/components/layout/Header";
 
 const Forbidden = lazyNamed(() => import("./pages/Forbidden"), "default");
 const Auth = lazyNamed(() => import("./pages/Auth"), "default");
@@ -55,6 +56,12 @@ const Methodology = lazyNamed(() => import("./pages/Methodology"), "default");
 
 const queryClient = new QueryClient();
 
+const HeaderWrapper = () => {
+  const location = useLocation();
+  if (location.pathname === "/onboarding") return null;
+  return <Header />;
+};
+
 const App = () => {
   // Dev-mode baseline leak detector
   if (import.meta.env.DEV) {
@@ -77,7 +84,8 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
-        <Routes>
+          <HeaderWrapper />
+          <Routes>
           <Route 
             path="/onboarding" 
             element={

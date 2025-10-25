@@ -1,4 +1,4 @@
-import { Settings, ArrowLeft } from "lucide-react";
+import { Settings, ArrowLeft, Home } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import logo from "@/assets/logo.png";
 
@@ -30,8 +30,15 @@ export function Header({ showBack = false, showSettings = true }: HeaderProps) {
               <Settings className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
             </button>
           )}
-          <button onClick={() => navigate("/")} className="hover:opacity-80 transition-opacity cursor-pointer">
-            <img src={logo} alt="Barcode Truth" className="h-12 w-auto cursor-pointer" />
+          <button onClick={() => navigate("/")} className="hover:opacity-80 transition-opacity cursor-pointer" aria-label="Go home via logo">
+            <img src={logo} alt="Barcode Truth logo" className="h-12 w-auto cursor-pointer" />
+          </button>
+          <button 
+            onClick={() => navigate("/")} 
+            className="absolute right-0" 
+            aria-label="Go home"
+          >
+            <Home className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
           </button>
         </div>
       </div>
