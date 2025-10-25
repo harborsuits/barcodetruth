@@ -63,20 +63,66 @@ serve(async (req) => {
       throw new Error('Brand not found');
     }
 
-    // Step 1: Resolve or search for QID
+    // Step 1: Resolve or search for QID with entity type validation
     let qid = wikidata_qid ?? brand.wikidata_qid;
     
     if (!qid) {
       log('No QID, searching Wikidata for', brand.name);
-      const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(brand.name)}&language=en&format=json&type=item&limit=1`;
+      
+      // Enhanced search: prefer company-related terms, exclude sports
+      const cleanName = brand.name
+        .replace(/\s+(FC|SC|CF|United|City|Town)$/i, '') // Remove sports suffixes
+        .trim();
+      
+      const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(cleanName + ' company')}&language=en&format=json&type=item&limit=5`;
       const searchRes = await fetch(searchUrl);
       const searchData = await searchRes.json();
       
-      if (searchData.search?.[0]?.id) {
-        qid = searchData.search[0].id;
-        log('Found QID via search:', qid);
-      } else {
-        throw new Error('Could not find Wikidata QID for brand');
+      // Validate each candidate by checking entity type (P31)
+      for (const candidate of searchData.search || []) {
+        try {
+          const { entity } = await fetchWikidataEntity(candidate.id);
+          const instanceOf = claimIds(entity, 'P31'); // P31 = instance of
+          
+          // Accepted entity types
+          const COMPANY_TYPES = [
+            'Q4830453',  // business
+            'Q783794',   // company
+            'Q431289',   // brand
+            'Q43229',    // organization
+            'Q6881511',  // enterprise
+            'Q891723',   // public company
+            'Q167037',   // corporation
+            'Q1616075',  // business enterprise
+            'Q2659904',  // government organization
+          ];
+          
+          // Rejected entity types (sports-related)
+          const REJECTED_TYPES = [
+            'Q16510064', // sports event
+            'Q27020041', // sports season
+            'Q215380',   // musical group/band
+            'Q5',        // human
+            'Q482994',   // album
+          ];
+          
+          const hasCompanyType = instanceOf.some(type => COMPANY_TYPES.includes(type));
+          const hasRejectedType = instanceOf.some(type => REJECTED_TYPES.includes(type));
+          
+          if (hasCompanyType && !hasRejectedType) {
+            qid = candidate.id;
+            log('Found valid company QID:', qid, 'types:', instanceOf);
+            break;
+          } else {
+            warn('Rejected QID', candidate.id, 'types:', instanceOf);
+          }
+        } catch (e) {
+          warn('Failed to validate candidate', candidate.id, (e as Error).message);
+        }
+      }
+      
+      if (!qid) {
+        throw new Error('Could not find valid company entity in Wikidata');
       }
     }
 

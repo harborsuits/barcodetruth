@@ -76,14 +76,31 @@ export function BrandWikiEnrichment({
           console.error('[Wiki] Error:', error);
         } else {
           console.log('[Wiki] Success:', data);
-          // If enrichment was successful and updated the brand, trigger refetch
-          if (data?.updated || data?.full_enrichment_completed) {
-            // Delay refetch to give background processes time to complete
-            setTimeout(() => {
-              console.log('[Wiki] Triggering data refetch after enrichment');
-              onEnriched?.();
-            }, 2000);
+        }
+
+        // Call enrich-ownership for parent company if needed
+        if (!hasParentCompany) {
+          console.log('[Wiki] Triggering ownership enrichment');
+          const { data: ownershipData, error: ownershipError } = await supabase.functions.invoke('enrich-ownership', {
+            body: {
+              brand_id: brandId
+            }
+          });
+
+          if (ownershipError) {
+            console.error('[Wiki] Ownership enrichment error:', ownershipError);
+          } else {
+            console.log('[Wiki] Ownership enrichment success:', ownershipData);
           }
+        }
+
+        // If enrichment was successful and updated the brand, trigger refetch
+        if (data?.updated || data?.full_enrichment_completed) {
+          // Delay refetch to give background processes time to complete
+          setTimeout(() => {
+            console.log('[Wiki] Triggering data refetch after enrichment');
+            onEnriched?.();
+          }, 2000);
         }
       } catch (error) {
         // Silent fail - not critical

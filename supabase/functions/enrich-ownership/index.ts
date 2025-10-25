@@ -80,23 +80,79 @@ serve(async (req) => {
       qid = brand.wikidata_qid;
     }
 
-    // If no QID, try to find it
+    // If no QID, try to find it with entity type validation
     if (!qid) {
       console.log(`[enrich-ownership] No QID, searching Wikidata for "${brand.name}"`);
-      const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(brand.name)}&language=en&format=json&type=item&limit=1`;
+      
+      // Enhanced search: prefer company-related terms, exclude sports
+      const cleanName = brand.name
+        .replace(/\s+(FC|SC|CF|United|City|Town)$/i, '') // Remove sports suffixes
+        .trim();
+      
+      const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(cleanName + ' company')}&language=en&format=json&type=item&limit=5`;
       
       const searchRes = await fetch(searchUrl);
       const searchData = await searchRes.json();
       
       if (searchData.search && searchData.search.length > 0) {
-        qid = searchData.search[0].id;
-        console.log(`[enrich-ownership] Found QID: ${qid}`);
+        // Validate each candidate by checking entity type (P31)
+        for (const candidate of searchData.search) {
+          try {
+            const candidateUrl = `https://www.wikidata.org/wiki/Special:EntityData/${candidate.id}.json`;
+            const candidateRes = await fetch(candidateUrl);
+            const candidateData = await candidateRes.json();
+            const candidateEntity = candidateData.entities?.[candidate.id];
+            
+            const instanceOf = candidateEntity?.claims?.P31 || [];
+            const instanceOfIds = instanceOf
+              .map((claim: any) => claim?.mainsnak?.datavalue?.value?.id)
+              .filter((id: any) => id && typeof id === 'string');
+            
+            // Accepted entity types
+            const COMPANY_TYPES = [
+              'Q4830453',  // business
+              'Q783794',   // company
+              'Q431289',   // brand
+              'Q43229',    // organization
+              'Q6881511',  // enterprise
+              'Q891723',   // public company
+              'Q167037',   // corporation
+            ];
+            
+            // Rejected entity types
+            const REJECTED_TYPES = [
+              'Q16510064', // sports event
+              'Q27020041', // sports season
+              'Q215380',   // musical group
+              'Q5',        // human
+            ];
+            
+            const hasCompanyType = instanceOfIds.some((type: string) => COMPANY_TYPES.includes(type));
+            const hasRejectedType = instanceOfIds.some((type: string) => REJECTED_TYPES.includes(type));
+            
+            if (hasCompanyType && !hasRejectedType) {
+              qid = candidate.id;
+              console.log(`[enrich-ownership] Found valid company QID: ${qid} (types: ${instanceOfIds.join(', ')})`);
+              break;
+            } else {
+              console.log(`[enrich-ownership] Rejected QID ${candidate.id} (types: ${instanceOfIds.join(', ')})`);
+            }
+          } catch (e) {
+            console.log(`[enrich-ownership] Failed to validate candidate ${candidate.id}:`, e);
+          }
+        }
         
-        // Update brand with QID
-        await supabase
-          .from('brands')
-          .update({ wikidata_qid: qid })
-          .eq('id', brand_id);
+        if (qid) {
+          // Update brand with validated QID
+          await supabase
+            .from('brands')
+            .update({ wikidata_qid: qid })
+            .eq('id', brand_id);
+        } else {
+          errorMsg = 'No valid company entity found';
+          status = 'failed';
+          throw new Error(errorMsg);
+        }
       } else {
         errorMsg = 'No Wikidata entity found';
         status = 'failed';
