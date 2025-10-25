@@ -633,6 +633,7 @@ export default function BrandProfile() {
                 score_social: data.score.score_social,
               }}
               brandName={data.brand.name}
+              brandId={data.brand.id}
             />
           </>
         )}

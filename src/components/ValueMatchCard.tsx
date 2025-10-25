@@ -1,6 +1,9 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { calculateValueMatch, MatchResult } from "@/lib/calculateMatch";
+import { useCategoryEvidence } from "@/hooks/useCategoryEvidence";
+import { ExternalLink } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
 interface ValueMatchCardProps {
   userValues: {
@@ -16,6 +19,7 @@ interface ValueMatchCardProps {
     score_social: number;
   };
   brandName: string;
+  brandId: string;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -44,7 +48,45 @@ const CATEGORY_DESCRIPTIONS: Record<string, { user: (val: number) => string; bra
   }
 };
 
-export function ValueMatchCard({ userValues, brandScores, brandName }: ValueMatchCardProps) {
+function CategoryEvidence({ brandId, category }: { brandId: string; category: string }) {
+  const { data: evidence, isLoading } = useCategoryEvidence(brandId, category as any);
+  
+  if (isLoading || !evidence || evidence.length === 0) return null;
+  
+  return (
+    <div className="mt-3 pt-3 border-t border-border/50">
+      <p className="text-xs font-medium text-muted-foreground mb-2">Evidence:</p>
+      <div className="space-y-2">
+        {evidence.map((ev) => (
+          <a
+            key={ev.event_id}
+            href={ev.source_url || '#'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex items-start gap-2 text-xs hover:bg-muted/50 p-2 rounded transition-colors"
+          >
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-foreground group-hover:text-primary line-clamp-2 leading-tight">
+                {ev.title}
+              </p>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant={ev.verification === 'official' ? 'destructive' : 'outline'} className="text-[10px] px-1.5 py-0">
+                  {ev.verification === 'official' ? 'Official' : ev.verification === 'corroborated' ? 'Verified' : 'Reported'}
+                </Badge>
+                <span className="text-muted-foreground">
+                  {formatDistanceToNow(new Date(ev.event_date), { addSuffix: true })}
+                </span>
+              </div>
+            </div>
+            <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-primary flex-shrink-0 mt-0.5" />
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function ValueMatchCard({ userValues, brandScores, brandName, brandId }: ValueMatchCardProps) {
   const matchAnalysis = calculateValueMatch(userValues, brandScores);
 
   return (
@@ -106,6 +148,7 @@ export function ValueMatchCard({ userValues, brandScores, brandName }: ValueMatc
                     {CATEGORY_DESCRIPTIONS[key].brand(brandValue)}.
                     <span className="font-medium text-foreground"> {match.gap} point gap.</span>
                   </p>
+                  <CategoryEvidence brandId={brandId} category={key} />
                 </div>
               );
             })}
