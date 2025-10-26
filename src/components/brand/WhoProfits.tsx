@@ -52,8 +52,25 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
       console.log('[Wikidata] Auto-loading graph for:', brandName);
       
       try {
+        // CRITICAL: Fetch brand's wikidata_qid from database first
+        const { data: brandData, error: brandError } = await supabase
+          .from('brands')
+          .select('wikidata_qid')
+          .eq('id', brandId)
+          .single();
+        
+        if (brandError) {
+          console.error('[Wikidata] Error fetching brand QID:', brandError);
+        }
+        
+        const wikidataQid = brandData?.wikidata_qid;
+        console.log('[Wikidata] Using QID:', wikidataQid, '(from database)');
+        
         const { data: response, error } = await supabase.functions.invoke('resolve-wikidata-tree', {
-          body: { brand_name: brandName }
+          body: { 
+            brand_name: brandName,
+            qid: wikidataQid  // CRITICAL: Pass explicit QID to avoid unreliable name search
+          }
         });
         
         console.log('[Wikidata] Raw response:', { response, error });
