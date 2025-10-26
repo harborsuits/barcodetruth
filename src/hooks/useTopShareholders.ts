@@ -34,7 +34,13 @@ export function useTopShareholders(brandId: string | undefined, limit: number = 
         return [];
       }
 
-      return (data || []) as Shareholder[];
+      const rows = (data || []) as any[];
+      // Normalize percent field: prefer percent_owned, fallback to pct from company_shareholders
+      const normalized = rows.map((r) => ({
+        ...r,
+        percent_owned: (r.percent_owned ?? r.pct ?? null) as number | null,
+      })) as Shareholder[];
+      return normalized;
     },
     enabled: !!brandId,
     staleTime: 1000 * 60 * 30, // 30 minutes

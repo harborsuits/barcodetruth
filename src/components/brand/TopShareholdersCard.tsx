@@ -96,13 +96,26 @@ export function TopShareholdersCard({ shareholders, emptyMessage }: TopSharehold
                   </div>
                 </div>
 
-                {shareholder.percent_owned && (
-                  <div className="flex-shrink-0 ml-3">
-                    <Badge variant="secondary" className="font-mono">
-                      {shareholder.percent_owned.toFixed(1)}%
-                    </Badge>
-                  </div>
-                )}
+                {(() => {
+                  const pct = (shareholder.percent_owned ?? (shareholder as any).pct) as number | null | undefined;
+                  if (typeof pct === 'number' && pct > 0) {
+                    return (
+                      <div className="flex-shrink-0 ml-3">
+                        <Badge variant="secondary" className="font-mono">
+                          {pct.toFixed(1)}%
+                        </Badge>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="flex-shrink-0 ml-3">
+                      <Badge variant="outline" className="font-mono text-muted-foreground">
+                        —
+                      </Badge>
+                    </div>
+                  );
+                })()}
+
               </div>
             ))}
           </div>
