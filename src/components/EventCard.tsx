@@ -466,8 +466,12 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
             </h4>
           )}
 
-          {/* Description */}
-          {!compact && (
+          {/* Description - show brief version in compact mode */}
+          {compact ? (
+            <p className="text-sm leading-relaxed text-foreground line-clamp-2">
+              {event.description}
+            </p>
+          ) : (
             <div className="space-y-2">
               <div className="space-y-2">
                 <p className="text-sm leading-relaxed text-foreground">
