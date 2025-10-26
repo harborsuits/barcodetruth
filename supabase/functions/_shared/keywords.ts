@@ -45,9 +45,14 @@ export const CATEGORY_KEYWORDS: Record<string, { phrases: string[]; words: strin
   },
   social: {
     phrases: [
-      "boycott campaign","public backlash","viral outrage","brand controversy","culture war","misinformation campaign"
+      "boycott campaign","public backlash","viral outrage","brand controversy","culture war","misinformation campaign",
+      "diversity initiative","women in leadership","female leaders","gender equality","dei program","inclusion program",
+      "racial justice","lgbtq+ rights","social responsibility","community impact","women's empowerment","minority representation",
+      "equal opportunity","pay equity","workplace diversity","inclusive culture"
     ],
-    words: ["backlash","boycott","uproar","viral","culture","social","community","pledge","donation"]
+    words: ["backlash","boycott","uproar","viral","culture","social","community","pledge","donation",
+            "diversity","inclusion","women","female","gender","equality","lgbtq","transgender","racial","minority",
+            "representation","equity","dei","empowerment","inclusive","underrepresented"]
   },
   privacy_ai: {
     phrases: [
