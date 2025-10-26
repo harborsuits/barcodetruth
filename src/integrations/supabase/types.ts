@@ -6276,6 +6276,15 @@ export type Database = {
       }
       get_brand_ownership: { Args: { p_brand_id: string }; Returns: Json }
       get_brand_rollup_scores: { Args: { p_brand_id: string }; Returns: Json }
+      get_brands_missing_key_people: {
+        Args: never
+        Returns: {
+          id: string
+          name: string
+          parent_company_id: string
+          wikidata_qid: string
+        }[]
+      }
       get_brands_needing_scores: {
         Args: never
         Returns: {

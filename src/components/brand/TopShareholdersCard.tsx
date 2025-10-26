@@ -98,9 +98,16 @@ export function TopShareholdersCard({ shareholders, emptyMessage }: TopSharehold
 
                 {(() => {
                   const pct = (shareholder.percent_owned ?? (shareholder as any).pct) as number | null | undefined;
+                  const isVerified = shareholder.source === 'sec_13f';
+                  
                   if (typeof pct === 'number' && pct > 0) {
                     return (
-                      <div className="flex-shrink-0 ml-3">
+                      <div className="flex-shrink-0 ml-3 flex items-center gap-2">
+                        {isVerified && (
+                          <Badge variant="outline" className="text-xs">
+                            Verified
+                          </Badge>
+                        )}
                         <Badge variant="secondary" className="font-mono">
                           {pct.toFixed(1)}%
                         </Badge>
@@ -109,8 +116,8 @@ export function TopShareholdersCard({ shareholders, emptyMessage }: TopSharehold
                   }
                   return (
                     <div className="flex-shrink-0 ml-3">
-                      <Badge variant="outline" className="font-mono text-muted-foreground">
-                        —
+                      <Badge variant="outline" className="font-mono text-muted-foreground text-xs">
+                        Data pending
                       </Badge>
                     </div>
                   );
@@ -125,9 +132,15 @@ export function TopShareholdersCard({ shareholders, emptyMessage }: TopSharehold
           </p>
         </>
       ) : (
-        <p className="text-sm text-muted-foreground">
-          {emptyMessage || "No shareholder data available."}
-        </p>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Shareholder data not yet available.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            For public companies, institutional ownership information exists in SEC 13F filings. 
+            We're working to integrate this data to show who actually profits from your purchases.
+          </p>
+        </div>
       )}
     </Card>
   );
