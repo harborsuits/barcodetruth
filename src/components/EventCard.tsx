@@ -388,12 +388,15 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
         <div className="min-w-0 flex-1 space-y-3">
           {/* Header row */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-xs font-medium ${cfg.color}`}>
-              {cfg.label}
-            </span>
+            {/* Only show category in full mode */}
+            {!compact && (
+              <span className={`text-xs font-medium ${cfg.color}`}>
+                {cfg.label}
+              </span>
+            )}
             
             {/* Impact Direction Badge - PROMINENT */}
-            {event.severity && event.orientation && (
+            {!compact && event.severity && event.orientation && (
               <span
                 className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md ${
                   event.orientation === 'positive' 
@@ -414,7 +417,7 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
               </span>
             )}
             
-            {verificationBadge && (
+            {!compact && verificationBadge && (
               <span 
                 role="status"
                 aria-label={`${verificationBadge.label} – ${verificationBadge.tooltip}`}
@@ -426,24 +429,26 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
               </span>
             )}
             
-            <span
-              role="status"
-              aria-label={`${severityConfig.label} – ${severityConfig.tooltip}`}
-              className={`inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md border ${severityConfig.className}`}
-              title={severityConfig.tooltip}
-            >
-              <severityConfig.icon className="h-3 w-3" />
-              {severityConfig.label}
-            </span>
+            {!compact && (
+              <span
+                role="status"
+                aria-label={`${severityConfig.label} – ${severityConfig.tooltip}`}
+                className={`inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md border ${severityConfig.className}`}
+                title={severityConfig.tooltip}
+              >
+                <severityConfig.icon className="h-3 w-3" />
+                {severityConfig.label}
+              </span>
+            )}
             
-            {isNew && (
+            {!compact && isNew && (
               <Badge variant="outline" className="text-xs bg-emerald-600/10 text-emerald-700 border-emerald-600/20">
                 <Clock className="h-3 w-3 mr-1" />
                 New
               </Badge>
             )}
             
-            {event.resolved && (
+            {!compact && event.resolved && (
               <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/20">
                 Resolved
               </Badge>
