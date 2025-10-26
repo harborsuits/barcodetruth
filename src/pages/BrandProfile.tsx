@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -413,11 +413,14 @@ export default function BrandProfile() {
     last_event_at: null
   };
 
-  // SELF-HEALING HEALTH CHECK - Runs on every page load to ensure brand completeness
+  // SELF-HEALING HEALTH CHECK - Runs ONCE on page load to ensure brand completeness
+  const hasRunHealthCheck = useRef(false);
+  
   useEffect(() => {
-    if (!actualId || !data?.brand) return;
+    if (!actualId || !data?.brand || hasRunHealthCheck.current) return;
 
     const healthCheck = async () => {
+      hasRunHealthCheck.current = true; // Prevent re-runs
       console.log('[Health Check] Analyzing brand:', data.brand?.name);
 
       // Fetch wikidata_qid separately since it's not in brand_profile_view response
@@ -536,7 +539,7 @@ export default function BrandProfile() {
     // Run health check once on mount
     const timer = setTimeout(healthCheck, 2000);
     return () => clearTimeout(timer);
-  }, [actualId, data?.brand, ownership, keyPeople, shareholders, coverage]);
+  }, [actualId, data?.brand]); // Only depend on brand ID and initial data
 
   if (loading) {
     return (
