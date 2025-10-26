@@ -2,21 +2,22 @@ import { useNavigate } from "react-router-dom";
 import { Heart, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Header } from "@/components/layout/Header";
 import { toast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FEATURES } from "@/config/features";
-import { OutlookConfidenceBadge } from "@/components/brand/OutlookConfidenceBadge";
 import { EventCard, type BrandEvent } from "@/components/EventCard";
 import { topImpacts } from "@/lib/events";
 import { AttributionFooter } from "@/components/AttributionFooter";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useBrandLogo } from "@/hooks/useBrandLogo";
 
 interface TrendingBrandData {
   id: string;
   name: string;
   score: number | null;
+  logoUrl: string | null;
+  website: string | null;
   events: BrandEvent[];
   isFollowing?: boolean;
   notificationsEnabled?: boolean;
@@ -70,6 +71,8 @@ export const Trending = () => {
             id: brand.brand_id,
             name: brand.name,
             score: brand.score ?? null,
+            logoUrl: brand.logo_url ?? null,
+            website: brand.website ?? null,
             hasScore: brand.score != null,
             events: (events || []).map(e => ({
               event_id: e.event_id,
@@ -187,13 +190,6 @@ export const Trending = () => {
     );
   };
 
-  const getScoreColor = (score: number | null) => {
-    if (score == null) return "border-border bg-card text-muted-foreground";
-    if (score >= 70) return "bg-success/10 text-success border-success/30";
-    if (score >= 40) return "bg-warning/10 text-warning border-warning/30";
-    return "bg-danger/10 text-danger border-danger/30";
-  };
-
   return (
     <div className="min-h-screen bg-background pb-20">
       <main className="container max-w-2xl mx-auto px-4 py-6 pt-20">
@@ -217,106 +213,14 @@ export const Trending = () => {
         ) : (
           <div className="space-y-4">
             {trendingBrands.map((brand) => (
-            <Card
-              key={brand.id}
-              className="cursor-pointer hover:shadow-lg hover:border-primary/20 transition-all duration-300 bg-card"
-              onClick={() => navigate(`/brand/${brand.id}`)}
-            >
-              <CardContent className="p-6">
-                <div className="flex items-start gap-5">
-                  {/* Score Badge or Community Outlook */}
-                  {FEATURES.companyScore && brand.score != null ? (
-                    <div className={`flex flex-col items-center justify-center rounded-full border-2 w-20 h-20 shrink-0 transition-all ${getScoreColor(brand.score)}`}>
-                      <div className="text-3xl font-bold">{brand.score}</div>
-                      <div className="text-[10px] font-semibold opacity-70 uppercase tracking-wide">Score</div>
-                    </div>
-                  ) : FEATURES.communityOutlook ? (
-                    <div className="flex flex-col items-center justify-center rounded-full border-2 w-20 h-20 shrink-0 border-border bg-card shadow-sm">
-                      <OutlookConfidenceBadge brandId={brand.id} />
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center rounded-full border-2 w-20 h-20 shrink-0 border-border bg-muted/5">
-                      <div className="text-3xl font-bold text-muted-foreground">—</div>
-                      <div className="text-[10px] font-semibold opacity-70 text-muted-foreground uppercase tracking-wide">Score</div>
-                    </div>
-                  )}
-
-                  {/* Content */}
-                  <div className="flex-1 space-y-4">
-                    {/* Header */}
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <h3 className="font-bold text-xl text-foreground">{brand.name}</h3>
-                      <span className="text-xs text-muted-foreground font-medium px-2 py-1 rounded-full bg-muted/50">
-                        {brand.events.length} recent {brand.events.length === 1 ? 'event' : 'events'}
-                      </span>
-                    </div>
-
-                    {/* Events */}
-                    <div className="space-y-3">
-                      {brand.events.slice(0, 2).map((event, idx) => (
-                        <EventCard key={idx} event={event} compact />
-                      ))}
-                      
-                      {brand.events.length > 2 && (
-                        <Button 
-                          variant="link" 
-                          className="h-auto p-0 text-sm font-medium group text-primary hover:text-primary/80"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/brand/${brand.id}`);
-                          }}
-                          aria-label={`View full timeline of ${brand.events.length} events for ${brand.name}`}
-                        >
-                          View Full Timeline ({brand.events.length} events)
-                          <span className="inline-block ml-1 transition-transform group-hover:translate-x-1">→</span>
-                        </Button>
-                      )}
-                    </div>
-
-                    {/* Why it matters */}
-                    {(() => {
-                      const impacts = topImpacts(brand.events[0]?.impact, 2)
-                        .map(({ key, val }) => `${val > 0 ? '+' : ''}${val} ${key.charAt(0).toUpperCase() + key.slice(1)}`)
-                        .join(' • ');
-                      return impacts ? (
-                        <div className="pt-2 border-t">
-                          <p className="text-xs text-muted-foreground">
-                            <span className="font-medium">Why it matters:</span> {impacts}
-                          </p>
-                        </div>
-                      ) : null;
-                    })()}
-
-                    {/* Quick Actions */}
-                    <div className="flex items-center gap-2 pt-3 border-t border-border/50">
-                      <Button
-                        variant={brand.isFollowing ? "default" : "outline"}
-                        size="sm"
-                        className="h-9 text-sm rounded-full transition-all hover:scale-105"
-                        onClick={(e) => handleFollow(brand, e)}
-                        aria-label={`${brand.isFollowing ? "Unfollow" : "Follow"} ${brand.name}`}
-                      >
-                        <Heart className={`h-4 w-4 mr-1.5 ${brand.isFollowing ? "fill-current" : ""}`} />
-                        {brand.isFollowing ? "Following" : "Follow"}
-                      </Button>
-                      {brand.isFollowing && (
-                        <Button
-                          variant={brand.notificationsEnabled ? "default" : "outline"}
-                          size="sm"
-                          className="h-9 text-sm rounded-full transition-all hover:scale-105"
-                          onClick={(e) => handleNotify(brand, e)}
-                          aria-label={`${brand.notificationsEnabled ? "Turn off notifications" : "Turn on notifications"} for ${brand.name}`}
-                        >
-                          <Bell className={`h-4 w-4 mr-1.5 ${brand.notificationsEnabled ? "fill-current" : ""}`} />
-                          {brand.notificationsEnabled ? "Notifying" : "Notify"}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-              ))}
+              <TrendingBrandCard
+                key={brand.id}
+                brand={brand}
+                onFollow={handleFollow}
+                onNotify={handleNotify}
+                navigate={navigate}
+              />
+            ))}
           </div>
         )}
         
@@ -327,4 +231,130 @@ export const Trending = () => {
   );
 };
 
+function TrendingBrandCard({ 
+  brand, 
+  onFollow, 
+  onNotify,
+  navigate 
+}: { 
+  brand: TrendingBrandData;
+  onFollow: (brand: TrendingBrandData, e: React.MouseEvent) => void;
+  onNotify: (brand: TrendingBrandData, e: React.MouseEvent) => void;
+  navigate: (path: string) => void;
+}) {
+  const logoUrl = useBrandLogo(brand.logoUrl, brand.website);
 
+  const getScoreColor = (score: number | null) => {
+    if (score == null) return "border-border bg-card text-muted-foreground";
+    if (score >= 70) return "bg-success/10 text-success border-success/40";
+    if (score >= 40) return "bg-warning/10 text-warning border-warning/40";
+    return "bg-danger/10 text-danger border-danger/40";
+  };
+
+  return (
+    <Card
+      className="cursor-pointer hover:shadow-lg hover:border-primary/20 transition-all duration-300 bg-card"
+      onClick={() => navigate(`/brand/${brand.id}`)}
+    >
+      <CardContent className="p-6">
+        <div className="flex items-start gap-5">
+          {/* Brand Logo */}
+          <div className="w-16 h-16 rounded-full shrink-0 overflow-hidden bg-muted flex items-center justify-center border-2 border-border">
+            {logoUrl ? (
+              <img 
+                src={logoUrl} 
+                alt={`${brand.name} logo`} 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-2xl font-bold text-muted-foreground">
+                {brand.name.charAt(0)}
+              </span>
+            )}
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 space-y-4">
+            {/* Header with Score */}
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <h3 className="font-bold text-xl text-foreground">{brand.name}</h3>
+                {FEATURES.companyScore && brand.score != null && (
+                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold ${getScoreColor(brand.score)}`}>
+                    <span>{brand.score}</span>
+                    <span className="text-xs opacity-70">Score</span>
+                  </div>
+                )}
+              </div>
+              <span className="text-xs text-muted-foreground font-medium px-2 py-1 rounded-full bg-muted/50">
+                {brand.events.length} recent {brand.events.length === 1 ? 'event' : 'events'}
+              </span>
+            </div>
+
+            {/* Events */}
+            <div className="space-y-3">
+              {brand.events.slice(0, 2).map((event, idx) => (
+                <EventCard key={idx} event={event} compact />
+              ))}
+              
+              {brand.events.length > 2 && (
+                <Button 
+                  variant="link" 
+                  className="h-auto p-0 text-sm font-medium group text-primary hover:text-primary/80"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/brand/${brand.id}`);
+                  }}
+                  aria-label={`View full timeline of ${brand.events.length} events for ${brand.name}`}
+                >
+                  View Full Timeline ({brand.events.length} events)
+                  <span className="inline-block ml-1 transition-transform group-hover:translate-x-1">→</span>
+                </Button>
+              )}
+            </div>
+
+            {/* Why it matters */}
+            {(() => {
+              const impacts = topImpacts(brand.events[0]?.impact, 2)
+                .map(({ key, val }) => `${val > 0 ? '+' : ''}${val} ${key.charAt(0).toUpperCase() + key.slice(1)}`)
+                .join(' • ');
+              return impacts ? (
+                <div className="pt-2 border-t">
+                  <p className="text-xs text-muted-foreground">
+                    <span className="font-medium">Why it matters:</span> {impacts}
+                  </p>
+                </div>
+              ) : null;
+            })()}
+
+            {/* Quick Actions */}
+            <div className="flex items-center gap-2 pt-3 border-t border-border/50">
+              <Button
+                variant={brand.isFollowing ? "default" : "outline"}
+                size="sm"
+                className="h-9 text-sm rounded-full transition-all hover:scale-105"
+                onClick={(e) => onFollow(brand, e)}
+                aria-label={`${brand.isFollowing ? "Unfollow" : "Follow"} ${brand.name}`}
+              >
+                <Heart className={`h-4 w-4 mr-1.5 ${brand.isFollowing ? "fill-current" : ""}`} />
+                {brand.isFollowing ? "Following" : "Follow"}
+              </Button>
+              {brand.isFollowing && (
+                <Button
+                  variant={brand.notificationsEnabled ? "default" : "outline"}
+                  size="sm"
+                  className="h-9 text-sm rounded-full transition-all hover:scale-105"
+                  onClick={(e) => onNotify(brand, e)}
+                  aria-label={`${brand.notificationsEnabled ? "Turn off notifications" : "Turn on notifications"} for ${brand.name}`}
+                >
+                  <Bell className={`h-4 w-4 mr-1.5 ${brand.notificationsEnabled ? "fill-current" : ""}`} />
+                  {brand.notificationsEnabled ? "Notifying" : "Notify"}
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
