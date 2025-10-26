@@ -92,6 +92,17 @@ export default function AdminDashboard() {
 
   const adminTools = [
     {
+      title: "🚀 System-Wide Heal",
+      description: "Run complete database heal to populate ALL brands (company, people, shareholders)",
+      icon: Zap,
+      route: null,
+      action: "system-heal",
+      color: "text-red-600 dark:text-red-400",
+      bgColor: "bg-red-600/10",
+      priority: "high",
+      metrics: "ONE-TIME FIX"
+    },
+    {
       title: "Event Management",
       description: "Browse, filter, and manage all brand events",
       icon: Calendar,
@@ -402,7 +413,38 @@ export default function AdminDashboard() {
               const Icon = tool.icon;
               
               const handleClick = async () => {
-                if (tool.action === "reclassify") {
+                if (tool.action === "system-heal") {
+                  if (!confirm("⚠️ THIS WILL RUN A COMPLETE SYSTEM-WIDE HEAL\n\nThis will:\n• Process EVERY brand in the database\n• Seed company data\n• Enrich key people\n• Add shareholders\n• Take 45-60 minutes\n\nContinue?")) {
+                    return;
+                  }
+                  
+                  try {
+                    toast({
+                      title: "🚀 System-Wide Heal Started!",
+                      description: "This will take 45-60 minutes. Check edge function logs for progress.",
+                    });
+                    
+                    const { data, error } = await supabase.functions.invoke('run-system-wide-heal');
+                    
+                    if (error) throw error;
+                    
+                    if (data.success) {
+                      const result = data.summary;
+                      toast({
+                        title: "✅ System-Wide Heal Complete!",
+                        description: `Total: ${result.total} | Seeded: ${result.seeded} | Enriched: ${result.enriched} | Skipped: ${result.skipped} | Errors: ${result.errors}`,
+                      });
+                    } else {
+                      throw new Error(data.error || 'Unknown error');
+                    }
+                  } catch (error: any) {
+                    toast({
+                      title: "System heal failed",
+                      description: error.message,
+                      variant: "destructive",
+                    });
+                  }
+                } else if (tool.action === "reclassify") {
                   try {
                     toast({
                       title: "Starting reclassification...",
@@ -513,8 +555,9 @@ export default function AdminDashboard() {
                     <CardDescription>{tool.description}</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <Button className="w-full" variant="outline">
-                      {tool.action === "reclassify" ? "Run Now" : 
+                    <Button className="w-full" variant={tool.action === "system-heal" ? "destructive" : "outline"}>
+                      {tool.action === "system-heal" ? "🚀 RUN NOW" : 
+                       tool.action === "reclassify" ? "Run Now" : 
                        tool.action === "enrich-people" ? "Enrich All" : 
                        "Open Tool"}
                     </Button>
