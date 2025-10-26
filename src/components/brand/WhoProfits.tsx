@@ -42,9 +42,11 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
   const [wikidataError, setWikidataError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    
     const loadWikidataGraph = async () => {
-      if (!brandName) {
-        console.log('[Wikidata] Cannot load: no brand name');
+      if (!brandName || !brandId) {
+        console.log('[Wikidata] Cannot load: missing data');
         setLoadingWikidata(false);
         return;
       }
@@ -83,6 +85,11 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
         console.log('[Wikidata] Response success:', response?.success);
         console.log('[Wikidata] Response graph:', response?.graph);
         
+        if (cancelled) {
+          console.log('[Wikidata] Request cancelled');
+          return;
+        }
+        
         if (response?.success && response?.graph) {
           console.log('[Wikidata] Setting graph state:', {
             entity_qid: response.graph.entity_qid,
@@ -98,16 +105,23 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
           setWikidataError(response?.error || 'Failed to load corporate family tree');
         }
       } catch (err: any) {
+        if (cancelled) return;
         console.error('[Wikidata] Caught error:', err);
         setWikidataError(err.message || 'Failed to connect to Wikidata');
       } finally {
-        console.log('[Wikidata] Loading complete');
-        setLoadingWikidata(false);
+        if (!cancelled) {
+          console.log('[Wikidata] Loading complete');
+          setLoadingWikidata(false);
+        }
       }
     };
 
     loadWikidataGraph();
-  }, [brandName]);
+    
+    return () => {
+      cancelled = true;
+    };
+  }, [brandName, brandId]);
 
   if (isLoading || !data) return null;
 
