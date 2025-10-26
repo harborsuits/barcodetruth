@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { BrandWikiEnrichment } from '@/components/BrandWikiEnrichment';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -403,18 +402,117 @@ export default function BrandProfile() {
     })();
   }, [actualId, refreshKey]);
 
-  // Trigger server-side logo resolution if missing (must be before early returns)
+  // Coverage calculation - needs to be before health check
+  const coverage = data?.coverage ?? {
+    events_7d: 0,
+    events_30d: 0,
+    events_90d: 0,
+    events_365d: 0,
+    verified_rate: 0,
+    independent_sources: 0,
+    last_event_at: null
+  };
+
+  // SELF-HEALING HEALTH CHECK - Runs on every page load to ensure brand completeness
   useEffect(() => {
-    if (!actualId || !data?.brand || data.brand.logo_url) return;
-    supabase.functions
-      .invoke('resolve-brand-logo', {
-        body: { brand_id: actualId }
-      })
-      .then(() => {
-        setTimeout(() => setRefreshKey((k) => k + 1), 1000);
-      })
-      .catch((err) => console.error('resolve-brand-logo error:', err));
-  }, [actualId, data?.brand?.logo_url]);
+    if (!actualId || !data?.brand) return;
+
+    const healthCheck = async () => {
+      console.log('[Health Check] Analyzing brand:', data.brand?.name);
+
+      // Define what "complete" means for a brand
+      const checks = {
+        hasCorporateFamily: !!ownership?.structure?.chain?.length || !!ownership?.shareholders?.top?.length,
+        hasKeyPeople: keyPeople.length > 0,
+        hasShareholderData: shareholders.length > 0,
+        hasLogo: !!data.brand?.logo_url,
+        hasDescription: !!data.brand?.description,
+        hasMinimumEvents: (coverage.events_90d ?? 0) >= 5
+      };
+
+      const isComplete = Object.values(checks).every(Boolean);
+
+      if (isComplete) {
+        console.log('[Health Check] ✓ Brand is complete');
+        return;
+      }
+
+      console.log('[Health Check] ⚠ Missing data:', 
+        Object.entries(checks)
+          .filter(([_, value]) => !value)
+          .map(([key]) => key)
+      );
+
+      console.log('[Health Check] 🔧 Triggering auto-fix...');
+
+      // TRIGGER ALL MISSING ENRICHMENTS IN PARALLEL
+      const promises: Promise<any>[] = [];
+
+      if (!checks.hasCorporateFamily) {
+        console.log('[Health Check] → Fixing corporate family');
+        promises.push(
+          supabase.functions.invoke('resolve-wikidata-tree', {
+            body: { 
+              brand_name: data.brand.name,
+              qid: (data.brand as any).wikidata_qid
+            }
+          }).catch(err => console.error('[Health Check] Corporate family failed:', err))
+        );
+      }
+
+      if (!checks.hasKeyPeople || !checks.hasShareholderData || !checks.hasDescription) {
+        console.log('[Health Check] → Fixing key people, shareholders & description');
+        promises.push(
+          supabase.functions.invoke('enrich-brand-wiki', {
+            body: { 
+              brand_id: actualId,
+              wikidata_qid: (data.brand as any).wikidata_qid,
+              mode: 'full'
+            }
+          }).catch(err => console.error('[Health Check] Enrichment failed:', err))
+        );
+      }
+
+      if (!checks.hasLogo) {
+        console.log('[Health Check] → Fixing logo');
+        promises.push(
+          supabase.functions.invoke('resolve-brand-logo', {
+            body: { brand_id: actualId }
+          }).catch(err => console.error('[Health Check] Logo failed:', err))
+        );
+      }
+
+      if (!checks.hasMinimumEvents) {
+        console.log('[Health Check] → Queuing news ingestion');
+        promises.push(
+          supabase.functions.invoke('trigger-brand-ingestion', {
+            body: { 
+              brand_id: actualId,
+              brand_name: data.brand.name,
+              priority: 'high'
+            }
+          }).catch(err => console.error('[Health Check] News ingestion failed:', err))
+        );
+      }
+
+      // Execute all fixes in parallel
+      await Promise.allSettled(promises);
+
+      // Refetch data after enrichment completes
+      setTimeout(() => {
+        console.log('[Health Check] 🔄 Refetching data...');
+        setRefreshKey(k => k + 1);
+        refetchCompanyInfo();
+        queryClient.invalidateQueries({ queryKey: ['key-people', actualId] });
+        queryClient.invalidateQueries({ queryKey: ['top-shareholders', actualId] });
+        queryClient.invalidateQueries({ queryKey: ['brand-ownership', actualId] });
+      }, 5000);
+    };
+
+    // Run health check once on mount
+    const timer = setTimeout(healthCheck, 2000);
+    return () => clearTimeout(timer);
+  }, [actualId, data?.brand, ownership, keyPeople, shareholders, coverage]);
 
   if (loading) {
     return (
@@ -458,34 +556,12 @@ export default function BrandProfile() {
   // Legacy: Use personalized score if available, otherwise global score
   // Now hidden behind feature flag in favor of Community Outlook
   const displayScore = personalizedScore?.personalized_score ?? data.score?.score ?? null;
-  const coverage = data.coverage ?? {
-    events_7d: 0,
-    events_30d: 0,
-    events_90d: 0,
-    events_365d: 0,
-    verified_rate: 0,
-    independent_sources: 0,
-    last_event_at: null
-  };
 
   // Create monogram from brand name
   const monogram = data.brand.name?.[0]?.toUpperCase() ?? 'B';
 
   return (
     <div className="min-h-screen bg-background">
-      <BrandWikiEnrichment 
-        brandId={actualId!} 
-        hasDescription={!!data.brand.description}
-        hasParentCompany={!!companyInfo?.ownership}
-        hasKeyPeople={keyPeople.length > 0}
-        hasShareholders={shareholders.length > 0}
-        onEnriched={() => {
-          setRefreshKey(k => k + 1);
-          refetchCompanyInfo();
-          queryClient.invalidateQueries({ queryKey: ['key-people', actualId] });
-          queryClient.invalidateQueries({ queryKey: ['top-shareholders', actualId] });
-        }}
-      />
       <Header showBack={true} />
 
       <main className="container max-w-4xl mx-auto px-4 py-6 space-y-6">

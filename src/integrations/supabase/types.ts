@@ -6313,6 +6313,14 @@ export type Database = {
       }
       get_enrichment_coverage: { Args: never; Returns: Json }
       get_enrichment_stats: { Args: never; Returns: Json }
+      get_incomplete_brands: {
+        Args: never
+        Returns: {
+          id: string
+          name: string
+          wikidata_qid: string
+        }[]
+      }
       get_next_brands_fair_rotation: {
         Args: { p_limit?: number }
         Returns: {

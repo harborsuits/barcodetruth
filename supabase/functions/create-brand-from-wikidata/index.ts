@@ -71,124 +71,72 @@ Deno.serve(async (req) => {
     if (brandError) throw brandError;
     
     console.log('[create-brand-from-wikidata] Brand created:', newBrand.id);
+    console.log('[Bootstrap] 🚀 Starting complete brand setup...');
     
-    let parentCompany = null;
-    
-    // If parent provided, create the ownership link
-    if (parent_qid) {
-      console.log('[create-brand-from-wikidata] Resolving parent company:', parent_qid);
-      
-      // Find or create parent company WITH full Wikidata enrichment
-      const { data: existingParent } = await supabase
-        .from('companies')
-        .select('id, name, wikidata_qid')
-        .eq('wikidata_qid', parent_qid)
-        .maybeSingle();
-      
-      if (existingParent) {
-        parentCompany = existingParent;
-        console.log('[create-brand-from-wikidata] Found existing company:', existingParent.id);
+    // BOOTSTRAP PHASE 1: Corporate structure (WAIT for it - synchronous)
+    console.log('[Bootstrap] 1/4 Corporate structure...');
+    try {
+      const { data: treeData, error: treeError } = await supabase.functions.invoke('resolve-wikidata-tree', {
+        body: { brand_name: name, qid: qid }
+      });
+      if (treeError) {
+        console.error('[Bootstrap] Corporate structure failed:', treeError);
       } else {
-        // Fetch parent company data from Wikidata
-        console.log('[create-brand-from-wikidata] Fetching parent company from Wikidata');
-        const parentWikidataUrl = `https://www.wikidata.org/wiki/Special:EntityData/${parent_qid}.json`;
-        const parentWikidataRes = await fetch(parentWikidataUrl);
-        const parentWikidataData = await parentWikidataRes.json();
-        
-        const parentEntity = parentWikidataData.entities[parent_qid];
-        const parentName = parentEntity.labels?.en?.value || name;
-        const parentDescription = parentEntity.descriptions?.en?.value || null;
-        
-        // Create parent company with full details
-        const { data: newParent, error: companyError } = await supabase
-          .from('companies')
-          .insert({
-            name: parentName,
-            wikidata_qid: parent_qid,
-            description: parentDescription,
-            description_source: 'wikidata',
-            created_at: new Date().toISOString()
-          })
-          .select('id, name, wikidata_qid')
-          .single();
-        
-        if (companyError) {
-          console.error('[create-brand-from-wikidata] Company creation error:', companyError);
-        } else {
-          parentCompany = newParent;
-          console.log('[create-brand-from-wikidata] Created new company:', newParent.id);
-          
-          // IMMEDIATELY enrich the company's key people
-          console.log('[create-brand-from-wikidata] Triggering key people enrichment');
-          supabase.functions.invoke('enrich-key-people', {
-            body: {
-              company_id: newParent.id,
-              wikidata_qid: parent_qid
-            }
-          }).then(({ data: enrichData, error: enrichError }) => {
-            if (enrichError) {
-              console.error('[create-brand-from-wikidata] Key people enrichment error:', enrichError);
-            } else {
-              console.log('[create-brand-from-wikidata] Key people enriched:', enrichData);
-            }
-          });
-        }
+        console.log('[Bootstrap] ✓ Corporate structure complete');
       }
-      
-      if (parentCompany) {
-        // Create ownership link with company_id
-        const { error: ownershipError } = await supabase
-          .from('company_ownership')
-          .upsert({
-            child_brand_id: newBrand.id,
-            parent_company_id: parentCompany.id,
-            parent_name: parentCompany.name,
-            relationship: 'subsidiary',
-            source: 'wikidata',
-            confidence: 0.9
-          }, {
-            onConflict: 'child_brand_id,parent_company_id'
-          });
-        
-        if (ownershipError) {
-          console.error('[create-brand-from-wikidata] Ownership link error:', ownershipError);
-        } else {
-          console.log('[create-brand-from-wikidata] Ownership link created');
-        }
-      }
+    } catch (e) {
+      console.error('[Bootstrap] Corporate structure exception:', e);
     }
     
-    // STEP 1: Trigger FULL Wikipedia enrichment (people + shareholders)
-    console.log('[create-brand-from-wikidata] Triggering FULL Wikipedia enrichment');
-    supabase.functions.invoke('enrich-brand-wiki', {
-      body: { 
-        brand_id: newBrand.id,
-        wikidata_qid: qid,
-        mode: 'full'  // Force full enrichment including key people
-      }
-    }).then(({ data: enrichData, error: enrichError }) => {
-      if (enrichError) {
-        console.error('[create-brand-from-wikidata] Full enrichment error:', enrichError);
-      } else {
-        console.log('[create-brand-from-wikidata] Full enrichment triggered:', enrichData);
-      }
-    });
-    
-    // STEP 2: Start news ingestion if we have a parent company (background, don't await)
-    if (parentCompany) {
-      console.log('[create-brand-from-wikidata] Starting news ingestion');
-      supabase.functions.invoke('trigger-brand-ingestion', {
+    // BOOTSTRAP PHASE 2: Key people & shareholders (WAIT for it - synchronous)
+    console.log('[Bootstrap] 2/4 Key people & shareholders...');
+    try {
+      const { data: enrichData, error: enrichError } = await supabase.functions.invoke('enrich-brand-wiki', {
         body: { 
           brand_id: newBrand.id,
-          brand_name: name
+          wikidata_qid: qid,
+          mode: 'full'
         }
-      }).then(() => {
-        console.log('[create-brand-from-wikidata] News ingestion triggered');
       });
+      if (enrichError) {
+        console.error('[Bootstrap] Enrichment failed:', enrichError);
+      } else {
+        console.log('[Bootstrap] ✓ Key people & shareholders complete');
+      }
+    } catch (e) {
+      console.error('[Bootstrap] Enrichment exception:', e);
     }
     
-    // STEP 3: Initialize default scores
-    console.log('[create-brand-from-wikidata] Initializing baseline scores');
+    // BOOTSTRAP PHASE 3: Logo (WAIT for it - synchronous)
+    console.log('[Bootstrap] 3/4 Logo...');
+    try {
+      const { data: logoData, error: logoError } = await supabase.functions.invoke('resolve-brand-logo', {
+        body: { brand_id: newBrand.id }
+      });
+      if (logoError) {
+        console.error('[Bootstrap] Logo failed:', logoError);
+      } else {
+        console.log('[Bootstrap] ✓ Logo complete');
+      }
+    } catch (e) {
+      console.error('[Bootstrap] Logo exception:', e);
+    }
+    
+    // BOOTSTRAP PHASE 4: News ingestion (async, don't wait)
+    console.log('[Bootstrap] 4/4 News ingestion (background)...');
+    supabase.functions.invoke('trigger-brand-ingestion', {
+      body: { 
+        brand_id: newBrand.id,
+        brand_name: name,
+        priority: 'high'
+      }
+    }).then(() => {
+      console.log('[Bootstrap] ✓ News ingestion queued');
+    }).catch(e => {
+      console.error('[Bootstrap] News ingestion failed:', e);
+    });
+    
+    // Initialize baseline scores
     const { error: scoreError } = await supabase.from('brand_scores').insert({
       brand_id: newBrand.id,
       score: 50,
@@ -199,10 +147,10 @@ Deno.serve(async (req) => {
     });
     
     if (scoreError) {
-      console.error('[create-brand-from-wikidata] Score initialization error:', scoreError);
+      console.error('[Bootstrap] Score initialization error:', scoreError);
     }
     
-    console.log('[create-brand-from-wikidata] Full enrichment pipeline triggered');
+    console.log('[Bootstrap] ✅ Complete! Brand is ready.');
     
     return new Response(JSON.stringify({ 
       success: true, 
