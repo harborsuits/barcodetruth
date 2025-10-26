@@ -103,6 +103,17 @@ export default function AdminDashboard() {
       metrics: "ONE-TIME FIX"
     },
     {
+      title: "🔧 Fix Missing Key People",
+      description: "Enrich key people for brands missing this data (one-time fix for system heal bug)",
+      icon: Users,
+      route: null,
+      action: "fix-key-people",
+      color: "text-purple-600 dark:text-purple-400",
+      bgColor: "bg-purple-600/10",
+      priority: "high",
+      metrics: "Bug Fix"
+    },
+    {
       title: "Event Management",
       description: "Browse, filter, and manage all brand events",
       icon: Calendar,
@@ -468,6 +479,37 @@ export default function AdminDashboard() {
                       variant: "destructive",
                     });
                   }
+                } else if (tool.action === "fix-key-people") {
+                  try {
+                    if (!confirm("🔧 FIX MISSING KEY PEOPLE\n\nThis will:\n• Find brands with ownership but no key people\n• Call enrich-brand-wiki for each\n• Fetch real data from Wikidata\n• Take ~20 seconds\n\nContinue?")) {
+                      return;
+                    }
+
+                    toast({
+                      title: "🔧 Starting fix...",
+                      description: "Finding brands missing key people data...",
+                    });
+                    
+                    const { data, error } = await supabase.functions.invoke('fix-missing-key-people');
+                    
+                    if (error) throw error;
+                    
+                    if (data.success) {
+                      const result = data.summary;
+                      toast({
+                        title: "✅ Fix Complete!",
+                        description: `Processed: ${result.total} | Enriched: ${result.enriched} | Failed: ${result.failed}`,
+                      });
+                    } else {
+                      throw new Error(data.error || 'Unknown error');
+                    }
+                  } catch (error: any) {
+                    toast({
+                      title: "Fix failed",
+                      description: error.message,
+                      variant: "destructive",
+                    });
+                  }
                 } else if (tool.action === "enrich-people") {
                   try {
                     toast({
@@ -557,6 +599,7 @@ export default function AdminDashboard() {
                   <CardContent>
                     <Button className="w-full" variant={tool.action === "system-heal" ? "destructive" : "outline"}>
                       {tool.action === "system-heal" ? "🚀 RUN NOW" : 
+                       tool.action === "fix-key-people" ? "🔧 FIX NOW" :
                        tool.action === "reclassify" ? "Run Now" : 
                        tool.action === "enrich-people" ? "Enrich All" : 
                        "Open Tool"}
