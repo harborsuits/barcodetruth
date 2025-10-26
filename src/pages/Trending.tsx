@@ -188,17 +188,15 @@ export const Trending = () => {
   };
 
   const getScoreColor = (score: number | null) => {
-    if (score == null) return "border-muted bg-muted/10 text-muted-foreground";
-    if (score >= 70) return "bg-success/10 text-success border-success/20";
-    if (score >= 40) return "bg-warning/10 text-warning border-warning/20";
-    return "bg-danger/10 text-danger border-danger/20";
+    if (score == null) return "border-border bg-card text-muted-foreground";
+    if (score >= 70) return "bg-success/10 text-success border-success/30";
+    if (score >= 40) return "bg-warning/10 text-warning border-warning/30";
+    return "bg-danger/10 text-danger border-danger/30";
   };
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <Header showBack={true} showSettings={false} />
-
-      <main className="container max-w-2xl mx-auto px-4 py-6">
+      <main className="container max-w-2xl mx-auto px-4 py-6 pt-20">
         {isLoading ? (
           <div className="space-y-4">
             <Skeleton className="h-48 w-full" />
@@ -221,40 +219,40 @@ export const Trending = () => {
             {trendingBrands.map((brand) => (
             <Card
               key={brand.id}
-              className="cursor-pointer hover:shadow-md transition-all"
+              className="cursor-pointer hover:shadow-lg hover:border-primary/20 transition-all duration-300 bg-card"
               onClick={() => navigate(`/brand/${brand.id}`)}
             >
-              <CardContent className="p-5">
-                <div className="flex items-start gap-4">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-5">
                   {/* Score Badge or Community Outlook */}
                   {FEATURES.companyScore && brand.score != null ? (
-                    <div className={`flex flex-col items-center justify-center rounded-full border-2 w-16 h-16 shrink-0 ${getScoreColor(brand.score)}`}>
-                      <div className="text-2xl font-bold">{brand.score}</div>
-                      <div className="text-[10px] font-medium opacity-80">Score</div>
+                    <div className={`flex flex-col items-center justify-center rounded-full border-2 w-20 h-20 shrink-0 transition-all ${getScoreColor(brand.score)}`}>
+                      <div className="text-3xl font-bold">{brand.score}</div>
+                      <div className="text-[10px] font-semibold opacity-70 uppercase tracking-wide">Score</div>
                     </div>
                   ) : FEATURES.communityOutlook ? (
-                    <div className="flex flex-col items-center justify-center rounded-full border-2 w-16 h-16 shrink-0 border-muted bg-muted/10">
+                    <div className="flex flex-col items-center justify-center rounded-full border-2 w-20 h-20 shrink-0 border-border bg-card shadow-sm">
                       <OutlookConfidenceBadge brandId={brand.id} />
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center rounded-full border-2 w-16 h-16 shrink-0 border-muted bg-muted/10">
-                      <div className="text-2xl font-bold text-muted-foreground">—</div>
-                      <div className="text-[10px] font-medium opacity-80 text-muted-foreground">Score</div>
+                    <div className="flex flex-col items-center justify-center rounded-full border-2 w-20 h-20 shrink-0 border-border bg-muted/5">
+                      <div className="text-3xl font-bold text-muted-foreground">—</div>
+                      <div className="text-[10px] font-semibold opacity-70 text-muted-foreground uppercase tracking-wide">Score</div>
                     </div>
                   )}
 
                   {/* Content */}
-                  <div className="flex-1 space-y-3">
+                  <div className="flex-1 space-y-4">
                     {/* Header */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-bold text-lg">{brand.name}</h3>
-                      <span className="text-xs text-muted-foreground">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <h3 className="font-bold text-xl text-foreground">{brand.name}</h3>
+                      <span className="text-xs text-muted-foreground font-medium px-2 py-1 rounded-full bg-muted/50">
                         {brand.events.length} recent {brand.events.length === 1 ? 'event' : 'events'}
                       </span>
                     </div>
 
                     {/* Events */}
-                    <div className="space-y-2.5">
+                    <div className="space-y-3">
                       {brand.events.slice(0, 2).map((event, idx) => (
                         <EventCard key={idx} event={event} compact />
                       ))}
@@ -262,7 +260,7 @@ export const Trending = () => {
                       {brand.events.length > 2 && (
                         <Button 
                           variant="link" 
-                          className="h-auto p-0 text-xs group"
+                          className="h-auto p-0 text-sm font-medium group text-primary hover:text-primary/80"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/brand/${brand.id}`);
@@ -290,26 +288,26 @@ export const Trending = () => {
                     })()}
 
                     {/* Quick Actions */}
-                    <div className="flex items-center gap-2 pt-2">
+                    <div className="flex items-center gap-2 pt-3 border-t border-border/50">
                       <Button
                         variant={brand.isFollowing ? "default" : "outline"}
                         size="sm"
-                        className="h-8 text-xs rounded-full transition-all"
+                        className="h-9 text-sm rounded-full transition-all hover:scale-105"
                         onClick={(e) => handleFollow(brand, e)}
                         aria-label={`${brand.isFollowing ? "Unfollow" : "Follow"} ${brand.name}`}
                       >
-                        <Heart className={`h-3 w-3 ${brand.isFollowing ? "fill-current" : ""}`} />
+                        <Heart className={`h-4 w-4 mr-1.5 ${brand.isFollowing ? "fill-current" : ""}`} />
                         {brand.isFollowing ? "Following" : "Follow"}
                       </Button>
                       {brand.isFollowing && (
                         <Button
                           variant={brand.notificationsEnabled ? "default" : "outline"}
                           size="sm"
-                          className="h-8 text-xs rounded-full transition-all"
+                          className="h-9 text-sm rounded-full transition-all hover:scale-105"
                           onClick={(e) => handleNotify(brand, e)}
                           aria-label={`${brand.notificationsEnabled ? "Turn off notifications" : "Turn on notifications"} for ${brand.name}`}
                         >
-                          <Bell className={`h-3 w-3 ${brand.notificationsEnabled ? "fill-current" : ""}`} />
+                          <Bell className={`h-4 w-4 mr-1.5 ${brand.notificationsEnabled ? "fill-current" : ""}`} />
                           {brand.notificationsEnabled ? "Notifying" : "Notify"}
                         </Button>
                       )}
