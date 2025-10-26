@@ -458,28 +458,42 @@ export default function BrandProfile() {
       // TRIGGER ALL MISSING ENRICHMENTS IN PARALLEL
       const promises: Promise<any>[] = [];
 
-      if (!checks.hasCorporateFamily) {
-        console.log('[Health Check] → Fixing corporate family');
+      // TWO-STEP ENRICHMENT PROCESS
+      // STEP 1: Seed base data (creates foundation)
+      // STEP 2: Enrich details (adds people/shareholders)
+      
+      if (!checks.hasCorporateFamily || !checks.hasKeyPeople || !checks.hasShareholderData) {
+        console.log('[Health Check] → Running enrichment sequence (seed → enrich)');
         promises.push(
-          supabase.functions.invoke('resolve-wikidata-tree', {
+          supabase.functions.invoke('seed-brand-base-data', {
             body: { 
+              brand_id: actualId,
               brand_name: data.brand.name,
-              qid: wikidataQid  // Now correctly passed!
+              wikidata_qid: wikidataQid
             }
-          }).catch(err => console.error('[Health Check] Corporate family failed:', err))
+          })
+          .then(() => {
+            console.log('[Health Check] ✓ Base data seeded');
+            return supabase.functions.invoke('enrich-brand-wiki', {
+              body: { 
+                brand_id: actualId,
+                wikidata_qid: wikidataQid,
+                mode: 'full'
+              }
+            });
+          })
+          .then(() => console.log('[Health Check] ✓ Enrichment complete'))
+          .catch(err => console.error('[Health Check] ✗ Enrichment failed:', err))
         );
-      }
-
-      if (!checks.hasKeyPeople || !checks.hasShareholderData || !checks.hasDescription) {
-        console.log('[Health Check] → Fixing key people, shareholders & description');
+      } else if (!checks.hasDescription) {
+        console.log('[Health Check] → Fixing description only');
         promises.push(
           supabase.functions.invoke('enrich-brand-wiki', {
             body: { 
               brand_id: actualId,
-              wikidata_qid: wikidataQid,  // Now correctly passed!
-              mode: 'full'
+              wikidata_qid: wikidataQid
             }
-          }).catch(err => console.error('[Health Check] Enrichment failed:', err))
+          }).catch(err => console.error('[Health Check] Description fix failed:', err))
         );
       }
 

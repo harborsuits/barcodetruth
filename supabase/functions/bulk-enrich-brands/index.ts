@@ -57,28 +57,31 @@ Deno.serve(async (req) => {
 
         console.log(`[bulk-enrich-brands] ${brand.name}: Missing ownership data, enriching...`);
 
-        // Step 2: Create corporate structure first (use existing QID if available)
-        const treeUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/resolve-wikidata-tree`;
-        const treeResponse = await fetch(treeUrl, {
+        // NEW TWO-STEP PROCESS:
+        // Step 1: Seed base data (creates company + ownership + placeholders)
+        const seedUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/seed-brand-base-data`;
+        const seedResponse = await fetch(seedUrl, {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ 
+            brand_id: brand.id,
             brand_name: brand.name,
-            qid: brand.wikidata_qid // CRITICAL: Pass existing QID to avoid wrong entity matches
+            wikidata_qid: brand.wikidata_qid
           }),
         });
 
-        if (!treeResponse.ok) {
-          const text = await treeResponse.text();
-          console.warn(`[bulk-enrich-brands] ${brand.name}: Tree resolution failed: ${text}`);
-        } else {
-          console.log(`[bulk-enrich-brands] ${brand.name}: Corporate structure created`);
+        if (!seedResponse.ok) {
+          const text = await seedResponse.text();
+          console.warn(`[bulk-enrich-brands] ${brand.name}: Base data seeding failed: ${text}`);
+          results.push({ brand_id: brand.id, name: brand.name, success: false, error: text });
+          continue;
         }
+        console.log(`[bulk-enrich-brands] ${brand.name}: ✓ Base data seeded`);
 
-        // Step 3: Enrich with full data (people + shareholders)
+        // Step 2: Enrich with full data (people + shareholders)
         const enrichUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/enrich-brand-wiki`;
         const enrichResponse = await fetch(enrichUrl, {
           method: "POST",
@@ -86,7 +89,11 @@ Deno.serve(async (req) => {
             "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ brand_id: brand.id, mode: "full" }),
+          body: JSON.stringify({ 
+            brand_id: brand.id, 
+            wikidata_qid: brand.wikidata_qid,
+            mode: "full" 
+          }),
         });
 
         if (!enrichResponse.ok) {
