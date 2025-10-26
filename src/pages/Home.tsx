@@ -1,7 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { TrendingUp, List, Settings, Search, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Header } from "@/components/layout/Header";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { TrendingPreview } from "@/components/landing/TrendingPreview";
 import { TrustedSources } from "@/components/landing/TrustedSources";
@@ -22,7 +21,6 @@ export const Home = () => {
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
-      <Header showSettings={true} showBack={false} />
       <WelcomeTour />
 
       <main className="max-w-screen-md mx-auto px-4 sm:px-6 space-y-8 pb-24">
