@@ -420,6 +420,16 @@ export default function BrandProfile() {
     const healthCheck = async () => {
       console.log('[Health Check] Analyzing brand:', data.brand?.name);
 
+      // Fetch wikidata_qid separately since it's not in brand_profile_view response
+      const { data: brandData } = await supabase
+        .from('brands')
+        .select('wikidata_qid')
+        .eq('id', actualId)
+        .single();
+      
+      const wikidataQid = brandData?.wikidata_qid;
+      console.log('[Health Check] Wikidata QID:', wikidataQid);
+
       // Define what "complete" means for a brand
       const checks = {
         hasCorporateFamily: !!ownership?.structure?.chain?.length || !!ownership?.shareholders?.top?.length,
@@ -454,7 +464,7 @@ export default function BrandProfile() {
           supabase.functions.invoke('resolve-wikidata-tree', {
             body: { 
               brand_name: data.brand.name,
-              qid: (data.brand as any).wikidata_qid
+              qid: wikidataQid  // Now correctly passed!
             }
           }).catch(err => console.error('[Health Check] Corporate family failed:', err))
         );
@@ -466,7 +476,7 @@ export default function BrandProfile() {
           supabase.functions.invoke('enrich-brand-wiki', {
             body: { 
               brand_id: actualId,
-              wikidata_qid: (data.brand as any).wikidata_qid,
+              wikidata_qid: wikidataQid,  // Now correctly passed!
               mode: 'full'
             }
           }).catch(err => console.error('[Health Check] Enrichment failed:', err))
