@@ -9,9 +9,10 @@ import type { Shareholder } from "@/hooks/useTopShareholders";
 interface TopShareholdersCardProps {
   shareholders: Shareholder[];
   emptyMessage?: string;
+  isPrivateCompany?: boolean;
 }
 
-export function TopShareholdersCard({ shareholders, emptyMessage }: TopShareholdersCardProps) {
+export function TopShareholdersCard({ shareholders, emptyMessage, isPrivateCompany }: TopShareholdersCardProps) {
   const hasData = shareholders && shareholders.length > 0;
 
   // Detect employee ownership
@@ -133,13 +134,27 @@ export function TopShareholdersCard({ shareholders, emptyMessage }: TopSharehold
         </>
       ) : (
         <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Shareholder data not yet available.
-          </p>
-          <p className="text-xs text-muted-foreground">
-            For public companies, institutional ownership information exists in SEC 13F filings. 
-            We're working to integrate this data to show who actually profits from your purchases.
-          </p>
+          {isPrivateCompany ? (
+            <>
+              <p className="text-sm font-medium text-muted-foreground">
+                Privately Held Company
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Private companies and private equity firms do not file public shareholder disclosures. 
+                Ownership and profit distribution are not publicly reported.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Shareholder data not yet available.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                For public companies, institutional ownership information exists in SEC 13F filings. 
+                We're working to integrate this data to show who actually profits from your purchases.
+              </p>
+            </>
+          )}
         </div>
       )}
     </Card>

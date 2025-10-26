@@ -114,6 +114,7 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
       {/* Top Shareholders Card - always show with empty state */}
       <TopShareholdersCard 
         shareholders={shareholders}
+        isPrivateCompany={isLikelyPrivate}
         emptyMessage={
           isLikelyPrivate
             ? "This company appears to be privately held and is not required to file public shareholder disclosures."

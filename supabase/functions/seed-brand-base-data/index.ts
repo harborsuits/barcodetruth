@@ -153,38 +153,10 @@ Deno.serve(async (req) => {
 
     console.log('[seed-brand-base-data] Ownership link created');
 
-    // 3. Placeholder shareholders (real data comes from SEC/other enrichment)
-    // Check if shareholders already exist
-    const { count } = await supabase
-      .from('company_shareholders')
-      .select('*', { count: 'exact', head: true })
-      .eq('company_id', company.id);
-
-    let shareholdersAdded = 0;
-    if (count === 0) {
-      // Add placeholder institutional investors (generic major asset managers)
-      const placeholders = [
-        { holder_name: 'The Vanguard Group', pct: 0 },
-        { holder_name: 'BlackRock Inc.', pct: 0 },
-        { holder_name: 'State Street Corporation', pct: 0 }
-      ];
-
-      for (const holder of placeholders) {
-        await supabase.from('company_shareholders').insert({
-          company_id: company.id,
-          holder_name: holder.holder_name,
-          holder_type: 'institutional',
-          pct: holder.pct,
-          source: 'placeholder',
-          source_name: 'Placeholder (awaiting real data)',
-          is_asset_manager: true
-        });
-      }
-      shareholdersAdded = placeholders.length;
-      console.log('[seed-brand-base-data] Added placeholder shareholders:', shareholdersAdded);
-    } else {
-      console.log('[seed-brand-base-data] Shareholders already exist, skipping placeholders');
-    }
+    // STEP 4: Do NOT add placeholder shareholders
+    // Only real SEC 13F data should be in company_shareholders
+    // Placeholder data creates false information about who profits
+    console.log('✅ Skipping placeholder shareholders (honesty over fake data)');
 
     return new Response(
       JSON.stringify({ 
@@ -193,8 +165,7 @@ Deno.serve(async (req) => {
         company_name: companyName,
         company_qid: companyQid,
         had_parent: !!parentQid,
-        shareholders_added: shareholdersAdded,
-        message: 'Base data seeded successfully. Run enrich-brand-wiki next to add key people.'
+        message: 'Base data seeded successfully. Run enrich-brand-wiki next to add key people and real shareholder data.'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
