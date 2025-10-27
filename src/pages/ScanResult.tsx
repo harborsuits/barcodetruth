@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import * as React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Bell, BellOff, Bookmark, Package, Share2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,6 +10,8 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { ValueFitBar } from "@/components/ValueFitBar";
 import { ValueMatchIndicator } from "@/components/ValueMatchIndicator";
 import { WhyThisScore } from "@/components/WhyThisScore";
+import { WhyCareCard } from "@/components/WhyCareCard";
+import { BetterAlternativesCard } from "@/components/BetterAlternativesCard";
 import { AlternativesDrawer } from "@/components/AlternativesDrawer";
 import { CompareSheet } from "@/components/CompareSheet";
 import { OwnershipDrawer } from "@/components/OwnershipDrawer";
@@ -18,7 +21,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { getUserWeights, calculateValueFit, getTopContributors } from "@/lib/valueFit";
 import { getAlternatives } from "@/lib/alternatives";
-import { getExcludeSameParent } from "@/lib/userPreferences";
+import { getExcludeSameParent, getUserPreferences } from "@/lib/userPreferences";
+import { buildWhyCare, shouldShowWhyCare } from "@/lib/whyCare";
+import { analytics } from "@/lib/analytics";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -671,53 +676,49 @@ export default function ScanResult() {
                 </div>
 
                 <ValueFitBar score={currentBrandData.valueFit} showExplainer />
-                
-                {/* Value Match Indicator - Personalized "Why Should I Care" */}
-                {(() => {
-                  const weights = getUserWeights();
-                  const priorities = [
-                    { name: 'Labor', weight: weights.labor, brandScore: currentBrandData.scores.labor },
-                    { name: 'Environment', weight: weights.environment, brandScore: currentBrandData.scores.environment },
-                    { name: 'Politics', weight: weights.politics, brandScore: currentBrandData.scores.politics },
-                    { name: 'Social', weight: weights.social, brandScore: currentBrandData.scores.social },
-                  ].sort((a, b) => b.weight - a.weight);
-                  
-                  const topPriority = priorities[0];
-                  const keyIssue = events && events[0] ? events[0].title || events[0].description : undefined;
-                  const topAlternative = alternatives && alternatives[0] ? alternatives[0].brand_name : undefined;
-                  
-                  return (
-                    <ValueMatchIndicator
-                      valueFit={currentBrandData.valueFit}
-                      topPriority={topPriority}
-                      keyIssue={keyIssue}
-                      alternativeName={topAlternative}
-                      onViewAlternatives={() => {
-                        document.querySelector('[data-alternatives-trigger]')?.dispatchEvent(new Event('click', { bubbles: true }));
-                      }}
-                      onViewFullDetails={() => navigate(`/brand/${product.brand_id}`)}
-                    />
-                  );
-                })()}
 
-                {/* Legacy score explanation - hidden when company score is off */}
-                {FEATURES.companyScore && topDrivers.length > 0 && (
-                  <WhyThisScore 
-                    brandId={product.brand_id} 
-                    impacts={topDrivers}
-                  />
-                )}
-
-                {/* Quick explanation */}
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {currentBrandData.valueFit >= 70
-                    ? "This matches your priorities."
-                    : currentBrandData.valueFit >= 50
-                    ? "Some trade-offs vs your priorities."
-                    : "Doesn't match what you care about—want a better alternative?"}
-                </p>
               </CardContent>
             </Card>
+
+            {/* Why Should I Care - Personalized explanation */}
+            {(() => {
+              const weights = getUserWeights();
+              const userValues = {
+                labor: weights.labor * 100,
+                environment: weights.environment * 100,
+                politics: weights.politics * 100,
+                social: weights.social * 100,
+              };
+              
+              if (!shouldShowWhyCare(userValues)) return null;
+              
+              const bullets = buildWhyCare(userValues, brandData.brand_scores[0]);
+              
+              return (
+                <WhyCareCard 
+                  bullets={bullets}
+                  onShowEvidence={(category) => {
+                    navigate(`/brand/${product.brand_id}#${category}`);
+                  }}
+                />
+              );
+            })()}
+
+            {/* Better Alternatives - Only show if match < 70% */}
+            {currentBrandData.valueFit < 70 && alternatives && alternatives.length > 0 && (() => {
+              return (
+                <BetterAlternativesCard
+                  alternatives={alternatives}
+                  currentMatch={currentBrandData.valueFit}
+                  currentBrandId={product.brand_id}
+                  onCompare={(brandId) => {
+                    analytics.trackCompareClicked(product.brand_id, brandId);
+                    setCompareBrandId(brandId);
+                    setCompareOpen(true);
+                  }}
+                />
+              );
+            })()}
 
             {/* Action buttons - sticky on mobile */}
             <div className="sticky bottom-0 bg-[var(--bg)] pt-2 pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 sm:static border-t sm:border-t-0">

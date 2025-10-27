@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { lineFromEvent } from "@/lib/events";
 import { computeSeverity, type Severity } from "@/lib/severityConfig";
 import { getPoliticalContext, getAlignmentBadgeColor, type PoliticalAlignment } from "@/lib/politicsContext";
+import { summarizeEvent } from "@/lib/eventSummary";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { isGeneric as checkIfGeneric } from "@/lib/links";
@@ -463,12 +464,18 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
 
           {/* Title */}
           {event.title && (
-            <h4 
-              id={event.event_id ? `event-${event.event_id}` : undefined}
-              className={`font-semibold leading-snug ${compact ? "text-sm" : "text-base"}`}
-            >
-              {event.title}
-            </h4>
+            <>
+              {/* Summary line (category-prefixed, skimmable) */}
+              <p className="text-xs text-muted-foreground mb-1" title={summarizeEvent(event)}>
+                {summarizeEvent(event)}
+              </p>
+              <h4 
+                id={event.event_id ? `event-${event.event_id}` : undefined}
+                className={`font-semibold leading-snug ${compact ? "text-sm" : "text-base"}`}
+              >
+                {event.title}
+              </h4>
+            </>
           )}
 
           {/* Description - show brief version in compact mode */}
