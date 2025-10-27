@@ -14,6 +14,7 @@ import { NotFound } from "./pages/NotFound";
 import { AdminRoute } from "@/components/routes/AdminRoute";
 import { ProtectedRoute } from "@/components/routes/ProtectedRoute";
 import { Header } from "@/components/layout/Header";
+import { ScrollToTop } from "@/components/ScrollToTop";
 
 const Forbidden = lazyNamed(() => import("./pages/Forbidden"), "default");
 const Auth = lazyNamed(() => import("./pages/Auth"), "default");
@@ -84,6 +85,7 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <ScrollToTop />
           <HeaderWrapper />
           <Routes>
           <Route 
