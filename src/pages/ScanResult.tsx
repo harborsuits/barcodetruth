@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ValueFitBar } from "@/components/ValueFitBar";
+import { ValueMatchIndicator } from "@/components/ValueMatchIndicator";
 import { WhyThisScore } from "@/components/WhyThisScore";
 import { AlternativesDrawer } from "@/components/AlternativesDrawer";
 import { CompareSheet } from "@/components/CompareSheet";
@@ -670,6 +671,34 @@ export default function ScanResult() {
                 </div>
 
                 <ValueFitBar score={currentBrandData.valueFit} showExplainer />
+                
+                {/* Value Match Indicator - Personalized "Why Should I Care" */}
+                {(() => {
+                  const weights = getUserWeights();
+                  const priorities = [
+                    { name: 'Labor', weight: weights.labor, brandScore: currentBrandData.scores.labor },
+                    { name: 'Environment', weight: weights.environment, brandScore: currentBrandData.scores.environment },
+                    { name: 'Politics', weight: weights.politics, brandScore: currentBrandData.scores.politics },
+                    { name: 'Social', weight: weights.social, brandScore: currentBrandData.scores.social },
+                  ].sort((a, b) => b.weight - a.weight);
+                  
+                  const topPriority = priorities[0];
+                  const keyIssue = events && events[0] ? events[0].title || events[0].description : undefined;
+                  const topAlternative = alternatives && alternatives[0] ? alternatives[0].brand_name : undefined;
+                  
+                  return (
+                    <ValueMatchIndicator
+                      valueFit={currentBrandData.valueFit}
+                      topPriority={topPriority}
+                      keyIssue={keyIssue}
+                      alternativeName={topAlternative}
+                      onViewAlternatives={() => {
+                        document.querySelector('[data-alternatives-trigger]')?.dispatchEvent(new Event('click', { bubbles: true }));
+                      }}
+                      onViewFullDetails={() => navigate(`/brand/${product.brand_id}`)}
+                    />
+                  );
+                })()}
 
                 {/* Legacy score explanation - hidden when company score is off */}
                 {FEATURES.companyScore && topDrivers.length > 0 && (

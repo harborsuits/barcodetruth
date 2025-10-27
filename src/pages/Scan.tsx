@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/Header";
 import { ReportIssue } from "@/components/ReportIssue";
 import { ScannerDiagnostics } from "@/components/ScannerDiagnostics";
 import { AuthModal } from "@/components/AuthModal";
+import { ScanLimitModal } from "@/components/ScanLimitModal";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
@@ -48,6 +49,7 @@ export const Scan = () => {
   const [isInIframe, setIsInIframe] = useState(false);
   const [pendingBarcode, setPendingBarcode] = useState<string | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
   const lastDetectedRef = useRef<string | null>(null);
   const lastDetectedAtRef = useRef<number>(0);
   
@@ -297,6 +299,12 @@ export const Scan = () => {
       setShowAuthModal(true);
       return;
     }
+
+    // Check scan limit before starting camera - show modal instead of toast
+    if (!can_scan) {
+      setShowLimitModal(true);
+      return;
+    }
     
     try {
       if (!videoRef.current) {
@@ -318,6 +326,12 @@ export const Scan = () => {
         });
         return;
       }
+      
+      // Show permission explanation before requesting
+      toast({
+        title: "Camera permission needed",
+        description: "We need camera access to scan barcodes. Your privacy is protected - images are not stored.",
+      });
       
       const inIframe = window.self !== window.top;
       if (inIframe) {
@@ -900,6 +914,13 @@ export const Scan = () => {
       </AlertDialog>
 
       <ScannerDiagnostics open={showDiagnostics} onOpenChange={setShowDiagnostics} />
+      
+      {/* Scan Limit Modal */}
+      <ScanLimitModal 
+        open={showLimitModal}
+        onOpenChange={setShowLimitModal}
+        scansRemaining={scans_remaining}
+      />
     </div>
   );
 };

@@ -51,7 +51,7 @@ export function AlternativesDrawer({ alternatives, currentScore, currentScores, 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" className="w-full">
+        <Button variant="outline" className="w-full" data-alternatives-trigger>
           <TrendingUp className="h-4 w-4 mr-2" />
           Better options ({alternatives.length})
         </Button>
