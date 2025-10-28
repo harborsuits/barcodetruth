@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { PoliticsBlock } from "@/components/preferences/PoliticsBlock";
 
 interface ValueSlidersProps {
   initialValues?: {
@@ -9,12 +10,16 @@ interface ValueSlidersProps {
     value_environment: number;
     value_politics: number;
     value_social: number;
+    value_political_intensity?: number;
+    value_political_alignment?: number;
   };
   onSave: (values: {
     value_labor: number;
     value_environment: number;
     value_politics: number;
     value_social: number;
+    value_political_intensity?: number;
+    value_political_alignment?: number;
   }) => void;
   isSaving?: boolean;
 }
@@ -43,17 +48,6 @@ const SLIDER_CONFIG = [
     }
   },
   {
-    key: 'value_politics',
-    label: 'Political Donations & Lobbying',
-    leftLabel: "Don't care (0)",
-    rightLabel: "Very important (100)",
-    description: "How much do you care about corporate political spending, PAC donations, and lobbying?",
-    examples: {
-      low: "I don't care what politicians companies support",
-      high: "I want to know where my money goes politically and support aligned companies"
-    }
-  },
-  {
     key: 'value_social',
     label: 'Diversity, Inclusion & Social Values',
     leftLabel: "Traditional values (0)",
@@ -72,6 +66,8 @@ export function ValueSliders({ initialValues, onSave, isSaving }: ValueSlidersPr
     value_environment: initialValues?.value_environment ?? 50,
     value_politics: initialValues?.value_politics ?? 50,
     value_social: initialValues?.value_social ?? 50,
+    value_political_intensity: initialValues?.value_political_intensity ?? 50,
+    value_political_alignment: initialValues?.value_political_alignment ?? 50,
   });
 
   useEffect(() => {
@@ -81,6 +77,8 @@ export function ValueSliders({ initialValues, onSave, isSaving }: ValueSlidersPr
         value_environment: initialValues.value_environment ?? 50,
         value_politics: initialValues.value_politics ?? 50,
         value_social: initialValues.value_social ?? 50,
+        value_political_intensity: initialValues.value_political_intensity ?? 50,
+        value_political_alignment: initialValues.value_political_alignment ?? 50,
       });
     }
   }, [initialValues]);
@@ -137,6 +135,16 @@ export function ValueSliders({ initialValues, onSave, isSaving }: ValueSlidersPr
             </div>
           </div>
         ))}
+
+        <div>
+          <h4 className="text-lg font-semibold mb-4">Political Activity & Alignment</h4>
+          <PoliticsBlock
+            intensity={values.value_political_intensity}
+            alignment={values.value_political_alignment}
+            onChangeIntensity={(v) => setValues(prev => ({ ...prev, value_political_intensity: v }))}
+            onChangeAlignment={(v) => setValues(prev => ({ ...prev, value_political_alignment: v }))}
+          />
+        </div>
 
         <Button 
           onClick={() => onSave(values)} 

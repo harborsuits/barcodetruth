@@ -1213,6 +1213,8 @@ export type Database = {
           created_at: string
           id: string
           last_updated: string
+          politics_alignment: number | null
+          politics_intensity: number | null
           reason_json: Json | null
           recomputed_at: string | null
           score: number | null
@@ -1230,6 +1232,8 @@ export type Database = {
           created_at?: string
           id?: string
           last_updated?: string
+          politics_alignment?: number | null
+          politics_intensity?: number | null
           reason_json?: Json | null
           recomputed_at?: string | null
           score?: number | null
@@ -1247,6 +1251,8 @@ export type Database = {
           created_at?: string
           id?: string
           last_updated?: string
+          politics_alignment?: number | null
+          politics_intensity?: number | null
           reason_json?: Json | null
           recomputed_at?: string | null
           score?: number | null
@@ -4301,6 +4307,8 @@ export type Database = {
           user_id: string
           value_environment: number | null
           value_labor: number | null
+          value_political_alignment: number
+          value_political_intensity: number
           value_politics: number | null
           value_social: number | null
           value_weights: Json | null
@@ -4317,6 +4325,8 @@ export type Database = {
           user_id: string
           value_environment?: number | null
           value_labor?: number | null
+          value_political_alignment?: number
+          value_political_intensity?: number
           value_politics?: number | null
           value_social?: number | null
           value_weights?: Json | null
@@ -4333,6 +4343,8 @@ export type Database = {
           user_id?: string
           value_environment?: number | null
           value_labor?: number | null
+          value_political_alignment?: number
+          value_political_intensity?: number
           value_politics?: number | null
           value_social?: number | null
           value_weights?: Json | null

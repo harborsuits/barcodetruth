@@ -40,6 +40,8 @@ export async function updateUserValues(values: {
   value_environment: number;
   value_politics: number;
   value_social: number;
+  value_political_intensity?: number;
+  value_political_alignment?: number;
 }) {
   try {
     const { data: { user } } = await supabase.auth.getUser();

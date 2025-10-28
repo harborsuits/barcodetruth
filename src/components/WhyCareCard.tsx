@@ -2,14 +2,38 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Info, TrendingUp, TrendingDown } from "lucide-react";
 import { WhyCareBullet } from "@/lib/whyCare";
+import { describePoliticsMismatch } from "@/lib/politicsExplain";
 
 interface WhyCareCardProps {
   bullets: WhyCareBullet[];
   onShowEvidence?: (category: string) => void;
+  userPoliticalIntensity?: number;
+  userPoliticalAlignment?: number;
+  brandPoliticsIntensity?: number | null;
+  brandPoliticsAlignment?: number | null;
 }
 
-export function WhyCareCard({ bullets, onShowEvidence }: WhyCareCardProps) {
-  if (bullets.length === 0) {
+export function WhyCareCard({ 
+  bullets, 
+  onShowEvidence,
+  userPoliticalIntensity,
+  userPoliticalAlignment,
+  brandPoliticsIntensity,
+  brandPoliticsAlignment
+}: WhyCareCardProps) {
+  // Get politics-specific mismatch if available
+  const politicsMismatch = 
+    userPoliticalIntensity !== undefined && 
+    userPoliticalAlignment !== undefined
+      ? describePoliticsMismatch(
+          userPoliticalIntensity,
+          userPoliticalAlignment,
+          brandPoliticsIntensity,
+          brandPoliticsAlignment
+        )
+      : null;
+
+  if (bullets.length === 0 && !politicsMismatch) {
     return (
       <Alert>
         <Info className="h-4 w-4" />
@@ -29,6 +53,27 @@ export function WhyCareCard({ bullets, onShowEvidence }: WhyCareCardProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
+        {politicsMismatch && (
+          <div className="flex gap-2 pb-3 border-b">
+            <div className="mt-0.5">
+              <Info className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm text-foreground">
+                {politicsMismatch}
+              </p>
+              {onShowEvidence && (
+                <button
+                  onClick={() => onShowEvidence('politics')}
+                  className="text-xs text-primary hover:underline mt-1"
+                >
+                  Show evidence →
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+        
         {bullets.map((bullet) => (
           <div key={bullet.category} className="flex gap-2">
             <div className="mt-0.5">
