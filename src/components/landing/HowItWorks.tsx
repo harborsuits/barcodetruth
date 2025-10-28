@@ -96,6 +96,51 @@ export function HowItWorks() {
           </div>
         </div>
 
+        {/* Second Example - Conservative-friendly */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-card to-muted/20 border border-border p-8 shadow-lg">
+          <div className="space-y-6">
+            {/* Example Label */}
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-warning/10 border border-warning/20">
+              <span className="text-xs font-semibold text-warning uppercase tracking-wide">Example</span>
+            </div>
+
+            {/* Comparison */}
+            <div className="grid md:grid-cols-[1fr,auto,1fr] gap-6 items-center">
+              <div className="space-y-2 p-5 rounded-2xl bg-card border border-border/50">
+                <div className="text-xs text-muted-foreground uppercase tracking-wide">You care about</div>
+                <div className="text-2xl font-bold">Politics: 15</div>
+                <div className="text-sm text-muted-foreground">Prefer brands stay out of politics</div>
+              </div>
+
+              <ArrowRight className="h-6 w-6 text-muted-foreground hidden md:block" />
+
+              <div className="space-y-2 p-5 rounded-2xl bg-card border border-destructive/30">
+                <div className="text-xs text-muted-foreground uppercase tracking-wide">Brand Y has</div>
+                <div className="text-2xl font-bold text-destructive">Politics: 82</div>
+                <div className="text-sm text-muted-foreground">Heavy political activism & donations</div>
+              </div>
+            </div>
+
+            {/* Match Result */}
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-destructive/10 to-destructive/5 border-2 border-destructive/30 p-6">
+              <div className="space-y-3">
+                <div className="flex items-center justify-center gap-2">
+                  <AlertTriangle className="h-6 w-6 text-destructive animate-pulse" />
+                  <span className="text-4xl font-bold text-destructive">38% Match</span>
+                </div>
+                <div className="text-center">
+                  <div className="inline-flex items-center gap-2 text-sm font-semibold text-destructive">
+                    <span>Major Mismatch</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    This brand is highly politically active. Try these alternatives that focus more on their products than politics.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Why It Matters */}
         <div className="max-w-2xl mx-auto space-y-6 text-center">
           <h3 className="text-xl font-semibold">Why This Matters</h3>
