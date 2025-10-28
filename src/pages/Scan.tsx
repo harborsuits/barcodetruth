@@ -14,6 +14,7 @@ import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import { supabase } from "@/integrations/supabase/client";
 import { useScanLimit } from "@/hooks/useScanLimit";
 import { lookupScanAndLog } from "@/lib/scannerLookup";
+import { analytics } from "@/lib/analytics";
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import {
   AlertDialog,
@@ -241,6 +242,11 @@ export const Scan = () => {
         
         // Navigate to brand page (shows corporate family, key people, evidence, scores)
         setTimeout(() => {
+          analytics.track('scan_route_brand', { 
+            brand_id: product.brand_id, 
+            barcode: product.barcode,
+            product_name: product.product_name
+          });
           navigate(`/brand/${product.brand_id}`);
         }, 800);
       } else {
