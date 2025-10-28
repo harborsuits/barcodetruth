@@ -3,7 +3,6 @@ import { Camera, AlertCircle, WifiOff, X, Flashlight, FlashlightOff, Wrench, Upl
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Header } from "@/components/layout/Header";
 import { ReportIssue } from "@/components/ReportIssue";
 import { ScannerDiagnostics } from "@/components/ScannerDiagnostics";
 import { AuthModal } from "@/components/AuthModal";
@@ -479,8 +478,6 @@ export const Scan = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header showBack={true} showSettings={false} />
-
       <main className="container max-w-2xl mx-auto px-4 py-6 space-y-4">
         {/* Status announcer for screen readers */}
         <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">

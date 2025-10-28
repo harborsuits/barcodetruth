@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Header } from "@/components/layout/Header";
 import { ReportIssue } from "@/components/ReportIssue";
 import { searchCatalog, type ProductSearchResult, type BrandSearchResult } from "@/lib/searchCatalog";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -73,8 +72,6 @@ export default function Search() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header showBack={true} showSettings={false} />
-
       <main className="container max-w-2xl mx-auto px-4 py-6">
         <div className="mb-6 relative">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

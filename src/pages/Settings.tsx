@@ -8,7 +8,6 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Header } from "@/components/layout/Header";
 import { subscribeToPush, unsubscribeFromPush, isPushSubscribed } from "@/lib/pushNotifications";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -216,8 +215,6 @@ export const Settings = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <Header showBack={true} showSettings={false} />
-
       <main className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
         <Card>
           <CardHeader>

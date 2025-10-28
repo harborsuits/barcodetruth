@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Header } from "@/components/layout/Header";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -94,8 +93,6 @@ export const Lists = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <Header showBack={true} showSettings={false} />
-
       <main className="container max-w-2xl mx-auto px-4 py-6">
         {isLoading ? (
           <div className="space-y-3">

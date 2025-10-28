@@ -1,11 +1,8 @@
-import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Methodology() {
   return (
     <div className="min-h-screen bg-[var(--bg)]">
-      <Header showSettings={true} showBack={true} />
-      
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
         <Card>
           <CardHeader>
