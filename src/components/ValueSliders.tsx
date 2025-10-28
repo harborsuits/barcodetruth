@@ -3,6 +3,8 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PoliticsBlock } from "@/components/preferences/PoliticsBlock";
+import { FEATURES } from "@/lib/featureFlags";
+import { analytics } from "@/lib/analytics";
 
 interface ValueSlidersProps {
   initialValues?: {
@@ -87,6 +89,25 @@ export function ValueSliders({ initialValues, onSave, isSaving }: ValueSlidersPr
     setValues(prev => ({ ...prev, [key]: value[0] }));
   };
 
+  const handleSave = () => {
+    // Track political preference changes
+    if (FEATURES.POLITICS_TWO_AXIS) {
+      if (initialValues?.value_political_intensity !== values.value_political_intensity) {
+        analytics.trackPoliticalIntensityChanged(
+          initialValues?.value_political_intensity ?? 50,
+          values.value_political_intensity
+        );
+      }
+      if (initialValues?.value_political_alignment !== values.value_political_alignment) {
+        analytics.trackPoliticalAlignmentChanged(
+          initialValues?.value_political_alignment ?? 50,
+          values.value_political_alignment
+        );
+      }
+    }
+    onSave(values);
+  };
+
   return (
     <Card className="p-6">
       <div className="space-y-8">
@@ -136,18 +157,20 @@ export function ValueSliders({ initialValues, onSave, isSaving }: ValueSlidersPr
           </div>
         ))}
 
-        <div>
-          <h4 className="text-lg font-semibold mb-4">Political Activity & Alignment</h4>
-          <PoliticsBlock
-            intensity={values.value_political_intensity}
-            alignment={values.value_political_alignment}
-            onChangeIntensity={(v) => setValues(prev => ({ ...prev, value_political_intensity: v }))}
-            onChangeAlignment={(v) => setValues(prev => ({ ...prev, value_political_alignment: v }))}
-          />
-        </div>
+        {FEATURES.POLITICS_TWO_AXIS && (
+          <div>
+            <h4 className="text-lg font-semibold mb-4">Political Activity & Alignment</h4>
+            <PoliticsBlock
+              intensity={values.value_political_intensity}
+              alignment={values.value_political_alignment}
+              onChangeIntensity={(v) => setValues(prev => ({ ...prev, value_political_intensity: v }))}
+              onChangeAlignment={(v) => setValues(prev => ({ ...prev, value_political_alignment: v }))}
+            />
+          </div>
+        )}
 
         <Button 
-          onClick={() => onSave(values)} 
+          onClick={handleSave} 
           disabled={isSaving}
           className="w-full"
           size="lg"

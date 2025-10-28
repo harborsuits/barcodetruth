@@ -1,4 +1,5 @@
 // Generate personalized "Why Should I Care" explanations
+import { analytics } from '@/lib/analytics';
 
 type CategoryKey = 'labor' | 'environment' | 'politics' | 'social';
 
@@ -97,6 +98,9 @@ export function buildWhyCare(
     
     // Add intensity mismatch if significant
     if (caresIntensity && intensityGap > 20) {
+      // Track mismatch
+      analytics.trackPoliticsIntensityMismatch(intensityGap, userIntensity, brandIntensity);
+      
       const direction = userIntensity > brandIntensity ? 'higher' : 'lower';
       const explanation = direction === 'higher'
         ? 'You prefer more politically active brands'
@@ -113,6 +117,9 @@ export function buildWhyCare(
     
     // Add alignment mismatch if significant
     if (caresAlignment && alignmentGap > 20) {
+      // Track mismatch
+      analytics.trackPoliticsAlignmentMismatch(alignmentGap, userAlignment, brandAlignment);
+      
       const direction = userAlignment > brandAlignment ? 'higher' : 'lower';
       const explanation = direction === 'higher'
         ? 'You lean traditional, but this brand leans progressive'

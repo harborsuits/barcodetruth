@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { getAlignmentLabel, getIntensityLabel } from "@/lib/politicsExplain";
+import { FEATURES } from "@/lib/featureFlags";
 
 interface AlignmentBadgeProps {
   alignment: number | null;
@@ -7,6 +8,10 @@ interface AlignmentBadgeProps {
 }
 
 export function AlignmentBadge({ alignment, intensity }: AlignmentBadgeProps) {
+  if (!FEATURES.POLITICS_TWO_AXIS) {
+    return null;
+  }
+
   const alignmentLabel = getAlignmentLabel(alignment);
   const intensityLabel = getIntensityLabel(intensity);
   

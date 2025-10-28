@@ -101,6 +101,55 @@ class Analytics {
     });
   }
 
+  // Politics two-axis tracking
+  trackPoliticalIntensityChanged(oldValue: number, newValue: number) {
+    this.track('prefs_changed_political_intensity', {
+      old: oldValue,
+      new: newValue,
+    });
+  }
+
+  trackPoliticalAlignmentChanged(oldValue: number, newValue: number) {
+    this.track('prefs_changed_political_alignment', {
+      old: oldValue,
+      new: newValue,
+    });
+  }
+
+  trackPoliticsIntensityMismatch(gap: number, userValue: number, brandValue: number) {
+    this.track('match_mismatch_politics_intensity', {
+      gap,
+      user: userValue,
+      brand: brandValue,
+    });
+  }
+
+  trackPoliticsAlignmentMismatch(gap: number, userValue: number, brandValue: number) {
+    this.track('match_mismatch_politics_alignment', {
+      gap,
+      user: userValue,
+      brand: brandValue,
+    });
+  }
+
+  trackAlternativesLowActivityClicked(brandId: string) {
+    this.track('cta_alts_low_activity_clicked', {
+      brand_id: brandId,
+    });
+  }
+
+  trackAlternativesAlignmentProgressiveClicked(brandId: string) {
+    this.track('cta_alts_alignment_progressive_clicked', {
+      brand_id: brandId,
+    });
+  }
+
+  trackAlternativesAlignmentTraditionalClicked(brandId: string) {
+    this.track('cta_alts_alignment_traditional_clicked', {
+      brand_id: brandId,
+    });
+  }
+
   getQueue() {
     return [...this.queue];
   }

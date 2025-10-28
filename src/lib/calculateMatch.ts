@@ -1,3 +1,5 @@
+import { FEATURES } from '@/lib/featureFlags';
+
 interface UserValues {
   value_labor: number;
   value_environment: number;
@@ -75,7 +77,7 @@ export function calculateValueMatch(
     userValues.value_political_intensity !== undefined && 
     userValues.value_political_alignment !== undefined;
 
-  if (hasNewPolitics) {
+  if (FEATURES.POLITICS_TWO_AXIS && hasNewPolitics) {
     // Use two-axis politics
     const userIntensity = userValues.value_political_intensity!;
     const userAlignment = userValues.value_political_alignment!;

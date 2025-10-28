@@ -3,6 +3,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Info, TrendingUp, TrendingDown } from "lucide-react";
 import { WhyCareBullet } from "@/lib/whyCare";
 import { describePoliticsMismatch } from "@/lib/politicsExplain";
+import { FEATURES } from "@/lib/featureFlags";
 
 interface WhyCareCardProps {
   bullets: WhyCareBullet[];
@@ -21,8 +22,9 @@ export function WhyCareCard({
   brandPoliticsIntensity,
   brandPoliticsAlignment
 }: WhyCareCardProps) {
-  // Get politics-specific mismatch if available
+  // Get politics-specific mismatch if available (gated by feature flag)
   const politicsMismatch = 
+    FEATURES.POLITICS_TWO_AXIS &&
     userPoliticalIntensity !== undefined && 
     userPoliticalAlignment !== undefined
       ? describePoliticsMismatch(

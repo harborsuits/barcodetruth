@@ -4,4 +4,5 @@ export const FEATURES = {
   DAILY_DIGEST: false, // Enable when push notifications are ready
   ENABLE_COMMUNITY_OUTLOOK: true, // Community-driven category ratings (Beta)
   HIDE_COMPANY_SCORE: true, // Hide old company-level ethical score
+  POLITICS_TWO_AXIS: import.meta.env.DEV, // Two-axis politics (intensity + alignment)
 } as const;
