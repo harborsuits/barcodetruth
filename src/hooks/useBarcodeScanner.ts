@@ -181,17 +181,21 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         
-        // CRITICAL: Wait for video to be ready before scanning
+        // CRITICAL: Wait for video to be fully ready before scanning
         await new Promise((resolve) => {
           if (videoRef.current) {
-            videoRef.current.onloadedmetadata = () => {
-              console.log('[Scanner] Video loaded, starting detection loop');
-              resolve(true);
+            videoRef.current.onloadedmetadata = async () => {
+              console.log('[Scanner] Video metadata loaded');
+              if (videoRef.current) {
+                await videoRef.current.play();
+                // Wait additional frame for video to actually render
+                await new Promise(r => setTimeout(r, 100));
+                console.log('[Scanner] Video playing and ready');
+                resolve(true);
+              }
             };
           }
         });
-        
-        await videoRef.current.play();
       }
 
       // Check for torch capability

@@ -21,10 +21,10 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Call the RPC function
+    // Call the RPC function - use maybeSingle() to gracefully handle not found
     const { data, error } = await supabase
       .rpc('get_product_by_barcode', { p_raw_gtin: barcode })
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('RPC error:', error);
@@ -35,9 +35,11 @@ Deno.serve(async (req) => {
     }
 
     if (!data) {
+      // Product not found in database - return 200 with notFound flag
+      console.log('Product not found for barcode:', barcode);
       return new Response(
         JSON.stringify({ notFound: true }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
