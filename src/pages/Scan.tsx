@@ -579,12 +579,12 @@ export const Scan = () => {
                   </div>
 
                   {/* Camera controls */}
-                  <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-20 pointer-events-auto px-4">
+                  <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-50 px-4">
                     <Button
                       onClick={toggleFacingMode}
                       variant="secondary"
                       size="sm"
-                      className="bg-card/90 backdrop-blur"
+                      className="bg-card/90 backdrop-blur pointer-events-auto"
                       aria-label="Flip camera"
                     >
                       <FlipHorizontal className="h-4 w-4 mr-1" />
@@ -594,7 +594,7 @@ export const Scan = () => {
                       onClick={togglePause}
                       variant="secondary"
                       size="sm"
-                      className="bg-card/90 backdrop-blur"
+                      className="bg-card/90 backdrop-blur pointer-events-auto"
                       aria-label={isPaused ? "Resume scanning" : "Pause scanning"}
                     >
                       {isPaused ? (
@@ -614,7 +614,7 @@ export const Scan = () => {
                         onClick={toggleTorch}
                         variant="secondary"
                         size="sm"
-                        className="bg-card/90 backdrop-blur"
+                        className="bg-card/90 backdrop-blur pointer-events-auto"
                         aria-label={torchEnabled ? "Turn torch off" : "Turn torch on"}
                       >
                         {torchEnabled ? (
@@ -634,7 +634,7 @@ export const Scan = () => {
                       onClick={stopScanner}
                       variant="ghost"
                       size="sm"
-                      className="bg-card/90 backdrop-blur"
+                      className="bg-card/90 backdrop-blur pointer-events-auto"
                       aria-label="Stop scanning"
                     >
                       <X className="h-4 w-4 mr-1" />

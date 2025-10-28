@@ -133,8 +133,7 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
     try {
       console.log('[Scanner] Starting scanner...');
       
-      // IMPORTANT: Reset state before starting
-      setIsScanning(false);
+      // IMPORTANT: Reset pause state
       setIsPaused(false);
       
       // Stop any existing stream first
@@ -147,7 +146,7 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
       // Cancel any pending animation frames
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
+        animationFrameRef.current = undefined;
       }
       
       // Initialize reader
@@ -206,14 +205,16 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
 
       setHasPermission(true);
       
-      // NOW start scanning
+      // NOW set scanning to true and start detection loop
       setIsScanning(true);
-      scanFrame();
+      console.log('[Scanner] Starting detection loop');
+      animationFrameRef.current = requestAnimationFrame(scanFrame);
       
       console.log('[Scanner] ✅ Scanner started successfully');
     } catch (error: any) {
       console.error('[Scanner] Failed to start:', error);
       setHasPermission(false);
+      setIsScanning(false);
       onError?.(error);
       toast({
         title: "Camera Error",
@@ -244,11 +245,15 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
     setIsPaused(prev => !prev);
   }, []);
 
-  const toggleFacingMode = useCallback(() => {
+  const toggleFacingMode = useCallback(async () => {
+    const wasScanning = isScanning;
     stopScanning();
     setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
-    // Will restart on next render due to useEffect
-  }, [stopScanning]);
+    // Restart if it was scanning
+    if (wasScanning) {
+      setTimeout(() => startScanning(), 100);
+    }
+  }, [isScanning, stopScanning, startScanning]);
 
   const toggleTorch = useCallback(async () => {
     if (!streamRef.current || !hasTorch) return;
@@ -277,13 +282,6 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
       // Will restart on next render due to useEffect
     }
   }, [isScanning, stopScanning]);
-
-  // Auto-restart scanner when facingMode or resolution changes
-  useEffect(() => {
-    if (hasPermission && !isScanning) {
-      startScanning();
-    }
-  }, [facingMode, currentResolution]);
 
   // Cleanup on unmount
   useEffect(() => {
