@@ -221,24 +221,22 @@ export const Scan = () => {
         
         // Save to recent scans
         const recentScan = {
-          upc: product.gtin,
+          upc: product.barcode,
           product_name: product.product_name,
           timestamp: Date.now()
         };
         
         const stored = localStorage.getItem('recent_scans');
         const existing = stored ? JSON.parse(stored) : [];
-        const updated = [recentScan, ...existing.filter((s: any) => s.upc !== product.gtin)].slice(0, 10);
+        const updated = [recentScan, ...existing.filter((s: any) => s.upc !== product.barcode)].slice(0, 10);
         localStorage.setItem('recent_scans', JSON.stringify(updated));
         
-        // Show ownership context in toast
-        const ownershipInfo = product.parent_company 
-          ? `${product.brand_name} (owned by ${product.parent_company})`
-          : product.brand_name || 'Unknown';
+        // Show brand name in toast (parent fetch happens on brand page)
+        const brandInfo = product.brand_name || 'Unknown';
         
         toast({ 
           title: "Product found!", 
-          description: `${product.product_name} - ${ownershipInfo}`
+          description: `${product.product_name} - ${brandInfo}`
         });
         
         // Navigate to brand page (shows corporate family, key people, evidence, scores)
