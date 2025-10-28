@@ -1,52 +1,102 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Users as UsersIcon, TrendingUp, Activity, UserCheck } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { ArrowLeft, Users as UsersIcon, TrendingUp, Activity, UserCheck, Edit, Trash2, Mail } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { toast } from 'sonner';
+
+interface UserData {
+  user_id: string;
+  email: string;
+  created_at: string;
+  total_scans: number;
+  scans_today: number;
+  last_scan: Date | null;
+  roles: string[];
+  onboarding_complete: boolean;
+}
 
 export default function AdminUsers() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [editingUser, setEditingUser] = useState<UserData | null>(null);
+  const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
 
   const { data: usersData, isLoading } = useQuery({
     queryKey: ['admin-users'],
     queryFn: async () => {
-      // Get all user profiles
+      // Get profiles
       const { data: profiles, error: profilesError } = await supabase
-        .from('user_profiles')
-        .select('*')
+        .from('profiles')
+        .select('id, created_at, onboarding_complete')
         .order('created_at', { ascending: false });
 
       if (profilesError) throw profilesError;
 
-      // Get scan counts for each user
-      const userIds = profiles?.map(p => p.user_id) || [];
-      const { data: scans, error: scansError } = await supabase
+      // Get user emails from auth.users via admin API
+      const userIds = profiles?.map(p => p.id) || [];
+      
+      // Get scans
+      const { data: scans } = await supabase
         .from('user_scans')
         .select('user_id, scanned_at')
         .in('user_id', userIds);
 
-      if (scansError) throw scansError;
+      // Get roles
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .in('user_id', userIds);
+
+      // Get emails via RPC or direct query
+      const { data: authData } = await supabase.auth.admin.listUsers();
+      const authUsers = authData?.users || [];
 
       // Combine data
-      const users = profiles?.map(profile => {
-        const userScans = scans?.filter(s => s.user_id === profile.user_id) || [];
+      const users: UserData[] = profiles?.map(profile => {
+        const authUser = authUsers.find(u => u.id === profile.id);
+        const userScans = scans?.filter(s => s.user_id === profile.id) || [];
         const recentScans = userScans.filter(s => 
           new Date(s.scanned_at) > new Date(Date.now() - 86400000)
         );
+        const userRoles = roles?.filter(r => r.user_id === profile.id).map(r => r.role) || [];
         
         return {
-          ...profile,
+          user_id: profile.id,
+          email: authUser?.email || 'Unknown',
+          created_at: profile.created_at,
           total_scans: userScans.length,
           scans_today: recentScans.length,
           last_scan: userScans.length > 0 
             ? new Date(Math.max(...userScans.map(s => new Date(s.scanned_at).getTime())))
             : null,
+          roles: userRoles,
+          onboarding_complete: profile.onboarding_complete,
         };
       }) || [];
 
       return users;
+    }
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase.auth.admin.deleteUser(userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('User deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      setDeleteUserId(null);
+    },
+    onError: (error) => {
+      toast.error('Failed to delete user: ' + error.message);
     }
   });
 
@@ -144,50 +194,56 @@ export default function AdminUsers() {
               <table className="w-full">
                 <thead className="bg-muted/50 border-b">
                   <tr>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Email</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold">User ID</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Age</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Location</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Preferences</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Roles</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold">Total Scans</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Scans Today</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold">Last Scan</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold">Joined</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {usersData?.map(user => (
-                    <tr key={user.id} className="border-b hover:bg-muted/50 transition-colors">
+                    <tr key={user.user_id} className="border-b hover:bg-muted/50 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-sm">{user.email}</span>
+                        </div>
+                      </td>
                       <td className="px-4 py-3">
                         <div className="font-mono text-xs text-muted-foreground">
                           {user.user_id.substring(0, 8)}...
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm">
-                        {user.age_range || '-'}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        {user.location || '-'}
-                      </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1 flex-wrap">
-                          {user.pref_labor && (
-                            <Badge variant="outline" className="text-xs">Labor</Badge>
-                          )}
-                          {user.pref_environment && (
-                            <Badge variant="outline" className="text-xs">Environment</Badge>
-                          )}
-                          {user.pref_politics && (
-                            <Badge variant="outline" className="text-xs">Politics</Badge>
-                          )}
-                          {user.pref_social && (
-                            <Badge variant="outline" className="text-xs">Social</Badge>
-                          )}
-                          {!user.pref_labor && !user.pref_environment && !user.pref_politics && !user.pref_social && (
-                            <span className="text-xs text-muted-foreground">None</span>
+                          {user.roles.length > 0 ? (
+                            user.roles.map(role => (
+                              <Badge 
+                                key={role} 
+                                variant={role === 'admin' ? 'default' : 'secondary'}
+                                className="text-xs"
+                              >
+                                {role}
+                              </Badge>
+                            ))
+                          ) : (
+                            <Badge variant="outline" className="text-xs">user</Badge>
                           )}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <Badge variant="secondary">{user.total_scans}</Badge>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        {user.scans_today > 0 ? (
+                          <Badge variant="default">{user.scans_today}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">0</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
                         {user.last_scan 
@@ -197,6 +253,49 @@ export default function AdminUsers() {
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
                         {new Date(user.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                className="h-8 w-8"
+                                title="Delete user"
+                                onClick={() => setDeleteUserId(user.user_id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Delete User</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4">
+                                <p className="text-sm text-muted-foreground">
+                                  Are you sure you want to delete user <strong>{user.email}</strong>? 
+                                  This will permanently delete their account and all associated data.
+                                </p>
+                                <div className="flex gap-2 justify-end">
+                                  <Button 
+                                    variant="outline" 
+                                    onClick={() => setDeleteUserId(null)}
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button 
+                                    variant="destructive"
+                                    onClick={() => deleteUserMutation.mutate(user.user_id)}
+                                    disabled={deleteUserMutation.isPending}
+                                  >
+                                    {deleteUserMutation.isPending ? 'Deleting...' : 'Delete User'}
+                                  </Button>
+                                </div>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
                       </td>
                     </tr>
                   ))}
