@@ -95,6 +95,12 @@ verify_jwt = false
 [functions.scan-product]
 verify_jwt = false
 
+[functions.get-product-by-barcode]
+verify_jwt = false
+
+[functions.get-better-alternatives]
+verify_jwt = false
+
 [functions.recompute-brand-scores]
 verify_jwt = false
 
