@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { updateUserValues } from "@/lib/userPreferences";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
+import { HowItWorks } from "@/components/landing/HowItWorks";
 
 interface ValueCardProps {
   icon: React.ReactNode;
@@ -276,100 +277,10 @@ export const Onboarding = () => {
             </p>
           </div>
 
-          {/* How It Works - Card Style */}
-          <Card className="bg-white/95 backdrop-blur-lg shadow-2xl mb-6 border-0">
-            <CardContent className="p-8">
-              <h2 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-                How It Works
-              </h2>
-              
-              <div className="grid md:grid-cols-3 gap-6 mb-8">
-                {/* Step 1 */}
-                <div className="text-center group hover-scale">
-                  <div className="bg-gradient-to-br from-blue-500 to-blue-600 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:shadow-xl transition-shadow">
-                    <span className="text-3xl font-bold text-white">1</span>
-                  </div>
-                  <div className="bg-blue-50 rounded-xl p-4 h-full">
-                    <h3 className="font-bold text-lg mb-2 text-gray-900">
-                      Set Your Values
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      4 quick sliders: Labor, Environment, Politics, and Social Issues (0-100)
-                    </p>
-                  </div>
-                </div>
-
-                {/* Step 2 */}
-                <div className="text-center group hover-scale">
-                  <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:shadow-xl transition-shadow">
-                    <span className="text-3xl font-bold text-white">2</span>
-                  </div>
-                  <div className="bg-cyan-50 rounded-xl p-4 h-full">
-                    <h3 className="font-bold text-lg mb-2 text-gray-900">
-                      We Calculate Match
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      Brand scores from real news vs. YOUR values = Match %
-                    </p>
-                  </div>
-                </div>
-
-                {/* Step 3 */}
-                <div className="text-center group hover-scale">
-                  <div className="bg-gradient-to-br from-green-500 to-green-600 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:shadow-xl transition-shadow">
-                    <span className="text-3xl font-bold text-white">3</span>
-                  </div>
-                  <div className="bg-green-50 rounded-xl p-4 h-full">
-                    <h3 className="font-bold text-lg mb-2 text-gray-900">
-                      Better Choices
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      See alignment, read evidence, find alternatives
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Example - Make it POP */}
-              <div className="bg-gradient-to-br from-orange-50 to-red-50 border-2 border-orange-200 rounded-2xl p-6 relative overflow-hidden">
-                {/* Decorative element */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-orange-200/20 rounded-full -mr-16 -mt-16"></div>
-                
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="bg-orange-500 text-white px-3 py-1 rounded-full text-sm font-bold">
-                    EXAMPLE
-                  </div>
-                  <span className="text-sm text-gray-600">See how it works:</span>
-                </div>
-
-                <div className="space-y-3 relative z-10">
-                  <div className="flex flex-col md:flex-row items-center gap-3">
-                    <div className="bg-white rounded-lg px-4 py-2 flex-1 shadow-sm w-full">
-                      <span className="text-sm text-gray-600">You set</span>
-                      <div className="font-bold text-lg">Labor: 90</div>
-                      <span className="text-xs text-gray-500">(deeply care about worker rights)</span>
-                    </div>
-                    <div className="text-2xl">→</div>
-                    <div className="bg-white rounded-lg px-4 py-2 flex-1 shadow-sm w-full">
-                      <span className="text-sm text-gray-600">Brand X has</span>
-                      <div className="font-bold text-lg text-red-600">Labor: 35</div>
-                      <span className="text-xs text-gray-500">(many violations)</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-xl p-4 shadow-lg border-2 border-red-300">
-                    <div className="text-center">
-                      <div className="text-4xl font-bold text-red-600 mb-1">45% Match</div>
-                      <div className="text-sm font-semibold text-red-700 mb-2">⚠️ Major Mismatch</div>
-                      <div className="text-sm text-gray-600">
-                        We suggest alternatives with better labor practices
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* How It Works - Use new component */}
+          <div className="bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl mb-6 p-4">
+            <HowItWorks />
+          </div>
 
           {/* CTA Button - Make it HUGE and impossible to miss */}
           <div className="text-center">

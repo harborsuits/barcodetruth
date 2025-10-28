@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { TrendingPreview } from "@/components/landing/TrendingPreview";
 import { TrustedSources } from "@/components/landing/TrustedSources";
-import { HowItWorks } from "@/components/landing/HowItWorks";
 import { LatestVerifications } from "@/components/landing/LatestVerifications";
 import { RecentVerifications } from "@/components/landing/RecentVerifications";
 import { TopMovers24h } from "@/components/landing/TopMovers24h";
@@ -30,7 +29,6 @@ export const Home = () => {
         <RecentVerifications />
         <LatestVerifications />
         <TrendingPreview />
-        <HowItWorks />
         <TrustedSources />
         <AttributionFooter />
       </main>
