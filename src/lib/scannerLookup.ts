@@ -16,6 +16,13 @@ export interface ProductLookupResult {
   social_score: number | null;
 }
 
+/**
+ * Runtime guard to validate product lookup result shape
+ */
+export function isProductLookupResult(x: any): x is ProductLookupResult {
+  return x && typeof x.barcode === "string" && "brand_id" in x;
+}
+
 export interface AlternativeResult {
   brand_id: string;
   brand_name: string;
@@ -50,7 +57,7 @@ export async function lookupScanAndLog(
     throw lookupError;
   }
 
-  if (!productData || !productData.brand_id) {
+  if (!isProductLookupResult(productData) || !productData.brand_id) {
     return { notFound: true };
   }
 
