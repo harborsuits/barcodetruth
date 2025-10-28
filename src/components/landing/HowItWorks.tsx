@@ -95,6 +95,28 @@ export function HowItWorks() {
             </div>
           </div>
         </div>
+
+        {/* Why It Matters */}
+        <div className="max-w-2xl mx-auto space-y-6 text-center">
+          <h3 className="text-xl font-semibold">Why This Matters</h3>
+          <div className="space-y-4 text-left">
+            <div className="p-4 rounded-xl bg-card border border-border/50">
+              <p className="text-sm leading-relaxed">
+                <span className="font-semibold text-primary">Every purchase is a vote.</span> But most brands hide behind vague promises like "eco-friendly" or "we care." We cut through the marketing by tracking real news—labor disputes, environmental fines, political donations, community impact—and turning it into scores you can actually use.
+              </p>
+            </div>
+            <div className="p-4 rounded-xl bg-card border border-border/50">
+              <p className="text-sm leading-relaxed">
+                <span className="font-semibold text-primary">Your match % shows alignment.</span> If you care deeply about worker rights (say, 90/100) but a brand scores 35 on labor, that's a huge gap. We'll show you alternatives that score 80+ instead—brands that actually match what you stand for.
+              </p>
+            </div>
+            <div className="p-4 rounded-xl bg-card border border-border/50">
+              <p className="text-sm leading-relaxed">
+                <span className="font-semibold text-primary">No greenwashing, no guessing.</span> All scores link back to verified sources—news articles, government records, court filings. You see exactly why a brand scored the way it did, so you can make informed choices that feel good.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );
