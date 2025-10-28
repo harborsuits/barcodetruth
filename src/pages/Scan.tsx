@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import { supabase } from "@/integrations/supabase/client";
 import { useScanLimit } from "@/hooks/useScanLimit";
+import { lookupScanAndLog } from "@/lib/scannerLookup";
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import {
   AlertDialog,
@@ -171,6 +172,12 @@ export const Scan = () => {
 
   // Handle confirmed barcode lookup
   const handleConfirmedLookup = useCallback(async (barcode: string) => {
+    if (!user) {
+      console.log('[Scan] No user for lookup');
+      setShowAuthModal(true);
+      return;
+    }
+
     setScannedBarcode(barcode);
     setScanResult('processing');
     
@@ -184,62 +191,59 @@ export const Scan = () => {
     try {
       const t0 = performance.now();
       
-      // Call resolve-barcode endpoint (checks DB + OpenFoodFacts fallback)
-      const { data, error } = await supabase.functions.invoke('resolve-barcode', {
-        body: { barcode }
-      });
-
+      // Use new lookup flow
+      const result = await lookupScanAndLog(barcode, user.id);
+      
       const dur = Math.round(performance.now() - t0);
 
-      if (error) {
-        if (error.message?.includes('404') || error.message?.includes('not found')) {
-          setScanResult('not_found');
-          console.log('[Analytics] scan_not_found', { barcode, dur_ms: dur });
-          toast({ 
-            title: "Product not found", 
-            description: "Try another barcode or search by brand",
-            variant: "destructive" 
-          });
-          setTimeout(() => setScanResult('idle'), 800);
-          return;
-        }
-        throw error;
+      if (result.notFound) {
+        setScanResult('not_found');
+        console.log('[Analytics] scan_not_found', { barcode, dur_ms: dur });
+        toast({ 
+          title: "Product not found", 
+          description: "Try another barcode or search by brand",
+          variant: "destructive" 
+        });
+        setTimeout(() => setScanResult('idle'), 800);
+        return;
       }
 
-      if (data) {
+      const { product, alternatives } = result;
+      
+      if (product) {
         setScanResult('success');
-        console.log('[Analytics] scan_success', { barcode, brand_id: data.brand_id, company_id: data.company_id, dur_ms: dur });
-        
-        // Track the scan
-        if (data.brand_id) {
-          await trackScan(data.brand_id, barcode);
-        }
+        console.log('[Analytics] scan_success', { 
+          barcode, 
+          brand_id: product.brand_id, 
+          alternatives_count: alternatives?.length || 0,
+          dur_ms: dur 
+        });
         
         // Save to recent scans
         const recentScan = {
-          upc: data.upc,
-          product_name: data.product_name,
+          upc: product.gtin,
+          product_name: product.product_name,
           timestamp: Date.now()
         };
         
         const stored = localStorage.getItem('recent_scans');
         const existing = stored ? JSON.parse(stored) : [];
-        const updated = [recentScan, ...existing.filter((s: any) => s.upc !== data.upc)].slice(0, 10);
+        const updated = [recentScan, ...existing.filter((s: any) => s.upc !== product.gtin)].slice(0, 10);
         localStorage.setItem('recent_scans', JSON.stringify(updated));
         
         // Show ownership context in toast
-        const ownershipInfo = data.company_name 
-          ? `${data.brand_name} (owned by ${data.company_name})`
-          : data.brand_name || 'Unknown';
+        const ownershipInfo = product.parent_company 
+          ? `${product.brand_name} (owned by ${product.parent_company})`
+          : product.brand_name || 'Unknown';
         
         toast({ 
           title: "Product found!", 
-          description: `${data.product_name} - ${ownershipInfo}`
+          description: `${product.product_name} - ${ownershipInfo}`
         });
         
-        // Navigate to brand page (shows ownership chain)
+        // Navigate to brand page (shows corporate family, key people, evidence, scores)
         setTimeout(() => {
-          navigate(`/brand/${data.brand_id}`);
+          navigate(`/brand/${product.brand_id}`);
         }, 800);
       } else {
         setScanResult('not_found');
@@ -260,7 +264,7 @@ export const Scan = () => {
       });
       setTimeout(() => setScanResult('idle'), 800);
     }
-  }, [trackScan]);
+  }, [user, navigate]);
 
   // Barcode scanner hook (defined after handleBarcodeDetected)
   const {
