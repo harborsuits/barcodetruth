@@ -66,12 +66,15 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
     ctx.stroke();
   }, []);
 
+  const isScanningRef = useRef(false);
+
   const scanFrame = useCallback(async () => {
-    if (isPaused || isProcessing || !videoRef.current || !readerRef.current) {
+    if (isPaused || isProcessing || !videoRef.current || !readerRef.current || isScanningRef.current) {
       animationFrameRef.current = requestAnimationFrame(scanFrame);
       return;
     }
 
+    isScanningRef.current = true;
     try {
       const result = await readerRef.current.decodeFromVideoElement(videoRef.current);
       if (result) {
@@ -126,6 +129,7 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
       }
     }
 
+    isScanningRef.current = false;
     animationFrameRef.current = requestAnimationFrame(scanFrame);
   }, [isPaused, isProcessing, onScan, drawBoundingBox]);
 
@@ -133,8 +137,15 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
     try {
       console.log('[Scanner] Starting scanner...');
       
-      // IMPORTANT: Reset pause state
+      // Guard against double initialization
+      if (videoRef.current?.srcObject) {
+        console.log('[Scanner] Already initialized, skipping');
+        return;
+      }
+      
+      // IMPORTANT: Reset pause state and scanning flag
       setIsPaused(false);
+      isScanningRef.current = false;
       
       // Stop any existing stream first
       if (streamRef.current) {
@@ -164,14 +175,15 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
 
       const constraints: MediaStreamConstraints = {
         video: {
-          facingMode,
+          facingMode: { ideal: facingMode },
           width: { ideal: 1920 },
           height: { ideal: 1080 },
           ...(currentResolution !== 'auto' && {
             width: { ideal: parseInt(currentResolution.split('x')[0]) },
             height: { ideal: parseInt(currentResolution.split('x')[1]) }
           })
-        }
+        },
+        audio: false
       };
 
       console.log('[Scanner] Getting camera stream...');
@@ -179,6 +191,10 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
       streamRef.current = stream;
 
       if (videoRef.current) {
+        // Set video attributes for iOS and autoplay policy compliance
+        videoRef.current.setAttribute('playsinline', 'true');
+        videoRef.current.muted = true;
+        videoRef.current.autoplay = true;
         videoRef.current.srcObject = stream;
         
         // CRITICAL: Wait for video to be fully ready before scanning
@@ -188,7 +204,9 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
               console.log('[Scanner] Video metadata loaded');
               if (videoRef.current) {
                 await videoRef.current.play();
-                // Wait additional frame for video to actually render
+                // Ensure first frame is painted
+                await new Promise(r => requestAnimationFrame(r));
+                // Additional buffer for stability
                 await new Promise(r => setTimeout(r, 100));
                 console.log('[Scanner] Video playing and ready');
                 resolve(true);

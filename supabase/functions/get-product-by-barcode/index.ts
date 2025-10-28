@@ -35,11 +35,11 @@ Deno.serve(async (req) => {
     }
 
     if (!data) {
-      // Product not found in database - return 200 with notFound flag
+      // Product not found in database - return clean 404
       console.log('Product not found for barcode:', barcode);
       return new Response(
         JSON.stringify({ notFound: true }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

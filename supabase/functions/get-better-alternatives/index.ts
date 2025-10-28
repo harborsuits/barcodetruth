@@ -29,15 +29,16 @@ Deno.serve(async (req) => {
       });
 
     if (error) {
-      console.error('RPC error:', error);
+      console.warn('Alternatives lookup error:', error);
+      // Return empty alternatives list instead of erroring
       return new Response(
-        JSON.stringify({ error: error.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ alternatives: [] }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     return new Response(
-      JSON.stringify({ alternatives: data || [] }),
+      JSON.stringify({ alternatives: data ?? [] }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
