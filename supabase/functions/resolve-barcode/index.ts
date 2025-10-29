@@ -721,18 +721,21 @@ Deno.serve(async (req) => {
               ok: true
             }));
             
-            // Trigger initial news ingestion for new brands (non-blocking)
-            if (ownershipResult.is_new_brand) {
+            // Trigger initial news ingestion AND enrichment for new brands (non-blocking)
+            if (ownershipResult.is_new_brand || ownershipResult.company_id) {
               console.log(JSON.stringify({
                 level: "info",
                 fn: "resolve-barcode",
-                action: "trigger-news-ingestion",
+                action: "trigger-enrichment",
                 brand_id: ownershipResult.brand_id,
                 brand_name: mappedBrand,
-                is_new_brand: true
+                company_id: ownershipResult.company_id,
+                is_new_brand: ownershipResult.is_new_brand
               }));
               
               // Fire and forget - don't await to avoid blocking response
+              
+              // 1. Trigger news ingestion
               supabase.functions.invoke('unified-news-orchestrator', {
                 body: { brand_id: ownershipResult.brand_id }
               }).then((result: any) => {
@@ -765,6 +768,45 @@ Deno.serve(async (req) => {
                   error: err.message
                 }));
               });
+              
+              // 2. Trigger full enrichment (key people, shareholders, wikidata)
+              if (ownershipResult.company_id) {
+                supabase.functions.invoke('enrich-brand-wiki', {
+                  body: { 
+                    brand_id: ownershipResult.brand_id,
+                    mode: 'full'
+                  }
+                }).then((result: any) => {
+                  if (result.error) {
+                    console.error(JSON.stringify({
+                      level: "error",
+                      fn: "resolve-barcode",
+                      action: "enrichment-error",
+                      brand_id: ownershipResult.brand_id,
+                      brand_name: mappedBrand,
+                      error: result.error
+                    }));
+                  } else {
+                    console.log(JSON.stringify({
+                      level: "info",
+                      fn: "resolve-barcode",
+                      action: "enrichment-success",
+                      brand_id: ownershipResult.brand_id,
+                      brand_name: mappedBrand,
+                      result: result.data
+                    }));
+                  }
+                }).catch((err: Error) => {
+                  console.error(JSON.stringify({
+                    level: "error",
+                    fn: "resolve-barcode",
+                    action: "enrichment-failed",
+                    brand_id: ownershipResult.brand_id,
+                    brand_name: mappedBrand,
+                    error: err.message
+                  }));
+                });
+              }
             }
             
             return new Response(
