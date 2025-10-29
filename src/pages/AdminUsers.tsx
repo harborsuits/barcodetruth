@@ -28,8 +28,9 @@ export default function AdminUsers() {
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
 
-  const { data: usersData, isLoading } = useQuery({
+  const { data: usersData, isLoading, refetch } = useQuery({
     queryKey: ['admin-users'],
+    refetchInterval: 5000, // Auto-refresh every 5 seconds
     queryFn: async () => {
       // Get profiles with email
       const { data: profiles, error: profilesError } = await supabase
@@ -135,6 +136,13 @@ export default function AdminUsers() {
                 View and manage all registered users
               </p>
             </div>
+            <Button 
+              onClick={() => refetch()} 
+              variant="outline"
+              className="ml-auto"
+            >
+              Refresh
+            </Button>
           </div>
         </div>
       </header>
