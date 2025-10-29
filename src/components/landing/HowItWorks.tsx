@@ -14,8 +14,8 @@ export function HowItWorks() {
 
         {/* Steps */}
         <div className="grid md:grid-cols-3 gap-6">
-          <div className="group text-center space-y-3 p-6 rounded-2xl bg-card border border-border/50 hover:border-primary/20 transition-all hover:scale-[1.02]">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
+          <div className="text-center space-y-3 p-6 rounded-2xl bg-card/50 border-0">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 text-primary">
               <Heart className="h-7 w-7" />
             </div>
             <div>
@@ -26,8 +26,8 @@ export function HowItWorks() {
             </div>
           </div>
 
-          <div className="group text-center space-y-3 p-6 rounded-2xl bg-card border border-border/50 hover:border-primary/20 transition-all hover:scale-[1.02]">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent/10 text-accent group-hover:bg-accent/20 transition-colors">
+          <div className="text-center space-y-3 p-6 rounded-2xl bg-card/50 border-0">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent/10 text-accent">
               <Scale className="h-7 w-7" />
             </div>
             <div>
@@ -38,8 +38,8 @@ export function HowItWorks() {
             </div>
           </div>
 
-          <div className="group text-center space-y-3 p-6 rounded-2xl bg-card border border-border/50 hover:border-primary/20 transition-all hover:scale-[1.02]">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-success/10 text-success group-hover:bg-success/20 transition-colors">
+          <div className="text-center space-y-3 p-6 rounded-2xl bg-card/50 border-0">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-success/10 text-success">
               <Sparkles className="h-7 w-7" />
             </div>
             <div>
