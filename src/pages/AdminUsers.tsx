@@ -81,6 +81,12 @@ export default function AdminUsers() {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
+      // Check if user has admin role
+      const userToDelete = usersData?.find(u => u.user_id === userId);
+      if (userToDelete?.roles.includes('admin')) {
+        throw new Error('Cannot delete admin users. Please remove admin role first.');
+      }
+      
       const { error } = await supabase.auth.admin.deleteUser(userId);
       if (error) throw error;
     },
@@ -250,45 +256,57 @@ export default function AdminUsers() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                className="h-8 w-8"
-                                title="Delete user"
-                                onClick={() => setDeleteUserId(user.user_id)}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Delete User</DialogTitle>
-                              </DialogHeader>
-                              <div className="space-y-4">
-                                <p className="text-sm text-muted-foreground">
-                                  Are you sure you want to delete user <strong>{user.email}</strong>? 
-                                  This will permanently delete their account and all associated data.
-                                </p>
-                                <div className="flex gap-2 justify-end">
-                                  <Button 
-                                    variant="outline" 
-                                    onClick={() => setDeleteUserId(null)}
-                                  >
-                                    Cancel
-                                  </Button>
-                                  <Button 
-                                    variant="destructive"
-                                    onClick={() => deleteUserMutation.mutate(user.user_id)}
-                                    disabled={deleteUserMutation.isPending}
-                                  >
-                                    {deleteUserMutation.isPending ? 'Deleting...' : 'Delete User'}
-                                  </Button>
+                          {user.roles.includes('admin') ? (
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              className="h-8 w-8"
+                              disabled
+                              title="Admin users cannot be deleted"
+                            >
+                              <Trash2 className="h-4 w-4 text-muted" />
+                            </Button>
+                          ) : (
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  title="Delete user"
+                                  onClick={() => setDeleteUserId(user.user_id)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Delete User</DialogTitle>
+                                </DialogHeader>
+                                <div className="space-y-4">
+                                  <p className="text-sm text-muted-foreground">
+                                    Are you sure you want to delete user <strong>{user.email}</strong>? 
+                                    This will permanently delete their account and all associated data.
+                                  </p>
+                                  <div className="flex gap-2 justify-end">
+                                    <Button 
+                                      variant="outline" 
+                                      onClick={() => setDeleteUserId(null)}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button 
+                                      variant="destructive"
+                                      onClick={() => deleteUserMutation.mutate(user.user_id)}
+                                      disabled={deleteUserMutation.isPending}
+                                    >
+                                      {deleteUserMutation.isPending ? 'Deleting...' : 'Delete User'}
+                                    </Button>
+                                  </div>
                                 </div>
-                              </div>
-                            </DialogContent>
-                          </Dialog>
+                              </DialogContent>
+                            </Dialog>
+                          )}
                         </div>
                       </td>
                     </tr>
