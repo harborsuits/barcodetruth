@@ -7,6 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff } from "lucide-react";
+import { z } from "zod";
+
+const authSchema = z.object({
+  email: z.string().trim().email({ message: "Please enter a valid email address" }).max(255),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }).max(100),
+});
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -23,6 +29,19 @@ export default function Auth() {
     setIsLoading(true);
 
     try {
+      // Validate input
+      const validation = authSchema.safeParse({ email: email.trim(), password });
+      if (!validation.success) {
+        const firstError = validation.error.issues[0];
+        toast({
+          title: "Invalid input",
+          description: firstError.message,
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
       if (isSignUp) {
         // Validate password confirmation
         if (password !== confirmPassword) {
@@ -34,15 +53,35 @@ export default function Auth() {
           setIsLoading(false);
           return;
         }
+
+        // Check if user already exists
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', (await supabase.auth.getUser()).data.user?.id)
+          .maybeSingle();
+
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: email.trim(),
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/onboarding`,
           },
         });
 
-        if (error) throw error;
+        if (error) {
+          // Handle specific error cases
+          if (error.message.includes('already registered') || error.message.includes('already exists')) {
+            toast({
+              title: "Account already exists",
+              description: "This email is already registered. Please sign in instead.",
+              variant: "destructive",
+            });
+            setIsLoading(false);
+            return;
+          }
+          throw error;
+        }
 
         // If email confirmation is disabled (auto-confirm), redirect to onboarding
         if (data.user && data.session) {
@@ -59,11 +98,23 @@ export default function Auth() {
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
-          email,
+          email: email.trim(),
           password,
         });
 
-        if (error) throw error;
+        if (error) {
+          // Handle specific sign-in errors
+          if (error.message.includes('Invalid login credentials')) {
+            toast({
+              title: "Invalid credentials",
+              description: "Email or password is incorrect. Please try again.",
+              variant: "destructive",
+            });
+            setIsLoading(false);
+            return;
+          }
+          throw error;
+        }
 
         // Check if onboarding is complete in database (handle missing rows)
         const { data: profile } = await supabase
