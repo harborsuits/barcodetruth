@@ -57,8 +57,42 @@ export async function lookupScanAndLog(
     throw lookupError;
   }
 
-  if (!isProductLookupResult(productData) || !productData.brand_id) {
-    return { notFound: true };
+  // Decide final product (primary lookup or fallback)
+  let finalProduct: ProductLookupResult | null = null;
+
+  if (isProductLookupResult(productData) && productData.brand_id) {
+    finalProduct = productData;
+  } else {
+    // Fallback: try the newer scan-product endpoint (returns 200 with {notFound:true})
+    try {
+      const { data: scanData, error: scanError } = await supabase.functions.invoke<any>(
+        'scan-product',
+        { body: { upc: rawGtin } }
+      );
+      if (!scanError && scanData && scanData.brand_id) {
+        finalProduct = {
+          product_id: scanData.product_id,
+          barcode: scanData.upc,
+          product_name: scanData.product_name,
+          category: scanData.category ?? null,
+          brand_sku: null,
+          brand_id: scanData.brand_id,
+          brand_name: scanData.brand_name ?? '',
+          logo_url: null,
+          parent_company_id: null,
+          labor_score: scanData.score ?? null,
+          environment_score: null,
+          politics_score: null,
+          social_score: null,
+        };
+      }
+    } catch (e) {
+      console.warn('scan-product fallback failed:', e);
+    }
+
+    if (!finalProduct) {
+      return { notFound: true };
+    }
   }
 
   // 2) Log the scan for analytics/limits
@@ -66,8 +100,8 @@ export async function lookupScanAndLog(
     .from('user_scans')
     .insert({
       user_id: userId,
-      barcode: productData.barcode,
-      brand_id: productData.brand_id,
+      barcode: finalProduct.barcode,
+      brand_id: finalProduct.brand_id,
       scanned_at: new Date().toISOString()
     });
 
@@ -94,11 +128,10 @@ export async function lookupScanAndLog(
 
   return {
     notFound: false,
-    product: productData,
+    product: finalProduct,
     alternatives
   };
 }
-
 /**
  * Quick check if a product exists without logging
  * @param rawGtin - The raw barcode string
