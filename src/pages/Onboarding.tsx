@@ -43,28 +43,28 @@ const ValueCard = ({
   
   const colorMap = {
     blue: {
-      bg: 'from-blue-500 to-blue-600',
-      light: 'bg-blue-50',
-      border: 'border-blue-200',
-      text: 'text-blue-600',
+      bg: 'bg-labor',
+      light: 'bg-labor/10',
+      border: 'border-labor/30',
+      text: 'text-labor',
     },
     green: {
-      bg: 'from-green-500 to-green-600',
-      light: 'bg-green-50',
-      border: 'border-green-200',
-      text: 'text-green-600',
+      bg: 'bg-environment',
+      light: 'bg-environment/10',
+      border: 'border-environment/30',
+      text: 'text-environment',
     },
     purple: {
-      bg: 'from-purple-500 to-purple-600',
-      light: 'bg-purple-50',
-      border: 'border-purple-200',
-      text: 'text-purple-600',
+      bg: 'bg-politics',
+      light: 'bg-politics/10',
+      border: 'border-politics/30',
+      text: 'text-politics',
     },
     pink: {
-      bg: 'from-pink-500 to-pink-600',
-      light: 'bg-pink-50',
-      border: 'border-pink-200',
-      text: 'text-pink-600',
+      bg: 'bg-social',
+      light: 'bg-social/10',
+      border: 'border-social/30',
+      text: 'text-social',
     }
   };
 
@@ -89,25 +89,25 @@ const ValueCard = ({
   return (
     <div
       className={`
-        bg-white rounded-2xl p-6 shadow-lg border-2 transition-all duration-300
-        ${isActive ? `${colors.border} scale-[1.02]` : 'border-gray-200'}
+        bg-card rounded-2xl p-6 shadow-lg border-2 transition-all duration-300
+        ${isActive ? `${colors.border} scale-[1.02]` : 'border-border'}
       `}
     >
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colors.bg} flex items-center justify-center text-white shadow-md`}>
+          <div className={`w-12 h-12 rounded-xl ${colors.bg} flex items-center justify-center text-white shadow-md`}>
             {icon}
           </div>
           <div>
-            <h3 className="font-bold text-lg text-gray-900">{title}</h3>
-            <p className="text-sm text-gray-500">{shortDesc}</p>
+            <h3 className="font-bold text-lg text-foreground">{title}</h3>
+            <p className="text-sm text-muted-foreground">{shortDesc}</p>
           </div>
         </div>
         
         {/* Live Value Display */}
         <div className="text-right">
           <div className={`text-3xl font-bold ${colors.text}`}>{value}</div>
-          <div className="text-xs text-gray-500">/100</div>
+          <div className="text-xs text-muted-foreground">/100</div>
         </div>
       </div>
 
@@ -124,7 +124,7 @@ const ValueCard = ({
           className="mb-2"
         />
         
-        <div className="flex justify-between text-xs text-gray-500">
+        <div className="flex justify-between text-xs text-muted-foreground">
           <span>{scaleLabels.left} (0)</span>
           <span>{scaleLabels.right} (100)</span>
         </div>
@@ -138,7 +138,7 @@ const ValueCard = ({
             {intensity.label}
           </span>
         </div>
-        <p className="text-sm text-gray-700 italic">
+        <p className="text-sm text-foreground/80 italic">
           "{getCurrentExample()}"
         </p>
       </div>
@@ -262,23 +262,23 @@ export const Onboarding = () => {
 
   if (step === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 p-4 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-primary via-primary/90 to-accent p-4 flex items-center justify-center">
         <div className="max-w-4xl w-full animate-fade-in">
           {/* Hero Section */}
           <div className="text-center mb-8">
-            <div className="inline-block bg-white/10 backdrop-blur-sm rounded-2xl p-4 mb-4">
+            <div className="inline-block bg-card/10 backdrop-blur-sm rounded-2xl p-4 mb-4">
               <img src={logo} alt="BarcodeTruth" className="h-20 mx-auto" />
             </div>
-            <h1 className="text-5xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
+            <h1 className="text-5xl md:text-6xl font-bold text-primary-foreground mb-4 drop-shadow-lg">
               Welcome to BarcodeTruth! 👋
             </h1>
-            <p className="text-xl md:text-2xl text-white/90 font-medium">
+            <p className="text-xl md:text-2xl text-primary-foreground/90 font-medium">
               Shop according to YOUR values, not generic ratings
             </p>
           </div>
 
           {/* How It Works - Use new component */}
-          <div className="bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl mb-6 p-4">
+          <div className="bg-card/95 backdrop-blur-lg rounded-3xl shadow-2xl mb-6 p-4">
             <HowItWorks />
           </div>
 
@@ -287,28 +287,28 @@ export const Onboarding = () => {
             <Button 
               size="lg"
               onClick={() => setStep(1)}
-              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold text-xl px-12 py-8 rounded-2xl shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-200"
+              className="bg-success hover:bg-success/90 text-white font-bold text-xl px-12 py-8 rounded-2xl shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-200"
             >
               Set My Values →
             </Button>
             
-            <p className="text-white/80 text-sm mt-4 font-medium">
+            <p className="text-primary-foreground/80 text-sm mt-4 font-medium">
               Takes 2 minutes • Can be changed anytime in Settings
             </p>
           </div>
 
           {/* Trust indicators */}
-          <div className="flex flex-wrap justify-center gap-8 mt-8 text-white/70 text-sm">
+          <div className="flex flex-wrap justify-center gap-8 mt-8 text-primary-foreground/70 text-sm">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+              <div className="w-2 h-2 bg-success rounded-full"></div>
               <span>Non-partisan</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+              <div className="w-2 h-2 bg-success rounded-full"></div>
               <span>Evidence-based</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+              <div className="w-2 h-2 bg-success rounded-full"></div>
               <span>5 free scans</span>
             </div>
           </div>
@@ -321,28 +321,28 @@ export const Onboarding = () => {
     // Calculate overall profile
     const getProfile = () => {
       const avg = (values.labor + values.environment + values.politics + values.social) / 4;
-      if (avg >= 70) return { label: "Highly Values-Driven", color: "text-blue-600" };
-      if (avg >= 40) return { label: "Balanced Approach", color: "text-gray-600" };
-      return { label: "Focused on Specific Issues", color: "text-purple-600" };
+      if (avg >= 70) return { label: "Highly Values-Driven", color: "text-primary" };
+      if (avg >= 40) return { label: "Balanced Approach", color: "text-foreground" };
+      return { label: "Focused on Specific Issues", color: "text-accent" };
     };
 
     const profile = getProfile();
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-4 flex items-center justify-center">
+      <div className="min-h-screen bg-background p-4 flex items-center justify-center">
         <div className="max-w-4xl w-full">
           {/* Header with live feedback */}
           <div className="text-center mb-6">
-            <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold mb-2 text-foreground">
               What matters to you?
             </h1>
-            <p className="text-gray-600 mb-4">
+            <p className="text-muted-foreground mb-4">
               Set your values on a 0-100 scale. Higher = more important to you.
             </p>
             
             {/* Live Profile Indicator */}
-            <div className="inline-block bg-white rounded-full px-6 py-2 shadow-md border border-gray-200">
-              <span className="text-sm text-gray-500 mr-2">Your Profile:</span>
+            <div className="inline-block bg-card rounded-full px-6 py-2 shadow-md border border-border">
+              <span className="text-sm text-muted-foreground mr-2">Your Profile:</span>
               <span className={`font-bold ${profile.color}`}>{profile.label}</span>
             </div>
           </div>
@@ -426,7 +426,7 @@ export const Onboarding = () => {
             <Button
               size="lg"
               onClick={handleComplete}
-              className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
+              className="flex-1 bg-primary hover:bg-primary/90"
               disabled={loading}
             >
               {loading ? "Saving..." : "Continue →"}
@@ -435,7 +435,7 @@ export const Onboarding = () => {
 
           {/* Quick Set Options */}
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-500 mb-3">Not sure where to start?</p>
+            <p className="text-sm text-muted-foreground mb-3">Not sure where to start?</p>
             <div className="flex justify-center gap-3 flex-wrap">
               <Button
                 variant="outline"
