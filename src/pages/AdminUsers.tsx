@@ -31,15 +31,14 @@ export default function AdminUsers() {
   const { data: usersData, isLoading } = useQuery({
     queryKey: ['admin-users'],
     queryFn: async () => {
-      // Get profiles
+      // Get profiles with email
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, created_at, onboarding_complete')
+        .select('id, email, created_at, onboarding_complete')
         .order('created_at', { ascending: false });
 
       if (profilesError) throw profilesError;
 
-      // Get user emails from auth.users via admin API
       const userIds = profiles?.map(p => p.id) || [];
       
       // Get scans
@@ -54,13 +53,8 @@ export default function AdminUsers() {
         .select('user_id, role')
         .in('user_id', userIds);
 
-      // Get emails via RPC or direct query
-      const { data: authData } = await supabase.auth.admin.listUsers();
-      const authUsers = authData?.users || [];
-
       // Combine data
       const users: UserData[] = profiles?.map(profile => {
-        const authUser = authUsers.find(u => u.id === profile.id);
         const userScans = scans?.filter(s => s.user_id === profile.id) || [];
         const recentScans = userScans.filter(s => 
           new Date(s.scanned_at) > new Date(Date.now() - 86400000)
@@ -69,7 +63,7 @@ export default function AdminUsers() {
         
         return {
           user_id: profile.id,
-          email: authUser?.email || 'Unknown',
+          email: profile.email || 'Unknown',
           created_at: profile.created_at,
           total_scans: userScans.length,
           scans_today: recentScans.length,
