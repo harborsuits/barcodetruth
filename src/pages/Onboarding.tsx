@@ -262,54 +262,165 @@ export const Onboarding = () => {
 
   if (step === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary via-primary/90 to-accent p-4 flex items-center justify-center">
-        <div className="max-w-4xl w-full animate-fade-in">
-          {/* Hero Section */}
-          <div className="text-center mb-8">
-            <div className="inline-block bg-card/10 backdrop-blur-sm rounded-2xl p-4 mb-4">
-              <img src={logo} alt="BarcodeTruth" className="h-20 mx-auto" />
+      <div className="min-h-screen bg-background relative overflow-hidden p-4 flex items-center justify-center">
+        {/* Subtle barcode watermark */}
+        <div className="absolute bottom-8 right-8 opacity-[0.03] pointer-events-none">
+          <svg width="200" height="120" viewBox="0 0 200 120" fill="currentColor" className="text-foreground">
+            <rect x="0" y="0" width="4" height="120"/>
+            <rect x="8" y="0" width="2" height="120"/>
+            <rect x="14" y="0" width="6" height="120"/>
+            <rect x="24" y="0" width="2" height="120"/>
+            <rect x="30" y="0" width="4" height="120"/>
+            <rect x="38" y="0" width="2" height="120"/>
+            <rect x="44" y="0" width="8" height="120"/>
+            <rect x="56" y="0" width="2" height="120"/>
+            <rect x="62" y="0" width="4" height="120"/>
+            <rect x="70" y="0" width="6" height="120"/>
+            <rect x="80" y="0" width="2" height="120"/>
+          </svg>
+        </div>
+
+        <div className="max-w-4xl w-full mx-auto">
+          {/* Hero Section with gradient overlay */}
+          <div className="relative text-center mb-10 pb-8">
+            <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-accent/5 to-transparent rounded-3xl -z-10"></div>
+            
+            {/* Logo with scanline animation */}
+            <div className="relative inline-block mb-6 pt-8">
+              <img src={logo} alt="BarcodeTruth" className="h-24 mx-auto relative z-10" />
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent animate-pulse"></div>
             </div>
-            <h1 className="text-5xl md:text-6xl font-bold text-primary-foreground mb-4 drop-shadow-lg">
-              Welcome to BarcodeTruth! 👋
+            
+            <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-3">
+              Welcome to BarcodeTruth
             </h1>
-            <p className="text-xl md:text-2xl text-primary-foreground/90 font-medium">
+            <p className="text-lg md:text-xl text-muted-foreground font-medium max-w-2xl mx-auto">
               Shop according to YOUR values, not generic ratings
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Evidence-based brand transparency
             </p>
           </div>
 
-          {/* How It Works - Use new component */}
-          <div className="bg-card/95 backdrop-blur-lg rounded-3xl shadow-2xl mb-6 p-4">
-            <HowItWorks />
+          {/* Pillar Cards - How It Works */}
+          <div className="grid md:grid-cols-3 gap-4 mb-8">
+            <Card className="p-6 hover:shadow-lg transition-all duration-200 animate-fade-in" style={{animationDelay: '0ms'}}>
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
+                <Heart className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="font-bold text-foreground mb-2">Choose What Matters</h3>
+              <p className="text-sm text-muted-foreground">
+                Set your priorities: labor rights, environment, social values, or politics
+              </p>
+            </Card>
+
+            <Card className="p-6 hover:shadow-lg transition-all duration-200 animate-fade-in" style={{animationDelay: '100ms'}}>
+              <div className="w-12 h-12 rounded-xl bg-environment/10 flex items-center justify-center mb-4">
+                <Users className="w-6 h-6 text-environment" />
+              </div>
+              <h3 className="font-bold text-foreground mb-2">Find Brands</h3>
+              <p className="text-sm text-muted-foreground">
+                Scan any product to see how the brand aligns with your values
+              </p>
+            </Card>
+
+            <Card className="p-6 hover:shadow-lg transition-all duration-200 animate-fade-in" style={{animationDelay: '200ms'}}>
+              <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mb-4">
+                <Info className="w-6 h-6 text-accent" />
+              </div>
+              <h3 className="font-bold text-foreground mb-2">See Alignment</h3>
+              <p className="text-sm text-muted-foreground">
+                Get personalized scores showing matches and mismatches
+              </p>
+            </Card>
           </div>
 
-          {/* CTA Button - Make it HUGE and impossible to miss */}
-          <div className="text-center">
+          {/* Interactive Example Cards */}
+          <div className="grid md:grid-cols-2 gap-4 mb-8">
+            <Card className="p-5 border-2 border-success/30 bg-success/5 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold text-foreground">Good Match</h4>
+                <div className="px-3 py-1 rounded-full bg-success/20 text-success font-bold text-sm">87% Match</div>
+              </div>
+              <p className="text-sm text-muted-foreground mb-2">
+                When a brand's labor practices (85) align with your values (90)
+              </p>
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-success rounded-full" style={{width: '87%'}}></div>
+              </div>
+            </Card>
+
+            <Card className="p-5 border-2 border-danger/30 bg-danger/5 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold text-foreground">Mismatch</h4>
+                <div className="px-3 py-1 rounded-full bg-danger/20 text-danger font-bold text-sm">28% Match</div>
+              </div>
+              <p className="text-sm text-muted-foreground mb-2">
+                When a brand's environment score (20) conflicts with your priority (85)
+              </p>
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-danger rounded-full" style={{width: '28%'}}></div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Why This Matters - InfoAlert Style */}
+          <div className="space-y-3 mb-8">
+            <div className="flex gap-4 items-start p-4 bg-card rounded-xl border border-border">
+              <div className="text-2xl">🧠</div>
+              <div>
+                <h4 className="font-semibold text-foreground mb-1">Personal, Not Political</h4>
+                <p className="text-sm text-muted-foreground">Your values shape scores—what matters to you drives what you see</p>
+              </div>
+            </div>
+            
+            <div className="flex gap-4 items-start p-4 bg-card rounded-xl border border-border">
+              <div className="text-2xl">⚖️</div>
+              <div>
+                <h4 className="font-semibold text-foreground mb-1">Evidence-Based</h4>
+                <p className="text-sm text-muted-foreground">Every score backed by real news, verified sources, and transparent data</p>
+              </div>
+            </div>
+            
+            <div className="flex gap-4 items-start p-4 bg-card rounded-xl border border-border">
+              <div className="text-2xl">🔍</div>
+              <div>
+                <h4 className="font-semibold text-foreground mb-1">Shop Smarter</h4>
+                <p className="text-sm text-muted-foreground">Make informed choices—discover better alternatives that match your priorities</p>
+              </div>
+            </div>
+          </div>
+
+          {/* CTA Section with gradient button and step indicator */}
+          <div className="text-center bg-card/50 backdrop-blur-sm rounded-2xl p-6 border border-border/50">
+            <div className="text-xs text-muted-foreground mb-3 font-medium">STEP 1 OF 2</div>
+            
             <Button 
               size="lg"
               onClick={() => setStep(1)}
-              className="bg-success hover:bg-success/90 text-white font-bold text-xl px-12 py-8 rounded-2xl shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-200"
+              className="bg-gradient-to-r from-success to-primary hover:from-success/90 hover:to-primary/90 text-white font-bold text-lg px-10 py-6 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 mb-3"
             >
               Set My Values →
             </Button>
             
-            <p className="text-primary-foreground/80 text-sm mt-4 font-medium">
+            <p className="text-muted-foreground text-sm mb-4">
               Takes 2 minutes • Can be changed anytime in Settings
             </p>
-          </div>
 
-          {/* Trust indicators */}
-          <div className="flex flex-wrap justify-center gap-8 mt-8 text-primary-foreground/70 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-success rounded-full"></div>
-              <span>Non-partisan</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-success rounded-full"></div>
-              <span>Evidence-based</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-success rounded-full"></div>
-              <span>5 free scans</span>
+            {/* Trust chips with fade-in */}
+            <div className="flex flex-wrap justify-center gap-3 text-sm">
+              <div className="flex items-center gap-2 px-3 py-1 bg-background rounded-full border border-border animate-fade-in" style={{animationDelay: '300ms'}}>
+                <div className="w-1.5 h-1.5 bg-success rounded-full"></div>
+                <span className="text-muted-foreground">Non-partisan</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1 bg-background rounded-full border border-border animate-fade-in" style={{animationDelay: '400ms'}}>
+                <div className="w-1.5 h-1.5 bg-success rounded-full"></div>
+                <span className="text-muted-foreground">Evidence-based</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1 bg-background rounded-full border border-border animate-fade-in" style={{animationDelay: '500ms'}}>
+                <div className="w-1.5 h-1.5 bg-success rounded-full"></div>
+                <span className="text-muted-foreground">Private</span>
+              </div>
             </div>
           </div>
         </div>
