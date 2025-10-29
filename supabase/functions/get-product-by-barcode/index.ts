@@ -48,7 +48,21 @@ Deno.serve(async (req) => {
     const row = rows[0];
 
     return new Response(
-      JSON.stringify(row),
+      JSON.stringify({
+        product_id: row.product_id,
+        barcode: row.gtin ?? row.barcode ?? row.upc ?? '',
+        product_name: row.product_name,
+        category: row.category ?? null,
+        brand_sku: row.brand_sku ?? null,
+        brand_id: row.brand_id,
+        brand_name: row.brand_name,
+        logo_url: row.logo_url ?? null,
+        parent_company_id: null,
+        labor_score: row.score_labor ?? null,
+        environment_score: row.score_environment ?? null,
+        politics_score: row.score_politics ?? null,
+        social_score: row.score_social ?? null,
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
