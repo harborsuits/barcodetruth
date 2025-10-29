@@ -83,9 +83,10 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!rows || rows.length === 0) {
+      // Return 200 with a notFound flag so clients using supabase.functions.invoke don't treat it as an error
       return new Response(
-        JSON.stringify({ error: 'Product not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ notFound: true }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
