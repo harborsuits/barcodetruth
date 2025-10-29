@@ -63,31 +63,32 @@ export async function lookupScanAndLog(
   if (isProductLookupResult(productData) && productData.brand_id) {
     finalProduct = productData;
   } else {
-    // Fallback: try the newer scan-product endpoint (returns 200 with {notFound:true})
+    // Fallback: try resolve-barcode to fetch from OpenFoodFacts and populate DB
+    console.log('[lookupScanAndLog] Product not in DB, calling resolve-barcode...');
     try {
-      const { data: scanData, error: scanError } = await supabase.functions.invoke<any>(
-        'scan-product',
-        { body: { upc: rawGtin } }
+      const { data: resolveData, error: resolveError } = await supabase.functions.invoke<any>(
+        'resolve-barcode',
+        { body: { barcode: rawGtin } }
       );
-      if (!scanError && scanData && scanData.brand_id) {
-        finalProduct = {
-          product_id: scanData.product_id,
-          barcode: scanData.upc,
-          product_name: scanData.product_name,
-          category: scanData.category ?? null,
-          brand_sku: null,
-          brand_id: scanData.brand_id,
-          brand_name: scanData.brand_name ?? '',
-          logo_url: null,
-          parent_company_id: null,
-          labor_score: scanData.score ?? null,
-          environment_score: null,
-          politics_score: null,
-          social_score: null,
-        };
+      
+      if (!resolveError && resolveData?.success && resolveData.brand_id) {
+        // resolve-barcode successfully fetched and created the product
+        console.log('[lookupScanAndLog] resolve-barcode succeeded:', resolveData);
+        
+        // Now query again to get the full product data
+        const { data: newProductData } = await supabase.functions.invoke<ProductLookupResult>(
+          'get-product-by-barcode',
+          { body: { barcode: rawGtin } }
+        );
+        
+        if (isProductLookupResult(newProductData) && newProductData.brand_id) {
+          finalProduct = newProductData;
+        }
+      } else {
+        console.log('[lookupScanAndLog] resolve-barcode failed or product not found:', resolveError || resolveData);
       }
     } catch (e) {
-      console.warn('scan-product fallback failed:', e);
+      console.warn('resolve-barcode failed:', e);
     }
 
     if (!finalProduct) {
