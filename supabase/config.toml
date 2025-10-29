@@ -151,3 +151,6 @@ verify_jwt = true
 [functions.run-system-wide-heal]
 verify_jwt = false
 
+[functions.delete-user]
+verify_jwt = true
+

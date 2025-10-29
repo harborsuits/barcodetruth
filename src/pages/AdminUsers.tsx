@@ -82,23 +82,17 @@ export default function AdminUsers() {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
-
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId }),
-      });
-
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to delete user');
+      // Prevent deleting admin users from UI level
+      const userToDelete = usersData?.find(u => u.user_id === userId);
+      if (userToDelete?.roles.includes('admin')) {
+        throw new Error('Cannot delete admin users. Please remove admin role first.');
       }
-      return result;
+
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { userId },
+      });
+      if (error) throw new Error(error.message || 'Failed to delete user');
+      return data;
     },
     onSuccess: () => {
       toast.success('User deleted successfully');
@@ -106,7 +100,7 @@ export default function AdminUsers() {
       setDeleteUserId(null);
     },
     onError: (error) => {
-      toast.error('Failed to delete user: ' + error.message);
+      toast.error('Failed to delete user: ' + (error as Error).message);
     }
   });
 
