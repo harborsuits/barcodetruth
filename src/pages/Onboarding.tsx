@@ -304,7 +304,7 @@ export const Onboarding = () => {
 
           {/* Pillar Cards - How It Works */}
           <div className="grid md:grid-cols-3 gap-4 mb-8">
-            <Card className="p-6 hover:shadow-lg transition-all duration-200 animate-fade-in" style={{animationDelay: '0ms'}}>
+            <Card className="p-6 animate-fade-in" style={{animationDelay: '0ms'}}>
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                 <Heart className="w-6 h-6 text-primary" />
               </div>
@@ -314,7 +314,7 @@ export const Onboarding = () => {
               </p>
             </Card>
 
-            <Card className="p-6 hover:shadow-lg transition-all duration-200 animate-fade-in" style={{animationDelay: '100ms'}}>
+            <Card className="p-6 animate-fade-in" style={{animationDelay: '100ms'}}>
               <div className="w-12 h-12 rounded-xl bg-environment/10 flex items-center justify-center mb-4">
                 <Users className="w-6 h-6 text-environment" />
               </div>
@@ -324,7 +324,7 @@ export const Onboarding = () => {
               </p>
             </Card>
 
-            <Card className="p-6 hover:shadow-lg transition-all duration-200 animate-fade-in" style={{animationDelay: '200ms'}}>
+            <Card className="p-6 animate-fade-in" style={{animationDelay: '200ms'}}>
               <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mb-4">
                 <Info className="w-6 h-6 text-accent" />
               </div>
@@ -335,9 +335,9 @@ export const Onboarding = () => {
             </Card>
           </div>
 
-          {/* Interactive Example Cards */}
+          {/* Example Cards */}
           <div className="grid md:grid-cols-2 gap-4 mb-8">
-            <Card className="p-5 border-2 border-success/30 bg-success/5 hover:shadow-md transition-all">
+            <Card className="p-5 border-2 border-success/30 bg-success/5">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="font-semibold text-foreground">Good Match</h4>
                 <div className="px-3 py-1 rounded-full bg-success/20 text-success font-bold text-sm">87% Match</div>
@@ -350,7 +350,7 @@ export const Onboarding = () => {
               </div>
             </Card>
 
-            <Card className="p-5 border-2 border-danger/30 bg-danger/5 hover:shadow-md transition-all">
+            <Card className="p-5 border-2 border-danger/30 bg-danger/5">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="font-semibold text-foreground">Mismatch</h4>
                 <div className="px-3 py-1 rounded-full bg-danger/20 text-danger font-bold text-sm">28% Match</div>
