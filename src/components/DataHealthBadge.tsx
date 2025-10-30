@@ -15,10 +15,15 @@ export function DataHealthBadge({
   
   const freshness =
     days == null ? "unknown" :
+    days === 0 ? "live" :
     days <= 3 ? "fresh" :
     days <= 14 ? "recent" : "stale";
 
   const freshnessConfig = {
+    live: {
+      label: "Live",
+      className: "bg-success/10 text-success border-success/20"
+    },
     fresh: {
       label: "Active",
       className: "bg-success/10 text-success border-success/20"

@@ -7126,6 +7126,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      merge_staged_products_batch: { Args: never; Returns: Json }
       normalize_barcode: { Args: { raw: string }; Returns: string }
       personalized_brand_score: {
         Args: { p_brand_id: string; p_user_id: string }

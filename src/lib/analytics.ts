@@ -178,6 +178,16 @@ class Analytics {
     });
   }
 
+  // Data health badge
+  trackDataHealthBadgeRender(brandId: string, daysSinceUpdate: number | null, eventsCount: number, sourcesCount: number) {
+    this.track('data_health_badge_render', {
+      brand_id: brandId,
+      days_since_update: daysSinceUpdate,
+      events_count: eventsCount,
+      sources_count: sourcesCount,
+    });
+  }
+
   getQueue() {
     return [...this.queue];
   }
