@@ -119,23 +119,39 @@ Deno.serve(async (req) => {
 
   console.log(`[seed-products] Inserting ${payload.length} rows into staging`);
 
-  // Insert with ON CONFLICT handled by unique constraint
-  const { error, data } = await supabase
+  // De-dup by checking existing content_hashes to avoid on_conflict issues
+  const hashes = payload.map((p) => p.content_hash);
+  const { data: existing, error: existErr } = await supabase
     .from("staging_products")
-    .upsert(payload, { onConflict: "content_hash", ignoreDuplicates: true });
+    .select("content_hash")
+    .in("content_hash", hashes);
 
-  if (error) {
-    console.error("[seed-products] staging insert error", error);
-    return new Response(
-      JSON.stringify({ ok: false, error: error.message }),
-      { headers: corsHeadersFor(req), status: 500 }
-    );
+  if (existErr) {
+    console.warn("[seed-products] existing hash check failed", existErr);
   }
 
-  console.log(`[seed-products] Successfully staged ${payload.length} products`);
+  const existingSet = new Set((existing ?? []).map((r: any) => r.content_hash));
+  const toInsert = payload.filter((p) => !existingSet.has(p.content_hash));
+  console.log(`[seed-products] New rows after de-dupe: ${toInsert.length}`);
+
+  if (toInsert.length > 0) {
+    const { error: insertErr } = await supabase
+      .from("staging_products")
+      .insert(toInsert);
+
+    if (insertErr) {
+      console.error("[seed-products] staging insert error", insertErr);
+      return new Response(
+        JSON.stringify({ ok: false, error: insertErr.message }),
+        { headers: corsHeadersFor(req), status: 500 }
+      );
+    }
+  }
+
+  console.log(`[seed-products] Successfully staged ${toInsert.length} products`);
 
   return new Response(
-    JSON.stringify({ ok: true, staged: payload.length }),
+    JSON.stringify({ ok: true, staged: toInsert.length }),
     { headers: corsHeadersFor(req) }
   );
 });
