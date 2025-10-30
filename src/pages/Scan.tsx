@@ -225,16 +225,17 @@ export const Scan = () => {
           dur_ms: dur 
         });
         
-        // Save to recent scans
+        // Save to recent scans (cap at 20)
         const recentScan = {
           upc: product.barcode,
           product_name: product.product_name,
+          brand_name: product.brand_name,
           timestamp: Date.now()
         };
         
         const stored = localStorage.getItem('recent_scans');
         const existing = stored ? JSON.parse(stored) : [];
-        const updated = [recentScan, ...existing.filter((s: any) => s.upc !== product.barcode)].slice(0, 10);
+        const updated = [recentScan, ...existing.filter((s: any) => s.upc !== product.barcode)].slice(0, 20);
         localStorage.setItem('recent_scans', JSON.stringify(updated));
         
         // Show brand name in toast (parent fetch happens on brand page)
@@ -764,6 +765,33 @@ export const Scan = () => {
                     </p>
                   </div>
                 )}
+
+                {/* Quick-tap test UPCs */}
+                <div className="pt-6 border-t">
+                  <p className="text-xs text-muted-foreground text-center mb-3">
+                    Try scanning these popular brands:
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 max-w-md mx-auto">
+                    {[
+                      { name: "Coca-Cola", upc: "0049000042566" },
+                      { name: "Pepsi", upc: "0012000000348" },
+                      { name: "Nestlé", upc: "0028000805050" },
+                      { name: "Kraft", upc: "0021000010240" },
+                    ].map((item) => (
+                      <Button
+                        key={item.upc}
+                        variant="outline"
+                        size="sm"
+                        className="justify-between text-xs"
+                        onClick={() => handleConfirmedLookup(item.upc)}
+                        disabled={!can_scan}
+                      >
+                        <span className="font-medium">{item.name}</span>
+                        <code className="text-[10px] text-muted-foreground">{item.upc}</code>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 

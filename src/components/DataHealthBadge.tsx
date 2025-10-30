@@ -44,6 +44,18 @@ export function DataHealthBadge({
 
   const config = freshnessConfig[freshness];
 
+  // Show monitoring message when no data yet
+  if ((eventsCount ?? 0) === 0 || (sourcesCount ?? 0) === 0) {
+    return (
+      <div className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs border bg-card">
+        <TrendingUp className="w-3.5 h-3.5 text-muted-foreground" />
+        <span className="text-muted-foreground">
+          Monitoring sources · first scores appear after ~20 events
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className="inline-flex items-center gap-3 rounded-lg px-3 py-2 text-xs border bg-card">
       <div className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-medium ${config.className}`}>
