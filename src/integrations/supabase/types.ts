@@ -4830,6 +4830,7 @@ export type Database = {
           id: string
           inserted_at: string | null
           product_name: string | null
+          source: string | null
         }
         Insert: {
           barcode: string
@@ -4839,6 +4840,7 @@ export type Database = {
           id?: string
           inserted_at?: string | null
           product_name?: string | null
+          source?: string | null
         }
         Update: {
           barcode?: string
@@ -4848,6 +4850,7 @@ export type Database = {
           id?: string
           inserted_at?: string | null
           product_name?: string | null
+          source?: string | null
         }
         Relationships: []
       }
