@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { corsHeadersFor } from "../_shared/cors.ts";
 
 async function sha1(s: string): Promise<string> {
   const data = new TextEncoder().encode(s);
@@ -14,7 +14,9 @@ type SeedBody =
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    // Preflight observability
+    console.log('[CORS] Preflight for', new URL(req.url).pathname, 'ACRH=', req.headers.get('access-control-request-headers'));
+    return new Response("ok", { headers: corsHeadersFor(req) });
   }
 
   console.log("[seed-products] Request received");
@@ -30,7 +32,7 @@ Deno.serve(async (req) => {
   } catch {
     return new Response(
       JSON.stringify({ ok: false, error: "Bad JSON" }),
-      { headers: corsHeaders, status: 400 }
+      { headers: corsHeadersFor(req), status: 400 }
     );
   }
 
@@ -47,7 +49,7 @@ Deno.serve(async (req) => {
     if (!resp.ok) {
       return new Response(
         JSON.stringify({ ok: false, error: "CSV fetch failed" }),
-        { headers: corsHeaders, status: 400 }
+        { headers: corsHeadersFor(req), status: 400 }
       );
     }
     const text = await resp.text();
@@ -126,7 +128,7 @@ Deno.serve(async (req) => {
     console.error("[seed-products] staging insert error", error);
     return new Response(
       JSON.stringify({ ok: false, error: error.message }),
-      { headers: corsHeaders, status: 500 }
+      { headers: corsHeadersFor(req), status: 500 }
     );
   }
 
@@ -134,6 +136,6 @@ Deno.serve(async (req) => {
 
   return new Response(
     JSON.stringify({ ok: true, staged: payload.length }),
-    { headers: corsHeaders }
+    { headers: corsHeadersFor(req) }
   );
 });

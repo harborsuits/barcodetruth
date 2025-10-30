@@ -53,7 +53,11 @@ export default function AdminSeeding() {
       toast({ title: "Success", description: `Staged ${data.staged} products from CSV` });
       setStats(prev => ({ ...prev, staged: (prev?.staged ?? 0) + data.staged } as any));
     } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+      const msg = (e?.message || '').toLowerCase().includes('fetch')
+        ? 'Network/CORS error. Try Shift+Reload and run again.'
+        : e?.message || 'Failed to seed';
+      toast({ title: "CSV Seed Failed", description: msg, variant: "destructive" });
+      console.error('[seed-products] fetch error', e);
     } finally {
       setLoading(false);
     }
@@ -77,7 +81,11 @@ export default function AdminSeeding() {
       toast({ title: "Success", description: `Staged ${data.staged} products from OpenFoodFacts` });
       setStats(prev => ({ ...prev, staged: (prev?.staged ?? 0) + data.staged } as any));
     } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+      const msg = (e?.message || '').toLowerCase().includes('fetch')
+        ? 'Network/CORS error. Try Shift+Reload and run again.'
+        : e?.message || 'Failed to seed';
+      toast({ title: "OpenFoodFacts Seed Failed", description: msg, variant: "destructive" });
+      console.error('[seed-products] fetch error', e);
     } finally {
       setLoading(false);
     }
