@@ -35,7 +35,6 @@ Deno.serve(async (req) => {
   }
 
   const rows: Array<{
-    source: string;
     barcode: string;
     product_name?: string;
     brand_label?: string;
@@ -64,7 +63,6 @@ Deno.serve(async (req) => {
       if (!line.trim()) continue;
       const cols = line.split(",");
       rows.push({
-        source: "csv",
         barcode: cols[iBarcode]?.trim() ?? "",
         product_name: cols[iName]?.trim(),
         brand_label: cols[iBrand]?.trim(),
@@ -87,7 +85,6 @@ Deno.serve(async (req) => {
           const code = (p.code ?? "").toString();
           if (!code) continue;
           rows.push({
-            source: "openfoodfacts",
             barcode: code,
             product_name: p.product_name || p.generic_name || null,
             brand_label: (Array.isArray(p.brands_tags) && p.brands_tags[0]) || p.brands || null,
@@ -108,7 +105,6 @@ Deno.serve(async (req) => {
     rows
       .filter(r => r.barcode && /^\d{8,14}$/.test(r.barcode))
       .map(async (r) => ({
-        source: r.source,
         barcode: r.barcode,
         product_name: r.product_name ?? null,
         brand_label: r.brand_label ?? null,
