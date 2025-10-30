@@ -33,6 +33,7 @@ import { WhoProfits } from '@/components/brand/WhoProfits';
 import { EvidencePanel } from '@/components/brand/EvidencePanel';
 import { ValueMatchCard } from '@/components/ValueMatchCard';
 import { getUserPreferences } from '@/lib/userPreferences';
+import { DataHealthBadge } from '@/components/DataHealthBadge';
 
 type BrandProfile = {
   brand: { 
@@ -676,6 +677,15 @@ export default function BrandProfile() {
                     <span>Auto-enriching summary from Wikipedia...</span>
                   </div>
                 )}
+                
+                {/* Data Health Badge */}
+                <div className="mt-4">
+                  <DataHealthBadge
+                    lastIngestIso={coverage.last_event_at}
+                    eventsCount={coverage.events_90d}
+                    sourcesCount={coverage.independent_sources}
+                  />
+                </div>
               </div>
               {/* Overall company score hidden - replaced by Community Outlook */}
             </div>

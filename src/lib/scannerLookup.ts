@@ -31,6 +31,7 @@ export interface AlternativeResult {
 
 export interface ScanLookupResponse {
   notFound: boolean;
+  message?: string;
   product?: ProductLookupResult;
   alternatives?: AlternativeResult[];
 }
@@ -92,7 +93,10 @@ export async function lookupScanAndLog(
     }
 
     if (!finalProduct) {
-      return { notFound: true };
+      return { 
+        notFound: true,
+        message: "We're gathering evidence for this product's brand. We'll update you when it's ready."
+      };
     }
   }
 

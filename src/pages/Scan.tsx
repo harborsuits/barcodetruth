@@ -198,13 +198,19 @@ export const Scan = () => {
 
       if (result.notFound) {
         setScanResult('not_found');
-        console.log('[Analytics] scan_not_found', { barcode, dur_ms: dur });
+        console.log('[Analytics] scan_not_found_soft_promise', { barcode, dur_ms: dur });
+        
+        // Friendly message with promise of progress
         toast({ 
-          title: "Product not found", 
-          description: "Try another barcode or search by brand",
-          variant: "destructive" 
+          title: "We're on it", 
+          description: result.message || "We're gathering evidence for this brand. Check back soon for updates.",
+          variant: "default"
         });
-        setTimeout(() => setScanResult('idle'), 800);
+        
+        // Track the soft promise
+        analytics.track('scan_not_found_soft_promise', { barcode });
+        
+        setTimeout(() => setScanResult('idle'), 1200);
         return;
       }
 

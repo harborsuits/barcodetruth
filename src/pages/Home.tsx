@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, List, Settings, Search, Shield } from "lucide-react";
+import { TrendingUp, List, Settings, Search, Shield, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { TrendingPreview } from "@/components/landing/TrendingPreview";
 import { TrustedSources } from "@/components/landing/TrustedSources";
@@ -12,6 +13,7 @@ import { SubscriptionBanner } from "@/components/SubscriptionBanner";
 import { WelcomeTour } from "@/components/WelcomeTour";
 import { useSnapshotPrewarm } from "@/hooks/useSnapshotPrewarm";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import MyScansTab from "@/components/MyScansTab";
 
 export const Home = () => {
   const navigate = useNavigate();
@@ -22,15 +24,30 @@ export const Home = () => {
     <div className="min-h-screen bg-[var(--bg)]">
       <WelcomeTour />
 
-      <main className="max-w-screen-md mx-auto px-4 sm:px-6 space-y-8 pb-24">
-        <HeroSection />
-        <SubscriptionBanner />
-        <TopMovers24h />
-        <RecentVerifications />
-        <LatestVerifications />
-        <TrendingPreview />
-        <TrustedSources />
-        <AttributionFooter />
+      <main className="max-w-screen-md mx-auto px-4 sm:px-6 pb-24">
+        <Tabs defaultValue="discover" className="space-y-8">
+          <div className="sticky top-0 z-10 bg-[var(--bg)]/95 backdrop-blur pt-6 pb-4 -mx-4 px-4">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="discover">Discover</TabsTrigger>
+              <TabsTrigger value="my-scans">My Scans</TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="discover" className="space-y-8 mt-0">
+            <HeroSection />
+            <SubscriptionBanner />
+            <TopMovers24h />
+            <RecentVerifications />
+            <LatestVerifications />
+            <TrendingPreview />
+            <TrustedSources />
+            <AttributionFooter />
+          </TabsContent>
+
+          <TabsContent value="my-scans" className="mt-0">
+            <MyScansTab />
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* Bottom Nav */}

@@ -150,6 +150,34 @@ class Analytics {
     });
   }
 
+  // Daily digest tracking
+  trackDigestRunSuccess(brandsCount: number, notificationsSent: number) {
+    this.track('digest_run_ok', {
+      brands_count: brandsCount,
+      notifications_sent: notificationsSent,
+    });
+  }
+
+  // Scan not found with soft promise
+  trackScanNotFoundSoftPromise(barcode: string) {
+    this.track('scan_not_found_soft_promise', {
+      barcode,
+    });
+  }
+
+  // My Scans interactions
+  trackMyScansOpened(scansCount: number) {
+    this.track('my_scans_opened', {
+      scans_count: scansCount,
+    });
+  }
+
+  trackMyScansClickRescan(barcode: string) {
+    this.track('my_scans_click_rescan', {
+      barcode,
+    });
+  }
+
   getQueue() {
     return [...this.queue];
   }
