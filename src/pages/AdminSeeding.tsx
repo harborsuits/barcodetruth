@@ -19,9 +19,14 @@ export default function AdminSeeding() {
   const [stats, setStats] = useState<{
     staged: number;
     merged: number;
-    remaining: number;
+    remaining: number | null;
     enriched: number;
-  } | null>(null);
+  }>({
+    staged: 0,
+    merged: 0,
+    remaining: null,
+    enriched: 0
+  });
 
   if (!FEATURES.SEEDING_ENABLED) {
     return (
@@ -51,7 +56,7 @@ export default function AdminSeeding() {
       if (error) throw error;
 
       toast({ title: "Success", description: `Staged ${data.staged} products from CSV` });
-      setStats(prev => ({ ...prev, staged: (prev?.staged ?? 0) + data.staged } as any));
+      setStats(prev => ({ ...prev, staged: prev.staged + data.staged }));
     } catch (e: any) {
       const msg = (e?.message || '').toLowerCase().includes('fetch')
         ? 'Network/CORS error. Try Shift+Reload and run again.'
@@ -79,7 +84,7 @@ export default function AdminSeeding() {
       if (error) throw error;
 
       toast({ title: "Success", description: `Staged ${data.staged} products from OpenFoodFacts` });
-      setStats(prev => ({ ...prev, staged: (prev?.staged ?? 0) + data.staged } as any));
+      setStats(prev => ({ ...prev, staged: prev.staged + data.staged }));
     } catch (e: any) {
       const msg = (e?.message || '').toLowerCase().includes('fetch')
         ? 'Network/CORS error. Try Shift+Reload and run again.'
@@ -104,9 +109,9 @@ export default function AdminSeeding() {
       });
       setStats(prev => ({
         ...prev,
-        merged: (prev?.merged ?? 0) + data.merged,
+        merged: prev.merged + data.merged,
         remaining: data.remaining
-      } as any));
+      }));
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
@@ -125,7 +130,7 @@ export default function AdminSeeding() {
         title: "Enrichment Complete",
         description: `Processed ${data.processed} brands: ${data.succeeded} succeeded, ${data.failed} failed`
       });
-      setStats(prev => ({ ...prev, enriched: (prev?.enriched ?? 0) + data.succeeded } as any));
+      setStats(prev => ({ ...prev, enriched: prev.enriched + data.succeeded }));
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
@@ -154,8 +159,7 @@ export default function AdminSeeding() {
         </div>
       </div>
 
-      {stats && (
-        <Card>
+      <Card>
           <CardHeader>
             <CardTitle>Session Stats</CardTitle>
           </CardHeader>
@@ -178,7 +182,6 @@ export default function AdminSeeding() {
             </div>
           </CardContent>
         </Card>
-      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>

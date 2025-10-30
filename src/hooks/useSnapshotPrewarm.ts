@@ -18,7 +18,10 @@ export function useSnapshotPrewarm() {
         );
         
         if (!latestRes.ok) {
-          console.log('[Prewarm] Latest snapshot not available yet - using live queries as fallback');
+          // Ignore 400/404 - storage not set up yet
+          if (latestRes.status !== 400 && latestRes.status !== 404) {
+            console.warn('[Prewarm] Unexpected status:', latestRes.status);
+          }
           return;
         }
 
