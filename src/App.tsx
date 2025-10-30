@@ -8,6 +8,8 @@ import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { RouteFallback } from "@/components/RouteFallback";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { ServiceWorkerUpdate } from "@/components/ServiceWorkerUpdate";
+import { DebugFlagsBadge } from "@/components/DebugFlagsBadge";
+import { FEATURES } from "@/lib/featureFlags";
 import { lazyNamed } from "@/lib/lazyNamed";
 import { Onboarding } from "./pages/Onboarding";
 import { NotFound } from "./pages/NotFound";
@@ -82,6 +84,7 @@ const App = () => {
       <TooltipProvider>
         <OfflineIndicator />
         <ServiceWorkerUpdate />
+        <DebugFlagsBadge flags={FEATURES} />
         <Toaster />
         <Sonner />
         <BrowserRouter>

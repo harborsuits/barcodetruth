@@ -9,7 +9,24 @@ export const FEATURES = {
   QUEUE_ENRICHMENT_ENABLED: true, // Throttled enrichment queue
 } as const;
 
-// Log flags at boot for beta diagnostics
-if (import.meta.env.DEV || window.location.search.includes('debug=flags')) {
-  console.log('[FEATURE FLAGS]', FEATURES);
-}
+// Runtime flag logging with ?debug=flags support
+(function logFlagsIfRequested() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const debug = params.get("debug");
+    
+    // Allow console logging in dev OR when explicitly requested
+    const shouldLog =
+      debug === "flags" ||
+      (import.meta.env.DEV && (debug === null || debug === "true"));
+
+    if (shouldLog) {
+      // Expose for quick console inspection
+      (window as any).FEATURES = FEATURES;
+      
+      console.groupCollapsed("[FEATURES] Runtime flags");
+      console.table(FEATURES);
+      console.groupEnd();
+    }
+  } catch { /* no-op */ }
+})();
