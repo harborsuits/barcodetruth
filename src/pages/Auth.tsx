@@ -83,6 +83,17 @@ export default function Auth() {
           throw error;
         }
 
+        // Check if user already exists (Supabase returns user but with empty identities)
+        if (data.user && data.user.identities && data.user.identities.length === 0) {
+          toast({
+            title: "Account already exists",
+            description: "This email is already registered. Please sign in instead.",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+
         // If email confirmation is disabled (auto-confirm), redirect to onboarding
         if (data.user && data.session) {
           toast({
