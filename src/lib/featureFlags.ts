@@ -5,7 +5,7 @@ export const FEATURES = {
   ENABLE_COMMUNITY_OUTLOOK: true, // Community-driven category ratings (Beta)
   HIDE_COMPANY_SCORE: true, // Hide old company-level ethical score
   POLITICS_TWO_AXIS: true, // Two-axis politics (intensity + alignment) - BETA ENABLED
-  SEEDING_ENABLED: import.meta.env.DEV, // Product seeding pipeline - PROD DISABLED
+  SEEDING_ENABLED: true, // Product seeding pipeline - ENABLED
   QUEUE_ENRICHMENT_ENABLED: true, // Throttled enrichment queue
 } as const;
 
