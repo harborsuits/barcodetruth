@@ -236,6 +236,16 @@ export default function AdminDashboard() {
       metrics: metrics ? `${metrics.queue_pending} in queue` : "—"
     },
     {
+      title: "Product Seeding",
+      description: "Seed products from CSV or OpenFoodFacts",
+      icon: Package,
+      route: "/admin/seeding",
+      color: "text-lime-600 dark:text-lime-400",
+      bgColor: "bg-lime-600/10",
+      priority: "medium",
+      metrics: "Data import"
+    },
+    {
       title: "Manual Triggers",
       description: "Run enrichment and scoring jobs on demand",
       icon: Zap,
