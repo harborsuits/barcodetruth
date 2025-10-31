@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
       });
     }
   } else {
-    // OpenFoodFacts sampler
+    // OpenFoodFacts sampler with timeout protection
     const limit = body.limit ?? 500;
     const categories = body.categories.slice(0, 5);
     console.log("[seed-products] Fetching from OpenFoodFacts categories:", categories);
@@ -73,8 +73,16 @@ Deno.serve(async (req) => {
     for (const cat of categories) {
       const url = `https://world.openfoodfacts.org/category/${encodeURIComponent(cat)}.json?page_size=${Math.min(200, limit)}`;
       try {
-        const r = await fetch(url);
-        if (!r.ok) continue;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout
+        
+        const r = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
+        if (!r.ok) {
+          console.warn(`[seed-products] OpenFoodFacts returned ${r.status} for ${cat}`);
+          continue;
+        }
         const j = await r.json();
         for (const p of j.products ?? []) {
           const code = (p.code ?? "").toString();
@@ -86,9 +94,13 @@ Deno.serve(async (req) => {
             category: cat
           });
         }
-        await new Promise(r => setTimeout(r, 200)); // polite delay
-      } catch (e) {
-        console.error(`[seed-products] Error fetching category ${cat}:`, e);
+        await new Promise(r => setTimeout(r, 250)); // polite delay
+      } catch (e: any) {
+        if (e.name === 'AbortError') {
+          console.error(`[seed-products] Timeout fetching category ${cat}`);
+        } else {
+          console.error(`[seed-products] Error fetching category ${cat}:`, e);
+        }
       }
     }
   }
@@ -139,7 +151,12 @@ Deno.serve(async (req) => {
   }
 
   console.log(`[seed-products] Successfully staged ${toInsert.length} products`);
-  return okJson({ ok: true, staged: toInsert.length }, req);
+  return okJson({ 
+    ok: true, 
+    staged: toInsert.length,
+    total_parsed: rows.length,
+    deduped: payload.length
+  }, req);
   } catch (e: any) {
     console.error("[seed-products] error", e);
     return errJson(500, e?.message ?? "internal error", req);
