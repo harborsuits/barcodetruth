@@ -49,15 +49,20 @@ export default function AdminSeeding() {
 
     setLoading(true);
     try {
+      console.log('[AdminSeeding] Invoking seed-products with CSV mode');
       const { data, error } = await supabase.functions.invoke("seed-products", {
         body: { mode: "csv", csv_url: csvUrl }
       });
 
+      console.log('[AdminSeeding] Response:', { data, error });
       if (error) throw error;
 
       const n = data?.staged ?? data?.staged_count ?? data?.inserted ?? data?.count ?? 0;
       toast({ title: "Success", description: `Staged ${n} products from CSV` });
       setStats(prev => ({ ...prev, staged: prev.staged + n }));
+      
+      // Auto-refresh remaining count
+      await refreshRemainingCount();
     } catch (e: any) {
       const msg = (e?.message || '').toLowerCase().includes('fetch')
         ? 'Network/CORS error. Try Shift+Reload and run again.'
@@ -66,6 +71,20 @@ export default function AdminSeeding() {
       console.error('[seed-products] fetch error', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const refreshRemainingCount = async () => {
+    try {
+      const { count, error } = await supabase
+        .from('staging_products')
+        .select('*', { count: 'exact', head: true });
+      
+      if (!error && count !== null) {
+        setStats(prev => ({ ...prev, remaining: count }));
+      }
+    } catch (e) {
+      console.error('Failed to refresh count:', e);
     }
   };
 
@@ -78,15 +97,28 @@ export default function AdminSeeding() {
 
     setLoading(true);
     try {
+      console.log('[AdminSeeding] Invoking seed-products with OpenFoodFacts mode');
+      // Reduce limit and categories to avoid timeout
       const { data, error } = await supabase.functions.invoke("seed-products", {
-        body: { mode: "openfoodfacts", categories: catList, limit: 500 }
+        body: { 
+          mode: "openfoodfacts", 
+          categories: catList.slice(0, 2), // Only 2 categories at a time
+          limit: 100  // Reduced from 500 to avoid timeout
+        }
       });
 
+      console.log('[AdminSeeding] Response:', { data, error });
       if (error) throw error;
 
       const n = data?.staged ?? data?.staged_count ?? data?.inserted ?? data?.count ?? 0;
-      toast({ title: "Success", description: `Staged ${n} products from OpenFoodFacts` });
+      toast({ 
+        title: "Success", 
+        description: `Staged ${n} products from ${catList.slice(0,2).length} categories. Run again for more.` 
+      });
       setStats(prev => ({ ...prev, staged: prev.staged + n }));
+      
+      // Auto-refresh remaining count
+      await refreshRemainingCount();
     } catch (e: any) {
       const msg = (e?.message || '').toLowerCase().includes('fetch')
         ? 'Network/CORS error. Try Shift+Reload and run again.'
@@ -101,8 +133,10 @@ export default function AdminSeeding() {
   const mergeStaging = async () => {
     setLoading(true);
     try {
+      console.log('[AdminSeeding] Invoking merge-products');
       const { data, error } = await supabase.functions.invoke("merge-products");
 
+      console.log('[AdminSeeding] Merge response:', { data, error });
       if (error) throw error;
 
       const merged = data?.merged ?? data?.inserted ?? data?.count ?? 0;
@@ -118,6 +152,7 @@ export default function AdminSeeding() {
       }));
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
+      console.error('[merge-products] error', e);
     } finally {
       setLoading(false);
     }
