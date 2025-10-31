@@ -25,8 +25,8 @@ Deno.serve(async (req) => {
       return okJson({ ok: true, merged: 0, remaining: 0 }, req);
     }
 
-    // Call the SQL merge function
-    const { data, error } = await supabase.rpc("merge_staged_products_batch");
+    // Call the SQL merge function (pass explicit param to avoid overloading ambiguity)
+    const { data, error } = await supabase.rpc("merge_staged_products_batch", { batch_size: 200 });
 
     if (error) {
       console.error("[merge-products] merge error", error);
