@@ -55,8 +55,9 @@ export default function AdminSeeding() {
 
       if (error) throw error;
 
-      toast({ title: "Success", description: `Staged ${data.staged} products from CSV` });
-      setStats(prev => ({ ...prev, staged: prev.staged + data.staged }));
+      const n = data?.staged ?? data?.staged_count ?? data?.inserted ?? data?.count ?? 0;
+      toast({ title: "Success", description: `Staged ${n} products from CSV` });
+      setStats(prev => ({ ...prev, staged: prev.staged + n }));
     } catch (e: any) {
       const msg = (e?.message || '').toLowerCase().includes('fetch')
         ? 'Network/CORS error. Try Shift+Reload and run again.'
@@ -83,8 +84,9 @@ export default function AdminSeeding() {
 
       if (error) throw error;
 
-      toast({ title: "Success", description: `Staged ${data.staged} products from OpenFoodFacts` });
-      setStats(prev => ({ ...prev, staged: prev.staged + data.staged }));
+      const n = data?.staged ?? data?.staged_count ?? data?.inserted ?? data?.count ?? 0;
+      toast({ title: "Success", description: `Staged ${n} products from OpenFoodFacts` });
+      setStats(prev => ({ ...prev, staged: prev.staged + n }));
     } catch (e: any) {
       const msg = (e?.message || '').toLowerCase().includes('fetch')
         ? 'Network/CORS error. Try Shift+Reload and run again.'
