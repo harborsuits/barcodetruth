@@ -130,29 +130,60 @@ export default function AdminSeeding() {
     }
   };
 
-  const mergeStaging = async () => {
+  const mergeStaging = async (dryRun = false) => {
     setLoading(true);
     try {
-      console.log('[AdminSeeding] Invoking merge-products');
-      const { data, error } = await supabase.functions.invoke("merge-products");
+      console.log(`[AdminSeeding] Invoking merge-products (dry_run=${dryRun})`);
+      const { data, error } = await supabase.functions.invoke("merge-products", {
+        body: { batch_size: 200, dry_run: dryRun },
+      });
 
-      console.log('[AdminSeeding] Merge response:', { data, error });
+      console.log('[AdminSeeding] Merge response:', data);
+
       if (error) throw error;
 
-      const merged = data?.merged ?? data?.inserted ?? data?.count ?? 0;
-      const remaining = data?.remaining ?? data?.staged ?? data?.staged_count ?? null;
+      const result = data as {
+        ok: boolean;
+        merged: number;
+        skipped_unmapped: number;
+        remaining: number;
+        created_brands: number;
+        sample_unmapped: string[];
+      };
+
+      if (!result.ok) {
+        throw new Error("Merge failed");
+      }
+
+      // Update session stats (only if not dry run)
+      if (!dryRun) {
+        setStats(prev => ({
+          ...prev,
+          merged: prev.merged + result.merged,
+          enriched: prev.enriched + result.created_brands,
+          remaining: result.remaining,
+        }));
+      }
+
+      const unmappedSummary = result.sample_unmapped?.length 
+        ? `\n\nUnmapped examples: ${result.sample_unmapped.slice(0, 3).join(", ")}` 
+        : "";
+
       toast({
-        title: "Merge Complete",
-        description: `Merged ${merged} products. ${remaining ?? "—"} remaining in staging.`
+        title: dryRun ? "Preview Complete" : "Merge Complete",
+        description: `Merged: ${result.merged} • New brands: ${result.created_brands} • Skipped: ${result.skipped_unmapped} • Remaining: ${result.remaining}${unmappedSummary}`,
       });
-      setStats(prev => ({
-        ...prev,
-        merged: prev.merged + merged,
-        remaining
-      }));
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
-      console.error('[merge-products] error', e);
+
+      if (!dryRun) {
+        await refreshRemainingCount();
+      }
+    } catch (error: any) {
+      console.error("[AdminSeeding] Merge error:", error);
+      toast({
+        title: "Merge Failed",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -293,11 +324,23 @@ export default function AdminSeeding() {
               Merge up to 200 staged products into the products table (idempotent)
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button onClick={mergeStaging} disabled={loading}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Merge 200 Products
-            </Button>
+          <CardContent className="space-y-2">
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => mergeStaging(true)}
+                disabled={loading || stats.remaining === 0}
+                variant="outline"
+              >
+                Preview Merge
+              </Button>
+              <Button 
+                onClick={() => mergeStaging(false)}
+                disabled={loading || stats.remaining === 0}
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Merge {Math.min(200, stats.remaining || 200)} Products
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
