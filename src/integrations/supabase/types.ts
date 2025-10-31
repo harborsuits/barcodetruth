@@ -8001,26 +8001,16 @@ export type Database = {
         }
         Returns: undefined
       }
-      merge_staged_products_batch:
-        | {
-            Args: { batch_size?: number }
-            Returns: {
-              merged: number
-              remaining: number
-              skipped_nulls: number
-              skipped_unmapped: number
-            }[]
-          }
-        | {
-            Args: { batch_size?: number; dry_run?: boolean }
-            Returns: {
-              created_brands: number
-              merged: number
-              remaining: number
-              sample_unmapped: string[]
-              skipped_unmapped: number
-            }[]
-          }
+      merge_staged_products_batch: {
+        Args: { batch_size?: number; dry_run?: boolean }
+        Returns: {
+          created_brands: number
+          merged: number
+          remaining: number
+          sample_unmapped: string[]
+          skipped_unmapped: number
+        }[]
+      }
       normalize_barcode: { Args: { raw: string }; Returns: string }
       normalize_brand_label: { Args: { txt: string }; Returns: string }
       personalized_brand_score: {
