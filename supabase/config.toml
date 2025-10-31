@@ -154,3 +154,6 @@ verify_jwt = false
 [functions.delete-user]
 verify_jwt = true
 
+[functions.merge-products]
+verify_jwt = false
+
