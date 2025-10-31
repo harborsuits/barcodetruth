@@ -1,45 +1,43 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const CORS = {
+const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Content-Type": "application/json",
 };
 
-const json = (body: any, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json", ...CORS },
-  });
-
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
+  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
-  const url = Deno.env.get("SUPABASE_URL");
-  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!url || !key) return json({ error: "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY" }, 500);
-
-  // IMPORTANT: admin client – do NOT forward req headers; ignore user's Authorization
-  const admin = createClient(url, key);
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
 
   try {
-    const { data, error } = await admin.rpc("merge_staged_products_batch", { batch_size: 200 });
+    const { batch_size } = await req.json().catch(() => ({ batch_size: 200 }));
+    const batch = Number.isFinite(+batch_size) ? +batch_size : 200;
+
+    const { data, error } = await supabase
+      .rpc("merge_staged_products_batch", { batch_size: batch });
+
     if (error) {
       console.error("[merge-products] RPC error:", error);
-      return json({ error: error.message }, 500);
+      return new Response(
+        JSON.stringify({ ok: false, code: "rpc_error", message: error.message, details: error.details }),
+        { status: 500, headers: cors },
+      );
     }
 
-    const merged =
-      data?.merged ?? data?.inserted ?? data?.count ?? 0;
-
-    // Remaining is best-effort; never fail the request because of it
-    let remaining: number | null = null;
-    const { count } = await admin.from("staging_products").select("*", { count: "exact", head: true });
-    if (typeof count === "number") remaining = count;
-
-    return json({ merged, remaining }, 200);
+    const row = Array.isArray(data) ? data[0] : data;
+    console.log("[merge-products] Success:", row);
+    return new Response(JSON.stringify({ ok: true, ...row }), { headers: cors });
   } catch (e: any) {
-    console.error("[merge-products] fatal:", e);
-    return json({ error: String(e?.message || e) }, 500);
+    console.error("[merge-products] handler error:", e);
+    return new Response(
+      JSON.stringify({ ok: false, code: "handler_error", message: String(e?.message || e) }),
+      { status: 500, headers: cors },
+    );
   }
 });
