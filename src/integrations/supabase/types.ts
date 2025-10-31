@@ -8000,7 +8000,12 @@ export type Database = {
       }
       merge_staged_products_batch: {
         Args: { batch_size?: number }
-        Returns: Json
+        Returns: {
+          merged: number
+          remaining: number
+          skipped_nulls: number
+          skipped_unmapped: number
+        }[]
       }
       normalize_barcode: { Args: { raw: string }; Returns: string }
       personalized_brand_score: {
