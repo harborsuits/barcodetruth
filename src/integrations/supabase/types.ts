@@ -4827,6 +4827,7 @@ export type Database = {
           brand_label: string | null
           category: string | null
           content_hash: string | null
+          created_at: string | null
           id: string
           inserted_at: string | null
           product_name: string | null
@@ -4837,6 +4838,7 @@ export type Database = {
           brand_label?: string | null
           category?: string | null
           content_hash?: string | null
+          created_at?: string | null
           id?: string
           inserted_at?: string | null
           product_name?: string | null
@@ -4847,6 +4849,7 @@ export type Database = {
           brand_label?: string | null
           category?: string | null
           content_hash?: string | null
+          created_at?: string | null
           id?: string
           inserted_at?: string | null
           product_name?: string | null
