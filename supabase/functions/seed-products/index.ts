@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeadersFor } from "../_shared/cors.ts";
+import { buildCorsHeaders, okJson, errJson } from "../_shared/cors.ts";
 
 async function sha1(s: string): Promise<string> {
   const data = new TextEncoder().encode(s);
@@ -14,27 +14,23 @@ type SeedBody =
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    // Preflight observability
-    console.log('[CORS] Preflight for', new URL(req.url).pathname, 'ACRH=', req.headers.get('access-control-request-headers'));
-    return new Response("ok", { headers: corsHeadersFor(req) });
+    return new Response("ok", { headers: buildCorsHeaders(req) });
   }
 
-  console.log("[seed-products] Request received");
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
-
-  let body: SeedBody;
   try {
-    body = await req.json();
-  } catch {
-    return new Response(
-      JSON.stringify({ ok: false, error: "Bad JSON" }),
-      { headers: corsHeadersFor(req), status: 400 }
+    console.log("[seed-products] Request received");
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
-  }
+
+    let body: SeedBody;
+    try {
+      body = await req.json();
+    } catch {
+      return errJson(400, "Bad JSON", req);
+    }
 
   const rows: Array<{
     barcode: string;
@@ -47,10 +43,7 @@ Deno.serve(async (req) => {
     console.log("[seed-products] Fetching CSV from:", body.csv_url);
     const resp = await fetch(body.csv_url);
     if (!resp.ok) {
-      return new Response(
-        JSON.stringify({ ok: false, error: "CSV fetch failed" }),
-        { headers: corsHeadersFor(req), status: 400 }
-      );
+      return errJson(400, "CSV fetch failed", req);
     }
     const text = await resp.text();
     const lines = text.split(/\r?\n/);
@@ -141,17 +134,14 @@ Deno.serve(async (req) => {
 
     if (insertErr) {
       console.error("[seed-products] staging insert error", insertErr);
-      return new Response(
-        JSON.stringify({ ok: false, error: insertErr.message }),
-        { headers: corsHeadersFor(req), status: 500 }
-      );
+      return errJson(500, insertErr.message, req);
     }
   }
 
   console.log(`[seed-products] Successfully staged ${toInsert.length} products`);
-
-  return new Response(
-    JSON.stringify({ ok: true, staged: toInsert.length }),
-    { headers: corsHeadersFor(req) }
-  );
+  return okJson({ ok: true, staged: toInsert.length }, req);
+  } catch (e: any) {
+    console.error("[seed-products] error", e);
+    return errJson(500, e?.message ?? "internal error", req);
+  }
 });
