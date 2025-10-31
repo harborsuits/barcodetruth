@@ -3,8 +3,7 @@ export function buildCorsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
   const acrh = req.headers.get("access-control-request-headers");
   return {
-    "Access-Control-Allow-Origin": origin,
-    "Vary": "Origin",
+    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
     "Access-Control-Allow-Headers":
       acrh ??
