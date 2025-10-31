@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
   const admin = createClient(url, key);
 
   try {
-    const { data, error } = await admin.rpc("merge_staged_products_batch");
+    const { data, error } = await admin.rpc("merge_staged_products_batch", { batch_size: 200 });
     if (error) {
       console.error("[merge-products] RPC error:", error);
       return json({ error: error.message }, 500);
