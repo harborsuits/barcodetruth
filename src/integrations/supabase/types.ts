@@ -8008,6 +8008,7 @@ export type Database = {
         }[]
       }
       normalize_barcode: { Args: { raw: string }; Returns: string }
+      normalize_brand_label: { Args: { txt: string }; Returns: string }
       personalized_brand_score: {
         Args: { p_brand_id: string; p_user_id: string }
         Returns: Json
@@ -8137,6 +8138,7 @@ export type Database = {
         Args: { p_cost?: number; p_source: string }
         Returns: boolean
       }
+      unaccent: { Args: { "": string }; Returns: string }
       unlock_stale_jobs: { Args: { timeout_seconds: number }; Returns: number }
       upc_check_digit: { Args: { barcode: string }; Returns: string }
       upsert_coalesced_job: {
