@@ -105,14 +105,16 @@ export default function AdminSeeding() {
 
       if (error) throw error;
 
+      const merged = data?.merged ?? data?.inserted ?? data?.count ?? 0;
+      const remaining = data?.remaining ?? data?.staged ?? data?.staged_count ?? null;
       toast({
         title: "Merge Complete",
-        description: `Merged ${data.merged} products. ${data.remaining} remaining in staging.`
+        description: `Merged ${merged} products. ${remaining ?? "—"} remaining in staging.`
       });
       setStats(prev => ({
         ...prev,
-        merged: prev.merged + data.merged,
-        remaining: data.remaining
+        merged: prev.merged + merged,
+        remaining
       }));
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -128,11 +130,14 @@ export default function AdminSeeding() {
 
       if (error) throw error;
 
+      const processed = data?.processed ?? data?.count ?? 0;
+      const succeeded = data?.succeeded ?? data?.success ?? 0;
+      const failed = data?.failed ?? Math.max(0, processed - succeeded);
       toast({
         title: "Enrichment Complete",
-        description: `Processed ${data.processed} brands: ${data.succeeded} succeeded, ${data.failed} failed`
+        description: `Processed ${processed} brands: ${succeeded} succeeded, ${failed} failed`
       });
-      setStats(prev => ({ ...prev, enriched: prev.enriched + data.succeeded }));
+      setStats(prev => ({ ...prev, enriched: prev.enriched + succeeded }));
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
