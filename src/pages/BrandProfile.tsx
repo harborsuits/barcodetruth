@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ArrowLeft, ExternalLink, AlertCircle, Building2, Link as LinkIcon } from 'lucide-react';
+import { ArrowLeft, ExternalLink, AlertCircle, Building2, Link as LinkIcon, Lightbulb } from 'lucide-react';
 import { CategoryScoreCard } from '@/components/brand/CategoryScoreCard';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
@@ -34,6 +34,31 @@ import { EvidencePanel } from '@/components/brand/EvidencePanel';
 import { ValueMatchCard } from '@/components/ValueMatchCard';
 import { getUserPreferences } from '@/lib/userPreferences';
 import { DataHealthBadge } from '@/components/DataHealthBadge';
+import { AlternativeCard } from '@/components/brand/AlternativeCard';
+
+// Hardcoded alternatives mapping for major brands
+const BRAND_ALTERNATIVES: Record<string, Array<{
+  brand_id: string;
+  brand_name: string;
+  reason: string;
+  match_score: number;
+  logo_url?: string;
+}>> = {
+  'skippy': [
+    { brand_id: '00000000-0000-0000-0000-000000000001', brand_name: 'Jif Natural', reason: 'No hydrogenated oils', match_score: 85 },
+    { brand_id: '00000000-0000-0000-0000-000000000002', brand_name: 'Teddie All Natural', reason: 'Worker-owned cooperative', match_score: 92 },
+    { brand_id: '00000000-0000-0000-0000-000000000003', brand_name: 'Santa Cruz Organic', reason: 'Organic & fair trade', match_score: 88 },
+  ],
+  'coca-cola': [
+    { brand_id: '00000000-0000-0000-0000-000000000004', brand_name: 'Honest Tea', reason: 'Organic ingredients', match_score: 85 },
+    { brand_id: '00000000-0000-0000-0000-000000000005', brand_name: 'LaCroix', reason: 'Independent, no sugar', match_score: 90 },
+    { brand_id: '00000000-0000-0000-0000-000000000006', brand_name: 'Spindrift', reason: 'Real fruit, B-Corp', match_score: 93 },
+  ],
+  'nestle': [
+    { brand_id: '00000000-0000-0000-0000-000000000007', brand_name: "Tony's Chocolonely", reason: 'Slave-free supply chain', match_score: 98 },
+    { brand_id: '00000000-0000-0000-0000-000000000008', brand_name: 'Endangered Species Chocolate', reason: 'Fair trade, ethical', match_score: 95 },
+  ],
+};
 
 type BrandProfile = {
   brand: { 
@@ -47,7 +72,7 @@ type BrandProfile = {
     logo_attribution?: string | null;
   } | null;
   score?: { 
-    score: number | null; 
+    score: number | null;
     score_labor?: number | null;
     score_environment?: number | null;
     score_politics?: number | null;
@@ -789,6 +814,40 @@ export default function BrandProfile() {
             />
           </>
         )}
+
+        {/* Better Alternatives Section */}
+        {data.brand.name && (() => {
+          const brandKey = data.brand.name.toLowerCase();
+          const alternatives = BRAND_ALTERNATIVES[brandKey];
+          
+          if (!alternatives) return null;
+          
+          return (
+            <>
+              <SectionHeader>Better Alternatives to Consider</SectionHeader>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
+                    <Lightbulb className="w-4 h-4" />
+                    <span>These brands align better with ethical consumer values</span>
+                  </div>
+                  <div className="grid gap-3">
+                    {alternatives.map((alt) => (
+                      <AlternativeCard
+                        key={alt.brand_id}
+                        brand_id={alt.brand_id}
+                        brand_name={alt.brand_name}
+                        reason={alt.reason}
+                        match_score={alt.match_score}
+                        logo_url={alt.logo_url}
+                      />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          );
+        })()}
 
         {/* 3) Who Profits */}
         <SectionHeader>Who owns {data.brand.name}?</SectionHeader>

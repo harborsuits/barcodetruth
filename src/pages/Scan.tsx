@@ -246,14 +246,14 @@ export const Scan = () => {
           description: `${product.product_name} - ${brandInfo}`
         });
         
-        // Navigate to scan result page (shows product, alternatives, then brand details)
+        // Navigate directly to brand profile
         setTimeout(() => {
-          analytics.track('scan_route_result', { 
+          analytics.track('scan_route_brand', { 
             brand_id: product.brand_id, 
             barcode: product.barcode,
             product_name: product.product_name
           });
-          navigate(`/scan-result/${product.barcode}`);
+          navigate(`/brand/${product.brand_id}`);
         }, 800);
       } else {
         setScanResult('not_found');
