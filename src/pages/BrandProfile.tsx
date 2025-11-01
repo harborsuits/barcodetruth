@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { usePreloadRelated } from '@/hooks/usePreloadRelated';
 import { usePredictiveCache } from '@/hooks/usePredictiveCache';
+import { useBrandEnrichment } from '@/hooks/useBrandEnrichment';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
@@ -210,6 +211,9 @@ export default function BrandProfile() {
   usePreloadRelated({ brandId: actualId });
   usePredictiveCache(actualId);
 
+  // Initialize enrichment hook
+  const { fetchLogo, fetchSummary, enrichBrand } = useBrandEnrichment();
+
   // Check for new ownership data to hide legacy cards
   const { data: ownership } = useOwnership(actualId);
   const hasOwnershipData = 
@@ -243,6 +247,41 @@ export default function BrandProfile() {
       return data;
     }
   });
+
+  // Auto-enrich missing data after brandInfo is loaded
+  useEffect(() => {
+    if (!brandInfo) return;
+    
+    console.log('[BrandProfile] Checking enrichment needs:', {
+      brandId: brandInfo.id,
+      hasLogo: !!brandInfo.logo_url,
+      hasSummary: !!brandInfo.description,
+      hasWikidata: !!brandInfo.wikidata_qid
+    });
+    
+    // Only enrich if we have a wikidata_qid
+    if (brandInfo.wikidata_qid) {
+      // Fetch logo if missing
+      if (!brandInfo.logo_url) {
+        console.log('[BrandProfile] Triggering logo enrichment...');
+        fetchLogo(brandInfo.id).then(() => {
+          console.log('[BrandProfile] Logo enrichment complete');
+          queryClient.invalidateQueries({ queryKey: ['brand-basic', actualId] });
+        });
+      }
+      
+      // Fetch summary if missing
+      if (!brandInfo.description) {
+        console.log('[BrandProfile] Triggering summary enrichment...');
+        fetchSummary(brandInfo.id).then(() => {
+          console.log('[BrandProfile] Summary enrichment complete');
+          queryClient.invalidateQueries({ queryKey: ['brand-basic', actualId] });
+        });
+      }
+    } else {
+      console.warn('[BrandProfile] No wikidata_qid - cannot enrich');
+    }
+  }, [brandInfo?.id, brandInfo?.logo_url, brandInfo?.description, brandInfo?.wikidata_qid, fetchLogo, fetchSummary, queryClient, actualId]);
 
   // DIRECT QUERY: Brand scores
   const { data: brandScores, isLoading: scoresLoading } = useQuery({
@@ -692,7 +731,25 @@ export default function BrandProfile() {
                 monogram={monogram}
               />
               <div className="flex-1 min-w-0 space-y-2">
-                <h2 className="text-2xl font-bold truncate">{data.brand.name}</h2>
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="text-2xl font-bold truncate">{data.brand.name}</h2>
+                  
+                  {/* Manual enrichment button for testing */}
+                  {brandInfo && !brandInfo.logo_url && brandInfo.wikidata_qid && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        console.log('[Manual] Enriching brand:', brandInfo.id);
+                        enrichBrand(brandInfo.id).then(() => {
+                          queryClient.invalidateQueries({ queryKey: ['brand-basic', actualId] });
+                        });
+                      }}
+                    >
+                      🔄 Enrich
+                    </Button>
+                  )}
+                </div>
                 
                 {/* Ownership banner */}
                 {actualId && <OwnershipBanner brandId={actualId} />}
