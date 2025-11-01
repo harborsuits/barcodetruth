@@ -393,6 +393,20 @@ export default function ScanResult() {
     }
   });
 
+  // Calculate current brand data BEFORE using it in handlers
+  const currentBrandData = brandData && brandData.brand_scores[0] && {
+    brand_id: brandData.id,
+    brand_name: brandData.name,
+    valueFit: calculateValueFit(brandData.brand_scores[0], getUserWeights()),
+    scores: {
+      labor: brandData.brand_scores[0].score_labor,
+      environment: brandData.brand_scores[0].score_environment,
+      politics: brandData.brand_scores[0].score_politics,
+      social: brandData.brand_scores[0].score_social,
+    },
+    events: events ?? [],
+  };
+
   const handleShare = async () => {
     if (!product || !brandData || !currentBrandData) return;
     
@@ -416,19 +430,6 @@ export default function ScanResult() {
         description: 'Share link copied to clipboard',
       });
     }
-  };
-
-  const currentBrandData = brandData && brandData.brand_scores[0] && {
-    brand_id: brandData.id,
-    brand_name: brandData.name,
-    valueFit: calculateValueFit(brandData.brand_scores[0], getUserWeights()),
-    scores: {
-      labor: brandData.brand_scores[0].score_labor,
-      environment: brandData.brand_scores[0].score_environment,
-      politics: brandData.brand_scores[0].score_politics,
-      social: brandData.brand_scores[0].score_social,
-    },
-    events: events ?? [],
   };
 
   // Query owner guess from resolve-barcode (GS1 fallback)
