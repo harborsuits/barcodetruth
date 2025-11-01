@@ -65,19 +65,8 @@ export function useBrandEnrichment() {
         });
         return true;
       } else {
-        const reason = data?.reason || 'unknown';
-        if (reason === 'no_logo_found') {
-          toast({
-            title: 'No logo found',
-            description: 'Could not find a logo for this brand.',
-            variant: 'destructive'
-          });
-        } else if (reason === 'manual_override') {
-          toast({
-            title: 'Manual override',
-            description: 'This brand has a manually uploaded logo.',
-          });
-        }
+        // Silent failure for missing logos - fallback will be used
+        console.log('[useBrandEnrichment] Logo not found, using fallback');
         return false;
       }
     } catch (error: any) {
