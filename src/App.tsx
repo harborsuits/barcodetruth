@@ -187,6 +187,16 @@ const App = () => {
             }
           />
           <Route
+            path="/scan-result"
+            element={
+              <ProtectedRoute>
+                <Suspense fallback={<RouteFallback label="Loading…" />}>
+                  <ScanResult />
+                </Suspense>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/scan-result/:barcode"
             element={
               <ProtectedRoute>

@@ -191,79 +191,124 @@ export const Scan = () => {
     try {
       const t0 = performance.now();
       
-      // Use new lookup flow
-      const result = await lookupScanAndLog(barcode, user.id);
+      // Use smart tiered lookup (cache → OpenFoodFacts → UPCitemdb → user submission)
+      const { data: smartLookup, error: smartError } = await supabase.functions.invoke('smart-product-lookup', {
+        body: { barcode }
+      });
       
-      const dur = Math.round(performance.now() - t0);
-
-      if (result.notFound) {
+      // Handle product not found case
+      if (smartError && smartError.status === 404 && smartLookup?.requires_submission) {
         setScanResult('not_found');
-        console.log('[Analytics] scan_not_found_soft_promise', { barcode, dur_ms: dur });
+        const dur = Math.round(performance.now() - t0);
+        console.log('[Analytics] scan_not_found_requires_submission', { barcode, dur_ms: dur });
         
-        // Friendly message with promise of progress
-        toast({ 
-          title: "We're on it", 
-          description: result.message || "We're gathering evidence for this brand. Check back soon for updates.",
-          variant: "default"
+        // Navigate to submission form
+        navigate('/scan-result', { 
+          state: { 
+            barcode, 
+            requiresSubmission: true,
+            manufacturerPrefix: smartLookup.manufacturer_prefix 
+          } 
         });
-        
-        // Track the soft promise
-        analytics.track('scan_not_found_soft_promise', { barcode });
-        
-        setTimeout(() => setScanResult('idle'), 1200);
         return;
       }
-
-      const { product, alternatives } = result;
       
-      if (product) {
-        setScanResult('success');
-        console.log('[Analytics] scan_success', { 
-          barcode, 
-          brand_id: product.brand_id, 
-          alternatives_count: alternatives?.length || 0,
-          dur_ms: dur 
-        });
+      if (smartError) throw smartError;
+      
+      // Use fallback lookup flow if smart lookup didn't return a product
+      if (!smartLookup?.product?.brands?.id) {
+        // Fallback to old system
+        const result = await lookupScanAndLog(barcode, user.id);
         
-        // Save to recent scans (cap at 20)
-        const recentScan = {
-          upc: product.barcode,
-          product_name: product.product_name,
-          brand_name: product.brand_name,
-          timestamp: Date.now()
-        };
-        
-        const stored = localStorage.getItem('recent_scans');
-        const existing = stored ? JSON.parse(stored) : [];
-        const updated = [recentScan, ...existing.filter((s: any) => s.upc !== product.barcode)].slice(0, 20);
-        localStorage.setItem('recent_scans', JSON.stringify(updated));
-        
-        // Show brand name in toast (parent fetch happens on brand page)
-        const brandInfo = product.brand_name || 'Unknown';
-        
-        toast({ 
-          title: "Product found!", 
-          description: `${product.product_name} - ${brandInfo}`
-        });
-        
-        // Navigate directly to brand profile
-        setTimeout(() => {
-          analytics.track('scan_route_brand', { 
-            brand_id: product.brand_id, 
-            barcode: product.barcode,
-            product_name: product.product_name
+        const dur = Math.round(performance.now() - t0);
+
+        if (result.notFound) {
+          setScanResult('not_found');
+          console.log('[Analytics] scan_not_found_soft_promise', { barcode, dur_ms: dur });
+          
+          toast({ 
+            title: "We're on it", 
+            description: result.message || "We're gathering evidence for this brand. Check back soon for updates.",
+            variant: "default"
           });
-          navigate(`/brand/${product.brand_id}`);
-        }, 800);
-      } else {
-        setScanResult('not_found');
-        toast({ 
-          title: "Product not found", 
-          description: "Try another barcode or search by brand",
-          variant: "destructive" 
-        });
-        setTimeout(() => setScanResult('idle'), 800);
+          
+          analytics.track('scan_not_found_soft_promise', { barcode });
+          setTimeout(() => setScanResult('idle'), 1200);
+          return;
+        }
+
+        const { product, alternatives } = result;
+        
+        if (product) {
+          setScanResult('success');
+          console.log('[Analytics] scan_success_fallback', { 
+            barcode, 
+            brand_id: product.brand_id, 
+            dur_ms: dur 
+          });
+          
+          toast({ 
+            title: "Product found!", 
+            description: `${product.product_name} - ${product.brand_name || 'Unknown'}`
+          });
+          
+          setTimeout(() => {
+            navigate(`/brand/${product.brand_id}`);
+          }, 800);
+        } else {
+          setScanResult('not_found');
+          toast({ 
+            title: "Product not found", 
+            description: "Try another barcode or search by brand",
+            variant: "destructive" 
+          });
+          setTimeout(() => setScanResult('idle'), 800);
+        }
+        return;
       }
+      
+      // Smart lookup success!
+      const product = smartLookup.product;
+      const dur = Math.round(performance.now() - t0);
+      
+      setScanResult('success');
+      console.log('[Analytics] scan_success_smart', { 
+        barcode, 
+        brand_id: product.brands.id,
+        source: smartLookup.source,
+        confidence: smartLookup.confidence,
+        dur_ms: dur 
+      });
+      
+      // Save to recent scans
+      const recentScan = {
+        upc: barcode,
+        product_name: product.name,
+        brand_name: product.brands.name,
+        timestamp: Date.now()
+      };
+      
+      const stored = localStorage.getItem('recent_scans');
+      const existing = stored ? JSON.parse(stored) : [];
+      const updated = [recentScan, ...existing.filter((s: any) => s.upc !== barcode)].slice(0, 20);
+      localStorage.setItem('recent_scans', JSON.stringify(updated));
+      
+      toast({ 
+        title: "Product found!", 
+        description: `${product.name} - ${product.brands.name}`
+      });
+      
+      // Navigate to brand profile
+      setTimeout(() => {
+        analytics.track('scan_route_brand', { 
+          brand_id: product.brands.id, 
+          barcode,
+          product_name: product.name,
+          source: smartLookup.source
+        });
+        navigate(`/brand/${product.brands.id}`);
+      }, 800);
+      
     } catch (error: any) {
       console.error('[Analytics] scan_error', error);
       setScanResult('idle');
