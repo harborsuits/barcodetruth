@@ -101,6 +101,22 @@ export default function ScanResult() {
 
   console.log('[ScanResult] Product state:', { product, productLoading, productError });
 
+  // Query basic brand info (always needed for navigation)
+  const { data: brandInfo } = useQuery({
+    queryKey: ['brand-info', product?.brand_id],
+    enabled: !!product?.brand_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('brands')
+        .select('id, name')
+        .eq('id', product!.brand_id)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Query brand from Edge API
   const { data: brandData, isLoading: brandLoading } = useQuery({
     queryKey: ['brand-scores', product?.brand_id],
@@ -697,19 +713,21 @@ export default function ScanResult() {
           <>
             {/* Product + Brand Info */}
             <Card 
-              className={brandData ? "cursor-pointer hover:bg-accent/5 transition-colors" : ""}
-              onClick={() => brandData && navigate(`/brand/${product.brand_id}`)}
+              className="cursor-pointer hover:bg-accent/5 transition-colors"
+              onClick={() => navigate(`/brand/${product.brand_id}`)}
             >
               <CardContent className="pt-6 space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 space-y-1">
                     <h2 className="text-lg font-semibold">{product.name}</h2>
                     <div className="flex items-center gap-2">
-                      <p className="text-sm text-[var(--muted)]">{brandData?.name ?? 'Brand'}</p>
-                      {brandData && (
+                      <p className="text-sm text-[var(--muted)]">
+                        {brandData?.name || brandInfo?.name || 'Loading brand...'}
+                      </p>
+                      {(brandData || brandInfo) && (
                         <OwnershipDrawer 
                           brandId={product.brand_id} 
-                          brandName={brandData.name} 
+                          brandName={brandData?.name || brandInfo?.name || ''} 
                         />
                       )}
                     </div>
@@ -728,11 +746,9 @@ export default function ScanResult() {
                   </div>
                 )}
 
-                {brandData && (
-                  <p className="text-xs text-muted-foreground text-center">
-                    Tap to view full brand profile →
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground text-center">
+                  Tap to view full brand profile →
+                </p>
 
               </CardContent>
             </Card>
