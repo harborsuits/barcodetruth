@@ -68,7 +68,7 @@ serve(async (req) => {
     let logoUrl = null;
     let attribution = null;
 
-    // Try Wikimedia Commons first
+    // Try Wikimedia Commons first - check both P154 (logo) and P18 (image)
     if (brand.wikidata_qid) {
       try {
         const controller = new AbortController();
@@ -83,7 +83,9 @@ serve(async (req) => {
         if (wikidataResp.ok) {
           const wikidataJson = await wikidataResp.json();
           const entity = wikidataJson.entities[brand.wikidata_qid];
-          const logoProperty = entity?.claims?.P154; // P154 is the logo image property
+          
+          // Try P154 (logo) first, then P18 (image) as fallback
+          const logoProperty = entity?.claims?.P154 || entity?.claims?.P18;
           
           if (logoProperty && logoProperty.length > 0) {
             const filename = logoProperty[0].mainsnak?.datavalue?.value;
@@ -106,11 +108,14 @@ serve(async (req) => {
                 if (headResp.ok && contentType.startsWith('image/')) {
                   logoUrl = commonsUrl;
                   attribution = 'wikimedia_commons';
+                  console.log(`Found Wikimedia logo for ${brand.name} using ${entity?.claims?.P154 ? 'P154' : 'P18'}`);
                 }
               } catch (e) {
                 console.log('Commons image verification failed:', e);
               }
             }
+          } else {
+            console.log(`No P154 or P18 property found for ${brand.name} (${brand.wikidata_qid})`);
           }
         }
       } catch (e) {
@@ -122,10 +127,39 @@ serve(async (req) => {
       }
     }
 
-    // Fallback to Clearbit if no Commons logo found
+    // Fallback to DuckDuckGo icons if no Commons logo found
     if (!logoUrl && brand.website) {
       try {
-        // Normalize website URL (add https:// if missing)
+        let websiteUrl = brand.website;
+        if (!websiteUrl.startsWith('http://') && !websiteUrl.startsWith('https://')) {
+          websiteUrl = 'https://' + websiteUrl;
+        }
+        
+        const domain = new URL(websiteUrl).hostname.replace(/^www\./, '');
+        const ddgUrl = `https://icons.duckduckgo.com/ip3/${domain}.ico`;
+        
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        
+        const ddgResp = await fetch(ddgUrl, { 
+          method: 'HEAD',
+          signal: controller.signal 
+        });
+        clearTimeout(timeout);
+        
+        if (ddgResp.ok) {
+          logoUrl = ddgUrl;
+          attribution = 'duckduckgo';
+          console.log(`Found DuckDuckGo icon for ${brand.name}`);
+        }
+      } catch (e) {
+        console.log('DuckDuckGo lookup failed:', e);
+      }
+    }
+
+    // Fallback to Clearbit if still no logo found
+    if (!logoUrl && brand.website) {
+      try {
         let websiteUrl = brand.website;
         if (!websiteUrl.startsWith('http://') && !websiteUrl.startsWith('https://')) {
           websiteUrl = 'https://' + websiteUrl;
@@ -134,7 +168,6 @@ serve(async (req) => {
         const domain = new URL(websiteUrl).hostname.replace(/^www\./, '');
         const clearbitUrl = `https://logo.clearbit.com/${domain}`;
         
-        // Check if Clearbit has a logo with timeout
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 5000);
         
@@ -147,6 +180,7 @@ serve(async (req) => {
         if (checkResp.ok) {
           logoUrl = clearbitUrl;
           attribution = 'clearbit';
+          console.log(`Found Clearbit logo for ${brand.name}`);
         } else if (checkResp.status === 403) {
           // Clearbit sometimes blocks HEAD, try GET with Range
           const rangeController = new AbortController();
@@ -161,14 +195,11 @@ serve(async (req) => {
           if (rangeResp.ok || rangeResp.status === 206) {
             logoUrl = clearbitUrl;
             attribution = 'clearbit';
+            console.log(`Found Clearbit logo for ${brand.name} (via Range)`);
           }
         }
       } catch (e) {
-        if (e instanceof Error && e.name === 'AbortError') {
-          console.log('Clearbit lookup timed out');
-        } else {
-          console.log('Clearbit lookup failed:', e);
-        }
+        console.log('Clearbit lookup failed:', e);
       }
     }
 
