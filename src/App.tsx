@@ -57,6 +57,8 @@ const BootstrapAdmin = lazyNamed(() => import("./pages/BootstrapAdmin"), "defaul
 const Privacy = lazyNamed(() => import("./pages/Privacy"), "default");
 const Terms = lazyNamed(() => import("./pages/Terms"), "default");
 const Methodology = lazyNamed(() => import("./pages/Methodology"), "default");
+const InvestorProfile = lazyNamed(() => import("./pages/InvestorProfile"), "default");
+const PersonProfile = lazyNamed(() => import("./pages/PersonProfile"), "default");
 
 const queryClient = new QueryClient();
 
@@ -556,6 +558,26 @@ const App = () => {
               <Suspense fallback={<RouteFallback label="Loading…" />}>
                 <Methodology />
               </Suspense>
+            }
+          />
+          <Route
+            path="/investor/:id"
+            element={
+              <ProtectedRoute>
+                <Suspense fallback={<RouteFallback label="Loading investor…" />}>
+                  <InvestorProfile />
+                </Suspense>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/person/:id"
+            element={
+              <ProtectedRoute>
+                <Suspense fallback={<RouteFallback label="Loading person…" />}>
+                  <PersonProfile />
+                </Suspense>
+              </ProtectedRoute>
             }
           />
           <Route path="*" element={<NotFound />} />

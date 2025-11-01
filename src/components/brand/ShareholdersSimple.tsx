@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Link } from "react-router-dom";
 
 type Holder = {
   name: string;
@@ -22,16 +23,21 @@ export function ShareholdersSimple({ holders }: { holders: Holder[] }) {
       </Alert>
       <ul className="space-y-2">
         {holders.map((h) => (
-          <li key={h.name} className="flex items-center justify-between gap-3">
-            <div className="text-sm flex items-center gap-2">
-              <span className="font-medium">{h.name}</span>
-              {h.isAssetManager && (
-                <Badge variant="outline" className="text-[10px] px-2 py-0.5">
-                  Asset manager
-                </Badge>
-              )}
-            </div>
-            <div className="text-sm tabular-nums">{h.pct.toFixed(2)}%</div>
+          <li key={h.name}>
+            <Link
+              to={`/investor/${encodeURIComponent(h.name)}`}
+              className="flex items-center justify-between gap-3 p-2 -mx-2 rounded-lg hover:bg-secondary/50 transition-colors"
+            >
+              <div className="text-sm flex items-center gap-2">
+                <span className="font-medium hover:underline">{h.name}</span>
+                {h.isAssetManager && (
+                  <Badge variant="outline" className="text-[10px] px-2 py-0.5">
+                    Asset manager
+                  </Badge>
+                )}
+              </div>
+              <div className="text-sm tabular-nums">{h.pct.toFixed(2)}%</div>
+            </Link>
           </li>
         ))}
       </ul>
