@@ -17,6 +17,7 @@ import { CompareSheet } from "@/components/CompareSheet";
 import { OwnershipDrawer } from "@/components/OwnershipDrawer";
 import { EventCard, type BrandEvent } from "@/components/EventCard";
 import { ReportIssue } from "@/components/ReportIssue";
+import { ProductAlternativeCard } from "@/components/ProductAlternativeCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { getUserWeights, calculateValueFit, getTopContributors } from "@/lib/valueFit";
@@ -241,6 +242,32 @@ export default function ScanResult() {
       }));
     },
     enabled: !!product?.brand_id,
+  });
+
+  // Query product-level alternatives using the new edge function
+  const { data: productAlternatives } = useQuery({
+    queryKey: ['product-alternatives', product?.barcode],
+    queryFn: async () => {
+      if (!product?.barcode) return [];
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const { data, error } = await supabase.functions.invoke('get-better-alternatives', {
+        body: {
+          barcode: product.barcode,
+          user_id: session?.user?.id,
+          limit: 5
+        }
+      });
+      
+      if (error) {
+        console.error('Error fetching product alternatives:', error);
+        return [];
+      }
+      
+      return data?.alternatives || [];
+    },
+    enabled: !!product?.barcode,
   });
 
   // Query compare brand from Edge API
@@ -719,6 +746,23 @@ export default function ScanResult() {
                 />
               );
             })()}
+
+            {/* Product-Level Alternatives */}
+            {productAlternatives && productAlternatives.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <h3 className="text-base font-semibold">Specific Products You Can Buy</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Based on your values ({Math.round(currentBrandData.valueFit)}% match with current product)
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {productAlternatives.map((alt: any) => (
+                    <ProductAlternativeCard key={alt.barcode} alternative={alt} />
+                  ))}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Action buttons - sticky on mobile */}
             <div className="sticky bottom-0 bg-[var(--bg)] pt-2 pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 sm:static border-t sm:border-t-0">
