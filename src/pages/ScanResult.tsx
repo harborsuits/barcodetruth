@@ -696,7 +696,10 @@ export default function ScanResult() {
         ) : product ? (
           <>
             {/* Product + Brand Info */}
-            <Card>
+            <Card 
+              className={brandData ? "cursor-pointer hover:bg-accent/5 transition-colors" : ""}
+              onClick={() => brandData && navigate(`/brand/${product.brand_id}`)}
+            >
               <CardContent className="pt-6 space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 space-y-1">
@@ -723,6 +726,12 @@ export default function ScanResult() {
                     <Package className="h-4 w-4" />
                     Scores coming soon
                   </div>
+                )}
+
+                {brandData && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Tap to view full brand profile →
+                  </p>
                 )}
 
               </CardContent>
