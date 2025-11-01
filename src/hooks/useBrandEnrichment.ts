@@ -1,10 +1,11 @@
+import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export function useBrandEnrichment() {
   const { toast } = useToast();
 
-  const fetchSummary = async (brandId: string) => {
+  const fetchSummary = useCallback(async (brandId: string) => {
     try {
       console.log('[useBrandEnrichment] Fetching summary for brand:', brandId);
       const { data, error } = await supabase.functions.invoke('fetch-brand-summary', {
@@ -45,9 +46,9 @@ export function useBrandEnrichment() {
       });
       return false;
     }
-  };
+  }, [toast]);
 
-  const fetchLogo = async (brandId: string) => {
+  const fetchLogo = useCallback(async (brandId: string) => {
     try {
       console.log('[useBrandEnrichment] Fetching logo for brand:', brandId);
       const { data, error } = await supabase.functions.invoke('resolve-brand-logo', {
@@ -88,9 +89,9 @@ export function useBrandEnrichment() {
       });
       return false;
     }
-  };
+  }, [toast]);
 
-  const enrichBrand = async (brandId: string) => {
+  const enrichBrand = useCallback(async (brandId: string) => {
     try {
       console.log('[useBrandEnrichment] Enriching brand:', brandId);
       const { data, error } = await supabase.functions.invoke('enrich-brand-wiki', {
@@ -124,7 +125,7 @@ export function useBrandEnrichment() {
       });
       return false;
     }
-  };
+  }, [toast]);
 
   return { fetchSummary, fetchLogo, enrichBrand };
 }
