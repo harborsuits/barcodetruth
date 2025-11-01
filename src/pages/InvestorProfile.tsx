@@ -14,27 +14,43 @@ export default function InvestorProfile() {
     queryFn: async () => {
       if (!id) return null;
 
-      // Get shareholder holdings
+      // Get shareholder holdings from company_shareholders
       const { data: holdings, error } = await supabase
         .from('company_shareholders')
-        .select('holder_name, holder_type, company_id, pct')
+        .select('holder_name, holder_type, company_id, pct, holder_wikidata_qid')
         .eq('holder_name', decodeURIComponent(id));
 
-      if (error) throw error;
+      if (error) {
+        console.error('[InvestorProfile] Error fetching holdings:', error);
+        throw error;
+      }
+      
       if (!holdings || holdings.length === 0) return null;
 
       // Get company details for each holding
-      const companyIds = holdings.map(h => h.company_id);
+      const companyIds = [...new Set(holdings.map(h => h.company_id))];
       const { data: companies } = await supabase
         .from('companies')
-        .select('id, name, logo_url, is_public, ticker')
+        .select('id, name, logo_url, is_public, ticker, wikidata_qid')
         .in('id', companyIds);
 
+      // Also get brands for these companies
+      const { data: brands } = await supabase
+        .from('brands')
+        .select('id, name, logo_url, wikidata_qid')
+        .in('wikidata_qid', companies?.map(c => c.wikidata_qid).filter(Boolean) || []);
+
       // Merge the data
-      return holdings.map(holding => ({
-        ...holding,
-        company: companies?.find(c => c.id === holding.company_id)
-      }));
+      return holdings.map(holding => {
+        const company = companies?.find(c => c.id === holding.company_id);
+        const brand = brands?.find(b => b.wikidata_qid === company?.wikidata_qid);
+        
+        return {
+          ...holding,
+          company,
+          brand // Include brand info for linking
+        };
+      });
     },
     enabled: !!id,
   });
@@ -99,22 +115,38 @@ export default function InvestorProfile() {
         </p>
 
         <div className="space-y-4">
-          {shareholderData.map((holding) => {
+          {shareholderData.map((holding, idx) => {
             const company = holding.company;
+            const brand = holding.brand;
+            const linkTo = brand?.id ? `/brand/${brand.id}` : '#';
+            const hasLink = brand?.id;
 
             return (
-              <div key={holding.company_id} className="border rounded-lg p-4">
+              <div key={`${holding.company_id}-${idx}`} className="border rounded-lg p-4 hover:bg-accent/50 transition-colors">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {company?.logo_url && (
+                  <div className="flex items-center gap-3 flex-1">
+                    {(brand?.logo_url || company?.logo_url) && (
                       <img
-                        src={company.logo_url}
-                        alt={company.name}
+                        src={brand?.logo_url || company?.logo_url || ''}
+                        alt={brand?.name || company?.name || 'Company logo'}
                         className="h-10 w-10 object-contain"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
                       />
                     )}
-                    <div>
-                      <h3 className="font-semibold">{company?.name || 'Unknown Company'}</h3>
+                    <div className="flex-1">
+                      {hasLink ? (
+                        <Link to={linkTo}>
+                          <h3 className="font-semibold hover:underline">
+                            {brand?.name || company?.name || 'Unknown Company'}
+                          </h3>
+                        </Link>
+                      ) : (
+                        <h3 className="font-semibold">
+                          {company?.name || 'Unknown Company'}
+                        </h3>
+                      )}
                       {company?.ticker && (
                         <p className="text-xs text-muted-foreground">
                           {company.ticker} • {company.is_public ? 'Public' : 'Private'}
@@ -122,8 +154,8 @@ export default function InvestorProfile() {
                       )}
                     </div>
                   </div>
-                  {holding.pct && (
-                    <div className="text-right">
+                  {holding.pct !== null && holding.pct > 0 && (
+                    <div className="text-right ml-4">
                       <div className="font-semibold">{holding.pct.toFixed(2)}%</div>
                       <div className="text-xs text-muted-foreground">Stake</div>
                     </div>

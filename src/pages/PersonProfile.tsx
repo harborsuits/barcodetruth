@@ -14,27 +14,43 @@ export default function PersonProfile() {
     queryFn: async () => {
       if (!id) return null;
 
-      // Get person positions
+      // Get person positions from company_people
       const { data: positions, error } = await supabase
         .from('company_people')
         .select('person_name, role, person_qid, image_url, company_id')
         .eq('person_name', decodeURIComponent(id));
 
-      if (error) throw error;
+      if (error) {
+        console.error('[PersonProfile] Error fetching positions:', error);
+        throw error;
+      }
+      
       if (!positions || positions.length === 0) return null;
 
       // Get company details for each position
-      const companyIds = positions.map(p => p.company_id);
+      const companyIds = [...new Set(positions.map(p => p.company_id))];
       const { data: companies } = await supabase
         .from('companies')
-        .select('id, name, logo_url, is_public, ticker')
+        .select('id, name, logo_url, is_public, ticker, wikidata_qid')
         .in('id', companyIds);
 
+      // Also get brands for these companies
+      const { data: brands } = await supabase
+        .from('brands')
+        .select('id, name, logo_url, wikidata_qid')
+        .in('wikidata_qid', companies?.map(c => c.wikidata_qid).filter(Boolean) || []);
+
       // Merge the data
-      return positions.map(position => ({
-        ...position,
-        company: companies?.find(c => c.id === position.company_id)
-      }));
+      return positions.map(position => {
+        const company = companies?.find(c => c.id === position.company_id);
+        const brand = brands?.find(b => b.wikidata_qid === company?.wikidata_qid);
+        
+        return {
+          ...position,
+          company,
+          brand // Include brand info for linking
+        };
+      });
     },
     enabled: !!id,
   });
@@ -118,20 +134,38 @@ export default function PersonProfile() {
         <div className="space-y-4">
           {personData.map((position, idx) => {
             const company = position.company;
+            const brand = position.brand;
+            const linkTo = brand?.id ? `/brand/${brand.id}` : '#';
+            const hasLink = brand?.id;
 
             return (
-              <div key={`${position.company_id}-${idx}`} className="border rounded-lg p-4">
+              <div key={`${position.company_id}-${idx}`} className="border rounded-lg p-4 hover:bg-accent/50 transition-colors">
                 <div className="flex items-center gap-3">
-                  {company?.logo_url && (
+                  {(brand?.logo_url || company?.logo_url) && (
                     <img
-                      src={company.logo_url}
-                      alt={company.name}
+                      src={brand?.logo_url || company?.logo_url || ''}
+                      alt={brand?.name || company?.name || 'Company logo'}
                       className="h-10 w-10 object-contain"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
                     />
                   )}
-                  <div>
-                    <h3 className="font-semibold">{company?.name || 'Unknown Company'}</h3>
-                    <p className="text-sm text-muted-foreground">{position.role}</p>
+                  <div className="flex-1">
+                    {hasLink ? (
+                      <Link to={linkTo}>
+                        <h3 className="font-semibold hover:underline">
+                          {brand?.name || company?.name || 'Unknown Company'}
+                        </h3>
+                      </Link>
+                    ) : (
+                      <h3 className="font-semibold">
+                        {company?.name || 'Unknown Company'}
+                      </h3>
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                      {position.role}
+                    </p>
                     {company?.ticker && (
                       <p className="text-xs text-muted-foreground">
                         {company.ticker} • {company.is_public ? 'Public' : 'Private'}
