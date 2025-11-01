@@ -30,6 +30,10 @@ export function CorporateFamilyTree({ graph }: CorporateFamilyTreeProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loadingEntity, setLoadingEntity] = useState<string | null>(null);
+  
+  // Filter out subsidiaries that already appear in siblings to avoid duplication
+  const siblingQids = new Set(graph.siblings.map(s => s.qid));
+  const uniqueSubsidiaries = graph.subsidiaries.filter(sub => !siblingQids.has(sub.qid));
 
   const handleEntityClick = async (entity: RelatedEntity) => {
     if (!entity.qid) {
@@ -174,17 +178,20 @@ export function CorporateFamilyTree({ graph }: CorporateFamilyTreeProps) {
       )}
       
       {/* Subsidiaries - Logo Grid */}
-      {graph.subsidiaries.length > 0 && (
+      {uniqueSubsidiaries.length > 0 && (
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
-            <h4 className="text-sm font-medium text-muted-foreground">Owns</h4>
+            <h4 className="text-sm font-medium text-muted-foreground">Owns (Subsidiaries)</h4>
             <Badge variant="secondary" className="text-xs">
-              {graph.subsidiaries.length}
+              {uniqueSubsidiaries.length}
             </Badge>
           </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            Companies that {graph.entity_name} directly controls or owns
+          </p>
           
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
-            {graph.subsidiaries.map((sub) => (
+            {uniqueSubsidiaries.map((sub) => (
               <button
                 key={sub.qid}
                 onClick={() => handleEntityClick(sub)}
@@ -280,7 +287,7 @@ export function CorporateFamilyTree({ graph }: CorporateFamilyTreeProps) {
       )}
       
       {/* Empty state */}
-      {!graph.parent && graph.siblings.length === 0 && graph.subsidiaries.length === 0 && graph.cousins.length === 0 && (
+      {!graph.parent && graph.siblings.length === 0 && uniqueSubsidiaries.length === 0 && graph.cousins.length === 0 && (
         <div className="text-center py-8 px-4">
           <Building2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
           <h4 className="font-semibold mb-2">No Parent or Subsidiary Relationships</h4>
