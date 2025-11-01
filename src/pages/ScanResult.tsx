@@ -106,29 +106,30 @@ export default function ScanResult() {
     queryKey: ['brand-scores', product?.brand_id],
     enabled: FEATURES.companyScore && Boolean(product?.brand_id),
     queryFn: async () => {
-      const API = import.meta.env.VITE_SUPABASE_URL + "/functions/v1/v1-brands";
-      const res = await fetch(`${API}/brands/${product!.brand_id}`);
-      
-      if (!res.ok) throw new Error('Failed to fetch brand data');
-      
-      const data = await res.json();
-      
-      // Skip brands without verified scores (no defaults!)
-      if (!data.score || !data.last_event_at) {
-        throw new Error('No verified score available');
+      try {
+        const API = import.meta.env.VITE_SUPABASE_URL + "/functions/v1/v1-brands";
+        const res = await fetch(`${API}/brands/${product!.brand_id}`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        // Skip brands without verified scores (no defaults!)
+        if (!data.score || !data.last_event_at) {
+          return null;
+        }
+        // Convert Edge API response to expected format
+        return {
+          id: data.brand_id,
+          name: data.name,
+          brand_scores: [{
+            score_labor: data.score,
+            score_environment: data.score,
+            score_politics: data.score,
+            score_social: data.score,
+          }]
+        } as BrandWithScores;
+      } catch (e) {
+        console.error('[ScanResult] brand fetch failed:', e);
+        return null;
       }
-      
-      // Convert Edge API response to expected format
-      return {
-        id: data.brand_id,
-        name: data.name,
-        brand_scores: [{
-          score_labor: data.score,
-          score_environment: data.score,
-          score_politics: data.score,
-          score_social: data.score,
-        }]
-      } as BrandWithScores;
     },
   });
 
@@ -683,7 +684,7 @@ export default function ScanResult() {
       </header>
 
       <main className="container max-w-screen-md mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {(productLoading || brandLoading) ? (
+        {productLoading ? (
           <>
             <Card>
               <CardContent className="pt-6 space-y-4">
@@ -692,7 +693,7 @@ export default function ScanResult() {
               </CardContent>
             </Card>
           </>
-        ) : product && brandData && currentBrandData ? (
+        ) : product ? (
           <>
             {/* Product + Brand Info */}
             <Card>
@@ -701,11 +702,13 @@ export default function ScanResult() {
                   <div className="flex-1 space-y-1">
                     <h2 className="text-lg font-semibold">{product.name}</h2>
                     <div className="flex items-center gap-2">
-                      <p className="text-sm text-[var(--muted)]">{brandData.name}</p>
-                      <OwnershipDrawer 
-                        brandId={product.brand_id} 
-                        brandName={brandData.name} 
-                      />
+                      <p className="text-sm text-[var(--muted)]">{brandData?.name ?? 'Brand'}</p>
+                      {brandData && (
+                        <OwnershipDrawer 
+                          brandId={product.brand_id} 
+                          brandName={brandData.name} 
+                        />
+                      )}
                     </div>
                   </div>
                   <Badge variant="outline" className="text-xs">
@@ -713,13 +716,20 @@ export default function ScanResult() {
                   </Badge>
                 </div>
 
-                <ValueFitBar score={currentBrandData.valueFit} showExplainer />
+                {currentBrandData ? (
+                  <ValueFitBar score={currentBrandData.valueFit} showExplainer />
+                ) : (
+                  <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
+                    <Package className="h-4 w-4" />
+                    Scores coming soon
+                  </div>
+                )}
 
               </CardContent>
             </Card>
 
             {/* Why Should I Care - Personalized explanation */}
-            {(() => {
+            {brandData && currentBrandData && (() => {
               const weights = getUserWeights();
               const userValues = {
                 labor: weights.labor * 100,
@@ -743,20 +753,18 @@ export default function ScanResult() {
             })()}
 
             {/* Better Alternatives - Only show if match < 70% */}
-            {currentBrandData.valueFit < 70 && alternatives && alternatives.length > 0 && (() => {
-              return (
-                <BetterAlternativesCard
-                  alternatives={alternatives}
-                  currentMatch={currentBrandData.valueFit}
-                  currentBrandId={product.brand_id}
-                  onCompare={(brandId) => {
-                    analytics.trackCompareClicked(product.brand_id, brandId);
-                    setCompareBrandId(brandId);
-                    setCompareOpen(true);
-                  }}
-                />
-              );
-            })()}
+            {brandData && currentBrandData && currentBrandData.valueFit < 70 && alternatives && alternatives.length > 0 && (
+              <BetterAlternativesCard
+                alternatives={alternatives}
+                currentMatch={currentBrandData.valueFit}
+                currentBrandId={product.brand_id}
+                onCompare={(brandId) => {
+                  analytics.trackCompareClicked(product.brand_id, brandId);
+                  setCompareBrandId(brandId);
+                  setCompareOpen(true);
+                }}
+              />
+            )}
 
             {/* Product-Level Alternatives */}
             {productAlternatives && productAlternatives.length > 0 && (
@@ -808,7 +816,7 @@ export default function ScanResult() {
             </div>
 
             {/* Alternatives */}
-            {alternatives && (
+            {brandData && currentBrandData && alternatives && (
               <AlternativesDrawer
                 alternatives={alternatives}
                 currentScore={currentBrandData.valueFit}
