@@ -172,9 +172,6 @@ export default function BrandProfile() {
     });
   }, [id, brandId, actualId]);
   
-  const [data, setData] = useState<BrandProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [hasSetDefaultFilter, setHasSetDefaultFilter] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -201,6 +198,151 @@ export default function BrandProfile() {
     });
   }, []);
 
+  // DIRECT QUERY: Basic brand info
+  const { data: brandInfo, isLoading: brandLoading, error: brandError } = useQuery({
+    queryKey: ['brand-basic', actualId, refreshKey],
+    enabled: !!actualId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('brands')
+        .select('id, name, website, logo_url, description, description_source, parent_company, logo_attribution, wikidata_qid')
+        .eq('id', actualId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // DIRECT QUERY: Brand scores
+  const { data: brandScores, isLoading: scoresLoading } = useQuery({
+    queryKey: ['brand-scores-direct', actualId, refreshKey],
+    enabled: !!actualId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('brand_scores')
+        .select('score_labor, score_environment, score_politics, score_social, last_updated, reason_json')
+        .eq('brand_id', actualId)
+        .order('last_updated', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // DIRECT QUERY: Brand events/evidence
+  const { data: evidence, isLoading: evidenceLoading } = useQuery({
+    queryKey: ['brand-evidence-direct', actualId, refreshKey],
+    enabled: !!actualId,
+    queryFn: async () => {
+      const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      const { data, error } = await supabase
+        .from('brand_events')
+        .select(`
+          event_id,
+          title,
+          event_date,
+          category,
+          category_code,
+          verification,
+          description,
+          ai_summary,
+          event_sources!inner(source_name, canonical_url)
+        `)
+        .eq('brand_id', actualId)
+        .gte('event_date', ninetyDaysAgo)
+        .order('event_date', { ascending: false })
+        .limit(50);
+      
+      if (error) throw error;
+      
+      // Transform to match expected structure
+      return (data || []).map(event => ({
+        event_id: event.event_id,
+        title: event.title,
+        event_date: event.event_date,
+        category: event.category,
+        category_code: event.category_code,
+        verification: event.verification,
+        ai_summary: event.ai_summary,
+        source_name: event.event_sources?.[0]?.source_name || null,
+        canonical_url: event.event_sources?.[0]?.canonical_url || null
+      }));
+    }
+  });
+
+  // Calculate coverage stats from evidence
+  const coverage = useMemo(() => {
+    if (!evidence) return {
+      events_7d: 0,
+      events_30d: 0,
+      events_90d: 0,
+      events_365d: 0,
+      verified_rate: 0,
+      independent_sources: 0,
+      last_event_at: null
+    };
+
+    const now = Date.now();
+    const day7 = now - 7 * 24 * 60 * 60 * 1000;
+    const day30 = now - 30 * 24 * 60 * 60 * 1000;
+    const day90 = now - 90 * 24 * 60 * 60 * 1000;
+    
+    const events7d = evidence.filter(e => new Date(e.event_date).getTime() >= day7).length;
+    const events30d = evidence.filter(e => new Date(e.event_date).getTime() >= day30).length;
+    const events90d = evidence.length;
+    
+    const verified = evidence.filter(e => e.verification === 'official').length;
+    const verifiedRate = events90d > 0 ? verified / events90d : 0;
+    
+    const uniqueSources = new Set(evidence.map(e => e.source_name).filter(Boolean)).size;
+    
+    const lastEvent = evidence.length > 0 ? evidence[0].event_date : null;
+
+    return {
+      events_7d: events7d,
+      events_30d: events30d,
+      events_90d: events90d,
+      events_365d: events90d, // Using 90d as proxy
+      verified_rate: verifiedRate,
+      independent_sources: uniqueSources,
+      last_event_at: lastEvent
+    };
+  }, [evidence]);
+
+  // Combine into data object for backward compatibility
+  const data = useMemo<BrandProfile | null>(() => {
+    if (!brandInfo) return null;
+    
+    return {
+      brand: {
+        id: brandInfo.id,
+        name: brandInfo.name,
+        website: brandInfo.website,
+        logo_url: brandInfo.logo_url,
+        description: brandInfo.description,
+        description_source: brandInfo.description_source,
+        parent_company: brandInfo.parent_company,
+        logo_attribution: brandInfo.logo_attribution
+      },
+      score: brandScores ? {
+        score: null, // Not returned by direct query
+        score_labor: brandScores.score_labor,
+        score_environment: brandScores.score_environment,
+        score_politics: brandScores.score_politics,
+        score_social: brandScores.score_social,
+        updated_at: brandScores.last_updated,
+        reason_json: brandScores.reason_json
+      } : null,
+      coverage,
+      evidence: evidence || [],
+      ownership: null // Using new ownership system
+    };
+  }, [brandInfo, brandScores, coverage, evidence]);
+
+  const loading = brandLoading || scoresLoading || evidenceLoading;
+  const error = brandError ? (brandError as Error).message : null;
+
   // Fetch user preferences for value matching
   const { data: userPreferences } = useQuery({
     queryKey: ['user-preferences', user?.id],
@@ -213,19 +355,19 @@ export default function BrandProfile() {
 
   // Auto-switch to Noise tab if all events are noise (only on initial load)
   useEffect(() => {
-    if (!data?.evidence || hasSetDefaultFilter || loading) return;
+    if (!evidence || hasSetDefaultFilter || loading) return;
     
-    const nonNoiseEvents = data.evidence.filter(ev => 
+    const nonNoiseEvents = evidence.filter(ev => 
       !ev.category_code?.startsWith('NOISE')
     );
     
     // If all events are noise, default to Noise tab
-    if (data.evidence.length > 0 && nonNoiseEvents.length === 0) {
+    if (evidence.length > 0 && nonNoiseEvents.length === 0) {
       setCategoryFilter('Noise');
     }
     
     setHasSetDefaultFilter(true);
-  }, [data?.evidence, hasSetDefaultFilter, loading]);
+  }, [evidence, hasSetDefaultFilter, loading]);
 
   const { data: personalizedScore } = useQuery({
     queryKey: ['personalized-score', actualId, user?.id],
@@ -340,97 +482,17 @@ export default function BrandProfile() {
     enabled: !!actualId,
   });
 
-  useEffect(() => {
-    if (!actualId) {
-      setError('Brand ID is required');
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    (async () => {
-      try {
-        const { data: profileData, error: profileError } = await supabase
-          .rpc('brand_profile_view', { p_brand_id: actualId });
-
-        if (profileError) throw profileError;
-        if (!profileData) throw new Error('Brand not found');
-
-        // Cast to any to work with the JSON structure
-        const rawData: any = profileData;
-        
-        // Cast to BrandProfile type
-        const result = rawData as BrandProfile;
-        
-        console.log('[BrandProfile] RPC result:', {
-          brand_id: actualId,
-          brand_name: result?.brand?.name,
-          evidence_count: result?.evidence?.length ?? 0,
-          evidence_sample: result?.evidence?.slice(0, 2),
-          coverage: result?.coverage,
-          has_error: !!profileError
-        });
-        
-        if (!result?.brand) {
-          setError('Brand not found');
-          return;
-        }
-
-        setData(result);
-        
-        // Debug log brand data
-        console.log('[BrandProfile] Brand data loaded:', {
-          brand_id: actualId,
-          brand_name: result?.brand?.name,
-          has_logo: !!result?.brand?.logo_url,
-          logo_url: result?.brand?.logo_url,
-          has_description: !!result?.brand?.description,
-          description_length: result?.brand?.description?.length || 0,
-          parent_company: result?.brand?.parent_company
-        });
-      } catch (e: any) {
-        console.error('[BrandProfile] Failed to load brand profile:', e);
-        setError(e?.message ?? 'Failed to load brand profile');
-        toast({
-          title: 'Error loading brand',
-          description: e?.message ?? 'Failed to load brand profile',
-          variant: 'destructive'
-        });
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [actualId, refreshKey]);
-
-  // Coverage calculation - needs to be before health check
-  const coverage = data?.coverage ?? {
-    events_7d: 0,
-    events_30d: 0,
-    events_90d: 0,
-    events_365d: 0,
-    verified_rate: 0,
-    independent_sources: 0,
-    last_event_at: null
-  };
-
   // SELF-HEALING HEALTH CHECK - Runs ONCE on page load to ensure brand completeness
   const hasRunHealthCheck = useRef(false);
   
   useEffect(() => {
-    if (!actualId || !data?.brand || hasRunHealthCheck.current) return;
+    if (!actualId || !data?.brand || !brandInfo || hasRunHealthCheck.current) return;
 
     const healthCheck = async () => {
       hasRunHealthCheck.current = true; // Prevent re-runs
       console.log('[Health Check] Analyzing brand:', data.brand?.name);
 
-      // Fetch wikidata_qid separately since it's not in brand_profile_view response
-      const { data: brandData } = await supabase
-        .from('brands')
-        .select('wikidata_qid')
-        .eq('id', actualId)
-        .single();
-      
-      const wikidataQid = brandData?.wikidata_qid;
+      const wikidataQid = brandInfo.wikidata_qid;
       console.log('[Health Check] Wikidata QID:', wikidataQid);
 
       // Define what "complete" means for a brand
@@ -539,7 +601,7 @@ export default function BrandProfile() {
     // Run health check once on mount
     const timer = setTimeout(healthCheck, 2000);
     return () => clearTimeout(timer);
-  }, [actualId, data?.brand]); // Only depend on brand ID and initial data
+  }, [actualId, data?.brand, brandInfo]); // Depend on brand ID and initial data
 
   if (loading) {
     return (
