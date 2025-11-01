@@ -84,6 +84,19 @@ serve(async (req) => {
           const wikidataJson = await wikidataResp.json();
           const entity = wikidataJson.entities[brand.wikidata_qid];
           
+          // Capture official website (P856) as fallback for domain-based logo providers
+          try {
+            const websiteClaim = entity?.claims?.P856;
+            const siteValue = websiteClaim && websiteClaim.length > 0
+              ? websiteClaim[0]?.mainsnak?.datavalue?.value
+              : null;
+            if (typeof siteValue === 'string' && siteValue.length > 0) {
+              // Normalize
+              const url = siteValue.startsWith('http') ? siteValue : `https://${siteValue}`;
+              websiteFromWikidata = url;
+            }
+          } catch (_) {}
+          
           // Try P154 (logo) first, then P18 (image) as fallback
           const logoProperty = entity?.claims?.P154 || entity?.claims?.P18;
           
@@ -128,9 +141,10 @@ serve(async (req) => {
     }
 
     // Fallback to DuckDuckGo icons if no Commons logo found
-    if (!logoUrl && brand.website) {
+    const websiteCandidate = brand.website || websiteFromWikidata;
+    if (!logoUrl && websiteCandidate) {
       try {
-        let websiteUrl = brand.website;
+        let websiteUrl = websiteCandidate;
         if (!websiteUrl.startsWith('http://') && !websiteUrl.startsWith('https://')) {
           websiteUrl = 'https://' + websiteUrl;
         }
