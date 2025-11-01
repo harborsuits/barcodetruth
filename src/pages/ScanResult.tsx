@@ -69,6 +69,8 @@ export default function ScanResult() {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const lastScanRef = useRef<{ barcode: string; timestamp: number } | null>(null);
 
+  console.log('[ScanResult] Component rendering with barcode:', barcode);
+
   // Debounce repeated scans (10s)
   useEffect(() => {
     if (!barcode) return;
@@ -89,11 +91,15 @@ export default function ScanResult() {
         .eq('barcode', barcode)
         .maybeSingle();
       
+      console.log('[ScanResult] Product query result:', { data, error, barcode });
+      
       if (error) throw error;
       return data as Product | null;
     },
     enabled: !!barcode,
   });
+
+  console.log('[ScanResult] Product state:', { product, productLoading, productError });
 
   // Query brand from Edge API
   const { data: brandData, isLoading: brandLoading } = useQuery({
@@ -260,6 +266,8 @@ export default function ScanResult() {
         }
       });
       
+      console.log('[ScanResult] Product alternatives result:', { data, error });
+      
       if (error) {
         console.error('Error fetching product alternatives:', error);
         return [];
@@ -269,6 +277,8 @@ export default function ScanResult() {
     },
     enabled: !!product?.barcode,
   });
+
+  console.log('[ScanResult] Product alternatives state:', productAlternatives);
 
   // Query compare brand from Edge API
   const { data: compareBrand } = useQuery({
