@@ -149,6 +149,21 @@ export default function ScanResult() {
     },
   });
 
+  // Fallback: direct brand_scores table if API is failing
+  const { data: brandScores } = useQuery({
+    queryKey: ['brand-scores-fallback', product?.brand_id],
+    enabled: !!product?.brand_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('brand_scores')
+        .select('score_labor, score_environment, score_politics, score_social')
+        .eq('brand_id', product!.brand_id)
+        .maybeSingle();
+      if (error) return null;
+      return data as BrandScores | null;
+    },
+  });
+
   // Fetch recent brand events (last 12 months)
   const { data: recentEvents } = useQuery({
     queryKey: ['recentEvents', product?.brand_id],
@@ -411,15 +426,16 @@ export default function ScanResult() {
   });
 
   // Calculate current brand data BEFORE using it in handlers
-  const currentBrandData = brandData && brandData.brand_scores[0] && {
-    brand_id: brandData.id,
-    brand_name: brandData.name,
-    valueFit: calculateValueFit(brandData.brand_scores[0], getUserWeights()),
+  const resolvedScores = brandData?.brand_scores?.[0] || brandScores || null;
+  const currentBrandData = resolvedScores && {
+    brand_id: product?.brand_id || '',
+    brand_name: brandData?.name || brandInfo?.name || 'Brand',
+    valueFit: calculateValueFit(resolvedScores, getUserWeights()),
     scores: {
-      labor: brandData.brand_scores[0].score_labor,
-      environment: brandData.brand_scores[0].score_environment,
-      politics: brandData.brand_scores[0].score_politics,
-      social: brandData.brand_scores[0].score_social,
+      labor: resolvedScores.score_labor,
+      environment: resolvedScores.score_environment,
+      politics: resolvedScores.score_politics,
+      social: resolvedScores.score_social,
     },
     events: events ?? [],
   };
@@ -457,7 +473,7 @@ export default function ScanResult() {
         body: { barcode }
       });
       
-      if (error || data?.success) return null;
+      if (error || !data?.success) return null;
       return data?.owner_guess || null;
     },
     enabled: !!productError && !!barcode,
@@ -796,9 +812,11 @@ export default function ScanResult() {
               <Card>
                 <CardHeader>
                   <h3 className="text-base font-semibold">Specific Products You Can Buy</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Based on your values ({Math.round(currentBrandData.valueFit)}% match with current product)
-                  </p>
+                  {currentBrandData && (
+                    <p className="text-sm text-muted-foreground">
+                      Based on your values ({Math.round(currentBrandData.valueFit)}% match with current product)
+                    </p>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {productAlternatives.map((alt: any) => (
