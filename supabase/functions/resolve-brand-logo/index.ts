@@ -67,6 +67,7 @@ serve(async (req) => {
 
     let logoUrl = null;
     let attribution = null;
+    let websiteFromWikidata = null;
 
     // Try Wikimedia Commons first - check both P154 (logo) and P18 (image)
     if (brand.wikidata_qid) {
