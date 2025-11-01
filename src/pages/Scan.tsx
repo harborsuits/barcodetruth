@@ -246,14 +246,14 @@ export const Scan = () => {
           description: `${product.product_name} - ${brandInfo}`
         });
         
-        // Navigate to brand page (shows corporate family, key people, evidence, scores)
+        // Navigate to scan result page (shows product, alternatives, then brand details)
         setTimeout(() => {
-          analytics.track('scan_route_brand', { 
+          analytics.track('scan_route_result', { 
             brand_id: product.brand_id, 
             barcode: product.barcode,
             product_name: product.product_name
           });
-          navigate(`/brand/${product.brand_id}`);
+          navigate(`/scan/${product.barcode}`);
         }, 800);
       } else {
         setScanResult('not_found');

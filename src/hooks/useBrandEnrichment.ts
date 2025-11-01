@@ -90,5 +90,41 @@ export function useBrandEnrichment() {
     }
   };
 
-  return { fetchSummary, fetchLogo };
+  const enrichBrand = async (brandId: string) => {
+    try {
+      console.log('[useBrandEnrichment] Enriching brand:', brandId);
+      const { data, error } = await supabase.functions.invoke('enrich-brand-wiki', {
+        body: { brand_id: brandId }
+      });
+      
+      console.log('[useBrandEnrichment] Enrich response:', data, error);
+      if (error) throw error;
+      
+      if (data?.ok) {
+        toast({
+          title: 'Brand enriched',
+          description: 'Brand data updated from Wikidata.',
+        });
+        return true;
+      } else {
+        const reason = data?.reason || 'unknown';
+        toast({
+          title: 'Enrichment failed',
+          description: `Could not enrich brand: ${reason}`,
+          variant: 'destructive'
+        });
+        return false;
+      }
+    } catch (error: any) {
+      console.error('Error enriching brand:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to enrich brand.',
+        variant: 'destructive'
+      });
+      return false;
+    }
+  };
+
+  return { fetchSummary, fetchLogo, enrichBrand };
 }
