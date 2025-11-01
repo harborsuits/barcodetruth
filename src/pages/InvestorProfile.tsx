@@ -4,9 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Building2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePreloadRelated } from "@/hooks/usePreloadRelated";
 
 export default function InvestorProfile() {
   const { id } = useParams<{ id: string }>();
+  
+  // Enable smart pre-loading for related entities
+  usePreloadRelated({ investorId: id });
 
   // Fetch shareholder data and their holdings
   const { data: shareholderData, isLoading } = useQuery({

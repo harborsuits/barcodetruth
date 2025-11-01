@@ -4,9 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { User, ArrowLeft, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePreloadRelated } from "@/hooks/usePreloadRelated";
 
 export default function PersonProfile() {
   const { id } = useParams<{ id: string }>();
+  
+  // Enable smart pre-loading for related entities
+  usePreloadRelated({ personId: id });
 
   // Fetch person data and their positions
   const { data: personData, isLoading } = useQuery({

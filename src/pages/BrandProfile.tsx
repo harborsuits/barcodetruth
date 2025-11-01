@@ -1,5 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
+import { usePreloadRelated } from '@/hooks/usePreloadRelated';
+import { usePredictiveCache } from '@/hooks/usePredictiveCache';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
@@ -203,6 +205,10 @@ export default function BrandProfile() {
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [suggestDialogOpen, setSuggestDialogOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>();
+
+  // Enable smart pre-loading and predictive caching
+  usePreloadRelated({ brandId: actualId });
+  usePredictiveCache(actualId);
 
   // Check for new ownership data to hide legacy cards
   const { data: ownership } = useOwnership(actualId);
