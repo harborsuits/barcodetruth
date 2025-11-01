@@ -44,12 +44,18 @@ Deno.serve(async (req) => {
       .single();
 
     if (scanError || !scannedProduct) {
-      console.warn('Product not found for barcode:', barcode);
+      console.warn('[ALTERNATIVES] Product not found for barcode:', barcode, scanError);
       return new Response(
         JSON.stringify({ alternatives: [] }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log('[ALTERNATIVES] Scanned product:', {
+      id: scannedProduct.id,
+      brand_id: scannedProduct.brand_id,
+      category: scannedProduct.category
+    });
 
     // Get user preferences if user_id provided
     let userPreferences = null;
@@ -73,8 +79,15 @@ Deno.serve(async (req) => {
       .neq('brand_id', scannedProduct.brand_id)
       .limit(limit * 3);
 
+    console.log('[ALTERNATIVES] Products query result:', {
+      category: scannedProduct.category,
+      excluded_brand: scannedProduct.brand_id,
+      found_count: products?.length || 0,
+      error: altError
+    });
+
     if (altError || !products || products.length === 0) {
-      console.warn('No alternative products found:', altError);
+      console.warn('[ALTERNATIVES] No alternative products found:', altError);
       return new Response(
         JSON.stringify({ alternatives: [] }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -95,8 +108,16 @@ Deno.serve(async (req) => {
       .select('brand_id, score_labor, score_environment, score_politics, score_social, score')
       .in('brand_id', brandIds);
 
+    console.log('[ALTERNATIVES] Brand data fetched:', {
+      unique_brands: brandIds.length,
+      brands_found: brands?.length || 0,
+      scores_found: scores?.length || 0,
+      brand_error: brandError,
+      score_error: scoreError
+    });
+
     if (brandError || scoreError) {
-      console.error('Error fetching brand data:', brandError || scoreError);
+      console.error('[ALTERNATIVES] Error fetching brand data:', brandError || scoreError);
       return new Response(
         JSON.stringify({ alternatives: [] }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -148,6 +169,12 @@ Deno.serve(async (req) => {
       .filter((alt): alt is ProductAlternative => alt !== null)
       .sort((a, b) => b.avg_score - a.avg_score)
       .slice(0, limit);
+
+    console.log('[ALTERNATIVES] Final result:', {
+      total_processed: products.length,
+      with_brand_and_scores: transformedAlternatives.length,
+      returning: transformedAlternatives.length
+    });
 
     return new Response(
       JSON.stringify({ alternatives: transformedAlternatives }),
