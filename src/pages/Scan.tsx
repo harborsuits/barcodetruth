@@ -253,7 +253,7 @@ export const Scan = () => {
             barcode: product.barcode,
             product_name: product.product_name
           });
-          navigate(`/scan/${product.barcode}`);
+          navigate(`/scan-result/${product.barcode}`);
         }, 800);
       } else {
         setScanResult('not_found');
