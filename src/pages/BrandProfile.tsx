@@ -603,8 +603,9 @@ export default function BrandProfile() {
       // TWO-STEP ENRICHMENT PROCESS
       // STEP 1: Seed base data (creates foundation)
       // STEP 2: Enrich details (adds people/shareholders)
+      // NOTE: Skip if no Wikidata QID (prevents ambiguous searches)
       
-      if (!checks.hasCorporateFamily || !checks.hasKeyPeople || !checks.hasShareholderData) {
+      if (wikidataQid && (!checks.hasCorporateFamily || !checks.hasKeyPeople || !checks.hasShareholderData)) {
         console.log('[Health Check] → Running enrichment sequence (seed → enrich)');
         promises.push(
           supabase.functions.invoke('seed-brand-base-data', {
@@ -627,7 +628,7 @@ export default function BrandProfile() {
           .then(() => console.log('[Health Check] ✓ Enrichment complete'))
           .catch(err => console.error('[Health Check] ✗ Enrichment failed:', err))
         );
-      } else if (!checks.hasDescription) {
+      } else if (wikidataQid && !checks.hasDescription) {
         console.log('[Health Check] → Fixing description only');
         promises.push(
           supabase.functions.invoke('enrich-brand-wiki', {
@@ -637,6 +638,8 @@ export default function BrandProfile() {
             }
           }).catch(err => console.error('[Health Check] Description fix failed:', err))
         );
+      } else if (!wikidataQid) {
+        console.log('[Health Check] ⚠ Skipping enrichment - no Wikidata QID available');
       }
 
       if (!checks.hasLogo) {
