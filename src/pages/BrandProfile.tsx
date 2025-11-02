@@ -642,14 +642,10 @@ export default function BrandProfile() {
         console.log('[Health Check] ⚠ Skipping enrichment - no Wikidata QID available');
       }
 
-      if (!checks.hasLogo) {
-        console.log('[Health Check] → Fixing logo');
-        promises.push(
-          supabase.functions.invoke('resolve-brand-logo', {
-            body: { brand_id: actualId }
-          }).catch(err => console.error('[Health Check] Logo failed:', err))
-        );
-      }
+      // NOTE: Logo handling is done via:
+      // 1. Client-side fallback (useBrandLogo hook) - instant, no edge function calls
+      // 2. Nightly batch job (batch-resolve-logos) - persists logos to database
+      // NO per-page edge function calls - that's wasteful and causes crashes!
 
       if (!checks.hasMinimumEvents) {
         console.log('[Health Check] → Queuing news ingestion');
