@@ -504,26 +504,30 @@ export default function BrandProfile() {
     enabled: !!actualId,
   });
 
-  // Fetch community ratings to determine if we have enough data for scores
-  const RATING_THRESHOLD = 25;
-  const { data: communityOutlook } = useQuery({
-    queryKey: ['community-outlook', actualId],
-    queryFn: async () => {
-      if (!actualId) return null;
-      const { data, error } = await supabase.functions.invoke('community-outlook', {
-        body: { brand_id: actualId },
-      });
-      if (error) {
-        console.error('Error fetching community outlook:', error);
-        return null;
-      }
-      return data;
-    },
-    enabled: !!actualId,
-  });
+  // ⚠️ DISABLED: community-outlook edge function was boot-looping
+  // This caused 500 errors on every page load. Community ratings are not critical
+  // for page functionality - they're just used to show/hide rating counts in CategoryScoreCard.
+  //
+  // TODO: Move to batch job or client-side aggregation
+  // const { data: communityOutlook } = useQuery({
+  //   queryKey: ['community-outlook', actualId],
+  //   queryFn: async () => {
+  //     if (!actualId) return null;
+  //     const { data, error } = await supabase.functions.invoke('community-outlook', {
+  //       body: { brand_id: actualId },
+  //     });
+  //     if (error) {
+  //       console.error('Error fetching community outlook:', error);
+  //       return null;
+  //     }
+  //     return data;
+  //   },
+  //   enabled: !!actualId,
+  // });
 
-  const totalCommunityRatings = communityOutlook?.categories?.reduce((sum: number, cat: any) => sum + (cat.n || 0), 0) || 0;
-  const hasEnoughRatings = totalCommunityRatings >= RATING_THRESHOLD;
+  const communityOutlook = null; // Disabled until we implement batch aggregation
+  const totalCommunityRatings = 0;
+  const hasEnoughRatings = false;
 
   // Fetch company info (ownership, key people, valuation)
   const { data: companyInfo, refetch: refetchCompanyInfo } = useQuery({
@@ -559,125 +563,32 @@ export default function BrandProfile() {
     enabled: !!actualId,
   });
 
-  // SELF-HEALING HEALTH CHECK - Runs ONCE on page load to ensure brand completeness
-  const hasRunHealthCheck = useRef(false);
-  
-  useEffect(() => {
-    if (!actualId || !data?.brand || !brandInfo || hasRunHealthCheck.current) return;
-
-    const healthCheck = async () => {
-      hasRunHealthCheck.current = true; // Prevent re-runs
-      console.log('[Health Check] Analyzing brand:', data.brand?.name);
-
-      const wikidataQid = brandInfo.wikidata_qid;
-      console.log('[Health Check] Wikidata QID:', wikidataQid);
-
-      // Define what "complete" means for a brand
-      const checks = {
-        hasCorporateFamily: !!ownership?.structure?.chain?.length || !!ownership?.shareholders?.top?.length,
-        hasKeyPeople: keyPeople.length > 0,
-        hasShareholderData: shareholders.length > 0,
-        hasLogo: !!data.brand?.logo_url,
-        hasDescription: !!data.brand?.description,
-        hasMinimumEvents: (coverage.events_90d ?? 0) >= 5
-      };
-
-      const isComplete = Object.values(checks).every(Boolean);
-
-      if (isComplete) {
-        console.log('[Health Check] ✓ Brand is complete');
-        return;
-      }
-
-      console.log('[Health Check] ⚠ Missing data:', 
-        Object.entries(checks)
-          .filter(([_, value]) => !value)
-          .map(([key]) => key)
-      );
-
-      console.log('[Health Check] 🔧 Triggering auto-fix...');
-
-      // TRIGGER ALL MISSING ENRICHMENTS IN PARALLEL
-      const promises: Promise<any>[] = [];
-
-      // TWO-STEP ENRICHMENT PROCESS
-      // STEP 1: Seed base data (creates foundation)
-      // STEP 2: Enrich details (adds people/shareholders)
-      // NOTE: Skip if no Wikidata QID (prevents ambiguous searches)
-      
-      if (wikidataQid && (!checks.hasCorporateFamily || !checks.hasKeyPeople || !checks.hasShareholderData)) {
-        console.log('[Health Check] → Running enrichment sequence (seed → enrich)');
-        promises.push(
-          supabase.functions.invoke('seed-brand-base-data', {
-            body: { 
-              brand_id: actualId,
-              brand_name: data.brand.name,
-              wikidata_qid: wikidataQid
-            }
-          })
-          .then(() => {
-            console.log('[Health Check] ✓ Base data seeded');
-            return supabase.functions.invoke('enrich-brand-wiki', {
-              body: { 
-                brand_id: actualId,
-                wikidata_qid: wikidataQid,
-                mode: 'full'
-              }
-            });
-          })
-          .then(() => console.log('[Health Check] ✓ Enrichment complete'))
-          .catch(err => console.error('[Health Check] ✗ Enrichment failed:', err))
-        );
-      } else if (wikidataQid && !checks.hasDescription) {
-        console.log('[Health Check] → Fixing description only');
-        promises.push(
-          supabase.functions.invoke('enrich-brand-wiki', {
-            body: { 
-              brand_id: actualId,
-              wikidata_qid: wikidataQid
-            }
-          }).catch(err => console.error('[Health Check] Description fix failed:', err))
-        );
-      } else if (!wikidataQid) {
-        console.log('[Health Check] ⚠ Skipping enrichment - no Wikidata QID available');
-      }
-
-      // NOTE: Logo handling is done via:
-      // 1. Client-side fallback (useBrandLogo hook) - instant, no edge function calls
-      // 2. Nightly batch job (batch-resolve-logos) - persists logos to database
-      // NO per-page edge function calls - that's wasteful and causes crashes!
-
-      if (!checks.hasMinimumEvents) {
-        console.log('[Health Check] → Queuing news ingestion');
-        promises.push(
-          supabase.functions.invoke('trigger-brand-ingestion', {
-            body: { 
-              brand_id: actualId,
-              brand_name: data.brand.name,
-              priority: 'high'
-            }
-          }).catch(err => console.error('[Health Check] News ingestion failed:', err))
-        );
-      }
-
-      // Execute all fixes in parallel
-      await Promise.allSettled(promises);
-
-      // Refetch data after enrichment completes
-      setTimeout(() => {
-        console.log('[Health Check] 🔄 Refetching data...');
-        setRefreshKey(k => k + 1);
-        refetchCompanyInfo();
-        queryClient.invalidateQueries({ queryKey: ['key-people', actualId] });
-        queryClient.invalidateQueries({ queryKey: ['top-shareholders', actualId] });
-        queryClient.invalidateQueries({ queryKey: ['brand-ownership', actualId] });
-      }, 5000);
-    };
-
-    // Run health check once on mount
-    const timer = setTimeout(healthCheck, 2000);
-    return () => clearTimeout(timer);
-  }, [actualId, data?.brand, brandInfo]); // Depend on brand ID and initial data
+  // ⚠️ ARCHITECTURE CHANGE: Removed per-page-load edge function calls
+  // 
+  // WHY: Multiple edge functions were boot-looping on every page load:
+  // ❌ seed-brand-base-data - called on mount if missing data
+  // ❌ enrich-brand-wiki - called on mount if missing data  
+  // ❌ trigger-brand-ingestion - called on mount if missing events
+  // ❌ resolve-brand-logo - called on mount if missing logo
+  //
+  // This caused:
+  // - 🐌 Slow page loads (500ms+ per function call)
+  // - 💥 500 errors flooding console
+  // - 💸 Wasted edge function invocations
+  // - 🔄 Boot-loop crashes
+  //
+  // NEW ARCHITECTURE:
+  // ✅ Client-side logic: useBrandLogo hook, Wikidata integration, direct queries
+  // ✅ Batch jobs: nightly-enrichment runs once per day for all brands
+  // ✅ Manual triggers: Admin can trigger enrichment for specific brands when needed
+  //
+  // Data is now enriched via:
+  // 1. Nightly batch jobs (batch-resolve-logos, nightly-enrichment)
+  // 2. Client-side fallbacks (useBrandLogo for logos)
+  // 3. Direct database queries (useWikidataGraph for corporate family)
+  // 4. Manual admin triggers (when needed)
+  //
+  // NO per-page-load edge function calls anymore!
 
   // Ownership data is fetched via useOwnership hook and displayed via WhoProfits component
   // which uses Wikidata integration (working reliably)
