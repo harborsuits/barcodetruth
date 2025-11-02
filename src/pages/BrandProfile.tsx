@@ -248,6 +248,9 @@ export default function BrandProfile() {
         .eq('id', actualId)
         .maybeSingle();
       if (error) throw error;
+      
+      // DEBUG: Log what we got
+      console.log('[BrandProfile] Brand data loaded:', data);
       return data;
     }
   });
@@ -676,6 +679,68 @@ export default function BrandProfile() {
     const timer = setTimeout(healthCheck, 2000);
     return () => clearTimeout(timer);
   }, [actualId, data?.brand, brandInfo]); // Depend on brand ID and initial data
+
+  // DEBUG: Deep dive into data structure for troubleshooting
+  useEffect(() => {
+    if (!brandInfo || !actualId) return;
+
+    const debugBrandData = async () => {
+      console.log('=== 🔍 BRAND DEBUG START ===');
+      console.log('Brand:', brandInfo);
+      
+      // Check ownership as child
+      const { data: asChild } = await supabase
+        .from('company_ownership')
+        .select('*, companies!parent_company_id(id, name, wikidata_qid, is_public, ticker)')
+        .eq('child_brand_id', actualId);
+      console.log('📊 Ownership (as child):', asChild);
+      
+      // Check ownership as parent (if brand has wikidata)
+      if (brandInfo.wikidata_qid) {
+        const { data: asParent } = await supabase
+          .from('company_ownership')
+          .select('*, brands!child_brand_id(id, name)')
+          .eq('parent_company_id', brandInfo.wikidata_qid);
+        console.log('📊 Ownership (as parent):', asParent);
+      }
+      
+      // Check if there's a companies record
+      if (brandInfo.wikidata_qid) {
+        const { data: company } = await supabase
+          .from('companies')
+          .select('*')
+          .eq('wikidata_qid', brandInfo.wikidata_qid)
+          .maybeSingle();
+        console.log('🏢 Companies record:', company);
+      }
+      
+      // Check what useOwnership returns
+      console.log('🔗 useOwnership data:', ownership);
+      
+      console.log('=== 🔍 BRAND DEBUG END ===');
+    };
+    
+    debugBrandData();
+  }, [brandInfo?.id, ownership]);
+
+  // Add enrichment check logging
+  useEffect(() => {
+    if (!brandInfo) return;
+    
+    console.log('[BrandProfile] Enrichment check:', {
+      brandId: brandInfo.id,
+      brandName: brandInfo.name,
+      hasLogo: !!brandInfo.logo_url,
+      hasWikidata: !!brandInfo.wikidata_qid,
+      hasWebsite: !!brandInfo.website,
+      willAutoEnrich: !brandInfo.logo_url && (brandInfo.wikidata_qid || brandInfo.website)
+    });
+    
+    if (!brandInfo.logo_url && (brandInfo.wikidata_qid || brandInfo.website)) {
+      console.log('[BrandProfile] 🚀 Auto-calling fetchLogo...');
+      fetchLogo(brandInfo.id);
+    }
+  }, [brandInfo?.id, brandInfo?.logo_url, fetchLogo]);
 
   if (loading) {
     return (

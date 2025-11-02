@@ -49,31 +49,74 @@ export function useBrandEnrichment() {
   }, [toast]);
 
   const fetchLogo = useCallback(async (brandId: string) => {
+    console.log('🔵 [fetchLogo] Called for:', brandId);
+    
     try {
-      console.log('[useBrandEnrichment] Fetching logo for brand:', brandId);
+      // Get brand data first to see what we're working with
+      const { data: brand, error: brandError } = await supabase
+        .from('brands')
+        .select('id, name, wikidata_qid, website, logo_url')
+        .eq('id', brandId)
+        .single();
+      
+      console.log('🔵 [fetchLogo] Brand data:', brand);
+      
+      if (brandError) {
+        console.error('🔴 [fetchLogo] Error fetching brand:', brandError);
+        throw brandError;
+      }
+      
+      if (!brand.wikidata_qid && !brand.website) {
+        console.log('🔴 [fetchLogo] Cannot enrich - no wikidata_qid or website');
+        toast({
+          title: 'Cannot fetch logo',
+          description: 'Brand needs either a Wikidata ID or website URL.',
+          variant: 'destructive'
+        });
+        return false;
+      }
+      
+      console.log('🔵 [fetchLogo] Invoking edge function...');
+      const start = Date.now();
+      
       const { data, error } = await supabase.functions.invoke('resolve-brand-logo', {
         body: { brand_id: brandId }
       });
       
-      console.log('[useBrandEnrichment] Logo response:', data, error);
-      if (error) throw error;
+      const duration = Date.now() - start;
+      console.log(`🔵 [fetchLogo] Edge function returned in ${duration}ms:`, { data, error });
+      
+      if (error) {
+        console.error('🔴 [fetchLogo] Edge function error:', error);
+        toast({
+          title: 'Logo enrichment failed',
+          description: `${error.message || 'Unknown error'}`,
+          variant: 'destructive'
+        });
+        return false;
+      }
       
       if (data?.ok) {
+        console.log('✅ [fetchLogo] Success! Logo URL:', data.logo_url);
         toast({
           title: 'Logo updated',
-          description: `Brand logo has been fetched from ${data.attribution}.`,
+          description: `Found logo from ${data.attribution}`
         });
         return true;
       } else {
-        // Silent failure for missing logos - fallback will be used
-        console.log('[useBrandEnrichment] Logo not found, using fallback');
+        console.log('⚠️ [fetchLogo] No logo found:', data?.reason);
+        toast({
+          title: 'Logo not found',
+          description: data?.reason || 'Could not find a logo for this brand.',
+        });
         return false;
       }
+      
     } catch (error: any) {
-      console.error('Error fetching logo:', error);
+      console.error('🔴 [fetchLogo] Exception:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to fetch brand logo.',
+        title: 'Logo enrichment error',
+        description: error.message,
         variant: 'destructive'
       });
       return false;
