@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { useParams, useNavigate, Navigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { usePreloadRelated } from '@/hooks/usePreloadRelated';
 import { usePredictiveCache } from '@/hooks/usePredictiveCache';
 import { useBrandEnrichment } from '@/hooks/useBrandEnrichment';
@@ -159,6 +159,10 @@ export default function BrandProfile() {
   const queryClient = useQueryClient();
   const actualId = id || brandId;
   
+  // Get current location state to check if we came from another brand
+  const routerLocation = useLocation();
+  const cameFromBrand = (routerLocation as any)?.state?.fromBrand;
+  
   // Debug log to track brand ID
   useEffect(() => {
     console.log('[BrandProfile] Component mounted with:', {
@@ -190,7 +194,7 @@ export default function BrandProfile() {
         console.log('Unregistered service worker:', reg.scope);
       }
       console.log('Service workers cleared. Reloading...');
-      location.reload();
+      window.location.reload();
     };
     
     // Check environment
@@ -720,6 +724,11 @@ export default function BrandProfile() {
   return (
     <div className="min-h-screen bg-background">
       <main className="container max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {cameFromBrand && (
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="-mt-2 -mb-2 w-fit">
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back to {cameFromBrand}
+          </Button>
+        )}
         {/* Header with brand info and score */}
         <Card>
           <CardContent className="pt-6">

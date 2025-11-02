@@ -61,7 +61,9 @@ export function CorporateFamilyTree({ graph }: CorporateFamilyTreeProps) {
       
       if (data?.success && data.brand_id) {
         console.log('[Entity Click] Navigating to brand:', data.brand_id);
-        navigate(`/brand/${data.brand_id}`);
+        navigate(`/brand/${data.brand_id}`, {
+          state: { fromBrand: graph.entity_name }
+        });
       } else {
         throw new Error('Failed to create brand');
       }
