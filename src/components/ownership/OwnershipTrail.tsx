@@ -111,72 +111,9 @@ export function OwnershipTrail({ brandId }: OwnershipTrailProps) {
         });
       }
       
-      // Walk up the ownership chain
-      let currentId = brandId;
-      let level = 1;
-      const visited = new Set([brandId]);
-      
-      while (level < 10) {
-        // Check for parent company via company_ownership
-        const { data: ownership } = await supabase
-          .from('company_ownership')
-          .select('parent_company_id, relationship_type, confidence, source, companies!parent_company_id(id, name, logo_url)')
-          .eq('child_brand_id', currentId)
-          .eq('relationship_type', 'control')
-          .order('confidence', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        
-        if (ownership?.parent_company_id && !visited.has(ownership.parent_company_id)) {
-          const company = ownership.companies as any;
-          chain.push({
-            entity_id: company.id,
-            entity_type: 'company',
-            entity_name: company.name,
-            logo_url: company.logo_url,
-            parent_id: null,
-            relationship: ownership.relationship_type,
-            source: ownership.source,
-            confidence: ownership.confidence,
-            level,
-          });
-          visited.add(company.id);
-          currentId = company.id;
-          level++;
-          
-          // Now check if this company has a parent
-          const { data: nextOwnership } = await supabase
-            .from('company_ownership')
-            .select('parent_company_id, relationship_type, confidence, source, companies!parent_company_id(id, name, logo_url)')
-            .eq('child_company_id', currentId)
-            .eq('relationship_type', 'control')
-            .order('confidence', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          
-          if (nextOwnership?.parent_company_id && !visited.has(nextOwnership.parent_company_id)) {
-            const nextCompany = nextOwnership.companies as any;
-            chain.push({
-              entity_id: nextCompany.id,
-              entity_type: 'company',
-              entity_name: nextCompany.name,
-              logo_url: nextCompany.logo_url,
-              parent_id: null,
-              relationship: nextOwnership.relationship_type,
-              source: nextOwnership.source,
-              confidence: nextOwnership.confidence,
-              level,
-            });
-            visited.add(nextCompany.id);
-            currentId = nextCompany.id;
-            level++;
-          } else {
-            break;
-          }
-        } else {
-          break;
-        }
-      }
+      // company_ownership queries fail with broken foreign keys
+      // Ownership chain is now handled by WhoProfits component using Wikidata integration
+      // This component only shows the brand itself + shareholders
       
       console.log('[OwnershipTrail] Complete chain built:', chain);
       return chain;
