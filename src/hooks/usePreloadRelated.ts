@@ -24,27 +24,30 @@ export function usePreloadRelated({ brandId, companyId, personId, investorId }: 
             .eq('child_brand_id', brandId)
             .maybeSingle();
 
-          // Pre-load subsidiaries
-          await supabase
-            .from('company_ownership')
-            .select('child_brand_id, brands!company_ownership_child_brand_id_fkey(id, name, logo_url)')
-            .eq('parent_company_id', ownership?.parent_company_id)
-            .limit(10);
+          // Only preload related data if we have a valid parent company
+          if (ownership?.parent_company_id) {
+            // Pre-load subsidiaries
+            await supabase
+              .from('company_ownership')
+              .select('child_brand_id, brands!company_ownership_child_brand_id_fkey(id, name, logo_url)')
+              .eq('parent_company_id', ownership.parent_company_id)
+              .limit(10);
 
-          // Pre-load key people
-          await supabase
-            .from('company_people')
-            .select('*')
-            .eq('company_id', ownership?.parent_company_id)
-            .limit(5);
+            // Pre-load key people
+            await supabase
+              .from('company_people')
+              .select('*')
+              .eq('company_id', ownership.parent_company_id)
+              .limit(5);
 
-          // Pre-load shareholders
-          await supabase
-            .from('company_ownership_details')
-            .select('*')
-            .eq('company_id', ownership?.parent_company_id)
-            .order('percent_owned', { ascending: false })
-            .limit(5);
+            // Pre-load shareholders
+            await supabase
+              .from('company_ownership_details')
+              .select('*')
+              .eq('company_id', ownership.parent_company_id)
+              .order('percent_owned', { ascending: false })
+              .limit(5);
+          }
         }
 
         if (companyId) {

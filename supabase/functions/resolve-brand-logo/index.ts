@@ -44,9 +44,36 @@ serve(async (req) => {
       .single();
 
     if (brandError || !brand) {
+      console.log(JSON.stringify({ 
+        action: 'resolve-brand-logo', 
+        brand_id, 
+        ok: false, 
+        reason: 'brand_not_found',
+        duration_ms: Date.now() - startTime 
+      }));
       return new Response(
-        JSON.stringify({ error: 'Brand not found' }),
+        JSON.stringify({ ok: false, error: 'Brand not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if we have data sources to fetch from
+    if (!brand.wikidata_qid && !brand.website) {
+      console.log(JSON.stringify({ 
+        action: 'resolve-brand-logo', 
+        brand_id, 
+        ok: false, 
+        reason: 'no_data_sources',
+        message: 'Brand has no wikidata_qid or website',
+        duration_ms: Date.now() - startTime 
+      }));
+      return new Response(
+        JSON.stringify({ 
+          ok: false, 
+          reason: 'no_data_sources',
+          message: 'Brand has no wikidata_qid or website to fetch logo from'
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
