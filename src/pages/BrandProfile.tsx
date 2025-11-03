@@ -41,6 +41,7 @@ import { getUserPreferences } from '@/lib/userPreferences';
 import { DataHealthBadge } from '@/components/DataHealthBadge';
 import { AlternativeCard } from '@/components/brand/AlternativeCard';
 import { ReEnrichButton } from '@/components/brand/ReEnrichButton';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 // Hardcoded alternatives mapping for major brands
 const BRAND_ALTERNATIVES: Record<string, Array<{
@@ -161,6 +162,7 @@ export default function BrandProfile() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const actualId = id || brandId;
+  const isAdmin = useIsAdmin();
   
   // Get current location state to check if we came from another brand
   const routerLocation = useLocation();
@@ -719,8 +721,8 @@ export default function BrandProfile() {
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="text-2xl font-bold truncate">{data.brand.name}</h2>
                   
-                  {/* Re-enrich button (useful for fixing wrong Wikidata matches) */}
-                  {brandInfo?.wikidata_qid && (
+                  {/* Re-enrich button (admin-only troubleshooting tool for fixing wrong Wikidata matches) */}
+                  {isAdmin && brandInfo?.wikidata_qid && (
                     <ReEnrichButton 
                       brandId={brandInfo.id}
                       brandName={brandInfo.name}
