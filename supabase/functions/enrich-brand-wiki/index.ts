@@ -69,13 +69,13 @@ serve(async (req) => {
     if (!qid) {
       log('No QID, searching Wikidata for', brand.name);
       
-      // Enhanced search: prefer company-related terms, exclude sports
+      // Enhanced search: exclude sports suffixes
       const cleanName = brand.name
         .replace(/\s+(FC|SC|CF|United|City|Town)$/i, '') // Remove sports suffixes
         .trim();
       
-      // Search with increased limit to find more candidates
-      const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(cleanName + ' company')}&language=en&format=json&type=item&limit=20`;
+      // Search with increased limit to find more candidates (search brand name directly)
+      const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(cleanName)}&language=en&format=json&type=item&limit=20`;
       const searchRes = await fetch(searchUrl);
       const searchData = await searchRes.json();
       
