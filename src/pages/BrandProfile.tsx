@@ -268,38 +268,6 @@ export default function BrandProfile() {
     needsEnrichment
   );
 
-  // Show enrichment UI while enriching or complete
-  if (enrichmentProgress.status === 'enriching' || enrichmentProgress.status === 'complete') {
-    return (
-      <EnrichmentProgress
-        brandName={brandInfo?.name || 'Brand'}
-        status={enrichmentProgress.status}
-        message={enrichmentProgress.message}
-        step={enrichmentProgress.step}
-        totalSteps={enrichmentProgress.totalSteps}
-      />
-    );
-  }
-
-  // If enrichment failed, show error with retry button
-  if (enrichmentProgress.status === 'failed') {
-    return (
-      <div className="container py-8">
-        <Card>
-          <CardHeader>
-            <h1 className="text-2xl font-bold">{brandInfo?.name}</h1>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-destructive">{enrichmentProgress.message}</p>
-            <Button onClick={() => window.location.reload()}>
-              Retry Enrichment
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   // Auto-enrich missing data after brandInfo is loaded
   useEffect(() => {
     if (!brandInfo) return;
@@ -654,6 +622,41 @@ export default function BrandProfile() {
       fetchLogo(brandInfo.id);
     }
   }, [brandInfo?.id, brandInfo?.logo_url, fetchLogo]);
+
+  // ===== ALL HOOKS MUST BE CALLED ABOVE THIS LINE =====
+  // Check enrichment progress AFTER all hooks have been declared
+  
+  // Show enrichment UI while enriching or complete
+  if (enrichmentProgress.status === 'enriching' || enrichmentProgress.status === 'complete') {
+    return (
+      <EnrichmentProgress
+        brandName={brandInfo?.name || 'Brand'}
+        status={enrichmentProgress.status}
+        message={enrichmentProgress.message}
+        step={enrichmentProgress.step}
+        totalSteps={enrichmentProgress.totalSteps}
+      />
+    );
+  }
+
+  // If enrichment failed, show error with retry button
+  if (enrichmentProgress.status === 'failed') {
+    return (
+      <div className="container py-8">
+        <Card>
+          <CardHeader>
+            <h1 className="text-2xl font-bold">{brandInfo?.name}</h1>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-destructive">{enrichmentProgress.message}</p>
+            <Button onClick={() => window.location.reload()}>
+              Retry Enrichment
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
