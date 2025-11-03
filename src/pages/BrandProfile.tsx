@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { usePreloadRelated } from '@/hooks/usePreloadRelated';
 import { usePredictiveCache } from '@/hooks/usePredictiveCache';
 import { useBrandEnrichment } from '@/hooks/useBrandEnrichment';
+import { useAutoEnrichment } from '@/hooks/useAutoEnrichment';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
@@ -10,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ArrowLeft, ExternalLink, AlertCircle, Building2, Link as LinkIcon, Lightbulb } from 'lucide-react';
+import { EnrichmentProgress } from '@/components/brand/EnrichmentProgress';
 import { CategoryScoreCard } from '@/components/brand/CategoryScoreCard';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
@@ -255,27 +257,45 @@ export default function BrandProfile() {
     }
   });
 
-  // Auto-populate missing wikidata_qid from known mappings
-  useEffect(() => {
-    if (!brandInfo) return;
-    
-    // If missing wikidata_qid, try to populate from known mappings
-    if (!brandInfo.wikidata_qid && brandInfo.name) {
-      import('@/lib/wikidataMapping').then(({ getWikidataQid }) => {
-        const qid = getWikidataQid(brandInfo.name);
-        if (qid) {
-          console.log(`[BrandProfile] Auto-populating wikidata_qid for ${brandInfo.name}: ${qid}`);
-          supabase
-            .from('brands')
-            .update({ wikidata_qid: qid })
-            .eq('id', brandInfo.id)
-            .then(() => {
-              queryClient.invalidateQueries({ queryKey: ['brand-basic', actualId] });
-            });
-        }
-      });
-    }
-  }, [brandInfo?.id, brandInfo?.name, brandInfo?.wikidata_qid, queryClient, actualId]);
+  // Check if enrichment is needed and auto-enrich
+  const needsEnrichment = brandInfo && !brandInfo.wikidata_qid;
+  const enrichmentProgress = useAutoEnrichment(
+    actualId,
+    brandInfo?.name || 'this brand',
+    needsEnrichment
+  );
+
+  // Show enrichment UI while enriching or complete
+  if (enrichmentProgress.status === 'enriching' || enrichmentProgress.status === 'complete') {
+    return (
+      <EnrichmentProgress
+        brandName={brandInfo?.name || 'Brand'}
+        status={enrichmentProgress.status}
+        message={enrichmentProgress.message}
+        step={enrichmentProgress.step}
+        totalSteps={enrichmentProgress.totalSteps}
+      />
+    );
+  }
+
+  // If enrichment failed, show error with retry button
+  if (enrichmentProgress.status === 'failed') {
+    return (
+      <div className="container py-8">
+        <Card>
+          <CardHeader>
+            <h1 className="text-2xl font-bold">{brandInfo?.name}</h1>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-destructive">{enrichmentProgress.message}</p>
+            <Button onClick={() => window.location.reload()}>
+              Retry Enrichment
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Auto-enrich missing data after brandInfo is loaded
   useEffect(() => {
@@ -307,8 +327,6 @@ export default function BrandProfile() {
           queryClient.invalidateQueries({ queryKey: ['brand-basic', actualId] });
         });
       }
-    } else {
-      console.warn('[BrandProfile] No wikidata_qid - cannot enrich');
     }
   }, [brandInfo?.id, brandInfo?.logo_url, brandInfo?.description, brandInfo?.wikidata_qid, fetchLogo, fetchSummary, queryClient, actualId]);
 
