@@ -17,15 +17,11 @@ export function usePreloadRelated({ brandId, companyId, personId, investorId }: 
     const preloadData = async () => {
       try {
         if (brandId) {
-          // Pre-load parent company
-          const { data: ownership } = await supabase
-            .from('company_ownership')
-            .select('parent_company_id, companies!company_ownership_parent_company_id_fkey(id, name, logo_url, brands(id))')
-            .eq('child_brand_id', brandId)
-            .maybeSingle();
+          // Ownership preloading removed - handled by Wikidata and CorporateFamilyTree component
+          // This prevents 400 errors from complex foreign key queries
+          const ownership = null;
 
-          // Only preload related data if we have a valid parent company
-          if (ownership?.parent_company_id) {
+          if (false) { // Disabled preloading
             // Pre-load subsidiaries
             await supabase
               .from('company_ownership')
