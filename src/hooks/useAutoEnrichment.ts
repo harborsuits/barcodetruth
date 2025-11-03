@@ -14,7 +14,7 @@ export function useAutoEnrichment(brandId: string, brandName: string, needsEnric
     status: 'idle',
     message: '',
     step: 0,
-    totalSteps: 4
+    totalSteps: 3
   });
   const queryClient = useQueryClient();
 
@@ -27,69 +27,40 @@ export function useAutoEnrichment(brandId: string, brandName: string, needsEnric
           status: 'enriching',
           message: `Finding information about ${brandName}...`,
           step: 1,
-          totalSteps: 4
+          totalSteps: 3
         });
 
-        // Step 1: Search Wikidata for QID
-        console.log('[AutoEnrich] Searching Wikidata for:', brandName);
-        const wikidataResponse = await fetch(
-          `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(brandName)}&language=en&format=json&origin=*`
-        );
-        const wikidataData = await wikidataResponse.json();
+        // Step 1: Use enrich-brand-wiki edge function (has proper entity validation)
+        console.log('[AutoEnrich] Calling enrich-brand-wiki for:', brandName);
         
-        if (!wikidataData.search || wikidataData.search.length === 0) {
-          throw new Error('Brand not found in Wikidata');
-        }
-
-        const qid = wikidataData.search[0].id;
-        console.log('[AutoEnrich] Found QID:', qid);
-
-        // Step 2: Save QID to database
-        setProgress({
-          status: 'enriching',
-          message: 'Saving brand information...',
-          step: 2,
-          totalSteps: 4
-        });
-
-        await supabase
-          .from('brands')
-          .update({ wikidata_qid: qid })
-          .eq('id', brandId);
-
-        // Step 3: Fetch description
-        setProgress({
-          status: 'enriching',
-          message: 'Fetching brand summary...',
-          step: 3,
-          totalSteps: 4
-        });
-
-        try {
-          const { data: summaryData } = await supabase.functions.invoke('fetch-brand-summary', {
-            body: { brand_id: brandId }
-          });
-          
-          if (summaryData?.description) {
-            await supabase
-              .from('brands')
-              .update({ 
-                description: summaryData.description,
-                description_source: summaryData.source 
-              })
-              .eq('id', brandId);
+        const { data: enrichData, error: enrichError } = await supabase.functions.invoke('enrich-brand-wiki', {
+          body: { 
+            brand_id: brandId,
+            mode: 'basic' // Just get QID + description, not full enrichment
           }
-        } catch (err) {
-          console.warn('[AutoEnrich] Summary fetch failed:', err);
-          // Non-critical, continue
+        });
+
+        if (enrichError || !enrichData?.success) {
+          throw new Error(enrichData?.error || 'Failed to find brand in Wikidata');
         }
 
-        // Step 4: Fetch logo
+        const qid = enrichData.wikidata_qid;
+        console.log('[AutoEnrich] Validated QID:', qid);
+
+        // Step 2: QID and description already saved by enrich-brand-wiki
+        setProgress({
+          status: 'enriching',
+          message: 'Brand information validated and saved',
+          step: 2,
+          totalSteps: 3
+        });
+
+        // Step 3: Trigger logo resolution
         setProgress({
           status: 'enriching',
           message: 'Finding brand logo...',
-          step: 4,
-          totalSteps: 4
+          step: 3,
+          totalSteps: 3
         });
 
         try {
@@ -111,12 +82,12 @@ export function useAutoEnrichment(brandId: string, brandName: string, needsEnric
           // Non-critical, continue
         }
 
-        // Complete!
+        // Step 4: Complete!
         setProgress({
           status: 'complete',
           message: `${brandName} has been enriched!`,
-          step: 4,
-          totalSteps: 4
+          step: 3,
+          totalSteps: 3
         });
 
         // Invalidate queries to refresh page
@@ -131,7 +102,7 @@ export function useAutoEnrichment(brandId: string, brandName: string, needsEnric
           status: 'failed',
           message: `Could not enrich ${brandName}: ${error.message}`,
           step: 0,
-          totalSteps: 4
+          totalSteps: 3
         });
       }
     }

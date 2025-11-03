@@ -152,6 +152,22 @@ function hardExclude(brand: Brand, title: string, body: string, url: URL): boole
     }
   }
   
+  if (brand.name === "Delta" || brand.name === "Delta Air Lines") {
+    // Exclude military/defense references
+    if (/\b(military|army|navy|special forces|delta force|operator|soldier|combat|defense)\b/i.test(txt)) {
+      return true;
+    }
+    // Exclude faucet/plumbing company
+    if (/\b(faucet|plumbing|shower|sink|fixture|bathroom)\b/i.test(txt)) {
+      return true;
+    }
+    // Require airline context if not in title
+    const titleHasDelta = /\bdelta\b/i.test(title);
+    if (!titleHasDelta && !/\b(airline|flight|airport|passenger|carrier|aviation|aircraft)\b/i.test(txt)) {
+      return true;
+    }
+  }
+  
   // Per-brand custom exclusions via monitoring_config
   const cfg = brand.monitoring_config || {};
   if (Array.isArray(cfg.exclude_regex) && cfg.exclude_regex.length > 0) {
