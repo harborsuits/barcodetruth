@@ -40,6 +40,7 @@ import { ValueMatchCard } from '@/components/ValueMatchCard';
 import { getUserPreferences } from '@/lib/userPreferences';
 import { DataHealthBadge } from '@/components/DataHealthBadge';
 import { AlternativeCard } from '@/components/brand/AlternativeCard';
+import { ReEnrichButton } from '@/components/brand/ReEnrichButton';
 
 // Hardcoded alternatives mapping for major brands
 const BRAND_ALTERNATIVES: Record<string, Array<{
@@ -718,20 +719,13 @@ export default function BrandProfile() {
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="text-2xl font-bold truncate">{data.brand.name}</h2>
                   
-                  {/* Manual enrichment button for testing */}
-                  {brandInfo && !brandInfo.logo_url && brandInfo.wikidata_qid && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        console.log('[Manual] Enriching brand:', brandInfo.id);
-                        enrichBrand(brandInfo.id).then(() => {
-                          queryClient.invalidateQueries({ queryKey: ['brand-basic', actualId] });
-                        });
-                      }}
-                    >
-                      🔄 Enrich
-                    </Button>
+                  {/* Re-enrich button (useful for fixing wrong Wikidata matches) */}
+                  {brandInfo?.wikidata_qid && (
+                    <ReEnrichButton 
+                      brandId={brandInfo.id}
+                      brandName={brandInfo.name}
+                      currentQid={brandInfo.wikidata_qid}
+                    />
                   )}
                 </div>
                 
