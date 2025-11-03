@@ -51,7 +51,7 @@ export function useTopShareholders(brandId: string | undefined, limit: number = 
         .from('company_shareholders')
         .select('*')
         .eq('company_id', company.id)
-        .order('percent_owned', { ascending: false, nullsLast: true })
+        .order('percent_owned', { ascending: false, nullsFirst: false })
         .limit(limit);
 
       if (error) {

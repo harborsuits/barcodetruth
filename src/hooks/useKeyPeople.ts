@@ -56,7 +56,19 @@ export function useKeyPeople(brandId: string | undefined) {
         return [];
       }
 
-      return (data || []) as KeyPerson[];
+      // Map database schema to KeyPerson interface
+      return (data || []).map((row: any) => ({
+        person_qid: row.person_qid,
+        person_name: row.person_name,
+        role: row.role,
+        title: null,
+        seniority: null,
+        start_date: null,
+        end_date: null,
+        source: row.source,
+        last_updated: row.created_at,
+        image_url: row.image_url,
+      })) as KeyPerson[];
     },
     enabled: !!brandId,
     staleTime: 1000 * 60 * 30, // 30 minutes

@@ -255,6 +255,28 @@ export default function BrandProfile() {
     }
   });
 
+  // Auto-populate missing wikidata_qid from known mappings
+  useEffect(() => {
+    if (!brandInfo) return;
+    
+    // If missing wikidata_qid, try to populate from known mappings
+    if (!brandInfo.wikidata_qid && brandInfo.name) {
+      import('@/lib/wikidataMapping').then(({ getWikidataQid }) => {
+        const qid = getWikidataQid(brandInfo.name);
+        if (qid) {
+          console.log(`[BrandProfile] Auto-populating wikidata_qid for ${brandInfo.name}: ${qid}`);
+          supabase
+            .from('brands')
+            .update({ wikidata_qid: qid })
+            .eq('id', brandInfo.id)
+            .then(() => {
+              queryClient.invalidateQueries({ queryKey: ['brand-basic', actualId] });
+            });
+        }
+      });
+    }
+  }, [brandInfo?.id, brandInfo?.name, brandInfo?.wikidata_qid, queryClient, actualId]);
+
   // Auto-enrich missing data after brandInfo is loaded
   useEffect(() => {
     if (!brandInfo) return;
