@@ -33,7 +33,7 @@ export function Header({ showBack = false, showSettings = true }: HeaderProps) {
             </button>
           )}
           <button onClick={() => navigate("/")} className="hover:opacity-80 transition-opacity" aria-label="Go home">
-            <img src={logo} alt="Barcode Truth logo" className="h-12 w-auto" />
+            <img src={logo} alt="Barcode Truth logo" className="h-16 w-auto" />
           </button>
         </div>
       </div>

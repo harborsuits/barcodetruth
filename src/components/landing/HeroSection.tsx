@@ -3,7 +3,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import logo from "@/assets/logo.png";
 export function HeroSection() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
@@ -16,8 +15,7 @@ export function HeroSection() {
   return <section className="py-12 px-4">
       <div className="max-w-2xl mx-auto text-center space-y-6">
         <div className="space-y-3">
-          <img src={logo} alt="Barcode Truth" className="h-40 w-auto mx-auto" />
-          <p className="text-lg text-muted-foreground max-w-xl mx-auto">Discover Who Really Owns What You Buy</p>
+          <h1 className="text-4xl font-bold">Discover Who Really Owns What You Buy</h1>
         </div>
 
         <form onSubmit={handleSearch} className="space-y-3 max-w-md mx-auto">
