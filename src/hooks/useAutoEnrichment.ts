@@ -25,7 +25,7 @@ export function useAutoEnrichment(brandId: string, brandName: string, needsEnric
       try {
         setProgress({
           status: 'enriching',
-          message: `Finding information about ${brandName}...`,
+          message: `Finding and validating ${brandName}...`,
           step: 1,
           totalSteps: 3
         });
@@ -41,11 +41,11 @@ export function useAutoEnrichment(brandId: string, brandName: string, needsEnric
         });
 
         if (enrichError || !enrichData?.success) {
-          throw new Error(enrichData?.error || 'Failed to find brand in Wikidata');
+          throw new Error(enrichData?.error || 'Could not find valid business entity in Wikidata');
         }
 
         const qid = enrichData.wikidata_qid;
-        console.log('[AutoEnrich] Validated QID:', qid);
+        console.log('[AutoEnrich] Validated QID:', qid, '- Entity type verified as business');
 
         // Step 2: QID and description already saved by enrich-brand-wiki
         setProgress({
