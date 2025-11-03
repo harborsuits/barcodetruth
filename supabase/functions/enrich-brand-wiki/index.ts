@@ -74,9 +74,14 @@ serve(async (req) => {
         .replace(/\s+(FC|SC|CF|United|City|Town)$/i, '') // Remove sports suffixes
         .trim();
       
-      const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(cleanName + ' company')}&language=en&format=json&type=item&limit=5`;
+      // Search with increased limit to find more candidates
+      const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(cleanName + ' company')}&language=en&format=json&type=item&limit=20`;
       const searchRes = await fetch(searchUrl);
       const searchData = await searchRes.json();
+      
+      log(`Found ${searchData.search?.length || 0} candidates for "${cleanName}"`);
+      
+      let potentialMatch: any = null;
       
       // Validate each candidate by checking entity type (P31)
       for (const candidate of searchData.search || []) {
@@ -84,41 +89,77 @@ serve(async (req) => {
           const { entity } = await fetchWikidataEntity(candidate.id);
           const instanceOf = claimIds(entity, 'P31'); // P31 = instance of
           
-          // Accepted entity types
+          log(`Checking ${candidate.id} (${candidate.label}):`, instanceOf);
+          
+          // Expanded valid company types
           const COMPANY_TYPES = [
-            'Q4830453',  // business
-            'Q783794',   // company
-            'Q431289',   // brand
-            'Q43229',    // organization
-            'Q6881511',  // enterprise
-            'Q891723',   // public company
-            'Q167037',   // corporation
-            'Q1616075',  // business enterprise
-            'Q2659904',  // government organization
+            'Q4830453',   // business
+            'Q783794',    // company
+            'Q431289',    // brand
+            'Q43229',     // organization
+            'Q6881511',   // enterprise
+            'Q891723',    // public company
+            'Q167037',    // corporation
+            'Q1616075',   // business enterprise
+            'Q2659904',   // government organization
+            'Q46970',     // airline (ADDED for Delta, etc.)
+            'Q507619',    // retailer
+            'Q155076',    // subsidiary
+            'Q1539532',   // conglomerate
+            'Q166280',    // international company
+            'Q1058914',   // software company
+            'Q1616075',   // technology company
+            'Q15711870',  // organization
+            'Q13226383',  // facility operator
           ];
           
-          // Rejected entity types (sports-related)
+          // Expanded rejected types
           const REJECTED_TYPES = [
-            'Q16510064', // sports event
-            'Q27020041', // sports season
-            'Q215380',   // musical group/band
-            'Q5',        // human
-            'Q482994',   // album
+            'Q16510064',  // sports event
+            'Q27020041',  // sports season
+            'Q215380',    // musical group/band
+            'Q5',         // human
+            'Q482994',    // album
+            'Q12323',     // Greek letter
+            'Q102538',    // military unit
+            'Q176799',    // military organization
+            'Q8502',      // mountain
+            'Q4022',      // river
+            'Q16334295',  // group
+            'Q105985',    // scout association
           ];
           
           const hasCompanyType = instanceOf.some(type => COMPANY_TYPES.includes(type));
           const hasRejectedType = instanceOf.some(type => REJECTED_TYPES.includes(type));
           
-          if (hasCompanyType && !hasRejectedType) {
+          // Reject if has invalid type
+          if (hasRejectedType) {
+            warn(`Rejected ${candidate.id} (invalid type:`, instanceOf, ')');
+            continue;
+          }
+          
+          // Accept if has valid company type
+          if (hasCompanyType) {
             qid = candidate.id;
-            log('Found valid company QID:', qid, 'types:', instanceOf);
+            log(`✓ Accepted ${candidate.id} (valid company type:`, instanceOf, ')');
             break;
-          } else {
-            warn('Rejected QID', candidate.id, 'types:', instanceOf);
+          }
+          
+          // If no types match either list, save as potential match
+          // (Not explicitly invalid, could be a valid company with missing type data)
+          if (!potentialMatch && instanceOf.length === 0) {
+            log(`Potential match ${candidate.id} (no type data)`);
+            potentialMatch = candidate;
           }
         } catch (e) {
           warn('Failed to validate candidate', candidate.id, (e as Error).message);
         }
+      }
+      
+      // Use potential match if we found one but no explicit valid match
+      if (!qid && potentialMatch) {
+        qid = potentialMatch.id;
+        log(`Using potential match ${qid} (no invalid types found)`);
       }
       
       if (!qid) {
