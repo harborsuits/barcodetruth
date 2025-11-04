@@ -2,8 +2,6 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { usePreloadRelated } from '@/hooks/usePreloadRelated';
 import { usePredictiveCache } from '@/hooks/usePredictiveCache';
-import { useBrandEnrichment } from '@/hooks/useBrandEnrichment';
-import { useAutoEnrichment } from '@/hooks/useAutoEnrichment';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
@@ -11,7 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ArrowLeft, ExternalLink, AlertCircle, Building2, Link as LinkIcon, Lightbulb } from 'lucide-react';
-import { EnrichmentProgress } from '@/components/brand/EnrichmentProgress';
+import { DataCompletenessBadge } from '@/components/brand/DataCompletenessBadge';
+import { ManualEnrichButton } from '@/components/brand/ManualEnrichButton';
 import { CategoryScoreCard } from '@/components/brand/CategoryScoreCard';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
@@ -247,9 +246,6 @@ export default function BrandProfile() {
   usePreloadRelated({ brandId: resolvedBrandId });
   usePredictiveCache(resolvedBrandId);
 
-  // Initialize enrichment hook
-  const { fetchLogo, fetchSummary, enrichBrand } = useBrandEnrichment();
-
   // Check for new ownership data to hide legacy cards (use resolved UUID)
   const { data: ownership } = useOwnership(resolvedBrandId);
   const hasOwnershipData = 
@@ -276,46 +272,12 @@ export default function BrandProfile() {
     }
   }, [isUuidRoute, brandInfo?.slug, brandInfo?.name, actualId, navigate]);
 
-  // Check if enrichment is needed and auto-enrich (use resolved UUID)
-  const needsEnrichment = brandInfo && !brandInfo.wikidata_qid;
-  const enrichmentProgress = useAutoEnrichment(
-    resolvedBrandId,
-    brandInfo?.name || 'this brand',
-    needsEnrichment
-  );
+  // Check data completeness (no longer auto-enriching on page load)
+  const hasLogo = !!brandInfo?.logo_url;
+  const hasDescription = !!brandInfo?.description;
+  const hasWikidataQid = !!brandInfo?.wikidata_qid;
 
-  // Auto-enrich missing data after brandInfo is loaded
-  useEffect(() => {
-    if (!brandInfo) return;
-    
-    console.log('[BrandProfile] Checking enrichment needs:', {
-      brandId: brandInfo.id,
-      hasLogo: !!brandInfo.logo_url,
-      hasSummary: !!brandInfo.description,
-      hasWikidata: !!brandInfo.wikidata_qid
-    });
-    
-    // Only enrich if we have a wikidata_qid
-    if (brandInfo.wikidata_qid) {
-      // Fetch logo if missing
-      if (!brandInfo.logo_url) {
-        console.log('[BrandProfile] Triggering logo enrichment...');
-        fetchLogo(brandInfo.id).then(() => {
-          console.log('[BrandProfile] Logo enrichment complete');
-          queryClient.invalidateQueries({ queryKey: ['brand-basic', actualId] });
-        });
-      }
-      
-      // Fetch summary if missing
-      if (!brandInfo.description) {
-        console.log('[BrandProfile] Triggering summary enrichment...');
-        fetchSummary(brandInfo.id).then(() => {
-          console.log('[BrandProfile] Summary enrichment complete');
-          queryClient.invalidateQueries({ queryKey: ['brand-basic', actualId] });
-        });
-      }
-    }
-  }, [brandInfo?.id, brandInfo?.logo_url, brandInfo?.description, brandInfo?.wikidata_qid, fetchLogo, fetchSummary, queryClient, actualId]);
+  // Removed auto-enrichment on page load - now user-controlled via ManualEnrichButton
 
   // DIRECT QUERY: Brand scores (use resolved UUID)
   const { data: brandScores, isLoading: scoresLoading } = useQuery({
@@ -620,59 +582,10 @@ export default function BrandProfile() {
   // Ownership data is fetched via useOwnership hook and displayed via WhoProfits component
   // which uses Wikidata integration (working reliably)
 
-  // Add enrichment check logging
-  useEffect(() => {
-    if (!brandInfo) return;
-    
-    console.log('[BrandProfile] Enrichment check:', {
-      brandId: brandInfo.id,
-      brandName: brandInfo.name,
-      hasLogo: !!brandInfo.logo_url,
-      hasWikidata: !!brandInfo.wikidata_qid,
-      hasWebsite: !!brandInfo.website,
-      willAutoEnrich: !brandInfo.logo_url && (brandInfo.wikidata_qid || brandInfo.website)
-    });
-    
-    if (!brandInfo.logo_url && (brandInfo.wikidata_qid || brandInfo.website)) {
-      console.log('[BrandProfile] 🚀 Auto-calling fetchLogo...');
-      fetchLogo(brandInfo.id);
-    }
-  }, [brandInfo?.id, brandInfo?.logo_url, fetchLogo]);
+  // Removed auto-logo-enrichment check - now user-controlled via ManualEnrichButton
 
   // ===== ALL HOOKS MUST BE CALLED ABOVE THIS LINE =====
-  // Check enrichment progress AFTER all hooks have been declared
-  
-  // Show enrichment UI while enriching or complete
-  if (enrichmentProgress.status === 'enriching' || enrichmentProgress.status === 'complete') {
-    return (
-      <EnrichmentProgress
-        brandName={brandInfo?.name || 'Brand'}
-        status={enrichmentProgress.status}
-        message={enrichmentProgress.message}
-        step={enrichmentProgress.step}
-        totalSteps={enrichmentProgress.totalSteps}
-      />
-    );
-  }
-
-  // If enrichment failed, show error with retry button
-  if (enrichmentProgress.status === 'failed') {
-    return (
-      <div className="container py-8">
-        <Card>
-          <CardHeader>
-            <h1 className="text-2xl font-bold">{brandInfo?.name}</h1>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-destructive">{enrichmentProgress.message}</p>
-            <Button onClick={() => window.location.reload()}>
-              Retry Enrichment
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // Removed blocking auto-enrichment - show data immediately
 
   if (loading) {
     return (
@@ -740,8 +653,15 @@ export default function BrandProfile() {
                 monogram={monogram}
               />
               <div className="flex-1 min-w-0 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <h2 className="text-2xl font-bold truncate">{displayBrandName}</h2>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-2xl font-bold truncate">{displayBrandName}</h2>
+                    <DataCompletenessBadge 
+                      hasLogo={hasLogo}
+                      hasDescription={hasDescription}
+                      hasWikidataQid={hasWikidataQid}
+                    />
+                  </div>
                   
                   {/* Re-enrich button (admin-only troubleshooting tool for fixing wrong Wikidata matches) */}
                   {isAdmin && brandInfo?.wikidata_qid && (
@@ -824,9 +744,11 @@ export default function BrandProfile() {
                     )}
                   </div>
                 ) : (
-                  <div className="mt-3 text-sm text-muted-foreground italic flex items-center gap-2">
-                    <div className="animate-pulse">●</div>
-                    <span>Auto-enriching summary from Wikipedia...</span>
+                  <div className="mt-3">
+                    <ManualEnrichButton 
+                      brandId={resolvedBrandId}
+                      brandName={displayBrandName}
+                    />
                   </div>
                 )}
                 
