@@ -1997,6 +1997,7 @@ export type Database = {
           norm_name: string | null
           parent_company: string | null
           push_paused: boolean
+          slug: string
           ticker: string | null
           updated_at: string
           website: string | null
@@ -2026,6 +2027,7 @@ export type Database = {
           norm_name?: string | null
           parent_company?: string | null
           push_paused?: boolean
+          slug: string
           ticker?: string | null
           updated_at?: string
           website?: string | null
@@ -2055,6 +2057,7 @@ export type Database = {
           norm_name?: string | null
           parent_company?: string | null
           push_paused?: boolean
+          slug?: string
           ticker?: string | null
           updated_at?: string
           website?: string | null
@@ -7818,6 +7821,10 @@ export type Database = {
       }
       current_window_start: { Args: { p_kind: string }; Returns: string }
       ensure_default_scores: { Args: { _brand_id: string }; Returns: undefined }
+      generate_slug: {
+        Args: { brand_name: string; brand_uuid: string }
+        Returns: string
+      }
       get_better_alternatives: {
         Args: { p_limit?: number; p_raw_gtin: string }
         Returns: {

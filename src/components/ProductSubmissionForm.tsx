@@ -63,10 +63,17 @@ export function ProductSubmissionForm({ barcode, manufacturerPrefix, onSuccess }
       if (existingBrand) {
         brandId = existingBrand.id;
       } else {
+        // Generate slug for new brand
+        const slug = formData.brand
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+        
         const { data: newBrand, error: brandError } = await supabase
           .from('brands')
           .insert({
             name: formData.brand,
+            slug: slug || `brand-${Date.now()}`,
             description: 'Community submitted brand',
           })
           .select('id')

@@ -72,7 +72,27 @@ serve(async (req) => {
           error: 'Brand must have a name before enrichment',
           reason: 'empty_name'
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          status: 422,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
+    // Skip enrichment for placeholder brands
+    if (brand.name.toLowerCase().includes('unnamed') || 
+        brand.name.toLowerCase().includes('placeholder')) {
+      log('Skipping enrichment for placeholder brand:', brand.name);
+      return new Response(
+        JSON.stringify({ 
+          ok: false, 
+          error: 'Cannot enrich placeholder brands',
+          reason: 'placeholder_name'
+        }),
+        { 
+          status: 422,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       );
     }
 
@@ -176,7 +196,28 @@ serve(async (req) => {
       }
       
       if (!qid) {
-        throw new Error('Could not find valid company entity in Wikidata');
+        log('No valid business entity found in Wikidata for:', cleanName);
+        
+        // Mark brand as not found to avoid re-trying
+        await supabase
+          .from('brands')
+          .update({ 
+            description: 'No Wikidata entry found',
+            description_source: 'system'
+          })
+          .eq('id', brand_id);
+        
+        return new Response(
+          JSON.stringify({ 
+            ok: false, 
+            error: 'Could not find valid company entity in Wikidata',
+            reason: 'not_found'
+          }),
+          { 
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
       }
     }
 

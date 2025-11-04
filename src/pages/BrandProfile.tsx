@@ -42,6 +42,7 @@ import { DataHealthBadge } from '@/components/DataHealthBadge';
 import { AlternativeCard } from '@/components/brand/AlternativeCard';
 import { ReEnrichButton } from '@/components/brand/ReEnrichButton';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { isUUID } from '@/lib/utils';
 
 // Hardcoded alternatives mapping for major brands
 const BRAND_ALTERNATIVES: Record<string, Array<{
@@ -161,8 +162,12 @@ export default function BrandProfile() {
   const { id, brandId } = useParams<{ id?: string; brandId?: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const actualId = id || brandId;
+  const slugOrId = id || brandId;
   const isAdmin = useIsAdmin();
+  
+  // Determine if we're using UUID or slug
+  const isUuidRoute = isUUID(slugOrId);
+  const actualId = slugOrId; // Keep for backward compatibility
   
   // Get current location state to check if we came from another brand
   const routerLocation = useLocation();
@@ -242,16 +247,17 @@ export default function BrandProfile() {
     });
   }, []);
 
-  // DIRECT QUERY: Basic brand info
+  // DIRECT QUERY: Basic brand info - handle both UUID and slug
   const { data: brandInfo, isLoading: brandLoading, error: brandError } = useQuery({
     queryKey: ['brand-basic', actualId, refreshKey],
     enabled: !!actualId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('brands')
-        .select('id, name, website, logo_url, description, description_source, parent_company, logo_attribution, wikidata_qid')
-        .eq('id', actualId)
-        .maybeSingle();
+      // Query by UUID or slug depending on route
+      const query = isUuidRoute
+        ? supabase.from('brands').select('*').eq('id', actualId).single()
+        : supabase.from('brands').select('*').eq('slug', actualId).single();
+      
+      const { data, error } = await query;
       if (error) throw error;
       
       // DEBUG: Log what we got

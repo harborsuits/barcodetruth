@@ -19,6 +19,15 @@ export function useAutoEnrichment(brandId: string, brandName: string, needsEnric
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    // Skip enrichment for placeholder/invalid brand names
+    if (!brandName || 
+        brandName.toLowerCase().includes('unnamed') || 
+        brandName.toLowerCase().includes('placeholder') ||
+        brandName.trim() === '') {
+      console.log('[AutoEnrich] Skipping enrichment for placeholder/invalid brand name:', brandName);
+      return;
+    }
+
     if (!needsEnrichment || progress.status !== 'idle') return;
 
     async function enrichBrand() {
