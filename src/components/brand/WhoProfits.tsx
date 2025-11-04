@@ -63,10 +63,19 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
         
         if (brandError) {
           console.error('[Wikidata] Error fetching brand QID:', brandError);
+          setLoadingWikidata(false);
+          return;
         }
         
         const wikidataQid = brandData?.wikidata_qid;
         console.log('[Wikidata] Using QID:', wikidataQid, '(from database)');
+        
+        // Skip if no QID available
+        if (!wikidataQid) {
+          console.log('[Wikidata] No QID available, skipping graph load');
+          setLoadingWikidata(false);
+          return;
+        }
         
         const { data: response, error } = await supabase.functions.invoke('resolve-wikidata-tree', {
           body: { 

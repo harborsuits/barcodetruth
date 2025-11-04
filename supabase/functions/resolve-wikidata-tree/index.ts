@@ -253,9 +253,12 @@ Deno.serve(async (req) => {
     // Input validation: Either qid or brand_name must be provided
     if (!qid && (!brand_name || typeof brand_name !== 'string')) {
       return new Response(
-        JSON.stringify({ error: 'Either qid or brand_name must be provided' }),
+        JSON.stringify({ 
+          success: false,
+          error: 'Either qid or brand_name must be provided' 
+        }),
         { 
-          status: 400,
+          status: 422,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
@@ -263,9 +266,12 @@ Deno.serve(async (req) => {
     
     if (brand_name && brand_name.length > 100) {
       return new Response(
-        JSON.stringify({ error: 'brand_name must be less than 100 characters' }),
+        JSON.stringify({ 
+          success: false,
+          error: 'brand_name must be less than 100 characters' 
+        }),
         { 
-          status: 400,
+          status: 422,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
@@ -292,6 +298,11 @@ Deno.serve(async (req) => {
   } catch (error: any) {
     console.error('[resolve-wikidata-tree] ERROR:', error.message);
     console.error('[resolve-wikidata-tree] Stack:', error.stack);
+    
+    // Return 404 for "not found" cases instead of 500
+    const isNotFound = error.message?.toLowerCase().includes('not found') ||
+                       error.message?.toLowerCase().includes('entity not found');
+    
     return new Response(
       JSON.stringify({ 
         success: false, 
@@ -299,7 +310,7 @@ Deno.serve(async (req) => {
         stack: error.stack 
       }),
       { 
-        status: 500,
+        status: isNotFound ? 404 : 500,
         headers: {
           ...corsHeaders,
           'Content-Type': 'application/json'
