@@ -49,12 +49,26 @@ export function useAutoEnrichment(brandId: string, brandName: string, needsEnric
           }
         });
 
-        if (enrichError || !enrichData?.success) {
-          // Handle specific error cases
-          if (enrichData?.reason === 'empty_name') {
-            throw new Error('This brand needs a name before it can be enriched');
+        // Handle enrichment response gracefully
+        if (enrichError) {
+          throw new Error('Enrichment service error');
+        }
+        
+        if (!enrichData?.success) {
+          // Not found in Wikidata - this is OK, just skip enrichment
+          if (enrichData?.reason === 'empty_name' || enrichData?.reason === 'placeholder_name') {
+            console.log('[AutoEnrich] Skipping - invalid brand name');
+          } else if (!enrichData?.wikidata_found) {
+            console.log('[AutoEnrich] Brand not found in Wikidata, skipping enrichment');
           }
-          throw new Error(enrichData?.error || 'Could not find valid business entity in Wikidata');
+          
+          setProgress({
+            status: 'idle',
+            message: '',
+            step: 0,
+            totalSteps: 3
+          });
+          return; // Exit gracefully
         }
 
         const qid = enrichData.wikidata_qid;
