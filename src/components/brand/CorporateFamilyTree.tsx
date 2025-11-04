@@ -91,37 +91,39 @@ export function CorporateFamilyTree({ graph }: CorporateFamilyTreeProps) {
           <button
             onClick={() => handleEntityClick(graph.parent!)}
             disabled={loadingEntity === graph.parent.qid}
-            className="relative aspect-square w-32 border border-border rounded-lg p-3 hover:border-primary hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-card"
+            className="flex flex-col items-center gap-2 p-3 w-40 border border-border rounded-lg hover:border-primary hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-card"
           >
-            {graph.parent.logo_url ? (
-              <img 
-                src={graph.parent.logo_url}
-                alt={graph.parent.name}
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  const parent = e.currentTarget.parentElement;
-                  if (parent) {
-                    const fallback = parent.querySelector('.logo-fallback') as HTMLElement;
-                    if (fallback) fallback.style.display = 'flex';
-                  }
-                }}
-              />
-            ) : null}
-            
-            <div className={`logo-fallback w-full h-full flex items-center justify-center text-2xl font-bold text-muted-foreground/30 ${graph.parent.logo_url ? 'hidden' : 'flex'}`}>
-              {graph.parent.name.charAt(0)}
-            </div>
-            
-            {loadingEntity === graph.parent.qid && (
-              <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-lg">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <div className="relative aspect-square w-full">
+              {graph.parent.logo_url ? (
+                <img 
+                  src={graph.parent.logo_url}
+                  alt={graph.parent.name}
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    const parent = e.currentTarget.parentElement;
+                    if (parent) {
+                      const fallback = parent.querySelector('.logo-fallback') as HTMLElement;
+                      if (fallback) fallback.style.display = 'flex';
+                    }
+                  }}
+                />
+              ) : null}
+              
+              <div className={`logo-fallback absolute inset-0 flex items-center justify-center text-4xl font-bold text-muted-foreground/30 ${graph.parent.logo_url ? 'hidden' : 'flex'}`}>
+                {graph.parent.name.charAt(0)}
               </div>
-            )}
-            
-            <div className="absolute bottom-0 left-0 right-0 bg-black/75 text-white text-xs p-1 text-center rounded-b-lg opacity-0 hover:opacity-100 transition-opacity">
-              {graph.parent.name}
+              
+              {loadingEntity === graph.parent.qid && (
+                <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-lg">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              )}
             </div>
+            
+            <span className="text-xs font-medium text-center line-clamp-2 w-full">
+              {graph.parent.name}
+            </span>
           </button>
         </div>
       )}
@@ -136,43 +138,45 @@ export function CorporateFamilyTree({ graph }: CorporateFamilyTreeProps) {
             </Badge>
           </div>
           
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {graph.siblings.map((sibling) => (
               <button
                 key={sibling.qid}
                 onClick={() => handleEntityClick(sibling)}
                 disabled={loadingEntity === sibling.qid}
-                className="relative group aspect-square border border-border rounded-lg p-3 hover:border-primary hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-card"
+                className="relative group flex flex-col items-center gap-2 p-3 border border-border rounded-lg hover:border-primary hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-card"
               >
-                {sibling.logo_url ? (
-                  <img 
-                    src={sibling.logo_url}
-                    alt={sibling.name}
-                    className="w-full h-full object-contain"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                      const parent = e.currentTarget.parentElement;
-                      if (parent) {
-                        const fallback = parent.querySelector('.logo-fallback') as HTMLElement;
-                        if (fallback) fallback.style.display = 'flex';
-                      }
-                    }}
-                  />
-                ) : null}
-                
-                <div className={`logo-fallback w-full h-full flex items-center justify-center text-2xl font-bold text-muted-foreground/30 ${sibling.logo_url ? 'hidden' : 'flex'}`}>
-                  {sibling.name.charAt(0)}
-                </div>
-                
-                {loadingEntity === sibling.qid && (
-                  <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-lg">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <div className="relative aspect-square w-full">
+                  {sibling.logo_url ? (
+                    <img 
+                      src={sibling.logo_url}
+                      alt={sibling.name}
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        const parent = e.currentTarget.parentElement;
+                        if (parent) {
+                          const fallback = parent.querySelector('.logo-fallback') as HTMLElement;
+                          if (fallback) fallback.style.display = 'flex';
+                        }
+                      }}
+                    />
+                  ) : null}
+                  
+                  <div className={`logo-fallback absolute inset-0 flex items-center justify-center text-4xl font-bold text-muted-foreground/30 ${sibling.logo_url ? 'hidden' : 'flex'}`}>
+                    {sibling.name.charAt(0)}
                   </div>
-                )}
-                
-                <div className="absolute bottom-0 left-0 right-0 bg-black/75 text-white text-xs p-1 text-center rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity truncate">
-                  {sibling.name}
+                  
+                  {loadingEntity === sibling.qid && (
+                    <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-lg">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    </div>
+                  )}
                 </div>
+                
+                <span className="text-xs font-medium text-center line-clamp-2 w-full">
+                  {sibling.name}
+                </span>
               </button>
             ))}
           </div>
@@ -192,43 +196,45 @@ export function CorporateFamilyTree({ graph }: CorporateFamilyTreeProps) {
             Companies that {graph.entity_name} directly controls or owns
           </p>
           
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {uniqueSubsidiaries.map((sub) => (
               <button
                 key={sub.qid}
                 onClick={() => handleEntityClick(sub)}
                 disabled={loadingEntity === sub.qid}
-                className="relative group aspect-square border border-border rounded-lg p-3 hover:border-primary hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-card"
+                className="relative group flex flex-col items-center gap-2 p-3 border border-border rounded-lg hover:border-primary hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-card"
               >
-                {sub.logo_url ? (
-                  <img 
-                    src={sub.logo_url}
-                    alt={sub.name}
-                    className="w-full h-full object-contain"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                      const parent = e.currentTarget.parentElement;
-                      if (parent) {
-                        const fallback = parent.querySelector('.logo-fallback') as HTMLElement;
-                        if (fallback) fallback.style.display = 'flex';
-                      }
-                    }}
-                  />
-                ) : null}
-                
-                <div className={`logo-fallback w-full h-full flex items-center justify-center text-2xl font-bold text-muted-foreground/30 ${sub.logo_url ? 'hidden' : 'flex'}`}>
-                  {sub.name.charAt(0)}
-                </div>
-                
-                {loadingEntity === sub.qid && (
-                  <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-lg">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <div className="relative aspect-square w-full">
+                  {sub.logo_url ? (
+                    <img 
+                      src={sub.logo_url}
+                      alt={sub.name}
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        const parent = e.currentTarget.parentElement;
+                        if (parent) {
+                          const fallback = parent.querySelector('.logo-fallback') as HTMLElement;
+                          if (fallback) fallback.style.display = 'flex';
+                        }
+                      }}
+                    />
+                  ) : null}
+                  
+                  <div className={`logo-fallback absolute inset-0 flex items-center justify-center text-4xl font-bold text-muted-foreground/30 ${sub.logo_url ? 'hidden' : 'flex'}`}>
+                    {sub.name.charAt(0)}
                   </div>
-                )}
-                
-                <div className="absolute bottom-0 left-0 right-0 bg-black/75 text-white text-xs p-1 text-center rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity truncate">
-                  {sub.name}
+                  
+                  {loadingEntity === sub.qid && (
+                    <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-lg">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    </div>
+                  )}
                 </div>
+                
+                <span className="text-xs font-medium text-center line-clamp-2 w-full">
+                  {sub.name}
+                </span>
               </button>
             ))}
           </div>
@@ -245,43 +251,45 @@ export function CorporateFamilyTree({ graph }: CorporateFamilyTreeProps) {
             </Badge>
           </div>
           
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {graph.cousins.map((cousin) => (
               <button
                 key={cousin.qid}
                 onClick={() => handleEntityClick(cousin)}
                 disabled={loadingEntity === cousin.qid}
-                className="relative group aspect-square border border-border rounded-lg p-3 hover:border-primary hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-card"
+                className="relative group flex flex-col items-center gap-2 p-3 border border-border rounded-lg hover:border-primary hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-card"
               >
-                {cousin.logo_url ? (
-                  <img 
-                    src={cousin.logo_url}
-                    alt={cousin.name}
-                    className="w-full h-full object-contain"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                      const parent = e.currentTarget.parentElement;
-                      if (parent) {
-                        const fallback = parent.querySelector('.logo-fallback') as HTMLElement;
-                        if (fallback) fallback.style.display = 'flex';
-                      }
-                    }}
-                  />
-                ) : null}
-                
-                <div className={`logo-fallback w-full h-full flex items-center justify-center text-2xl font-bold text-muted-foreground/30 ${cousin.logo_url ? 'hidden' : 'flex'}`}>
-                  {cousin.name.charAt(0)}
-                </div>
-                
-                {loadingEntity === cousin.qid && (
-                  <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-lg">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <div className="relative aspect-square w-full">
+                  {cousin.logo_url ? (
+                    <img 
+                      src={cousin.logo_url}
+                      alt={cousin.name}
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        const parent = e.currentTarget.parentElement;
+                        if (parent) {
+                          const fallback = parent.querySelector('.logo-fallback') as HTMLElement;
+                          if (fallback) fallback.style.display = 'flex';
+                        }
+                      }}
+                    />
+                  ) : null}
+                  
+                  <div className={`logo-fallback absolute inset-0 flex items-center justify-center text-4xl font-bold text-muted-foreground/30 ${cousin.logo_url ? 'hidden' : 'flex'}`}>
+                    {cousin.name.charAt(0)}
                   </div>
-                )}
-                
-                <div className="absolute bottom-0 left-0 right-0 bg-black/75 text-white text-xs p-1 text-center rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity truncate">
-                  {cousin.name}
+                  
+                  {loadingEntity === cousin.qid && (
+                    <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-lg">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    </div>
+                  )}
                 </div>
+                
+                <span className="text-xs font-medium text-center line-clamp-2 w-full">
+                  {cousin.name}
+                </span>
               </button>
             ))}
           </div>
