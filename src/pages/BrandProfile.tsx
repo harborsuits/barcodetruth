@@ -221,32 +221,6 @@ export default function BrandProfile() {
   const [suggestDialogOpen, setSuggestDialogOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>();
 
-  // Enable smart pre-loading and predictive caching
-  usePreloadRelated({ brandId: actualId });
-  usePredictiveCache(actualId);
-
-  // Initialize enrichment hook
-  const { fetchLogo, fetchSummary, enrichBrand } = useBrandEnrichment();
-
-  // Check for new ownership data to hide legacy cards
-  const { data: ownership } = useOwnership(actualId);
-  const hasOwnershipData = 
-    (ownership?.structure?.chain?.length ?? 0) > 1 ||
-    (ownership?.shareholders?.top?.length ?? 0) > 0;
-
-  // Check for key people and shareholders to trigger enrichment
-  const { data: keyPeople = [] } = useKeyPeople(actualId);
-  const { data: shareholders = [] } = useTopShareholders(actualId, 10);
-
-  // Get current user for personalized scoring
-  const [user, setUser] = useState<any>(null);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data?.user);
-    });
-  }, []);
-
   // DIRECT QUERY: Basic brand info - handle both UUID and slug
   const { data: brandInfo, isLoading: brandLoading, error: brandError } = useQuery({
     queryKey: ['brand-basic', actualId, refreshKey],
@@ -266,6 +240,35 @@ export default function BrandProfile() {
     }
   });
 
+  // Get the actual UUID from brandInfo (resolved from slug if needed)
+  const resolvedBrandId = brandInfo?.id;
+
+  // Enable smart pre-loading and predictive caching (only after we have UUID)
+  usePreloadRelated({ brandId: resolvedBrandId });
+  usePredictiveCache(resolvedBrandId);
+
+  // Initialize enrichment hook
+  const { fetchLogo, fetchSummary, enrichBrand } = useBrandEnrichment();
+
+  // Check for new ownership data to hide legacy cards (use resolved UUID)
+  const { data: ownership } = useOwnership(resolvedBrandId);
+  const hasOwnershipData = 
+    (ownership?.structure?.chain?.length ?? 0) > 1 ||
+    (ownership?.shareholders?.top?.length ?? 0) > 0;
+
+  // Check for key people and shareholders to trigger enrichment (use resolved UUID)
+  const { data: keyPeople = [] } = useKeyPeople(resolvedBrandId);
+  const { data: shareholders = [] } = useTopShareholders(resolvedBrandId, 10);
+
+  // Get current user for personalized scoring
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data?.user);
+    });
+  }, []);
+
   // Redirect UUID route to canonical slug once loaded
   useEffect(() => {
     if (isUuidRoute && brandInfo?.slug && brandInfo.slug !== actualId) {
@@ -273,10 +276,10 @@ export default function BrandProfile() {
     }
   }, [isUuidRoute, brandInfo?.slug, brandInfo?.name, actualId, navigate]);
 
-  // Check if enrichment is needed and auto-enrich
+  // Check if enrichment is needed and auto-enrich (use resolved UUID)
   const needsEnrichment = brandInfo && !brandInfo.wikidata_qid;
   const enrichmentProgress = useAutoEnrichment(
-    actualId,
+    resolvedBrandId,
     brandInfo?.name || 'this brand',
     needsEnrichment
   );
@@ -314,15 +317,15 @@ export default function BrandProfile() {
     }
   }, [brandInfo?.id, brandInfo?.logo_url, brandInfo?.description, brandInfo?.wikidata_qid, fetchLogo, fetchSummary, queryClient, actualId]);
 
-  // DIRECT QUERY: Brand scores
+  // DIRECT QUERY: Brand scores (use resolved UUID)
   const { data: brandScores, isLoading: scoresLoading } = useQuery({
-    queryKey: ['brand-scores-direct', actualId, refreshKey],
-    enabled: !!actualId,
+    queryKey: ['brand-scores-direct', resolvedBrandId, refreshKey],
+    enabled: !!resolvedBrandId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('brand_scores')
         .select('score_labor, score_environment, score_politics, score_social, last_updated, reason_json')
-        .eq('brand_id', actualId)
+        .eq('brand_id', resolvedBrandId)
         .order('last_updated', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -331,10 +334,10 @@ export default function BrandProfile() {
     }
   });
 
-  // DIRECT QUERY: Brand events/evidence
+  // DIRECT QUERY: Brand events/evidence (use resolved UUID)
   const { data: evidence, isLoading: evidenceLoading } = useQuery({
-    queryKey: ['brand-evidence-direct', actualId, refreshKey],
-    enabled: !!actualId,
+    queryKey: ['brand-evidence-direct', resolvedBrandId, refreshKey],
+    enabled: !!resolvedBrandId,
     queryFn: async () => {
       const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase
@@ -350,7 +353,7 @@ export default function BrandProfile() {
           ai_summary,
           event_sources!inner(source_name, canonical_url)
         `)
-        .eq('brand_id', actualId)
+        .eq('brand_id', resolvedBrandId)
         .gte('event_date', ninetyDaysAgo)
         .order('event_date', { ascending: false })
         .limit(50);
@@ -471,10 +474,10 @@ export default function BrandProfile() {
   }, [evidence, hasSetDefaultFilter, loading]);
 
   const { data: personalizedScore } = useQuery({
-    queryKey: ['personalized-score', actualId, user?.id],
-    enabled: FEATURES.companyScore && Boolean(actualId) && Boolean(user?.id),
+    queryKey: ['personalized-score', resolvedBrandId, user?.id],
+    enabled: FEATURES.companyScore && Boolean(resolvedBrandId) && Boolean(user?.id),
     queryFn: async () => {
-      if (!actualId || !user?.id) return null;
+      if (!resolvedBrandId || !user?.id) return null;
       
       // Use direct RPC call since types not yet updated
       const response = await fetch(
@@ -487,7 +490,7 @@ export default function BrandProfile() {
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
           },
           body: JSON.stringify({
-            p_brand_id: actualId,
+            p_brand_id: resolvedBrandId,
             p_user_id: user.id
           })
         }
@@ -501,13 +504,13 @@ export default function BrandProfile() {
 
   // Fetch data confidence to determine if we show scores or monitoring badge
   const { data: confidenceData } = useQuery({
-    queryKey: ['brand-confidence', actualId],
+    queryKey: ['brand-confidence', resolvedBrandId],
     queryFn: async () => {
-      if (!actualId) return null;
+      if (!resolvedBrandId) return null;
       
       // Use raw fetch until types are updated
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/brand_monitoring_status?brand_id=eq.${actualId}&select=*`,
+        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/brand_monitoring_status?brand_id=eq.${resolvedBrandId}&select=*`,
         {
           method: 'GET',
           headers: {
@@ -525,7 +528,7 @@ export default function BrandProfile() {
       const result = await response.json();
       return result?.[0] ?? null;
     },
-    enabled: !!actualId,
+    enabled: !!resolvedBrandId,
   });
 
   // ⚠️ DISABLED: community-outlook edge function was boot-looping
@@ -555,12 +558,12 @@ export default function BrandProfile() {
 
   // Fetch company info (ownership, key people, valuation)
   const { data: companyInfo, refetch: refetchCompanyInfo } = useQuery({
-    queryKey: ['company-info', actualId],
+    queryKey: ['company-info', resolvedBrandId],
     queryFn: async () => {
-      if (!actualId) return null;
+      if (!resolvedBrandId) return null;
 
       const { data, error } = await supabase.rpc('get_brand_company_info', {
-        p_brand_id: actualId
+        p_brand_id: resolvedBrandId
       });
 
       if (error) {
@@ -584,7 +587,7 @@ export default function BrandProfile() {
 
       return result;
     },
-    enabled: !!actualId,
+    enabled: !!resolvedBrandId,
   });
 
   // ⚠️ ARCHITECTURE CHANGE: Removed per-page-load edge function calls
@@ -751,7 +754,7 @@ export default function BrandProfile() {
                 </div>
                 
                 {/* Ownership banner */}
-                {actualId && <OwnershipBanner brandId={actualId} />}
+                {resolvedBrandId && <OwnershipBanner brandId={resolvedBrandId} />}
                 
                 {/* Legacy ownership badges - hidden when new ownership data exists */}
                 {!hasOwnershipData && data.ownership?.upstream && data.ownership.upstream.length > 0 && (
@@ -843,7 +846,7 @@ export default function BrandProfile() {
 
         {/* 2) Quick Take Snapshot */}
         <SectionHeader>How is {displayBrandName} doing overall?</SectionHeader>
-        <QuickTakeSnapshot brandId={actualId!} />
+        <QuickTakeSnapshot brandId={resolvedBrandId!} />
 
         {/* Value Match Analysis - Personalized for User */}
         {userPreferences && data.score && (
@@ -913,7 +916,7 @@ export default function BrandProfile() {
 
         {/* 3) Who Profits */}
         <SectionHeader>Who owns {data.brand.name}?</SectionHeader>
-        <WhoProfits brandId={actualId!} brandName={data.brand.name} />
+        <WhoProfits brandId={resolvedBrandId!} brandName={data.brand.name} />
 
         {/* 5) Detailed Category Scores */}
         <SectionHeader>How is {data.brand.name} rated by category?</SectionHeader>
@@ -950,8 +953,8 @@ export default function BrandProfile() {
 
         {/* 6) Who's Behind the Brand - Ownership, People, Shareholders */}
         <SectionHeader>Who's behind {data.brand.name}?</SectionHeader>
-        {actualId && (
-          <OwnershipTabs brandId={actualId} />
+        {resolvedBrandId && (
+          <OwnershipTabs brandId={resolvedBrandId} />
         )}
 
         {/* Valuation */}
@@ -991,16 +994,16 @@ export default function BrandProfile() {
         {!hasOwnershipData && (
           <>
             {/* Ownership Trail */}
-            {actualId && <OwnershipTrail brandId={actualId} />}
+            {resolvedBrandId && <OwnershipTrail brandId={resolvedBrandId} />}
 
             {/* Consolidated Scores (if has subsidiaries) */}
-            {actualId && <RollupScores brandId={actualId} />}
+            {resolvedBrandId && <RollupScores brandId={resolvedBrandId} />}
           </>
         )}
 
         {/* 4) Community Rating Card - Prominent */}
         <SectionHeader>Share Your Experience</SectionHeader>
-        <CommunityOutlookCard brandId={actualId!} brandName={data.brand.name} />
+        <CommunityOutlookCard brandId={resolvedBrandId!} brandName={data.brand.name} />
 
         {/* 5) What's Happening - Evidence */}
         <SectionHeader>What's happening at {data.brand.name}?</SectionHeader>
@@ -1034,14 +1037,14 @@ export default function BrandProfile() {
         <ReportIssueDialog
           open={reportDialogOpen}
           onOpenChange={setReportDialogOpen}
-          brandId={actualId!}
+          brandId={resolvedBrandId!}
           eventId={selectedEventId}
           brandName={data.brand.name}
         />
         <SuggestEvidenceDialog
           open={suggestDialogOpen}
           onOpenChange={setSuggestDialogOpen}
-          brandId={actualId!}
+          brandId={resolvedBrandId!}
           brandName={data.brand.name}
         />
       </main>
