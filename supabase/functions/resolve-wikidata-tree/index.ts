@@ -102,36 +102,33 @@ async function getOwnershipGraph(brandName: string, explicitQid?: string): Promi
       }
       UNION
       {
-        # EXPANDED: Get ALL entities owned/operated by this entity
-        {
-          # Method 1: Explicitly marked as subsidiary (P355)
-          ?entity wdt:P355 ?item .
-          BIND("subsidiary" AS ?type)
-        }
-        UNION
-        {
-          # Method 2: Entity is owned by this brand (P127 - reversed)
-          ?item wdt:P127 ?entity .
-          BIND("subsidiary" AS ?type)
-        }
-        UNION
-        {
-          # Method 3: This brand is parent organization (P749 - reversed)
-          ?item wdt:P749 ?entity .
-          BIND("subsidiary" AS ?type)
-        }
-        UNION
-        {
-          # Method 4: This brand owns the entity (P1830)
-          ?entity wdt:P1830 ?item .
-          BIND("subsidiary" AS ?type)
-        }
-        UNION
-        {
-          # Method 5: This brand operates the entity (P137)
-          ?entity wdt:P137 ?item .
-          BIND("subsidiary" AS ?type)
-        }
+        # Method 1: Explicitly marked as subsidiary (P355)
+        ?entity wdt:P355 ?item .
+        BIND("subsidiary" AS ?type)
+      }
+      UNION
+      {
+        # Method 2: Entity is owned by this brand (P127 - reversed)
+        ?item wdt:P127 ?entity .
+        BIND("subsidiary" AS ?type)
+      }
+      UNION
+      {
+        # Method 3: This brand is parent organization (P749 - reversed)
+        ?item wdt:P749 ?entity .
+        BIND("subsidiary" AS ?type)
+      }
+      UNION
+      {
+        # Method 4: This brand owns the entity (P1830)
+        ?entity wdt:P1830 ?item .
+        BIND("subsidiary" AS ?type)
+      }
+      UNION
+      {
+        # Method 5: This brand operates the entity (P137)
+        ?entity wdt:P137 ?item .
+        BIND("subsidiary" AS ?type)
       }
       UNION
       {
