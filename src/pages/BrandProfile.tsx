@@ -266,6 +266,13 @@ export default function BrandProfile() {
     }
   });
 
+  // Redirect UUID route to canonical slug once loaded
+  useEffect(() => {
+    if (isUuidRoute && brandInfo?.slug && brandInfo.slug !== actualId) {
+      navigate(`/brand/${brandInfo.slug}`, { replace: true, state: { fromBrand: brandInfo.name } });
+    }
+  }, [isUuidRoute, brandInfo?.slug, brandInfo?.name, actualId, navigate]);
+
   // Check if enrichment is needed and auto-enrich
   const needsEnrichment = brandInfo && !brandInfo.wikidata_qid;
   const enrichmentProgress = useAutoEnrichment(
@@ -705,8 +712,14 @@ export default function BrandProfile() {
   // Now hidden behind feature flag in favor of Community Outlook
   const displayScore = personalizedScore?.personalized_score ?? data.score?.score ?? null;
 
-  // Create monogram from brand name
-  const monogram = data.brand.name?.[0]?.toUpperCase() ?? 'B';
+  // Compute safe display name (avoid 'Unnamed Brand')
+  const rawName = data.brand.name || '';
+  const isUnnamed = !rawName || rawName.trim().toLowerCase() === 'unnamed brand';
+  const fallbackFromSlug = brandInfo?.slug ? brandInfo.slug.replace(/-/g, ' ').replace(/\b\w/g, (s) => s.toUpperCase()) : 'Brand';
+  const displayBrandName = isUnnamed ? fallbackFromSlug : rawName;
+
+  // Create monogram from display name
+  const monogram = displayBrandName?.[0]?.toUpperCase() ?? 'B';
 
   return (
     <div className="min-h-screen bg-background">
@@ -723,12 +736,12 @@ export default function BrandProfile() {
               <BrandLogoWithFallback 
                 logoUrl={data.brand.logo_url} 
                 website={data.brand.website}
-                brandName={data.brand.name}
+                brandName={displayBrandName}
                 monogram={monogram}
               />
               <div className="flex-1 min-w-0 space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <h2 className="text-2xl font-bold truncate">{data.brand.name}</h2>
+                  <h2 className="text-2xl font-bold truncate">{displayBrandName}</h2>
                   
                   {/* Re-enrich button (admin-only troubleshooting tool for fixing wrong Wikidata matches) */}
                   {isAdmin && brandInfo?.wikidata_qid && (
@@ -832,7 +845,7 @@ export default function BrandProfile() {
         </Card>
 
         {/* 2) Quick Take Snapshot */}
-        <SectionHeader>How is {data.brand.name} doing overall?</SectionHeader>
+        <SectionHeader>How is {displayBrandName} doing overall?</SectionHeader>
         <QuickTakeSnapshot brandId={actualId!} />
 
         {/* Value Match Analysis - Personalized for User */}
@@ -847,7 +860,7 @@ export default function BrandProfile() {
           data.score.score_social !== null
         ) && (
           <>
-            <SectionHeader>Does {data.brand.name} match your values?</SectionHeader>
+            <SectionHeader>Does {displayBrandName} match your values?</SectionHeader>
             <ValueMatchCard
               userValues={{
                 value_labor: userPreferences.value_labor,
@@ -861,7 +874,7 @@ export default function BrandProfile() {
                 score_politics: data.score.score_politics,
                 score_social: data.score.score_social,
               }}
-              brandName={data.brand.name}
+              brandName={displayBrandName}
               brandId={data.brand.id}
             />
           </>
