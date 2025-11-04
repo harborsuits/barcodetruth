@@ -198,23 +198,17 @@ serve(async (req) => {
       if (!qid) {
         log('No valid business entity found in Wikidata for:', cleanName);
         
-        // Mark brand as not found to avoid re-trying
-        await supabase
-          .from('brands')
-          .update({ 
-            description: 'No Wikidata entry found',
-            description_source: 'system'
-          })
-          .eq('id', brand_id);
-        
+        // Return success but indicate no entity found (don't crash UI)
         return new Response(
           JSON.stringify({ 
-            ok: false, 
-            error: 'Could not find valid company entity in Wikidata',
-            reason: 'not_found'
+            ok: true,
+            success: false,
+            wikidata_found: false,
+            message: `No Wikidata entity found for "${cleanName}"`,
+            brand_name: brand.name
           }),
           { 
-            status: 404,
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           }
         );
