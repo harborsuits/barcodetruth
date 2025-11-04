@@ -7821,6 +7821,10 @@ export type Database = {
       }
       current_window_start: { Args: { p_kind: string }; Returns: string }
       ensure_default_scores: { Args: { _brand_id: string }; Returns: undefined }
+      generate_brand_slug: {
+        Args: { brand_id: string; brand_name: string }
+        Returns: string
+      }
       generate_slug: {
         Args: { brand_name: string; brand_uuid: string }
         Returns: string

@@ -712,11 +712,8 @@ export default function BrandProfile() {
   // Now hidden behind feature flag in favor of Community Outlook
   const displayScore = personalizedScore?.personalized_score ?? data.score?.score ?? null;
 
-  // Compute safe display name (avoid 'Unnamed Brand')
-  const rawName = data.brand.name || '';
-  const isUnnamed = !rawName || rawName.trim().toLowerCase() === 'unnamed brand';
-  const fallbackFromSlug = brandInfo?.slug ? brandInfo.slug.replace(/-/g, ' ').replace(/\b\w/g, (s) => s.toUpperCase()) : 'Brand';
-  const displayBrandName = isUnnamed ? fallbackFromSlug : rawName;
+  // Compute safe display name (no more unnamed brands after migration)
+  const displayBrandName = data.brand.name || 'Brand';
 
   // Create monogram from display name
   const monogram = displayBrandName?.[0]?.toUpperCase() ?? 'B';
