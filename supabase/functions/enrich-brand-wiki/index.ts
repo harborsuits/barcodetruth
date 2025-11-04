@@ -63,6 +63,19 @@ serve(async (req) => {
       throw new Error('Brand not found');
     }
 
+    // Validate brand has a name
+    if (!brand.name || brand.name.trim() === '') {
+      err('Brand has no name:', { brand_id, name: brand.name });
+      return new Response(
+        JSON.stringify({ 
+          ok: false, 
+          error: 'Brand must have a name before enrichment',
+          reason: 'empty_name'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Step 1: Resolve or search for QID with entity type validation
     let qid = wikidata_qid ?? brand.wikidata_qid;
     

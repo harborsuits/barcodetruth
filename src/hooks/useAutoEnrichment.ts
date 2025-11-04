@@ -41,6 +41,10 @@ export function useAutoEnrichment(brandId: string, brandName: string, needsEnric
         });
 
         if (enrichError || !enrichData?.success) {
+          // Handle specific error cases
+          if (enrichData?.reason === 'empty_name') {
+            throw new Error('This brand needs a name before it can be enriched');
+          }
           throw new Error(enrichData?.error || 'Could not find valid business entity in Wikidata');
         }
 
