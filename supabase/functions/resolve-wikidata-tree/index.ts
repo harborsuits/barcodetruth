@@ -81,9 +81,9 @@ async function getOwnershipGraph(brandName: string, explicitQid?: string): Promi
     console.log('[Wikidata] Found QID:', qid, 'for', brandName);
   }
   
-  // Step 2: SPARQL query to get the full graph
+  // Step 2: Enhanced SPARQL query with entity type filtering
   const sparqlQuery = `
-    SELECT DISTINCT ?item ?itemLabel ?type WHERE {
+    SELECT DISTINCT ?item ?itemLabel ?itemDescription ?type WHERE {
       # Our entity
       BIND(wd:${qid} AS ?entity)
       
@@ -136,9 +136,34 @@ async function getOwnershipGraph(brandName: string, explicitQid?: string): Promi
         BIND("cousin" AS ?type)
       }
       
+      # CRITICAL: Entity MUST be a business/company/brand (not a patent/product)
+      ?item wdt:P31/wdt:P279* ?entityType .
+      VALUES ?entityType {
+        wd:Q4830453   # business enterprise
+        wd:Q783794    # company
+        wd:Q167037    # corporation
+        wd:Q891723    # public company
+        wd:Q431289    # brand
+        wd:Q6881511   # enterprise
+        wd:Q169652    # private company
+        wd:Q1616075   # business
+      }
+      
+      # EXCLUDE entities with invalid name patterns
+      FILTER NOT EXISTS {
+        ?item rdfs:label ?label .
+        FILTER(LANG(?label) = "en")
+        FILTER(
+          REGEX(?label, "^(Article|Product|Item|Device|Method|Process|System|Apparatus|Component|Patent|Trademark)", "i") ||
+          REGEX(?label, "(reinforced|braided|woven|manufactured|knitted|molded|formed)", "i") ||
+          REGEX(?label, "patent", "i") ||
+          REGEX(?label, "trademark", "i")
+        )
+      }
+      
       SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
     }
-    LIMIT 100
+    LIMIT 200
   `;
   
   const sparqlUrl = `https://query.wikidata.org/sparql?query=${encodeURIComponent(sparqlQuery)}&format=json`;
@@ -172,16 +197,25 @@ async function getOwnershipGraph(brandName: string, explicitQid?: string): Promi
     const itemName = binding.itemLabel.value;
     const type = binding.type.value;
     
-    // CRITICAL: Skip obvious non-companies (trademarks, patents, products)
+    // Enhanced validation: Skip obvious non-companies (double-check after SPARQL filtering)
     const INVALID_PATTERNS = [
-      /^(article|product|item|device|apparatus|method|process|system)/i,
-      /trademark$/i,
-      /patent$/i,
-      /(reinforced|braided|woven|manufactured|produced)/i
+      /^(article|product|item|device|apparatus|method|process|system|component)/i,
+      /trademark/i,
+      /patent/i,
+      /reinforced|braided|woven|manufactured|produced|knitted|molded|formed/i,
+      /footwear including|sole assembly|content page generation/i,
+      /^\d{5,}$/,  // Just numbers
+      /^[A-Z\s\-]+$/  // All caps (likely acronym or code, not a company name)
     ];
     
+    // Additional check: Name must be reasonable length
+    if (!itemName || itemName.length < 2 || itemName.length > 100) {
+      console.log('[Wikidata] Skipping entity with invalid name length:', itemName);
+      continue;
+    }
+    
     if (INVALID_PATTERNS.some(pattern => pattern.test(itemName))) {
-      console.log('[Wikidata] Skipping non-company entity:', itemName);
+      console.log('[Wikidata] Filtered out invalid entity:', itemName);
       continue;
     }
     

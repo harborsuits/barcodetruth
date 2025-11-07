@@ -2505,6 +2505,8 @@ export type Database = {
           confidence: number | null
           created_at: string | null
           id: string
+          is_validated: boolean | null
+          last_verified: string | null
           last_verified_at: string | null
           parent_company_id: string | null
           parent_name: string
@@ -2519,6 +2521,8 @@ export type Database = {
           confidence?: number | null
           created_at?: string | null
           id?: string
+          is_validated?: boolean | null
+          last_verified?: string | null
           last_verified_at?: string | null
           parent_company_id?: string | null
           parent_name: string
@@ -2533,6 +2537,8 @@ export type Database = {
           confidence?: number | null
           created_at?: string | null
           id?: string
+          is_validated?: boolean | null
+          last_verified?: string | null
           last_verified_at?: string | null
           parent_company_id?: string | null
           parent_name?: string
