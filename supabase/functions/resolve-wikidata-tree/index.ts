@@ -150,18 +150,12 @@ async function getOwnershipGraph(brandName: string, explicitQid?: string): Promi
       }
       
       # EXCLUDE entities with invalid name patterns (patents, trademarks, products)
-      FILTER NOT EXISTS {
-        ?item rdfs:label ?label .
-        FILTER(LANG(?label) = "en")
-        FILTER(
-          REGEX(?label, "^(Article|Product|Item|Device|Method|Process|System|Apparatus|Component|Patent|Trademark)", "i") ||
-          REGEX(?label, "(reinforced|braided|woven|manufactured|knitted|molded|formed)", "i") ||
-          REGEX(?label, "(apparatus|device|attachment|assembly|mechanism|grounding|strain relief|wire harness|borescope|lightning|galley|marker)", "i") ||
-          REGEX(?label, "for (a|an|the) ", "i") ||
-          REGEX(?label, "patent", "i") ||
-          REGEX(?label, "trademark", "i")
-        )
-      }
+      # Using ?itemLabel which is provided by SERVICE wikibase:label below
+      FILTER(
+        !REGEX(STR(?itemLabel), "^(Article|Product|Item|Device|Method|Process|System|Apparatus|Component|Patent|Trademark)", "i") &&
+        !REGEX(STR(?itemLabel), "(apparatus|device|attachment|assembly|mechanism|grounding|strain relief|wire harness|borescope|lightning|galley|marker|turbine|hydraulic|wing|fuselage|cockpit|avionics)", "i") &&
+        !REGEX(STR(?itemLabel), "\\bfor\\s+(a|an|the)\\s+", "i")
+      )
       
       SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
     }

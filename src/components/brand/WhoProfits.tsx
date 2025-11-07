@@ -40,6 +40,7 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
   const [loadingWikidata, setLoadingWikidata] = useState(true);
   const [wikidataGraph, setWikidataGraph] = useState<OwnershipGraph | null>(null);
   const [wikidataError, setWikidataError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,7 +117,15 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
       } catch (err: any) {
         if (cancelled) return;
         console.error('[Wikidata] Caught error:', err);
-        setWikidataError(err.message || 'Failed to connect to Wikidata');
+        setWikidataError('Unable to load ownership data at this time.');
+        
+        // Auto-retry once after 2 seconds
+        if (retryCount === 0) {
+          setTimeout(() => {
+            setRetryCount(1);
+            loadWikidataGraph();
+          }, 2000);
+        }
       } finally {
         if (!cancelled) {
           console.log('[Wikidata] Loading complete');
@@ -130,7 +139,7 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
     return () => {
       cancelled = true;
     };
-  }, [brandName, brandId]);
+  }, [brandName, brandId, retryCount]);
 
   if (isLoading || !data) return null;
 
@@ -183,8 +192,14 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
         )}
 
         {wikidataError && (
-          <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-lg">
-            {wikidataError}
+          <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+            <p className="text-sm text-yellow-800 dark:text-yellow-200">{wikidataError}</p>
+            <button 
+              onClick={() => { setRetryCount(0); setWikidataError(null); }}
+              className="text-sm text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 underline mt-2"
+            >
+              Try again
+            </button>
           </div>
         )}
 
