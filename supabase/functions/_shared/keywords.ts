@@ -28,9 +28,13 @@ export const CATEGORY_KEYWORDS: Record<string, { phrases: string[]; words: strin
   policy: {
     phrases: [
       "legislation introduced","new regulation","regulatory proposal","public comment period","industry standard update",
-      "introduced a bill","signed into law","final rule","interim final rule"
+      "introduced a bill","signed into law","final rule","interim final rule",
+      "president trump","president biden","white house visit","executive order","administration policy",
+      "campaign rally","political rally","presidential visit","governor visit","election campaign"
     ],
-    words: ["policy","regulatory","rulemaking","ordinance","ban","moratorium","compliance","guidance"]
+    words: ["policy","regulatory","rulemaking","ordinance","ban","moratorium","compliance","guidance",
+            "trump","biden","president","election","politician","senator","congressman","representative",
+            "governor","mayor","administration","political","campaign","rally","endorsement","candidate"]
   },
   legal: {
     phrases: [

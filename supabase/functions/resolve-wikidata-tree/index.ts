@@ -126,12 +126,6 @@ async function getOwnershipGraph(brandName: string, explicitQid?: string): Promi
       }
       UNION
       {
-        # Method 5: This brand operates the entity (P137)
-        ?entity wdt:P137 ?item .
-        BIND("subsidiary" AS ?type)
-      }
-      UNION
-      {
         # Get cousins (children of parent's siblings)
         ?entity wdt:P749 ?parent .
         ?parent wdt:P749 ?grandparent .
@@ -177,6 +171,19 @@ async function getOwnershipGraph(brandName: string, explicitQid?: string): Promi
     const itemQid = binding.item.value.split('/').pop();
     const itemName = binding.itemLabel.value;
     const type = binding.type.value;
+    
+    // CRITICAL: Skip obvious non-companies (trademarks, patents, products)
+    const INVALID_PATTERNS = [
+      /^(article|product|item|device|apparatus|method|process|system)/i,
+      /trademark$/i,
+      /patent$/i,
+      /(reinforced|braided|woven|manufactured|produced)/i
+    ];
+    
+    if (INVALID_PATTERNS.some(pattern => pattern.test(itemName))) {
+      console.log('[Wikidata] Skipping non-company entity:', itemName);
+      continue;
+    }
     
     // Fetch logo for this entity
     let logoUrl = null;
