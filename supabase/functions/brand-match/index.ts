@@ -7,25 +7,40 @@ const ACCEPT_THRESHOLD = 0.80;
 
 // EMERGENCY VALIDATION: Prevent patents/trademarks/generic descriptions from being created as brands
 const INVALID_BRAND_PATTERNS = [
-  /^(US patent|EP patent|patent|trademark)/i,
-  /patent \d{5,}/i,
-  /\d{5,}/,  // Long number sequences
-  /^(article of|product of|method of|system for|apparatus)/i,
-  /^(braided|reinforced|woven|knitted|molded) (article|item|product)/i,
+  /^(US patent|EP patent|patent #|patent no\.?|trademark|copyright)/i,
+  /patent\s+\d{5,}/i,
+  /trademark\s+\d{4,}/i,
+  /^(article of|product of|method of|system for|apparatus for|device for)/i,
+  /^(component|element|structure|mechanism)\s+(of|for)/i,
+  /^(braided|reinforced|woven|knitted|molded|manufactured) (article|item|product)/i,
   /(footwear including|sole assembly|content page generation)/i,
   /^(including|featuring|with|containing)/i,
   /©|®|™/,
-  /^(component of|element of|part of|unnamed|nnamed)/i
+  /^(unnamed|nnamed)/i,
+  /^[A-Z\d\s\-]+$/  // All caps or numbers only
 ];
 
-function isValidBrandName(name: string): boolean {
-  if (!name || name.trim().length < 2) return false;
-  if (name.length > 50) return false;  // Brand names shouldn't be descriptions
-  if (INVALID_BRAND_PATTERNS.some(pattern => pattern.test(name))) {
-    console.log(`[brand-match] ⚠️ Rejected invalid brand name: "${name}"`);
-    return false;
+const MIN_BRAND_NAME_LENGTH = 2;
+const MAX_BRAND_NAME_LENGTH = 100;
+
+function isValidBrandName(name: string): { valid: boolean; reason?: string } {
+  if (!name || typeof name !== 'string') {
+    return { valid: false, reason: 'Name is empty or not a string' };
   }
-  return true;
+  
+  const trimmed = name.trim();
+  
+  if (trimmed.length < MIN_BRAND_NAME_LENGTH || trimmed.length > MAX_BRAND_NAME_LENGTH) {
+    return { valid: false, reason: `Name length must be between ${MIN_BRAND_NAME_LENGTH} and ${MAX_BRAND_NAME_LENGTH} characters` };
+  }
+  
+  for (const pattern of INVALID_BRAND_PATTERNS) {
+    if (pattern.test(trimmed)) {
+      return { valid: false, reason: `Name matches invalid pattern: ${pattern.toString()}` };
+    }
+  }
+  
+  return { valid: true };
 }
 
 type Item = {
@@ -130,6 +145,25 @@ Deno.serve(async (req) => {
         const top = candidates[0];
 
         if (top && top.confidence >= ACCEPT_THRESHOLD) {
+          // Validate brand name before creating event
+          const validation = isValidBrandName(top.brand_name || '');
+          if (!validation.valid) {
+            console.log(`[brand-match] REJECTED brand: "${top.brand_name}" - ${validation.reason}`);
+            
+            // Log rejection for monitoring
+            await supabase.from('rejected_entities').insert({
+              entity_name: top.brand_name,
+              reason_rejected: validation.reason,
+              source: 'brand-match',
+              attempted_at: new Date().toISOString()
+            }).then(({ error }) => {
+              if (error) console.error('[brand-match] Failed to log rejection:', error);
+            });
+            
+            await supabase.from('rss_items').update({ status: 'rejected' }).eq('id', item.id);
+            skipped++;
+            continue;
+          }
           // Record match
           await supabase.from('article_brand_matches').upsert({
             item_id: item.id,
