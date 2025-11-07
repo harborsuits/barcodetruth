@@ -1049,6 +1049,7 @@ export type Database = {
           is_press_release: boolean | null
           is_test: boolean
           jurisdiction: string | null
+          keyword_matches: Json | null
           noise_reason: string | null
           occurred_at: string | null
           orientation: Database["public"]["Enums"]["event_orientation"] | null
@@ -1058,6 +1059,7 @@ export type Database = {
           relevance_score_raw: number
           resolved: boolean | null
           secondary_categories: string[] | null
+          secondary_category: string | null
           severity: string | null
           source_url: string | null
           source_url_sha256: string | null
@@ -1092,6 +1094,7 @@ export type Database = {
           is_press_release?: boolean | null
           is_test?: boolean
           jurisdiction?: string | null
+          keyword_matches?: Json | null
           noise_reason?: string | null
           occurred_at?: string | null
           orientation?: Database["public"]["Enums"]["event_orientation"] | null
@@ -1101,6 +1104,7 @@ export type Database = {
           relevance_score_raw?: number
           resolved?: boolean | null
           secondary_categories?: string[] | null
+          secondary_category?: string | null
           severity?: string | null
           source_url?: string | null
           source_url_sha256?: string | null
@@ -1137,6 +1141,7 @@ export type Database = {
           is_press_release?: boolean | null
           is_test?: boolean
           jurisdiction?: string | null
+          keyword_matches?: Json | null
           noise_reason?: string | null
           occurred_at?: string | null
           orientation?: Database["public"]["Enums"]["event_orientation"] | null
@@ -1146,6 +1151,7 @@ export type Database = {
           relevance_score_raw?: number
           resolved?: boolean | null
           secondary_categories?: string[] | null
+          secondary_category?: string | null
           severity?: string | null
           source_url?: string | null
           source_url_sha256?: string | null
