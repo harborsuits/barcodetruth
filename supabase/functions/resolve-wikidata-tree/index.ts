@@ -149,13 +149,15 @@ async function getOwnershipGraph(brandName: string, explicitQid?: string): Promi
         wd:Q1616075   # business
       }
       
-      # EXCLUDE entities with invalid name patterns
+      # EXCLUDE entities with invalid name patterns (patents, trademarks, products)
       FILTER NOT EXISTS {
         ?item rdfs:label ?label .
         FILTER(LANG(?label) = "en")
         FILTER(
           REGEX(?label, "^(Article|Product|Item|Device|Method|Process|System|Apparatus|Component|Patent|Trademark)", "i") ||
           REGEX(?label, "(reinforced|braided|woven|manufactured|knitted|molded|formed)", "i") ||
+          REGEX(?label, "(apparatus|device|attachment|assembly|mechanism|grounding|strain relief|wire harness|borescope|lightning|galley|marker)", "i") ||
+          REGEX(?label, "\\bfor\\s+(a|an|the)\\s+", "i") ||
           REGEX(?label, "patent", "i") ||
           REGEX(?label, "trademark", "i")
         )
@@ -205,12 +207,41 @@ async function getOwnershipGraph(brandName: string, explicitQid?: string): Promi
       /reinforced|braided|woven|manufactured|produced|knitted|molded|formed/i,
       /footwear including|sole assembly|content page generation/i,
       /^\d{5,}$/,  // Just numbers
-      /^[A-Z\s\-]+$/  // All caps (likely acronym or code, not a company name)
+      /^[A-Z\s\-]+$/,  // All caps (likely acronym or code, not a company name)
+      // Aviation/mechanical patent terms
+      /apparatus/i,
+      /device/i,
+      /attachment/i,
+      /assembly/i,
+      /mechanism/i,
+      /grounding/i,
+      /strain relief/i,
+      /wire harness/i,
+      /borescope/i,
+      /lightning/i,
+      /galley lift/i,
+      /marker/i,
+      // Generic technical description patterns
+      /\bfor\s+(a|an|the)\s+/i,  // "device for a", "apparatus for the"
+      /^[a-z]+\s+(attachment|device|apparatus|assembly|mechanism|system|component)/i
     ];
     
     // Additional check: Name must be reasonable length
     if (!itemName || itemName.length < 2 || itemName.length > 100) {
       console.log('[Wikidata] Skipping entity with invalid name length:', itemName);
+      continue;
+    }
+    
+    // Word count check: Patents are often long descriptive phrases (>5 words)
+    const wordCount = itemName.trim().split(/\s+/).length;
+    if (wordCount > 5) {
+      console.log('[Wikidata] Filtered out long descriptive phrase (likely patent):', itemName);
+      continue;
+    }
+    
+    // Must contain at least one capital letter (proper noun for company name)
+    if (!/[A-Z]/.test(itemName)) {
+      console.log('[Wikidata] Filtered out entity without capital letters:', itemName);
       continue;
     }
     

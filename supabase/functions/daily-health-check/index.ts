@@ -63,12 +63,44 @@ serve(async (req) => {
       console.log(`[Health Check] Found ${miscategorized.length} miscategorized events`);
     }
 
-    // CHECK 3: Invalid ownership relationships
-    const { data: invalidOwnership } = await supabase
+    // CHECK 3: Invalid ownership relationships (patents, trademarks, technical descriptions)
+    const { data: invalidOwnershipRaw } = await supabase
       .from('company_ownership')
-      .select('id, parent_name, child_name')
-      .or('child_name.ilike.%patent%,child_name.ilike.%trademark%,child_name.ilike.%article of%')
-      .limit(100);
+      .select('id, parent_name, child_company_id')
+      .limit(500);
+
+    // Join with companies to get child names, then filter
+    const invalidOwnership = invalidOwnershipRaw
+      ? await Promise.all(
+          invalidOwnershipRaw.map(async (co) => {
+            if (!co.child_company_id) return null;
+            const { data: company } = await supabase
+              .from('companies')
+              .select('name')
+              .eq('id', co.child_company_id)
+              .single();
+            
+            if (!company?.name) return null;
+            
+            // Check for patent/technical terms
+            const invalidPatterns = [
+              /patent/i, /trademark/i, /article of/i,
+              /apparatus/i, /device/i, /attachment/i, /assembly/i,
+              /mechanism/i, /grounding/i, /strain relief/i,
+              /wire harness/i, /borescope/i, /lightning/i, /galley/i, /marker/i
+            ];
+            
+            if (invalidPatterns.some(pattern => pattern.test(company.name))) {
+              return {
+                id: co.id,
+                parent_name: co.parent_name,
+                child_name: company.name
+              };
+            }
+            return null;
+          })
+        ).then(results => results.filter(Boolean))
+      : [];
 
     if (invalidOwnership && invalidOwnership.length > 0) {
       metrics.push({
