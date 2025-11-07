@@ -157,7 +157,7 @@ async function getOwnershipGraph(brandName: string, explicitQid?: string): Promi
           REGEX(?label, "^(Article|Product|Item|Device|Method|Process|System|Apparatus|Component|Patent|Trademark)", "i") ||
           REGEX(?label, "(reinforced|braided|woven|manufactured|knitted|molded|formed)", "i") ||
           REGEX(?label, "(apparatus|device|attachment|assembly|mechanism|grounding|strain relief|wire harness|borescope|lightning|galley|marker)", "i") ||
-          REGEX(?label, "\\bfor\\s+(a|an|the)\\s+", "i") ||
+          REGEX(?label, "for (a|an|the) ", "i") ||
           REGEX(?label, "patent", "i") ||
           REGEX(?label, "trademark", "i")
         )

@@ -4583,6 +4583,36 @@ export type Database = {
         }
         Relationships: []
       }
+      rejected_entities: {
+        Row: {
+          created_at: string
+          entity_name: string
+          entity_type: string
+          id: string
+          rejection_reason: string
+          source_id: string | null
+          source_table: string | null
+        }
+        Insert: {
+          created_at?: string
+          entity_name: string
+          entity_type: string
+          id?: string
+          rejection_reason: string
+          source_id?: string | null
+          source_table?: string | null
+        }
+        Update: {
+          created_at?: string
+          entity_name?: string
+          entity_type?: string
+          id?: string
+          rejection_reason?: string
+          source_id?: string | null
+          source_table?: string | null
+        }
+        Relationships: []
+      }
       rss_feeds: {
         Row: {
           category_hint: string | null
