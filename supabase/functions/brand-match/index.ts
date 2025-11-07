@@ -5,6 +5,29 @@ import { requireInternal } from '../_shared/internal.ts';
 const BATCH = parseInt(Deno.env.get('MATCH_BATCH') || '25', 10);
 const ACCEPT_THRESHOLD = 0.80;
 
+// EMERGENCY VALIDATION: Prevent patents/trademarks/generic descriptions from being created as brands
+const INVALID_BRAND_PATTERNS = [
+  /^(US patent|EP patent|patent|trademark)/i,
+  /patent \d{5,}/i,
+  /\d{5,}/,  // Long number sequences
+  /^(article of|product of|method of|system for|apparatus)/i,
+  /^(braided|reinforced|woven|knitted|molded) (article|item|product)/i,
+  /(footwear including|sole assembly|content page generation)/i,
+  /^(including|featuring|with|containing)/i,
+  /©|®|™/,
+  /^(component of|element of|part of|unnamed|nnamed)/i
+];
+
+function isValidBrandName(name: string): boolean {
+  if (!name || name.trim().length < 2) return false;
+  if (name.length > 50) return false;  // Brand names shouldn't be descriptions
+  if (INVALID_BRAND_PATTERNS.some(pattern => pattern.test(name))) {
+    console.log(`[brand-match] ⚠️ Rejected invalid brand name: "${name}"`);
+    return false;
+  }
+  return true;
+}
+
 type Item = {
   id: string;
   title: string;
