@@ -98,3 +98,119 @@ export async function ensureUserPreferences(userId: string) {
     return false;
   }
 }
+
+/**
+ * Get health dashboard data
+ * Fetches current health score, trending, recent checks, top issues, and recent fixes
+ */
+export async function getHealthDashboard() {
+  try {
+    const { data, error } = await supabase.rpc('get_health_dashboard');
+    
+    if (error) {
+      console.error('Failed to fetch health dashboard:', error);
+      return null;
+    }
+    
+    return data;
+  } catch (err) {
+    console.error('Failed to get health dashboard:', err);
+    return null;
+  }
+}
+
+/**
+ * Trigger manual health check
+ * Admin only - requires authentication
+ */
+export async function triggerHealthCheck() {
+  try {
+    const { data, error } = await supabase.functions.invoke('daily-health-check');
+    
+    if (error) {
+      console.error('Health check failed:', error);
+      return null;
+    }
+    
+    return data;
+  } catch (err) {
+    console.error('Failed to trigger health check:', err);
+    return null;
+  }
+}
+
+/**
+ * Get recent health check results
+ */
+export async function getRecentHealthChecks(limit: number = 10) {
+  try {
+    const { data, error } = await supabase
+      .from('health_check_results')
+      .select('*')
+      .order('checked_at', { ascending: false })
+      .limit(limit);
+    
+    if (error) {
+      console.error('Failed to fetch health checks:', error);
+      return null;
+    }
+    
+    return data;
+  } catch (err) {
+    console.error('Failed to get recent health checks:', err);
+    return null;
+  }
+}
+
+/**
+ * Get data quality metrics
+ */
+export async function getDataQualityMetrics(metricName?: string) {
+  try {
+    let query = supabase
+      .from('data_quality_metrics')
+      .select('*')
+      .order('checked_at', { ascending: false });
+    
+    if (metricName) {
+      query = query.eq('metric_name', metricName);
+    }
+    
+    const { data, error } = await query.limit(50);
+    
+    if (error) {
+      console.error('Failed to fetch quality metrics:', error);
+      return null;
+    }
+    
+    return data;
+  } catch (err) {
+    console.error('Failed to get quality metrics:', err);
+    return null;
+  }
+}
+
+/**
+ * Get recent auto-fix logs
+ */
+export async function getAutoFixLogs(days: number = 7) {
+  try {
+    const { data, error } = await supabase
+      .from('data_quality_log')
+      .select('*')
+      .gte('timestamp', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString())
+      .like('action', 'auto_%')
+      .order('timestamp', { ascending: false })
+      .limit(50);
+    
+    if (error) {
+      console.error('Failed to fetch auto-fix logs:', error);
+      return null;
+    }
+    
+    return data;
+  } catch (err) {
+    console.error('Failed to get auto-fix logs:', err);
+    return null;
+  }
+}

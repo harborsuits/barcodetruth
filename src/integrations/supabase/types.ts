@@ -2940,6 +2940,72 @@ export type Database = {
         }
         Relationships: []
       }
+      data_quality_log: {
+        Row: {
+          action: string
+          count: number | null
+          details: Json | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          timestamp: string | null
+        }
+        Insert: {
+          action: string
+          count?: number | null
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          timestamp?: string | null
+        }
+        Update: {
+          action?: string
+          count?: number | null
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          timestamp?: string | null
+        }
+        Relationships: []
+      }
+      data_quality_metrics: {
+        Row: {
+          checked_at: string | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          issues: Json | null
+          metric_name: string
+          recommendations: Json | null
+          score: number | null
+          status: string | null
+        }
+        Insert: {
+          checked_at?: string | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          issues?: Json | null
+          metric_name: string
+          recommendations?: Json | null
+          score?: number | null
+          status?: string | null
+        }
+        Update: {
+          checked_at?: string | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          issues?: Json | null
+          metric_name?: string
+          recommendations?: Json | null
+          score?: number | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       enrichment_runs: {
         Row: {
           brand_id: string | null
@@ -3388,6 +3454,42 @@ export type Database = {
           created_at?: string
           prefix?: string
           source?: string | null
+        }
+        Relationships: []
+      }
+      health_check_results: {
+        Row: {
+          checked_at: string | null
+          critical_entities: number | null
+          healthy_entities: number | null
+          id: string
+          overall_score: number | null
+          priority_fixes: Json | null
+          total_entities: number | null
+          trending: string | null
+          warning_entities: number | null
+        }
+        Insert: {
+          checked_at?: string | null
+          critical_entities?: number | null
+          healthy_entities?: number | null
+          id?: string
+          overall_score?: number | null
+          priority_fixes?: Json | null
+          total_entities?: number | null
+          trending?: string | null
+          warning_entities?: number | null
+        }
+        Update: {
+          checked_at?: string | null
+          critical_entities?: number | null
+          healthy_entities?: number | null
+          id?: string
+          overall_score?: number | null
+          priority_fixes?: Json | null
+          total_entities?: number | null
+          trending?: string | null
+          warning_entities?: number | null
         }
         Relationships: []
       }
@@ -7931,6 +8033,7 @@ export type Database = {
       }
       get_enrichment_coverage: { Args: never; Returns: Json }
       get_enrichment_stats: { Args: never; Returns: Json }
+      get_health_dashboard: { Args: never; Returns: Json }
       get_incomplete_brands: {
         Args: never
         Returns: {
