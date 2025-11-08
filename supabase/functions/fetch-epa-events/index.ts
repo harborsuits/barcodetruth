@@ -1,6 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { RELEVANCE_MAX_SCORE } from "../_shared/scoringConstants.ts";
+import { fetchWithBackoff } from "./lib/http.ts";
+import { 
+  buildPrimaryUrl, 
+  buildFallbackUrl, 
+  parseEchoResponse,
+  parseEnvirofactsResponse,
+  toInternalEvent,
+  EPAFacility
+} from "./lib/epa.ts";
+import { normalizeCompanyName, generateVariants } from "./lib/normalize.ts";
+import { upsertEvents, logDefer, enqueueNotification } from "./store/upsert.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -42,7 +52,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (config?.value === false) {
-      console.log("[EPA] Ingestion disabled via feature flag");
+      console.log("[fetch-epa-events] Ingestion disabled via feature flag");
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -55,8 +65,6 @@ serve(async (req) => {
       );
     }
 
-    // EPA ECHO API - get recent enforcement actions
-    // Note: In production, map brand_id -> facility IDs via brand_facilities table
     // Get brand name for matching
     const { data: brand } = await supabase
       .from('brands')
@@ -72,191 +80,118 @@ serve(async (req) => {
       });
     }
 
-    // Search EPA for facilities matching brand name - use correct ECHO endpoint
-    const searchUrl = `https://echodata.epa.gov/echo/rest_lookups.get_facilities?output=JSON&p_fn=${encodeURIComponent(brand.name)}&responseset=20`;
-    console.log(`[fetch-epa-events] Searching EPA for: ${brand.name}`);
-
-    const res = await fetch(searchUrl);
-    if (!res.ok) {
-      console.error('[fetch-epa-events] EPA API error:', res.status);
-      return new Response(JSON.stringify({ error: "EPA fetch failed" }), { 
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
-    }
-
-    const json = await res.json();
-    const facilities = json?.Results?.Results ?? [];
-
-    console.log(`[fetch-epa-events] Found ${facilities.length} facilities for ${brand.name}`);
-
-    const events = [];
-    let scanned = 0;
-    let skipped = 0;
+    // Normalize and generate variants for better matching
+    const normalized = normalizeCompanyName(brand.name);
+    const variants = generateVariants(brand.name);
+    const searchName = variants[0]; // Use best variant for search
     
-    for (const facility of facilities.slice(0, 50)) {
-      scanned++;
-      // Small delay to respect API rate limits
-      await new Promise(r => setTimeout(r, 150));
-      
-      // Check for violations
-      if (facility.Viol_Flag === 'Y' || facility.Qtrs_with_NC > 0) {
-        const sourceUrl = `https://echo.epa.gov/detailed-facility-report?fid=${facility.RegistryID}`;
-        
-        // Check if we already have this event (fast dedupe via source_url on brand_events)
-        const { data: existing } = await supabase
-          .from('brand_events')
-          .select('event_id')
-          .eq('brand_id', brandId)
-          .eq('source_url', sourceUrl)
-          .limit(1);
+    console.log(`[fetch-epa-events] Searching EPA for: ${searchName} (variants: ${variants.length})`);
 
-        if (existing && existing.length > 0) {
-          console.log(`[fetch-epa-events] Skipping duplicate: ${sourceUrl}`);
-          skipped++;
-          continue;
-        }
-
-        const qnc = Number(facility.Qtrs_with_NC ?? 0) || 0;
-        const impact = qnc > 2 ? -5 : qnc > 0 ? -3 : -1;
-        
-        const event = {
-          brand_id: brandId,
-          title: `EPA violation at ${facility.FacName}`,
-          description: `Facility ${facility.RegistryID} reported ${facility.Qtrs_with_NC ?? 0} quarters with non-compliance. ${facility.Viol_Flag === 'Y' ? 'Active violations flagged.' : 'Monitoring required.'}`,
-          category: 'environment',
-          event_date: new Date().toISOString(),
-          verification: 'official',
-          orientation: 'negative',
-          impact_environment: impact,
-          source_url: sourceUrl, // For O(1) dedupe
-          relevance_score_raw: RELEVANCE_MAX_SCORE, // Official gov data = max relevance (bypasses news filtering)
-          is_irrelevant: false,
-        };
-
-        if (dryrun) {
-          console.log(`[fetch-epa-events] [DRYRUN] Would insert event:`, event);
-          events.push('dryrun-' + sourceUrl);
-          continue;
-        }
-
-        // Insert event
-        const { data: eventData, error: eventError } = await supabase
-          .from('brand_events')
-          .insert(event)
-          .select('event_id')
-          .single();
-
-        if (eventError) {
-          // Check if it's a unique violation (race condition)
-          if (eventError.code === '23505') {
-            console.log(`[fetch-epa-events] Duplicate detected via constraint: ${sourceUrl}`);
-            skipped++;
-            continue;
-          }
-          console.error('[fetch-epa-events] Error inserting event:', eventError);
-          continue;
-        }
-
-        // Parse URL for registrable domain
-        const registrableDomain = (() => {
-          try {
-            const u = new URL(sourceUrl);
-            return u.hostname.replace(/^www\./, '');
-          } catch {
-            return 'epa.gov';
-          }
-        })();
-
-        const sourceTitle = (facility.FacName || 'Facility').trim();
-        const safeTitle = sourceTitle.length >= 4 ? `EPA action at ${sourceTitle}` : 'EPA enforcement record';
-
-        // Insert source with canonical_url set
-        const { error: sourceError } = await supabase
-          .from('event_sources')
-          .upsert(
-            {
-              event_id: eventData.event_id,
-              source_name: 'EPA',
-              title: safeTitle,
-              source_url: sourceUrl,
-              canonical_url: sourceUrl,
-              domain_owner: 'U.S. Environmental Protection Agency',
-              registrable_domain: registrableDomain,
-              domain_kind: 'official',
-              source_date: new Date().toISOString(),
-              is_primary: true,
-              link_kind: 'database',
-              article_snippet: `Facility: ${facility.FacName}, Registry ID: ${facility.RegistryID}`,
-            },
-            { onConflict: 'event_id,source_url', ignoreDuplicates: true }
-          );
-
-        if (sourceError) {
-          console.error('[fetch-epa-events] Error inserting source:', sourceError);
-        }
-
-        console.log(`[fetch-epa-events] ✅ evidence_source_primary_inserted: event=${eventData.event_id}, source=EPA, domain=echo.epa.gov`);
-
-        events.push(eventData.event_id);
+    const init = {
+      headers: {
+        "user-agent": "BarcodeTruthBot/1.0 (+support@barcode-truth.app)",
+        "accept": "application/json"
       }
-    }
+    };
 
-    console.log(`[fetch-epa-events] Scanned: ${scanned}, Inserted: ${events.length}, Skipped: ${skipped}`);
+    let facilities: EPAFacility[] = [];
+    let source = 'primary';
 
-    // If we created any events, enqueue a coalesced push for this brand
-    if (events.length > 0 && !dryrun) {
-      // Fetch brand name for nicer notification text
-      const { data: brandRow } = await supabase
-        .from('brands')
-        .select('id, name')
-        .eq('id', brandId)
-        .maybeSingle();
-
-      // 5-minute coalescing bucket key (same pattern as score-change producer)
-      const bucketSec = Math.floor(Date.now() / (5 * 60 * 1000)) * 5 * 60;
-      const coalesceKey = `${brandId}:${bucketSec}`;
-
-      // Build a concise events summary for payload (environment-only here)
-      const nowISO = new Date().toISOString();
-      const payload = {
-        brand_id: brandId,
-        brand_name: brandRow?.name ?? brandId,
-        at: nowISO,
-        events: [
-          {
-            category: 'environment',
-            // Treat EPA inserts as a negative movement "signal"; consumer will coalesce.
-            delta: -1 * events.length, // keeps "one clean alert" behavior while conveying magnitude
-          },
-        ],
-      };
-
-      // Atomically merge into any existing bucketed job
-      const { error: upsertErr } = await supabase.rpc('upsert_coalesced_job', {
-        p_stage: 'send_push_for_score_change',
-        p_key: coalesceKey,
-        p_payload: payload,
-        p_not_before: nowISO,
-      });
-
-      if (upsertErr) {
-        console.error('[fetch-epa-events] Failed to enqueue coalesced job:', upsertErr);
-      } else {
-        console.log(
-          `[fetch-epa-events] Enqueued coalesced job for ${brandRow?.name ?? brandId} (inserted=${events.length})`
+    // Try primary endpoint (ECHO API) with retry
+    try {
+      const primaryUrl = buildPrimaryUrl(searchName);
+      console.log(`[fetch-epa-events] Trying primary: ${primaryUrl}`);
+      
+      const res = await fetchWithBackoff(primaryUrl, init);
+      
+      if (!res.ok) {
+        throw new Error(`primary_${res.status}`);
+      }
+      
+      const data = await res.json();
+      facilities = parseEchoResponse(data);
+      
+      console.log(`[fetch-epa-events] Primary endpoint returned ${facilities.length} facilities`);
+    } catch (primaryError) {
+      console.warn(`[fetch-epa-events] Primary endpoint failed:`, primaryError);
+      
+      // Try fallback endpoint (Envirofacts)
+      try {
+        const fallbackUrl = buildFallbackUrl(searchName);
+        console.log(`[fetch-epa-events] Trying fallback: ${fallbackUrl}`);
+        
+        const res2 = await fetchWithBackoff(fallbackUrl, init);
+        
+        if (!res2.ok) {
+          throw new Error(`fallback_${res2.status}`);
+        }
+        
+        const data2 = await res2.json();
+        facilities = parseEnvirofactsResponse(data2);
+        source = 'fallback';
+        
+        console.log(`[fetch-epa-events] Fallback endpoint returned ${facilities.length} facilities`);
+      } catch (fallbackError) {
+        console.error(`[fetch-epa-events] Both endpoints failed:`, {
+          primary: String(primaryError),
+          fallback: String(fallbackError)
+        });
+        
+        // Log deferred state for retry
+        await logDefer(supabase, {
+          brand_id: brandId,
+          query: searchName,
+          reason: 'upstream_5xx',
+          detail: `Primary: ${String(primaryError)}, Fallback: ${String(fallbackError)}`
+        });
+        
+        return new Response(
+          JSON.stringify({ 
+            deferred: true, 
+            reason: 'EPA API unavailable',
+            tried: ['ECHO', 'Envirofacts']
+          }), 
+          { 
+            status: 202,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          }
         );
       }
+    }
+
+    // Filter facilities with violations
+    const violationFacilities = facilities
+      .filter(f => f.Viol_Flag === 'Y' || f.Qtrs_with_NC > 0)
+      .slice(0, 50); // Limit to 50
+
+    console.log(`[fetch-epa-events] Found ${violationFacilities.length} facilities with violations`);
+
+    // Convert to internal events
+    const eventsToUpsert = violationFacilities.map(facility => ({
+      event: toInternalEvent(facility, brandId),
+      facility
+    }));
+
+    // Upsert events with idempotent deduplication
+    const { inserted, skipped } = await upsertEvents(supabase, eventsToUpsert, dryrun);
+
+    console.log(`[fetch-epa-events] Scanned: ${facilities.length}, Inserted: ${inserted.length}, Skipped: ${skipped}, Source: ${source}`);
+
+    // Enqueue notification if new events were created
+    if (inserted.length > 0 && !dryrun) {
+      await enqueueNotification(supabase, brandId, inserted.length);
     }
 
     return new Response(
       JSON.stringify({ 
         success: true,
         dryrun,
-        scanned,
-        inserted: events.length,
+        source,
+        scanned: facilities.length,
+        violations_found: violationFacilities.length,
+        inserted: inserted.length,
         skipped,
-        event_ids: events 
+        event_ids: inserted 
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -264,7 +199,16 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('[fetch-epa-events] Error:', error);
+    console.error('[fetch-epa-events] Unexpected error:', error);
+    
+    // Log structured error for monitoring
+    console.error(JSON.stringify({
+      level: "error",
+      fn: "fetch-epa-events",
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    }));
+    
     return new Response(
       JSON.stringify({ 
         success: false, 
