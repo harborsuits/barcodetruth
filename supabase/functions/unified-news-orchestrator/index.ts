@@ -337,11 +337,28 @@ async function classifyCategory(
 // ---- orientation & impact  (-5..+5) ---------------------------------------
 function orientationImpact(title: string): number {
   const t = title.toLowerCase();
-  const bad = /\b(violation|lawsuit|fine|penalty|recall|toxic|spill|boycott|strike|layoff|probe|investigation|ban)\b/;
-  const good = /\b(award|recognition|certification|sustainab|donation|volunteer|partnership|initiative|improv(e|ement))\b/;
-  if (bad.test(t)) return -3;
+  
+  // Strong negative indicators (severe issues)
+  const severe = /\b(violation|lawsuit|fine|penalty|recall|toxic|spill|boycott|strike|layoff|probe|investigation|ban|sued|scandal|fraud|breach|criminal|charged|accident|death|fatal)\b/;
+  
+  // Moderate negative indicators (concerns/problems)
+  const moderate = /\b(concern|problem|issue|controversy|criticism|complaint|disputed|questioned|challenged|accused|alleged|facing|under\s+fire|scrutiny)\b/;
+  
+  // Positive indicators
+  const good = /\b(award|recognition|certification|sustainab|donation|volunteer|partnership|initiative|improv(e|ement)|achiev|success|breakthrough|milestone|innovation)\b/;
+  
+  // News/reporting indicators (usually negative context)
+  const newsContext = /\b(report|reports|alleged|claims|investigation|according|sources|officials)\b/;
+  
+  if (severe.test(t)) return -5;
+  if (moderate.test(t)) return -3;
   if (good.test(t)) return +2;
-  return 0;
+  
+  // Default to mild negative for news articles (they're usually about problems)
+  // Only neutral news (e.g., product launches, expansions) bypass the above filters
+  if (newsContext.test(t)) return -2;
+  
+  return -1; // Default to slight negative (news articles are rarely positive)
 }
 
 function verificationWeight(v?: string): number {
