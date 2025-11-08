@@ -54,7 +54,7 @@ serve(async (req) => {
     // Call the database RPC function
     console.log('[calculate-brand-score] Calling compute_brand_score RPC');
     const { data, error } = await supabase.rpc('compute_brand_score', {
-      p_brand_id: brand_id
+      p_brand: brand_id
     });
 
     if (error) {
