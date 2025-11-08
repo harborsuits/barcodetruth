@@ -1,14 +1,31 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
-import { requireInternal } from '../_shared/internal.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const guard = requireInternal(req, 'resolve-evidence-links');
-  if (guard) return guard;
+  // Validate x-cron-token for server-to-server auth
+  const cronToken = req.headers.get('x-cron-token');
+  const expectedToken = Deno.env.get('CRON_SECRET');
+  const devBypass = Deno.env.get('ALLOW_DEV_BYPASS') === 'true' && new URL(req.url).searchParams.has('dev');
+
+  if (!devBypass && (!expectedToken || cronToken !== expectedToken)) {
+    const reason = !cronToken ? 'missing-cron-header' : 'token-mismatch';
+    console.warn(JSON.stringify({
+      level: 'warn',
+      fn: 'resolve-evidence-links',
+      blocked: true,
+      reason,
+      ip: req.headers.get('x-forwarded-for') || null,
+      ua: req.headers.get('user-agent') || null,
+    }));
+    return new Response(JSON.stringify({ error: 'Forbidden' }), {
+      status: 403,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
 
   const t0 = performance.now();
   const url = new URL(req.url);
