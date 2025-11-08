@@ -1,28 +1,44 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { corsHeaders } from '../_shared/cors.ts';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization,content-type,x-internal-token,x-cron-token',
+};
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Validate x-cron-token for server-to-server auth
+  // Health check endpoint
+  const { pathname } = new URL(req.url);
+  if (pathname.endsWith('/health')) {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  // Dual auth: accept either x-cron-token (Scheduler) or x-internal-token (pg_net)
+  const CRON_SECRET = Deno.env.get('CRON_SECRET');
+  const INTERNAL_TOKEN = Deno.env.get('INTERNAL_TOKEN');
+  
   const cronToken = req.headers.get('x-cron-token');
-  const expectedToken = Deno.env.get('CRON_SECRET');
+  const internalToken = req.headers.get('x-internal-token');
   const devBypass = Deno.env.get('ALLOW_DEV_BYPASS') === 'true' && new URL(req.url).searchParams.has('dev');
 
-  if (!devBypass && (!expectedToken || cronToken !== expectedToken)) {
-    const reason = !cronToken ? 'missing-cron-header' : 'token-mismatch';
+  const isCron = !!CRON_SECRET && cronToken === CRON_SECRET;
+  const isInternal = !!INTERNAL_TOKEN && internalToken === INTERNAL_TOKEN;
+
+  if (!devBypass && !isCron && !isInternal) {
     console.warn(JSON.stringify({
       level: 'warn',
       fn: 'resolve-evidence-links',
       blocked: true,
-      reason,
+      reason: 'auth-failed',
       ip: req.headers.get('x-forwarded-for') || null,
       ua: req.headers.get('user-agent') || null,
     }));
-    return new Response(JSON.stringify({ error: 'Forbidden' }), {
-      status: 403,
+    return new Response(JSON.stringify({ error: 'unauthorized' }), {
+      status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
@@ -166,7 +182,7 @@ Deno.serve(async (req) => {
           console.log(JSON.stringify({
             level: 'info',
             action: 'circuit_breaker_triggered',
-            consecutive_skips: consecutiveSkips,
+            consecutiveSkips,
             processed_so_far: resolved + skipped + failed
           }));
           break;
@@ -208,17 +224,20 @@ Deno.serve(async (req) => {
       duration_ms: duration,
     }));
 
+    // Return 200 even if idle to prevent autoscaling thrashing
     return new Response(
       JSON.stringify({ 
+        ok: true,
         run_id,
         mode: MODE,
         processed: pending?.length ?? 0, 
         resolved, 
         skipped,
         failed,
-        duration_ms: duration 
+        duration_ms: duration,
+        idle: resolved === 0 && skipped > 0
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (e: any) {
     console.error('[resolve-evidence-links] Error:', e);
