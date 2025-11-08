@@ -11,13 +11,25 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+  console.log("[simple-brand-scorer] Function invoked");
 
-    console.log("[simple-brand-scorer] Starting scoring process...");
+  try {
+    console.log("[simple-brand-scorer] Initializing Supabase client");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("[simple-brand-scorer] Missing environment variables");
+      return new Response(
+        JSON.stringify({ error: "Configuration error" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    console.log("[simple-brand-scorer] Supabase client initialized");
+
+    console.log("[simple-brand-scorer] Fetching active brands...");
 
     // Get all active brands
     const { data: brands, error: brandsError } = await supabase
