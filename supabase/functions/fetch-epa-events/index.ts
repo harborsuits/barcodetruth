@@ -72,8 +72,8 @@ serve(async (req) => {
       });
     }
 
-    // Search EPA for facilities matching brand name
-    const searchUrl = `https://echo.epa.gov/api/echo_rest_services.get_facilities?output=JSON&p_fn=${encodeURIComponent(brand.name)}&p_limit=20`;
+    // Search EPA for facilities matching brand name - use correct ECHO endpoint
+    const searchUrl = `https://echodata.epa.gov/echo/rest_lookups.get_facilities?output=JSON&p_fn=${encodeURIComponent(brand.name)}&responseset=20`;
     console.log(`[fetch-epa-events] Searching EPA for: ${brand.name}`);
 
     const res = await fetch(searchUrl);
