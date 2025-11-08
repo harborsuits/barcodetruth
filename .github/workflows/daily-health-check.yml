@@ -1,0 +1,22 @@
+name: Daily Data Quality Check
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # 2 AM UTC daily
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Health Check
+        run: |
+          curl -X POST 'https://midmvcwtywnexzdwbekp.supabase.co/functions/v1/daily-health-check' \
+            -H 'Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}' \
+            -H 'Content-Type: application/json'
+            
+      - name: Run News Orchestrator
+        run: |
+          curl -X POST 'https://midmvcwtywnexzdwbekp.supabase.co/functions/v1/unified-news-orchestrator' \
+            -H 'Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}' \
+            -H 'Content-Type: application/json'
