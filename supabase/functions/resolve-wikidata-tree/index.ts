@@ -150,11 +150,12 @@ async function getOwnershipGraph(brandName: string, explicitQid?: string): Promi
       }
       
       # EXCLUDE entities with invalid name patterns (patents, trademarks, products)
-      # Using ?itemLabel which is provided by SERVICE wikibase:label below
+      # Simplified filter - Wikidata SPARQL is picky about complex regex
       FILTER(
-        !REGEX(STR(?itemLabel), "^(Article|Product|Item|Device|Method|Process|System|Apparatus|Component|Patent|Trademark)", "i") &&
-        !REGEX(STR(?itemLabel), "(apparatus|device|attachment|assembly|mechanism|grounding|strain relief|wire harness|borescope|lightning|galley|marker|turbine|hydraulic|wing|fuselage|cockpit|avionics)", "i") &&
-        !REGEX(STR(?itemLabel), "\\bfor\\s+(a|an|the)\\s+", "i")
+        !CONTAINS(LCASE(STR(?itemLabel)), "patent") &&
+        !CONTAINS(LCASE(STR(?itemLabel)), "trademark") &&
+        !CONTAINS(LCASE(STR(?itemLabel)), "apparatus") &&
+        !CONTAINS(LCASE(STR(?itemLabel)), "device")
       )
       
       SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
