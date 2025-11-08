@@ -7,9 +7,6 @@ schemas = ["public", "graphql_public"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
 
-[functions.calculate-brand-score]
-verify_jwt = true
-
 [functions.jobs-runner]
 verify_jwt = false
 
@@ -41,9 +38,6 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.enrich-ownership]
-verify_jwt = false
-
-[functions.enrich-brand-wiki]
 verify_jwt = false
 
 [functions.seed-brand-base-data]
@@ -107,6 +101,24 @@ verify_jwt = false
 [functions.recompute-brand-scores]
 verify_jwt = false
 
+[functions.calculate-brand-score]
+verify_jwt = false
+
+[functions.simple-brand-scorer]
+verify_jwt = false
+
+[functions.fetch-epa-events]
+verify_jwt = false
+
+[functions.bulk-enrich-brands]
+verify_jwt = false
+
+[functions.enrich-brand-wiki]
+verify_jwt = false
+
+[functions.auto-corroborate-events]
+verify_jwt = false
+
 [functions.trigger-brand-ingestion]
 verify_jwt = true
 
@@ -128,7 +140,6 @@ verify_jwt = false
 [functions.historical-baseline-scanner]
 verify_jwt = false
 
-# New diagnostic function
 [functions.test-relevance-scorer]
 verify_jwt = false
 
