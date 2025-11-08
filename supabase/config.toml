@@ -98,6 +98,9 @@ verify_jwt = false
 [functions.get-product-by-barcode]
 verify_jwt = false
 
+[functions.resolve-wikidata-tree]
+verify_jwt = false
+
 [functions.get-better-alternatives]
 verify_jwt = false
 
@@ -144,9 +147,6 @@ verify_jwt = false
 
 [functions.fetch-sec-edgar]
 verify_jwt = false
-
-[functions.resolve-wikidata-tree]
-verify_jwt = true
 
 [functions.run-system-wide-heal]
 verify_jwt = false
