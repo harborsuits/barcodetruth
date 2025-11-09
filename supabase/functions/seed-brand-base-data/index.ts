@@ -91,6 +91,38 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Health check
+  const { pathname } = new URL(req.url);
+  if (pathname.endsWith('/health')) {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  // Dual auth gate
+  const CRON_SECRET = Deno.env.get('CRON_SECRET');
+  const INTERNAL_TOKEN = Deno.env.get('INTERNAL_TOKEN');
+  
+  const cronToken = req.headers.get('x-cron-token');
+  const internalToken = req.headers.get('x-internal-token');
+  const devBypass = Deno.env.get('ALLOW_DEV_BYPASS') === 'true' && new URL(req.url).searchParams.has('dev');
+
+  const isCron = !!CRON_SECRET && cronToken === CRON_SECRET;
+  const isInternal = !!INTERNAL_TOKEN && internalToken === INTERNAL_TOKEN;
+
+  if (!devBypass && !isCron && !isInternal) {
+    console.warn(JSON.stringify({
+      level: 'warn',
+      fn: 'seed-brand-base-data',
+      blocked: true,
+      reason: 'auth-failed',
+      ip: req.headers.get('x-forwarded-for') || null,
+      ua: req.headers.get('user-agent') || null,
+    }));
+    return new Response(JSON.stringify({ error: 'unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
   try {
     const { brand_id, wikidata_qid, brand_name } = await req.json();
 
