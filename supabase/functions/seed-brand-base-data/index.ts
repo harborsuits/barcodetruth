@@ -14,8 +14,35 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.76.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization,content-type,x-internal-token,x-cron-token',
 };
+
+// Retry helper with exponential backoff
+async function fetchWithRetry(url: string, options: RequestInit = {}, maxRetries = 3): Promise<Response> {
+  let lastError: Error | undefined;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timeout);
+      
+      if (res.status >= 500 || res.status === 429) {
+        throw new Error(`HTTP_${res.status}`);
+      }
+      return res;
+    } catch (err) {
+      lastError = err as Error;
+      if (i < maxRetries - 1) {
+        const delay = Math.round((400 * Math.pow(2, i)) + Math.random() * 150);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  throw lastError || new Error('Fetch failed');
+}
 
 interface WikidataEntity {
   labels?: {
@@ -44,7 +71,8 @@ interface WikidataEntity {
 
 async function fetchWikidataEntity(qid: string): Promise<WikidataEntity> {
   const url = `https://www.wikidata.org/wiki/Special:EntityData/${qid}.json`;
-  const response = await fetch(url);
+  const response = await fetchWithRetry(url, { headers: { 'Accept': 'application/json' } });
+  if (!response.ok) throw new Error(`Wikidata fetch failed: ${response.status}`);
   const data = await response.json();
   return data.entities[qid];
 }
@@ -61,6 +89,38 @@ async function getCountryName(countryQid: string): Promise<string> {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Health check
+  const { pathname } = new URL(req.url);
+  if (pathname.endsWith('/health')) {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  // Dual auth gate
+  const CRON_SECRET = Deno.env.get('CRON_SECRET');
+  const INTERNAL_TOKEN = Deno.env.get('INTERNAL_TOKEN');
+  
+  const cronToken = req.headers.get('x-cron-token');
+  const internalToken = req.headers.get('x-internal-token');
+  const devBypass = Deno.env.get('ALLOW_DEV_BYPASS') === 'true' && new URL(req.url).searchParams.has('dev');
+
+  const isCron = !!CRON_SECRET && cronToken === CRON_SECRET;
+  const isInternal = !!INTERNAL_TOKEN && internalToken === INTERNAL_TOKEN;
+
+  if (!devBypass && !isCron && !isInternal) {
+    console.warn(JSON.stringify({
+      level: 'warn',
+      fn: 'seed-brand-base-data',
+      blocked: true,
+      reason: 'auth-failed',
+      ip: req.headers.get('x-forwarded-for') || null,
+      ua: req.headers.get('user-agent') || null,
+    }));
+    return new Response(JSON.stringify({ error: 'unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 
   try {
