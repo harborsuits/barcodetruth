@@ -96,18 +96,6 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Protect endpoint with cron key
-  const CRON_KEY = Deno.env.get('CRON_KEY');
-  const providedKey = req.headers.get('x-cron-key');
-  
-  if (!CRON_KEY || providedKey !== CRON_KEY) {
-    console.error('Unauthorized: missing or invalid x-cron-key');
-    return new Response(
-      JSON.stringify({ error: 'Unauthorized' }),
-      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, supabaseKey);
