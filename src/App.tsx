@@ -52,6 +52,7 @@ const AdminBatchEnrich = lazyNamed(() => import("./pages/AdminBatchEnrich"), "de
 const AdminBulkEnrichFortune500 = lazyNamed(() => import("./pages/AdminBulkEnrichFortune500"), "default");
 const AdminSeeding = lazyNamed(() => import("./pages/AdminSeeding"), "default");
 const AdminUsers = lazyNamed(() => import("./pages/AdminUsers"), "default");
+const AdminTest = lazyNamed(() => import("./pages/AdminTest"), "default");
 const Feed = lazyNamed(() => import("./pages/Feed"), "default");
 const BootstrapAdmin = lazyNamed(() => import("./pages/BootstrapAdmin"), "default");
 const Privacy = lazyNamed(() => import("./pages/Privacy"), "default");
@@ -512,6 +513,20 @@ const App = () => {
                   <RouteErrorBoundary>
                     <Suspense fallback={<RouteFallback label="Loading ops health…" />}>
                       <AdminOpsHealth />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/test"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading function tester…" />}>
+                      <AdminTest />
                     </Suspense>
                   </RouteErrorBoundary>
                 </AdminRoute>
