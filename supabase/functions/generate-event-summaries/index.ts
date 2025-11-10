@@ -30,10 +30,16 @@ serve(async (req) => {
       brandId = url.searchParams.get('brand_id');
       limit = parseInt(url.searchParams.get('limit') || '50');
     }
+
+    console.log('[generate-event-summaries] Parsed params:', { brandId, limit });
     
     if (!brandId) {
+      console.error('[generate-event-summaries] Missing required parameter: brand_id');
       return new Response(
-        JSON.stringify({ error: "brand_id is required" }),
+        JSON.stringify({ 
+          error: "Missing required parameter: brand_id",
+          received: { brandId, limit }
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

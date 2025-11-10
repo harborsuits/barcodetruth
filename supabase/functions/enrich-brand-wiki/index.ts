@@ -81,8 +81,40 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { brand_id, wikidata_qid, mode } = await req.json();
-    log('Start', { brand_id, mode });
+    // Parse parameters from JSON body or query params
+    let brand_id: string | undefined;
+    let wikidata_qid: string | undefined;
+    let mode: string | undefined;
+
+    if (req.method === 'POST') {
+      const body = await req.json();
+      brand_id = body.brand_id;
+      wikidata_qid = body.wikidata_qid;
+      mode = body.mode;
+    } else {
+      const url = new URL(req.url);
+      brand_id = url.searchParams.get('brand_id') || undefined;
+      wikidata_qid = url.searchParams.get('wikidata_qid') || undefined;
+      mode = url.searchParams.get('mode') || undefined;
+    }
+
+    log('Parsed params:', { brand_id, wikidata_qid, mode });
+
+    // Validate required parameters
+    if (!brand_id) {
+      err('Missing required parameter: brand_id', { received: { brand_id, wikidata_qid, mode } });
+      return new Response(
+        JSON.stringify({ 
+          ok: false,
+          error: 'Missing required parameter: brand_id',
+          received: { brand_id, wikidata_qid, mode }
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
 
     // Fetch brand info
     const { data: brand, error: brandError } = await supabase
