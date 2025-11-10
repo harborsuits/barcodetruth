@@ -17,9 +17,19 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const url = new URL(req.url);
-    const brandId = url.searchParams.get('brand_id');
-    const limit = parseInt(url.searchParams.get('limit') || '50');
+    // Accept both JSON body and query params for flexibility
+    let brandId: string | null = null;
+    let limit = 50;
+    
+    if (req.method === 'POST') {
+      const body = await req.json();
+      brandId = body.brand_id;
+      limit = body.limit || 50;
+    } else {
+      const url = new URL(req.url);
+      brandId = url.searchParams.get('brand_id');
+      limit = parseInt(url.searchParams.get('limit') || '50');
+    }
     
     if (!brandId) {
       return new Response(
@@ -28,7 +38,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[generate-event-summaries] Processing brand: ${brandId}`);
+    console.log(`[generate-event-summaries] Processing brand: ${brandId}, limit: ${limit}`);
 
     // Get recent events without AI summaries for this brand
     const { data: events, error: eventsError } = await supabase
@@ -101,15 +111,24 @@ Raw Data: ${JSON.stringify(event.raw_data, null, 2)}
 
 Provide a concise, factual summary that helps consumers understand what happened and why it matters.`;
 
-        // Call Lovable AI (using gemini-2.5-flash-lite for speed and cost efficiency)
-        const aiResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/ai-generate`, {
+        // Use Anthropic API directly
+        const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+        if (!anthropicKey) {
+          console.error('[generate-event-summaries] ANTHROPIC_API_KEY not configured');
+          failed++;
+          continue;
+        }
+
+        const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
             'Content-Type': 'application/json',
+            'x-api-key': anthropicKey,
+            'anthropic-version': '2023-06-01',
           },
           body: JSON.stringify({
-            model: 'google/gemini-2.5-flash-lite',
+            model: 'claude-sonnet-4-5',
+            max_tokens: 300,
             messages: [
               {
                 role: 'user',
@@ -120,13 +139,14 @@ Provide a concise, factual summary that helps consumers understand what happened
         });
 
         if (!aiResponse.ok) {
-          console.error(`[generate-event-summaries] AI request failed for event ${event.event_id}: ${aiResponse.status}`);
+          const errorText = await aiResponse.text();
+          console.error(`[generate-event-summaries] AI request failed for event ${event.event_id}: ${aiResponse.status} - ${errorText}`);
           failed++;
           continue;
         }
 
         const aiResult = await aiResponse.json();
-        const summary = aiResult.choices?.[0]?.message?.content || aiResult.content;
+        const summary = aiResult.content?.[0]?.text;
 
         if (!summary) {
           console.error(`[generate-event-summaries] No summary generated for event ${event.event_id}`);
@@ -139,7 +159,7 @@ Provide a concise, factual summary that helps consumers understand what happened
           .from('brand_events')
           .update({
             ai_summary: summary,
-            ai_model_version: 'google/gemini-2.5-flash-lite'
+            ai_model_version: 'claude-sonnet-4-5'
           })
           .eq('event_id', event.event_id);
 

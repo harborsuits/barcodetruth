@@ -89,10 +89,27 @@ Deno.serve(async (req) => {
       .from('brands')
       .select('*')
       .eq('id', brand_id)
-      .single();
+      .maybeSingle();
 
-    if (brandError || !brand) {
-      throw new Error('Brand not found');
+    if (brandError) {
+      err('Database error fetching brand:', brandError);
+      throw new Error(`Database error: ${brandError.message}`);
+    }
+    
+    if (!brand) {
+      err('Brand not found:', { brand_id });
+      return new Response(
+        JSON.stringify({ 
+          ok: false, 
+          error: 'Brand not found in database',
+          reason: 'brand_not_found',
+          brand_id 
+        }),
+        { 
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
     // Validate brand has a name

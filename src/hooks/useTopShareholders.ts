@@ -51,7 +51,7 @@ export function useTopShareholders(brandId: string | undefined, limit: number = 
         .from('company_shareholders')
         .select('*')
         .eq('company_id', company.id)
-        .order('percent_owned', { ascending: false, nullsFirst: false })
+        .order('ownership_percentage', { ascending: false, nullsFirst: false })
         .limit(limit);
 
       if (error) {
@@ -62,7 +62,7 @@ export function useTopShareholders(brandId: string | undefined, limit: number = 
       const rows = (data || []) as any[];
       const normalized = rows.map((r) => ({
         ...r,
-        percent_owned: (r.percent_owned ?? r.pct ?? null) as number | null,
+        percent_owned: (r.ownership_percentage ?? r.percent_owned ?? r.pct ?? null) as number | null,
       })) as Shareholder[];
       return normalized;
     },
