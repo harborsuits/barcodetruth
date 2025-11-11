@@ -285,6 +285,16 @@ export default function AdminDashboard() {
       priority: "low",
       metrics: "Debug tool"
     },
+    {
+      title: "Edge Function Tester",
+      description: "Test edge functions with proper parameters and see results",
+      icon: Zap,
+      route: "/admin/test",
+      color: "text-purple-600 dark:text-purple-400",
+      bgColor: "bg-purple-600/10",
+      priority: "low",
+      metrics: "Debug tool"
+    },
   ];
 
   const highPriority = adminTools.filter(t => t.priority === 'high');
