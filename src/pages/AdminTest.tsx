@@ -57,6 +57,18 @@ export default function AdminTest() {
       return;
     }
 
+    // Validate that body has actual values, not undefined
+    console.log('[AdminTest] Selected Brand:', selectedBrand);
+    console.log('[AdminTest] Request Body Before Send:', body);
+    
+    // Check for undefined values
+    const hasUndefined = Object.values(body).some(v => v === undefined);
+    if (hasUndefined) {
+      console.error('[AdminTest] ERROR: Body contains undefined values!', body);
+      alert(`Error: Request body has undefined values. Selected brand might be missing required fields.`);
+      return;
+    }
+
     const testResult: TestResult = {
       functionName: `${functionName} - ${description}`,
       status: 'loading',
@@ -68,13 +80,13 @@ export default function AdminTest() {
     setLoading(true);
 
     try {
-      console.log(`[AdminTest] Testing ${functionName}:`, body);
+      console.log(`[AdminTest] ✓ Invoking ${functionName} with:`, JSON.stringify(body, null, 2));
       
       const { data, error } = await supabase.functions.invoke(functionName, {
         body,
       });
 
-      console.log(`[AdminTest] ${functionName} response:`, { data, error });
+      console.log(`[AdminTest] ✓ ${functionName} response:`, { data, error });
 
       setResults(prev =>
         prev.map(r =>
@@ -89,7 +101,7 @@ export default function AdminTest() {
         )
       );
     } catch (err: any) {
-      console.error(`[AdminTest] ${functionName} exception:`, err);
+      console.error(`[AdminTest] ✗ ${functionName} exception:`, err);
       
       setResults(prev =>
         prev.map(r =>
@@ -157,18 +169,19 @@ export default function AdminTest() {
         <h2 className="text-lg font-semibold mb-4">Test Functions</h2>
         <div className="grid gap-3 md:grid-cols-2">
           <Button
-            onClick={() =>
+            onClick={() => {
+              if (!selectedBrand) return;
               testFunction(
                 'enrich-brand-wiki',
                 {
-                  brand_id: selectedBrand?.id,
-                  wikidata_qid: selectedBrand?.wikidata_qid,
+                  brand_id: selectedBrand.id,
+                  wikidata_qid: selectedBrand.wikidata_qid,
                   mode: 'full',
                 },
                 'Full enrichment'
-              )
-            }
-            disabled={loading || !selectedBrand}
+              );
+            }}
+            disabled={loading || !selectedBrand || !selectedBrand.wikidata_qid}
             className="justify-start"
           >
             <Play className="h-4 w-4 mr-2" />
@@ -176,16 +189,17 @@ export default function AdminTest() {
           </Button>
 
           <Button
-            onClick={() =>
+            onClick={() => {
+              if (!selectedBrand) return;
               testFunction(
                 'enrich-brand-wiki',
                 {
-                  brand_id: selectedBrand?.id,
+                  brand_id: selectedBrand.id,
                   mode: 'basic',
                 },
                 'Basic mode'
-              )
-            }
+              );
+            }}
             disabled={loading || !selectedBrand}
             className="justify-start"
           >
@@ -194,16 +208,17 @@ export default function AdminTest() {
           </Button>
 
           <Button
-            onClick={() =>
+            onClick={() => {
+              if (!selectedBrand) return;
               testFunction(
                 'generate-event-summaries',
                 {
-                  brand_id: selectedBrand?.id,
+                  brand_id: selectedBrand.id,
                   limit: 5,
                 },
                 'Generate summaries'
-              )
-            }
+              );
+            }}
             disabled={loading || !selectedBrand}
             className="justify-start"
           >
@@ -212,18 +227,19 @@ export default function AdminTest() {
           </Button>
 
           <Button
-            onClick={() =>
+            onClick={() => {
+              if (!selectedBrand) return;
               testFunction(
                 'seed-brand-base-data',
                 {
-                  brand_id: selectedBrand?.id,
-                  wikidata_qid: selectedBrand?.wikidata_qid,
-                  brand_name: selectedBrand?.name,
+                  brand_id: selectedBrand.id,
+                  wikidata_qid: selectedBrand.wikidata_qid,
+                  brand_name: selectedBrand.name,
                 },
                 'Seed base data'
-              )
-            }
-            disabled={loading || !selectedBrand}
+              );
+            }}
+            disabled={loading || !selectedBrand || !selectedBrand.wikidata_qid}
             className="justify-start"
           >
             <Play className="h-4 w-4 mr-2" />
@@ -231,15 +247,16 @@ export default function AdminTest() {
           </Button>
 
           <Button
-            onClick={() =>
+            onClick={() => {
+              if (!selectedBrand) return;
               testFunction(
                 'recompute-brand-scores',
                 {
-                  brand_id: selectedBrand?.id,
+                  brand_id: selectedBrand.id,
                 },
                 'Recompute scores'
-              )
-            }
+              );
+            }}
             disabled={loading || !selectedBrand}
             className="justify-start"
           >
@@ -248,15 +265,16 @@ export default function AdminTest() {
           </Button>
 
           <Button
-            onClick={() =>
+            onClick={() => {
+              if (!selectedBrand) return;
               testFunction(
                 'resolve-brand-logo',
                 {
-                  brand_id: selectedBrand?.id,
+                  brand_id: selectedBrand.id,
                 },
                 'Resolve logo'
-              )
-            }
+              );
+            }}
             disabled={loading || !selectedBrand}
             className="justify-start"
           >
