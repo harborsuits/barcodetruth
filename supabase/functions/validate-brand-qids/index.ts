@@ -13,6 +13,14 @@ interface WikidataEntity {
   };
 }
 
+interface WikidataSearchResult {
+  search?: Array<{
+    id: string;
+    label: string;
+    description?: string;
+  }>;
+}
+
 async function fetchWikidataLabel(qid: string): Promise<string | null> {
   try {
     const response = await fetch(
@@ -30,6 +38,46 @@ async function fetchWikidataLabel(qid: string): Promise<string | null> {
     return entity?.labels?.en?.value || null;
   } catch (error) {
     console.error(`Failed to fetch QID ${qid}:`, error);
+    return null;
+  }
+}
+
+async function searchWikidataForBrand(brandName: string): Promise<string | null> {
+  try {
+    const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(brandName)}&language=en&format=json&type=item&limit=5`;
+    
+    const response = await fetch(searchUrl, {
+      headers: { 'User-Agent': 'BrandScanner/1.0' },
+      signal: AbortSignal.timeout(5000)
+    });
+    
+    if (!response.ok) return null;
+    
+    const data = await response.json() as WikidataSearchResult;
+    const results = data.search || [];
+    
+    // Filter for company/brand entities only
+    const companyResults = results.filter(r => {
+      const desc = r.description?.toLowerCase() || '';
+      return desc.includes('company') || 
+             desc.includes('brand') || 
+             desc.includes('corporation') ||
+             desc.includes('business');
+    });
+    
+    // Return the first match if it's a good match
+    if (companyResults.length > 0) {
+      const best = companyResults[0];
+      const similarity = fuzzyMatch(brandName, best.label);
+      if (similarity) {
+        console.log(`Found match for "${brandName}": ${best.id} (${best.label})`);
+        return best.id;
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`Failed to search Wikidata for ${brandName}:`, error);
     return null;
   }
 }
@@ -88,6 +136,8 @@ Deno.serve(async (req) => {
     const mismatches = [];
     const matches = [];
     const errors = [];
+    const autoFixed = [];
+    const needsManualReview = [];
 
     for (const brand of brands) {
       console.log(`[validate-qids] Checking ${brand.name} (${brand.wikidata_qid})`);
@@ -101,6 +151,7 @@ Deno.serve(async (req) => {
           wikidata_qid: brand.wikidata_qid,
           error: 'Failed to fetch Wikidata label'
         });
+        await new Promise(resolve => setTimeout(resolve, 1000));
         continue;
       }
 
@@ -114,28 +165,66 @@ Deno.serve(async (req) => {
           wikidata_label: wikidataLabel
         });
       } else {
+        console.log(`[validate-qids] Mismatch: "${brand.name}" vs "${wikidataLabel}" - searching for correct QID`);
         mismatches.push({
           brand_id: brand.id,
           brand_name: brand.name,
-          wikidata_qid: brand.wikidata_qid,
-          wikidata_label: wikidataLabel,
-          confidence: 'mismatch'
+          old_qid: brand.wikidata_qid,
+          wikidata_label: wikidataLabel
         });
+        
+        // Try to find correct QID
+        const correctQid = await searchWikidataForBrand(brand.name);
+        
+        if (correctQid && correctQid !== brand.wikidata_qid) {
+          // Auto-fix the QID in database
+          const { error: updateError } = await supabase
+            .from('brands')
+            .update({ wikidata_qid: correctQid })
+            .eq('id', brand.id);
+          
+          if (!updateError) {
+            // Also update companies table
+            await supabase
+              .from('companies')
+              .update({ wikidata_qid: correctQid })
+              .eq('name', brand.name);
+            
+            autoFixed.push({
+              brand_id: brand.id,
+              brand_name: brand.name,
+              old_qid: brand.wikidata_qid,
+              new_qid: correctQid,
+              old_label: wikidataLabel
+            });
+            
+            console.log(`[validate-qids] Auto-fixed: ${brand.name} from ${brand.wikidata_qid} to ${correctQid}`);
+          }
+        } else {
+          needsManualReview.push({
+            brand_id: brand.id,
+            brand_name: brand.name,
+            current_qid: brand.wikidata_qid,
+            wikidata_label: wikidataLabel
+          });
+        }
       }
 
       // Rate limit: wait 1 second between requests
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
-    console.log(`[validate-qids] Complete: ${matches.length} matches, ${mismatches.length} mismatches, ${errors.length} errors`);
+    console.log(`[validate-qids] Complete: ${matches.length} matches, ${autoFixed.length} auto-fixed, ${needsManualReview.length} need manual review, ${errors.length} errors`);
 
     return new Response(
       JSON.stringify({
         total_brands: brands.length,
         matches: matches.length,
-        mismatches: mismatches.length,
+        auto_fixed: autoFixed.length,
+        needs_manual_review: needsManualReview.length,
         errors: errors.length,
-        mismatch_list: mismatches,
+        auto_fixed_list: autoFixed,
+        needs_manual_review_list: needsManualReview,
         error_list: errors
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -4,6 +4,7 @@ import { RefreshCw, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,8 +24,12 @@ interface ReEnrichButtonProps {
 }
 
 export function ReEnrichButton({ brandId, brandName, currentQid }: ReEnrichButtonProps) {
+  const isAdmin = useIsAdmin();
   const [isEnriching, setIsEnriching] = useState(false);
   const queryClient = useQueryClient();
+
+  // Hide button for non-admin users
+  if (!isAdmin) return null;
 
   async function handleReEnrich() {
     setIsEnriching(true);
