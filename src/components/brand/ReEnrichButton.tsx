@@ -30,28 +30,45 @@ export function ReEnrichButton({ brandId, brandName, currentQid }: ReEnrichButto
     setIsEnriching(true);
     
     try {
-      // Clear the wikidata_qid to trigger re-enrichment
-      const { error: clearError } = await supabase
-        .from('brands')
-        .update({ 
-          wikidata_qid: null,
-          description: null,
-          description_source: null,
-          logo_url: null,
-          logo_attribution: null
-        })
-        .eq('id', brandId);
-
-      if (clearError) throw clearError;
-
-      toast.success('Re-enrichment started', {
-        description: 'Page will refresh automatically when complete'
+      console.log('[ReEnrich] Starting enrichment for brand:', brandId);
+      
+      // Call enrich-brand-wiki directly with full mode
+      const { data: enrichData, error: enrichError } = await supabase.functions.invoke('enrich-brand-wiki', {
+        body: {
+          brand_id: brandId,
+          wikidata_qid: currentQid,
+          mode: 'full'
+        }
       });
 
-      // Invalidate to trigger auto-enrichment
-      await queryClient.invalidateQueries({ queryKey: ['brand-basic', brandId] });
+      if (enrichError) {
+        console.error('[ReEnrich] Enrichment failed:', enrichError);
+        throw enrichError;
+      }
 
-      // Refresh page after a short delay
+      console.log('[ReEnrich] Enrichment complete, triggering score recalculation');
+
+      // Trigger score recalculation
+      const { error: scoreError } = await supabase.functions.invoke('recompute-brand-scores', {
+        body: { brand_id: brandId }
+      });
+
+      if (scoreError) {
+        console.warn('[ReEnrich] Score recalculation failed:', scoreError);
+      }
+
+      toast.success('Enrichment complete!', {
+        description: 'Brand data has been refreshed from Wikidata'
+      });
+
+      // Invalidate all brand-related queries to refetch fresh data
+      await queryClient.invalidateQueries({ queryKey: ['brand-basic', brandId] });
+      await queryClient.invalidateQueries({ queryKey: ['brand', brandId] });
+      await queryClient.invalidateQueries({ queryKey: ['ownership', brandId] });
+      await queryClient.invalidateQueries({ queryKey: ['key-people', brandId] });
+      await queryClient.invalidateQueries({ queryKey: ['shareholders', brandId] });
+
+      // Reload to show updated data
       setTimeout(() => {
         window.location.reload();
       }, 1000);
@@ -59,7 +76,7 @@ export function ReEnrichButton({ brandId, brandName, currentQid }: ReEnrichButto
     } catch (error: any) {
       console.error('[ReEnrich] Failed:', error);
       toast.error('Re-enrichment failed', {
-        description: error.message
+        description: error.message || 'Failed to enrich brand data'
       });
     } finally {
       setIsEnriching(false);
