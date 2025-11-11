@@ -168,3 +168,9 @@ verify_jwt = true
 [functions.merge-products]
 verify_jwt = false
 
+[functions.validate-brand-qids]
+verify_jwt = false
+
+[functions.enrich-top-brands]
+verify_jwt = false
+
