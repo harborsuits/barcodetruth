@@ -65,43 +65,58 @@ function claimIds(entity: any, prop: string): string[] {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  // Health check
-  const { pathname } = new URL(req.url);
-  if (pathname.endsWith('/health')) {
-    return new Response(null, { status: 204, headers: corsHeaders });
-  }
-
+  console.log('[STEP 1] Function invoked');
+  
   try {
+    console.log('[STEP 2] Checking method:', req.method);
+    if (req.method === 'OPTIONS') {
+      console.log('[STEP 2a] CORS preflight - returning');
+      return new Response(null, { headers: corsHeaders });
+    }
+
+    // Health check
+    console.log('[STEP 3] Checking pathname');
+    const { pathname } = new URL(req.url);
+    if (pathname.endsWith('/health')) {
+      console.log('[STEP 3a] Health check - returning');
+      return new Response(null, { status: 204, headers: corsHeaders });
+    }
+
+    console.log('[STEP 4] Creating Supabase client');
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+    console.log('[STEP 4a] Supabase client created');
 
     // Parse parameters from JSON body or query params
     let brand_id: string | undefined;
     let wikidata_qid: string | undefined;
     let mode: string | undefined;
 
+    console.log('[STEP 5] Parsing request body/params');
     if (req.method === 'POST') {
+      console.log('[STEP 5a] POST request - parsing JSON body');
       const body = await req.json();
+      console.log('[STEP 5b] Body parsed:', JSON.stringify(body));
       brand_id = body.brand_id;
       wikidata_qid = body.wikidata_qid;
       mode = body.mode;
     } else {
+      console.log('[STEP 5c] GET request - parsing query params');
       const url = new URL(req.url);
       brand_id = url.searchParams.get('brand_id') || undefined;
       wikidata_qid = url.searchParams.get('wikidata_qid') || undefined;
       mode = url.searchParams.get('mode') || undefined;
     }
 
+    console.log('[STEP 6] Extracted params:', { brand_id, wikidata_qid, mode });
     log('Parsed params:', { brand_id, wikidata_qid, mode });
 
     // Validate required parameters
+    console.log('[STEP 7] Validating brand_id');
     if (!brand_id) {
+      console.log('[STEP 7a] ERROR: Missing brand_id');
       err('Missing required parameter: brand_id', { received: { brand_id, wikidata_qid, mode } });
       return new Response(
         JSON.stringify({ 
@@ -115,20 +130,26 @@ Deno.serve(async (req) => {
         }
       );
     }
+    console.log('[STEP 7b] brand_id validated:', brand_id);
 
     // Fetch brand info
+    console.log('[STEP 8] Fetching brand from database');
     const { data: brand, error: brandError } = await supabase
       .from('brands')
       .select('*')
       .eq('id', brand_id)
       .maybeSingle();
 
+    console.log('[STEP 8a] Database query completed');
     if (brandError) {
+      console.log('[STEP 8b] ERROR: Database error:', brandError);
       err('Database error fetching brand:', brandError);
       throw new Error(`Database error: ${brandError.message}`);
     }
     
+    console.log('[STEP 8c] Brand data received:', brand ? 'Yes' : 'No');
     if (!brand) {
+      console.log('[STEP 8d] ERROR: Brand not found');
       err('Brand not found:', { brand_id });
       return new Response(
         JSON.stringify({ 
@@ -143,6 +164,7 @@ Deno.serve(async (req) => {
         }
       );
     }
+    console.log('[STEP 8e] Brand found:', brand.name);
 
     // Validate brand has a name
     if (!brand.name || brand.name.trim() === '') {
@@ -178,9 +200,12 @@ Deno.serve(async (req) => {
     }
 
     // Step 1: Resolve or search for QID with entity type validation
+    console.log('[STEP 9] Resolving Wikidata QID');
     let qid = wikidata_qid ?? brand.wikidata_qid;
+    console.log('[STEP 9a] QID from params or brand:', qid);
     
     if (!qid) {
+      console.log('[STEP 10] No QID found, searching Wikidata');
       log('No QID, searching Wikidata for', brand.name);
       
       // Enhanced search: exclude sports suffixes
@@ -188,10 +213,15 @@ Deno.serve(async (req) => {
         .replace(/\s+(FC|SC|CF|United|City|Town)$/i, '') // Remove sports suffixes
         .trim();
       
+      console.log('[STEP 10a] Cleaned brand name:', cleanName);
+      
       // Search with increased limit to find more candidates (search brand name directly)
       const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(cleanName)}&language=en&format=json&type=item&limit=20`;
+      console.log('[STEP 10b] Calling Wikidata search API');
       const searchRes = await fetchWithRetry(searchUrl);
+      console.log('[STEP 10c] Wikidata search response received:', searchRes.status);
       const searchData = await searchRes.json();
+      console.log('[STEP 10d] Search data parsed, candidates:', searchData.search?.length || 0);
       
       log(`Found ${searchData.search?.length || 0} candidates for "${cleanName}"`);
       
@@ -297,7 +327,9 @@ Deno.serve(async (req) => {
     }
 
     // Step 2: Fetch brand entity
+    console.log('[STEP 11] Fetching Wikidata entity for QID:', qid);
     const { qid: brandQid, entity: brandEntity } = await fetchWikidataEntity(qid);
+    console.log('[STEP 11a] Brand entity fetched successfully:', brandQid);
     log('Brand entity fetched', brandQid);
 
     const result: any = {
@@ -307,20 +339,27 @@ Deno.serve(async (req) => {
     };
 
     // Step 3: Update description if needed
+    console.log('[STEP 12] Checking for Wikipedia description');
     const wikiEnTitle = brandEntity?.sitelinks?.enwiki?.title;
     result.wiki_en_title = wikiEnTitle;
+    console.log('[STEP 12a] Wikipedia title:', wikiEnTitle);
 
     if (wikiEnTitle && brand.description_source !== 'wikipedia') {
+      console.log('[STEP 12b] Fetching Wikipedia extract');
       log('Fetching Wikipedia extract');
       const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=true&explaintext=true&titles=${encodeURIComponent(wikiEnTitle)}&format=json`;
       const wikiRes = await fetchWithRetry(wikiUrl);
+      console.log('[STEP 12c] Wikipedia response received');
       const wikiData = await wikiRes.json();
+      console.log('[STEP 12d] Wikipedia data parsed');
       
       const pages = wikiData.query?.pages;
       const pageId = Object.keys(pages)[0];
       const extract = pages[pageId]?.extract;
+      console.log('[STEP 12e] Extract found:', extract ? 'Yes' : 'No');
 
       if (extract) {
+        console.log('[STEP 12f] Updating brand description in database');
         await supabase
           .from('brands')
           .update({
@@ -332,30 +371,39 @@ Deno.serve(async (req) => {
         
         result.updated = true;
         result.description_updated = true;
+        console.log('[STEP 12g] Description updated successfully');
         log('Description updated from Wikipedia');
       }
     } else {
+      console.log('[STEP 12h] Updating QID only');
       // Update QID even if description not updated
       await supabase
         .from('brands')
         .update({ wikidata_qid: brandQid })
         .eq('id', brand_id);
+      console.log('[STEP 12i] QID updated');
     }
 
     // Step 4: FULL mode - ownership + key people + shareholders
+    console.log('[STEP 13] Checking if mode is full:', mode);
     if (mode === 'full') {
+      console.log('[STEP 13a] Starting FULL enrichment');
       log('Starting FULL enrichment');
       
       try {
+        console.log('[STEP 13b] Calling resolve_company_for_brand RPC');
         // Resolve target company using new RPC
         const { data: resolvedCompanyId, error: resolveError } = await supabase
           .rpc('resolve_company_for_brand', { p_brand_id: brand_id });
         
+        console.log('[STEP 13c] RPC result:', { resolvedCompanyId, error: resolveError });
         if (resolveError || !resolvedCompanyId) {
+          console.log('[STEP 13d] ERROR: No company_id resolved');
           throw new Error('No company_id resolved for brand; cannot enrich people/shareholders');
         }
         
         const companyId = resolvedCompanyId as string;
+        console.log('[STEP 13e] Company ID resolved:', companyId);
         log('Resolved company_id', companyId);
 
         // Find parent company QID (P749 = parent organization, P127 = owned by)
@@ -497,8 +545,16 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
+    console.error('[STEP ERROR] Function crashed:', error);
+    console.error('[STEP ERROR] Error message:', error instanceof Error ? error.message : 'Unknown');
+    console.error('[STEP ERROR] Error stack:', error instanceof Error ? error.stack : 'No stack');
     err('Error in enrich-brand-wiki:', error);
-    return new Response(JSON.stringify({ error: (error as Error).message }), {
+    return new Response(JSON.stringify({ 
+      ok: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      message: 'Function crashed - check logs for [STEP X] to see where it failed'
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
