@@ -2827,7 +2827,9 @@ export type Database = {
           id: string
           is_asset_manager: boolean | null
           logo_url: string | null
+          ownership_percentage: number | null
           pct: number
+          percent_owned: number | null
           source: string
           source_name: string | null
           source_url: string | null
@@ -2846,7 +2848,9 @@ export type Database = {
           id?: string
           is_asset_manager?: boolean | null
           logo_url?: string | null
+          ownership_percentage?: number | null
           pct: number
+          percent_owned?: number | null
           source: string
           source_name?: string | null
           source_url?: string | null
@@ -2865,7 +2869,9 @@ export type Database = {
           id?: string
           is_asset_manager?: boolean | null
           logo_url?: string | null
+          ownership_percentage?: number | null
           pct?: number
+          percent_owned?: number | null
           source?: string
           source_name?: string | null
           source_url?: string | null
