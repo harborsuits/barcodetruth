@@ -138,7 +138,9 @@ export function SubsidiaryFeed({ brandId }: { brandId: string }) {
 
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="secondary" className="text-xs">
-                    {format(new Date(event.event_date), 'MMM d, yyyy')}
+                    {event.event_date && !isNaN(new Date(event.event_date).getTime())
+                      ? format(new Date(event.event_date), 'MMM d, yyyy')
+                      : 'Date unknown'}
                   </Badge>
                   <Badge className={getCategoryColor(event.category)}>
                     {event.category}
