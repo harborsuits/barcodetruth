@@ -154,8 +154,28 @@ Deno.serve(async (req) => {
         if (error) console.warn("[categorize-event] Audit log warning:", error);
       });
 
-    // Set impact scores based on category (overwrite fetch-news-events incorrect scores)
-    const impact = primary === "noise" ? 0 : -5; // Noise has no impact, others have -5
+    // Detect orientation: positive, negative, or neutral
+    const positiveSignals = ["award", "certification", "honored", "recognized", "praised", "improved", "success", "breakthrough", "innovation", "leadership", "chooses", "selects", "partners"];
+    const negativeSignals = ["lawsuit", "violation", "penalty", "fine", "recall", "scandal", "accused", "alleged", "investigation", "charged", "contamination", "injury", "death", "fraud"];
+    
+    const textLower = text.toLowerCase();
+    const hasPositive = positiveSignals.some(sig => textLower.includes(sig));
+    const hasNegative = negativeSignals.some(sig => textLower.includes(sig));
+    
+    let orientation: 'positive' | 'negative' | 'mixed' = 'mixed';
+    let impact = -3; // Default neutral/mixed impact
+    
+    if (primary === "noise") {
+      orientation = 'mixed';
+      impact = 0;
+    } else if (hasNegative && !hasPositive) {
+      orientation = 'negative';
+      impact = -5;
+    } else if (hasPositive && !hasNegative) {
+      orientation = 'positive';
+      impact = 3;
+    }
+    
     const impactScores = {
       impact_labor: simpleCategory === "labor" ? impact : 0,
       impact_environment: simpleCategory === "environment" ? impact : 0,
@@ -171,6 +191,7 @@ Deno.serve(async (req) => {
         category_code: finalCategoryCode,  // Keep detailed code
         category_confidence: confidence,
         secondary_categories: secondary,
+        orientation,                        // ← FIX: set orientation
         is_irrelevant: primary === "noise", // ← FIX: mark noise as irrelevant
         noise_reason: primary === "noise" ? "Stock tips/market chatter" : null,
         ...impactScores,                    // ← FIX: set correct impact scores
