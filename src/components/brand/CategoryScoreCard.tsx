@@ -63,23 +63,10 @@ export function CategoryScoreCard({ category, score, eventCount, onClick, hasEno
       </div>
       
       <div className="flex items-baseline gap-2">
-        {hasEnoughRatings ? (
-          <>
-            <span className={`text-3xl font-bold ${getScoreColor(score)}`}>
-              {score}
-            </span>
-            <span className="text-muted-foreground text-sm">/100</span>
-          </>
-        ) : (
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground">
-              Monitoring in progress
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Score will appear once enough verified events are collected
-            </p>
-          </div>
-        )}
+        <span className={`text-3xl font-bold ${getScoreColor(score)}`}>
+          {score}
+        </span>
+        <span className="text-muted-foreground text-sm">/100</span>
       </div>
     </Card>
   );
