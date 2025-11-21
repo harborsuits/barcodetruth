@@ -1,10 +1,6 @@
 import { useRpc } from "@/hooks/useRpc";
-import { Badge } from "@/components/ui/badge";
-import { Building2, ChevronRight, Network } from "lucide-react";
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { Building2, Network } from "lucide-react";
 import { CorporateFamilyTree } from "./CorporateFamilyTree";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useOwnership } from "@/hooks/useOwnership";
 
 interface OwnershipHeader {
@@ -18,132 +14,14 @@ interface WhoProfitsProps {
   brandName?: string;
 }
 
-interface OwnershipGraph {
-  entity_qid: string;
-  entity_name: string;
-  parent?: {
-    id: string;
-    name: string;
-    type: string;
-    qid: string;
-  };
-  siblings: Array<{ id: string; name: string; type: string; qid: string }>;
-  cousins: Array<{ id: string; name: string; type: string; qid: string }>;
-  subsidiaries: Array<{ id: string; name: string; type: string; qid: string }>;
-}
-
 export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProps) {
   const { data, isLoading } = useRpc<OwnershipHeader>(
     "rpc_get_brand_ownership_header",
     { p_brand_id: brandId }
   );
   
-  // Get ownership data from database (includes parent, siblings, subsidiaries)
-  const { data: ownershipData } = useOwnership(brandId);
-
-  const [loadingWikidata, setLoadingWikidata] = useState(true);
-  const [wikidataGraph, setWikidataGraph] = useState<OwnershipGraph | null>(null);
-  const [wikidataError, setWikidataError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    
-    const loadWikidataGraph = async () => {
-      if (!brandName || !brandId) {
-        console.log('[Wikidata] Cannot load: missing data');
-        setLoadingWikidata(false);
-        return;
-      }
-      
-      console.log('[Wikidata] Auto-loading graph for:', brandName);
-      
-      try {
-        // CRITICAL: Fetch brand's wikidata_qid from database first
-        const { data: brandData, error: brandError } = await supabase
-          .from('brands')
-          .select('wikidata_qid')
-          .eq('id', brandId)
-          .single();
-        
-        if (brandError) {
-          console.error('[Wikidata] Error fetching brand QID:', brandError);
-          setLoadingWikidata(false);
-          return;
-        }
-        
-        const wikidataQid = brandData?.wikidata_qid;
-        console.log('[Wikidata] Using QID:', wikidataQid, '(from database)');
-        
-        // Skip if no QID available
-        if (!wikidataQid) {
-          console.log('[Wikidata] No QID available, skipping graph load');
-          setLoadingWikidata(false);
-          return;
-        }
-        
-        const { data: response, error } = await supabase.functions.invoke('resolve-wikidata-tree', {
-          body: { 
-            brand_name: brandName,
-            qid: wikidataQid  // CRITICAL: Pass explicit QID to avoid unreliable name search
-          }
-        });
-        
-        console.log('[Wikidata] Raw response:', { response, error });
-        
-        if (error) {
-          console.error('[Wikidata] Supabase error:', error);
-          throw error;
-        }
-        
-        console.log('[Wikidata] Response success:', response?.success);
-        console.log('[Wikidata] Response graph:', response?.graph);
-        
-        if (cancelled) {
-          console.log('[Wikidata] Request cancelled');
-          return;
-        }
-        
-        if (response?.success && response?.graph) {
-          console.log('[Wikidata] Setting graph state:', {
-            entity_qid: response.graph.entity_qid,
-            entity_name: response.graph.entity_name,
-            has_parent: !!response.graph.parent,
-            siblings_count: response.graph.siblings?.length || 0,
-            cousins_count: response.graph.cousins?.length || 0,
-            subsidiaries_count: response.graph.subsidiaries?.length || 0
-          });
-          setWikidataGraph(response.graph);
-        } else {
-          console.warn('[Wikidata] Response invalid or unsuccessful:', response);
-          setWikidataError(response?.error || 'Failed to load corporate family tree');
-        }
-      } catch (err: any) {
-        if (cancelled) return;
-        console.error('[Wikidata] Caught error:', err);
-        setWikidataError('Unable to load ownership data at this time.');
-        
-        // Auto-retry once after 2 seconds
-        if (retryCount === 0) {
-          setTimeout(() => {
-            setRetryCount(1);
-            loadWikidataGraph();
-          }, 2000);
-        }
-      } finally {
-        if (!cancelled) {
-          console.log('[Wikidata] Loading complete');
-          setLoadingWikidata(false);
-        }
-      }
-    };
-
-    loadWikidataGraph();
-    
-    return () => {
-      cancelled = true;
-    };
-  }, [brandName, brandId, retryCount]);
+  // Get ownership data from database ONLY - no Wikidata real-time calls
+  const { data: ownershipData, isLoading: ownershipLoading } = useOwnership(brandId);
 
   if (isLoading || !data) return null;
 
@@ -187,46 +65,11 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
           <h3 className="font-semibold">Corporate Family</h3>
         </div>
 
-        {loadingWikidata && (
-          <div className="space-y-4">
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-          </div>
-        )}
-
-        {wikidataError && (
-          <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-            <p className="text-sm text-yellow-800 dark:text-yellow-200">{wikidataError}</p>
-            <button 
-              onClick={() => { setRetryCount(0); setWikidataError(null); }}
-              className="text-sm text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 underline mt-2"
-            >
-              Try again
-            </button>
-          </div>
-        )}
-
-        {wikidataGraph && !loadingWikidata && (
-          <CorporateFamilyTree 
-            graph={wikidataGraph} 
-            ownershipData={ownershipData}
-          />
-        )}
-        
-        {/* Show database ownership data even if Wikidata loading/failed */}
-        {!wikidataGraph && !loadingWikidata && ownershipData && (
-          <CorporateFamilyTree 
-            graph={{
-              entity_qid: '',
-              entity_name: brandName,
-              siblings: [],
-              cousins: [],
-              subsidiaries: []
-            }}
-            ownershipData={ownershipData}
-          />
-        )}
+        <CorporateFamilyTree 
+          brandName={brandName}
+          ownershipData={ownershipData}
+          isLoading={ownershipLoading}
+        />
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import type { Shareholder } from "@/hooks/useTopShareholders";
+import { ShareholdersPieChart } from "./ShareholdersPieChart";
 
 interface TopShareholdersCardProps {
   shareholders: Shareholder[];
@@ -53,6 +54,17 @@ export function TopShareholdersCard({ shareholders, emptyMessage, isPrivateCompa
               They are passive investors, not parent organizations.
             </AlertDescription>
           </Alert>
+
+          {/* Shareholders Pie Chart */}
+          <div className="mb-6">
+            <ShareholdersPieChart 
+              shareholders={shareholders.map(s => ({
+                name: s.holder_name,
+                type: s.is_asset_manager ? 'Asset Manager' : 'Institutional',
+                percent: (s.percent_owned ?? (s as any).pct) || 0
+              }))}
+            />
+          </div>
 
           <div className="space-y-3">
             {shareholders.map((shareholder, idx) => (
