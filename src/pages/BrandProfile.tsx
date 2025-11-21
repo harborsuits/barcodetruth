@@ -287,7 +287,7 @@ export default function BrandProfile() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('brand_scores')
-        .select('score_labor, score_environment, score_politics, score_social, last_updated, reason_json')
+        .select('score, score_labor, score_environment, score_politics, score_social, last_updated, reason_json')
         .eq('brand_id', resolvedBrandId)
         .order('last_updated', { ascending: false })
         .limit(1)
@@ -393,7 +393,7 @@ export default function BrandProfile() {
         logo_attribution: brandInfo.logo_attribution
       },
       score: brandScores ? {
-        score: null, // Not returned by direct query
+        score: brandScores.score,
         score_labor: brandScores.score_labor,
         score_environment: brandScores.score_environment,
         score_politics: brandScores.score_politics,
@@ -517,7 +517,8 @@ export default function BrandProfile() {
 
   const communityOutlook = null; // Disabled until we implement batch aggregation
   const totalCommunityRatings = 0;
-  const hasEnoughRatings = false;
+  // Brand scores should display when they exist, regardless of community ratings
+  const hasEnoughRatings = true;
 
   // Fetch company info (ownership, key people, valuation)
   const { data: companyInfo, refetch: refetchCompanyInfo } = useQuery({
