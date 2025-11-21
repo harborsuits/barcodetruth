@@ -67,8 +67,13 @@ function scoreTone(n?: number) {
 
 function relTime(iso?: string): string {
   if (!iso) return "";
+  
+  const date = new Date(iso);
+  // Validate date
+  if (isNaN(date.getTime())) return "";
+  
   // Guard against future-skewed timestamps (clock drift)
-  const ms = Math.max(0, Date.now() - new Date(iso).getTime());
+  const ms = Math.max(0, Date.now() - date.getTime());
   const m = Math.floor(ms / 60000);
   const h = Math.floor(ms / 36e5);
   const d = Math.floor(h / 24);
@@ -82,7 +87,14 @@ function relTime(iso?: string): string {
 
 function formatDateWithRelative(iso?: string): string {
   if (!iso) return "";
+  
   const date = new Date(iso);
+  // Validate date before formatting
+  if (isNaN(date.getTime())) {
+    console.warn('[EventCard] Invalid date:', iso);
+    return "Date unknown";
+  }
+  
   const formatted = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const relative = relTime(iso);
   return `${formatted} (${relative})`;

@@ -79,7 +79,9 @@ function CategoryEvidence({ brandId, category }: { brandId: string; category: st
                   {ev.verification === 'official' ? 'Official' : ev.verification === 'corroborated' ? 'Verified' : 'Reported'}
                 </Badge>
                 <span className="text-muted-foreground">
-                  {formatDistanceToNow(new Date(ev.event_date), { addSuffix: true })}
+                  {ev.event_date && !isNaN(new Date(ev.event_date).getTime())
+                    ? formatDistanceToNow(new Date(ev.event_date), { addSuffix: true })
+                    : 'Date unknown'}
                 </span>
               </div>
             </div>

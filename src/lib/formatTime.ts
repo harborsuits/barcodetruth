@@ -1,7 +1,19 @@
 import { formatDistanceToNow, format } from 'date-fns';
 
-export function formatEventTime(date: string | Date): string {
+/**
+ * Safely format event date with fallback for invalid dates
+ */
+export function formatEventTime(date: string | Date | null | undefined): string {
+  if (!date) return 'Date unknown';
+  
   const eventDate = new Date(date);
+  
+  // Validate date is valid
+  if (isNaN(eventDate.getTime())) {
+    console.warn('[formatEventTime] Invalid date:', date);
+    return 'Date unknown';
+  }
+  
   const now = new Date();
   const diffInHours = (now.getTime() - eventDate.getTime()) / (1000 * 60 * 60);
   
@@ -18,4 +30,13 @@ export function formatEventTime(date: string | Date): string {
   
   // Older - show actual date
   return format(eventDate, 'MMM d, yyyy');
+}
+
+/**
+ * Safe date validation helper
+ */
+export function isValidDate(date: any): date is Date | string {
+  if (!date) return false;
+  const d = new Date(date);
+  return !isNaN(d.getTime());
 }
