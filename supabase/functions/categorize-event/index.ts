@@ -122,6 +122,22 @@ Deno.serve(async (req) => {
 
     const finalCategoryCode = categoryCodeMap[primary] || "NOISE.GENERAL";
 
+    // Extract simple category for the category enum column (used by scorer)
+    const simpleCategoryMap: Record<string, string> = {
+      "PRODUCT.RECALL": "social",
+      "LABOR.SAFETY": "labor",
+      "LABOR.DISCRIMINATION": "labor",
+      "ESG.ENVIRONMENT": "environment",
+      "POLICY.POLITICAL": "politics",
+      "LEGAL.LAWSUIT": "social",
+      "LEGAL.INVESTIGATION": "social",
+      "FIN.EARNINGS": "social",
+      "SOCIAL.CAMPAIGN": "social",
+      "REGULATORY.COMPLIANCE": "environment",
+      "NOISE.GENERAL": "social"
+    };
+    const simpleCategory = simpleCategoryMap[finalCategoryCode] || "social";
+
     // Log to classification audit for telemetry
     await supabase
       .from("classification_audit")
@@ -142,7 +158,8 @@ Deno.serve(async (req) => {
     const { error: updateError } = await supabase
       .from("brand_events")
       .update({
-        category_code: finalCategoryCode,
+        category: simpleCategory,          // ← FIX: populate enum column for scorer
+        category_code: finalCategoryCode,  // Keep detailed code
         category_confidence: confidence,
         secondary_categories: secondary,
         noise_reason: primary === "noise" ? "Stock tips/market chatter" : null
