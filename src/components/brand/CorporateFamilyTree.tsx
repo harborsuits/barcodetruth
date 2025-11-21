@@ -22,17 +22,54 @@ interface OwnershipGraph {
   subsidiaries: RelatedEntity[];
 }
 
-interface CorporateFamilyTreeProps {
-  graph: OwnershipGraph;
+interface OwnershipData {
+  company_id: string | null;
+  structure: {
+    chain: Array<{ id: string; name: string; type: string; logo_url?: string }>;
+    siblings: Array<{ id: string; name: string; type: string; logo_url?: string }>;
+  };
+  ownership_structure?: any;
+  ownership_details?: any[];
+  shareholders: any;
 }
 
-export function CorporateFamilyTree({ graph }: CorporateFamilyTreeProps) {
+interface CorporateFamilyTreeProps {
+  graph: OwnershipGraph;
+  ownershipData?: OwnershipData | null;
+}
+
+export function CorporateFamilyTree({ graph, ownershipData }: CorporateFamilyTreeProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loadingEntity, setLoadingEntity] = useState<string | null>(null);
   
+  // Merge Wikidata graph with database ownership data
+  const mergedParent = graph.parent || (ownershipData?.structure.chain?.[0] ? {
+    id: ownershipData.structure.chain[0].id,
+    name: ownershipData.structure.chain[0].name,
+    type: 'company',
+    qid: '', // No QID from database
+    logo_url: ownershipData.structure.chain[0].logo_url
+  } : undefined);
+  
+  const mergedSiblings = [...graph.siblings];
+  // Add database siblings if not already in Wikidata
+  if (ownershipData?.structure.siblings) {
+    for (const sib of ownershipData.structure.siblings) {
+      if (!mergedSiblings.some(s => s.id === sib.id)) {
+        mergedSiblings.push({
+          id: sib.id,
+          name: sib.name,
+          type: sib.type,
+          qid: '', // No QID from database
+          logo_url: sib.logo_url
+        });
+      }
+    }
+  }
+  
   // Filter out subsidiaries that already appear in siblings to avoid duplication
-  const siblingQids = new Set(graph.siblings.map(s => s.qid));
+  const siblingQids = new Set(mergedSiblings.map(s => s.qid || s.id));
   const uniqueSubsidiaries = graph.subsidiaries.filter(sub => !siblingQids.has(sub.qid));
 
   const handleEntityClick = async (entity: RelatedEntity) => {
@@ -82,22 +119,22 @@ export function CorporateFamilyTree({ graph }: CorporateFamilyTreeProps) {
   return (
     <div className="space-y-6">
       {/* Parent Company - Logo Grid Style */}
-      {graph.parent && (
+      {mergedParent && (
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
             <h4 className="text-sm font-medium text-muted-foreground">Parent Company</h4>
           </div>
           
           <button
-            onClick={() => handleEntityClick(graph.parent!)}
-            disabled={loadingEntity === graph.parent.qid}
+            onClick={() => handleEntityClick(mergedParent)}
+            disabled={loadingEntity === mergedParent.qid}
             className="flex flex-col items-center gap-2 p-3 w-40 border border-border rounded-lg hover:border-primary hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-card"
           >
             <div className="relative aspect-square w-full">
-              {graph.parent.logo_url ? (
+              {mergedParent.logo_url ? (
                 <img 
-                  src={graph.parent.logo_url}
-                  alt={graph.parent.name}
+                  src={mergedParent.logo_url}
+                  alt={mergedParent.name}
                   className="w-full h-full object-contain"
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';
@@ -110,11 +147,11 @@ export function CorporateFamilyTree({ graph }: CorporateFamilyTreeProps) {
                 />
               ) : null}
               
-              <div className={`logo-fallback absolute inset-0 flex items-center justify-center text-4xl font-bold text-muted-foreground/30 ${graph.parent.logo_url ? 'hidden' : 'flex'}`}>
-                {graph.parent.name.charAt(0)}
+              <div className={`logo-fallback absolute inset-0 flex items-center justify-center text-4xl font-bold text-muted-foreground/30 ${mergedParent.logo_url ? 'hidden' : 'flex'}`}>
+                {mergedParent.name.charAt(0)}
               </div>
               
-              {loadingEntity === graph.parent.qid && (
+              {loadingEntity === mergedParent.qid && (
                 <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-lg">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
@@ -122,24 +159,24 @@ export function CorporateFamilyTree({ graph }: CorporateFamilyTreeProps) {
             </div>
             
             <span className="text-xs font-medium text-center line-clamp-2 w-full">
-              {graph.parent.name}
+              {mergedParent.name}
             </span>
           </button>
         </div>
       )}
       
       {/* Sister Brands - Logo Grid */}
-      {graph.siblings.length > 0 && (
+      {mergedSiblings.length > 0 && (
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
             <h4 className="text-sm font-medium text-muted-foreground">Sister Brands</h4>
             <Badge variant="secondary" className="text-xs">
-              {graph.siblings.length}
+              {mergedSiblings.length}
             </Badge>
           </div>
           
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {graph.siblings.map((sibling) => (
+            {mergedSiblings.map((sibling) => (
               <button
                 key={sibling.qid}
                 onClick={() => handleEntityClick(sibling)}
@@ -297,7 +334,7 @@ export function CorporateFamilyTree({ graph }: CorporateFamilyTreeProps) {
       )}
       
       {/* Empty state */}
-      {!graph.parent && graph.siblings.length === 0 && uniqueSubsidiaries.length === 0 && graph.cousins.length === 0 && (
+      {!mergedParent && mergedSiblings.length === 0 && uniqueSubsidiaries.length === 0 && graph.cousins.length === 0 && (
         <div className="text-center py-8 px-4">
           <Building2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
           <h4 className="font-semibold mb-2">No Parent or Subsidiary Relationships</h4>

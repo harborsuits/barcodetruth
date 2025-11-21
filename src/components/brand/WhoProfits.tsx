@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { CorporateFamilyTree } from "./CorporateFamilyTree";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useOwnership } from "@/hooks/useOwnership";
 
 interface OwnershipHeader {
   is_ultimate_parent: boolean;
@@ -36,6 +37,9 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
     "rpc_get_brand_ownership_header",
     { p_brand_id: brandId }
   );
+  
+  // Get ownership data from database (includes parent, siblings, subsidiaries)
+  const { data: ownershipData } = useOwnership(brandId);
 
   const [loadingWikidata, setLoadingWikidata] = useState(true);
   const [wikidataGraph, setWikidataGraph] = useState<OwnershipGraph | null>(null);
@@ -204,7 +208,24 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
         )}
 
         {wikidataGraph && !loadingWikidata && (
-          <CorporateFamilyTree graph={wikidataGraph} />
+          <CorporateFamilyTree 
+            graph={wikidataGraph} 
+            ownershipData={ownershipData}
+          />
+        )}
+        
+        {/* Show database ownership data even if Wikidata loading/failed */}
+        {!wikidataGraph && !loadingWikidata && ownershipData && (
+          <CorporateFamilyTree 
+            graph={{
+              entity_qid: '',
+              entity_name: brandName,
+              siblings: [],
+              cousins: [],
+              subsidiaries: []
+            }}
+            ownershipData={ownershipData}
+          />
         )}
       </div>
     </div>
