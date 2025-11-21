@@ -6,6 +6,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { format } from "date-fns";
 import type { Shareholder } from "@/hooks/useTopShareholders";
 import { ShareholdersPieChart } from "./ShareholdersPieChart";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 interface TopShareholdersCardProps {
   shareholders: Shareholder[];
@@ -14,6 +15,12 @@ interface TopShareholdersCardProps {
 }
 
 export function TopShareholdersCard({ shareholders, emptyMessage, isPrivateCompany }: TopShareholdersCardProps) {
+  const isAdmin = useIsAdmin();
+  
+  // Hide for non-admins until we have real SEC data
+  if (!isAdmin) {
+    return null;
+  }
   const hasData = shareholders && shareholders.length > 0;
 
   // Detect employee ownership

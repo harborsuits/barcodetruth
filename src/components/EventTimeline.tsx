@@ -11,7 +11,8 @@ export function EventTimeline({ items }: {
   if (!items?.length) {
     return (
       <div className="text-center py-8 text-muted-foreground">
-        No recent events
+        <p className="text-sm">Event coverage expanding</p>
+        <p className="text-xs mt-1">No verified events for this brand yet</p>
       </div>
     );
   }

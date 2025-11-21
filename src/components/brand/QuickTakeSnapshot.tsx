@@ -56,7 +56,7 @@ export function QuickTakeSnapshot({ brandId }: QuickTakeSnapshotProps) {
     <div className="rounded-full px-3 py-1 text-xs bg-white/70 backdrop-blur-sm border border-white/40">
       <span className="font-medium text-muted-foreground">{label}:</span>{" "}
       <span className="font-semibold text-foreground">
-        {hasEnoughRatings ? (value ?? "—") : "TBD"}
+        {hasEnoughRatings ? (value ?? "—") : "—"}
       </span>
     </div>
   );
@@ -67,9 +67,11 @@ export function QuickTakeSnapshot({ brandId }: QuickTakeSnapshotProps) {
         <div>
           <div className="text-sm text-muted-foreground mb-1">Quick Take</div>
           <div className="text-4xl font-bold text-foreground">
-            {hasEnoughRatings ? comp : "TBD"}
+            {hasEnoughRatings ? comp : "—"}
           </div>
-          <div className="text-xs text-muted-foreground mt-1">Overall Rating</div>
+          <div className="text-xs text-muted-foreground mt-1">
+            {hasEnoughRatings ? "Overall Rating" : "Monitoring in progress"}
+          </div>
         </div>
         <div className="flex gap-2 flex-wrap">
           <MetricPill label="Labor" value={data.labor_score} />

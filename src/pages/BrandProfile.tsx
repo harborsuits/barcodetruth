@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, ExternalLink, AlertCircle, Building2, Link as LinkIcon, Lightbulb } from 'lucide-react';
 import { DataCompletenessBadge } from '@/components/brand/DataCompletenessBadge';
 import { ManualEnrichButton } from '@/components/brand/ManualEnrichButton';
@@ -765,6 +766,16 @@ export default function BrandProfile() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Coverage Expanding Banner */}
+        {(coverage.events_90d < 20 || !hasDescription || !hasLogo) && (
+          <Alert className="border-blue-500/50 bg-blue-50/50 dark:bg-blue-950/20">
+            <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <AlertDescription className="text-sm text-blue-900 dark:text-blue-100">
+              <strong>Early beta:</strong> Coverage expands weekly. Parent companies and scores for major brands are available today.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* 2) Quick Take Snapshot */}
         <SectionHeader>How is {displayBrandName} doing overall?</SectionHeader>

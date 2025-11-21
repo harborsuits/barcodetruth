@@ -80,12 +80,12 @@ export function CommunityOutlookCard({ brandId, brandName }: CommunityOutlookCar
     }
     
     if (!hasEnoughData) {
-      // Show distribution but mark as "To Be Determined"
+      // Show distribution but mark as "Monitoring in progress"
       return (
         <div className="space-y-2">
           <div className="text-center mb-2">
             <p className="text-xs font-medium text-muted-foreground">
-              TBD
+              Monitoring in progress
             </p>
           </div>
           <div className="space-y-1">

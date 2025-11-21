@@ -164,13 +164,11 @@ export function SubsidiaryFeed({ brandId }: { brandId: string }) {
           ))
         ) : (
           <Card className="p-8 text-center text-muted-foreground">
-            <p className="text-sm">
-              {includeSubsidiaries 
-                ? 'No events found for this brand or its subsidiaries'
-                : 'No recent events found'}
-            </p>
+            <p className="text-sm">Event coverage expanding</p>
             <p className="text-xs mt-2">
-              Try expanding "Show detailed evidence breakdown" below for all historical data
+              {includeSubsidiaries 
+                ? 'No verified events for this brand or its subsidiaries yet'
+                : 'No verified events for this brand yet'}
             </p>
           </Card>
         )}
