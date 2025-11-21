@@ -108,7 +108,7 @@ serve(async (req) => {
         entity_type: 'ownership',
         score: Math.max(0, 100 - (invalidOwnership.length * 2)),
         status: invalidOwnership.length > 10 ? 'critical' : 'poor',
-        issues: invalidOwnership.slice(0, 10).map(o => `${o.parent_name} → ${o.child_name}`),
+        issues: invalidOwnership.slice(0, 10).filter(o => o !== null).map(o => `${o!.parent_name} → ${o!.child_name}`),
         recommendations: ['Delete invalid ownership records', 'Re-run Wikidata enrichment'],
         checked_at: new Date().toISOString()
       });
@@ -119,7 +119,7 @@ serve(async (req) => {
       const { error: deleteError } = await supabase
         .from('company_ownership')
         .delete()
-        .in('id', invalidOwnership.map(o => o.id));
+        .in('id', invalidOwnership.filter(o => o !== null).map(o => o!.id));
 
       if (!deleteError) {
         autoFixCount += invalidOwnership.length;
@@ -127,7 +127,7 @@ serve(async (req) => {
           action: 'auto_delete_invalid_ownership',
           entity_type: 'ownership',
           count: invalidOwnership.length,
-          details: { deleted_ids: invalidOwnership.map(o => o.id) },
+          details: { deleted_ids: invalidOwnership.filter(o => o !== null).map(o => o!.id) },
           timestamp: new Date().toISOString()
         });
         
