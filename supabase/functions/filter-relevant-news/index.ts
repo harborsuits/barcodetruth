@@ -55,13 +55,14 @@ serve(async (req) => {
         score += 0.4;
       }
 
-      // Check if article mentions company country/location
-      if (brand.companies?.country && text.includes(brand.companies.country.toLowerCase())) {
+      // Check if article mentions company country/location (handle companies being array or object)
+      const company = Array.isArray(brand.companies) ? brand.companies[0] : brand.companies;
+      if (company?.country && text.includes(company.country.toLowerCase())) {
         score += 0.2;
       }
 
       // Check if article mentions ticker
-      if (brand.companies?.ticker && text.includes(brand.companies.ticker.toLowerCase())) {
+      if (company?.ticker && text.includes(company.ticker.toLowerCase())) {
         score += 0.3;
       }
 
@@ -102,7 +103,7 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error('Error filtering news:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
