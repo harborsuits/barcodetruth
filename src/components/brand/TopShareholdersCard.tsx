@@ -88,7 +88,9 @@ export function TopShareholdersCard({ shareholders, emptyMessage, isPrivateCompa
                           <TooltipContent>
                             <p className="text-xs">
                               Data: {shareholder.data_source}<br />
-                              Last updated: {format(new Date(shareholder.last_updated), 'MMM d, yyyy')}
+                              Last updated: {shareholder.last_updated && !isNaN(new Date(shareholder.last_updated).getTime())
+                                ? format(new Date(shareholder.last_updated), 'MMM d, yyyy')
+                                : 'Date unknown'}
                             </p>
                           </TooltipContent>
                         </Tooltip>
