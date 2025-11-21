@@ -154,6 +154,15 @@ Deno.serve(async (req) => {
         if (error) console.warn("[categorize-event] Audit log warning:", error);
       });
 
+    // Set impact scores based on category (overwrite fetch-news-events incorrect scores)
+    const impact = primary === "noise" ? 0 : -5; // Noise has no impact, others have -5
+    const impactScores = {
+      impact_labor: simpleCategory === "labor" ? impact : 0,
+      impact_environment: simpleCategory === "environment" ? impact : 0,
+      impact_politics: simpleCategory === "politics" ? impact : 0,
+      impact_social: simpleCategory === "social" ? impact : 0,
+    };
+
     // persist to brand_events
     const { error: updateError } = await supabase
       .from("brand_events")
@@ -162,7 +171,9 @@ Deno.serve(async (req) => {
         category_code: finalCategoryCode,  // Keep detailed code
         category_confidence: confidence,
         secondary_categories: secondary,
-        noise_reason: primary === "noise" ? "Stock tips/market chatter" : null
+        is_irrelevant: primary === "noise", // ← FIX: mark noise as irrelevant
+        noise_reason: primary === "noise" ? "Stock tips/market chatter" : null,
+        ...impactScores,                    // ← FIX: set correct impact scores
       })
       .eq("event_id", event_id)
       .eq("brand_id", brand_id);
