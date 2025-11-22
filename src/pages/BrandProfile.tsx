@@ -24,7 +24,7 @@ import { RollupScores } from '@/components/ownership/RollupScores';
 import { DataCollectionBadge } from '@/components/brand/DataCollectionBadge';
 import { ReportIssueDialog } from '@/components/ReportIssueDialog';
 import { SuggestEvidenceDialog } from '@/components/SuggestEvidenceDialog';
-import { OwnershipTabs } from '@/components/brand/OwnershipTabs';
+import { TopInvestorsSection } from '@/components/brand/TopInvestorsSection';
 import { KeyPeopleRow } from '@/components/brand/KeyPeopleRow';
 import { ValuationChip } from '@/components/brand/ValuationChip';
 import { CommunityOutlookCard } from '@/components/brand/CommunityOutlookCard';
@@ -792,7 +792,11 @@ export default function BrandProfile() {
         )}
 
         {/* 2) Personalized Score Card */}
-        <SectionHeader>How is {displayBrandName} doing overall?</SectionHeader>
+        <SectionHeader>
+          {user && personalizedScore !== null 
+            ? `How does ${displayBrandName} line up with your values?`
+            : `How is ${displayBrandName} doing overall?`}
+        </SectionHeader>
         <PersonalizedScoreCard
           personalizedScore={personalizedScore}
           baselineScore={baselineScore}
@@ -903,17 +907,24 @@ export default function BrandProfile() {
             />
           </div>
         ) : (
-          <Card className="p-6 text-center text-muted-foreground">
-            <p className="text-sm">
+          <Card className="p-6">
+            <p className="font-medium mb-1">Monitoring by category</p>
+            <p className="text-sm text-muted-foreground">
               Category scores will appear once enough verified events are collected across each dimension.
             </p>
           </Card>
         )}
 
-        {/* 6) Who's Behind the Brand - Ownership, People, Shareholders */}
-        <SectionHeader>Who's behind {data.brand.name}?</SectionHeader>
+        {/* 6) Who Owns the Brand - Corporate Structure */}
+        <SectionHeader>Who owns {data.brand.name}?</SectionHeader>
         {resolvedBrandId && (
-          <OwnershipTabs brandId={resolvedBrandId} />
+          <WhoProfits brandId={resolvedBrandId} brandName={displayBrandName} />
+        )}
+
+        {/* 7) Top Investors - Separate from Corporate Ownership */}
+        <SectionHeader>Who invests in {data.brand.name}?</SectionHeader>
+        {resolvedBrandId && (
+          <TopInvestorsSection brandId={resolvedBrandId} />
         )}
 
         {/* Valuation */}
