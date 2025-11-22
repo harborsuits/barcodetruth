@@ -751,9 +751,7 @@ export default function BrandProfile() {
 
         {/* 2) Personalized Score Card */}
         <SectionHeader>
-          {user && personalizedScore !== null 
-            ? `How does ${displayBrandName} line up with your values?`
-            : `How is ${displayBrandName} doing overall?`}
+          How is {displayBrandName} doing overall?
         </SectionHeader>
         <PersonalizedScoreCard
           personalizedScore={personalizedScore}
@@ -825,10 +823,6 @@ export default function BrandProfile() {
             </>
           );
         })()}
-
-        {/* 3) Corporate Ownership Structure */}
-        <SectionHeader>Corporate Ownership</SectionHeader>
-        <WhoProfits brandId={resolvedBrandId!} brandName={data.brand.name} />
 
         {/* 5) Detailed Category Scores - Always show objective scores */}
         <SectionHeader>How is {data.brand.name} rated by category?</SectionHeader>
@@ -949,7 +943,7 @@ export default function BrandProfile() {
         {confidenceData && (
           <div className="mb-10">
             <DataCollectionBadge
-              eventCount={confidenceData.event_count}
+              eventCount={data.evidence?.length || 0}
               categoriesCovered={confidenceData.categories_covered || []}
               hasSignificantEvents={confidenceData.has_significant_events || false}
               completeness={confidenceData.completeness_percent || 0}

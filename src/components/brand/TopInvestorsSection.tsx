@@ -12,6 +12,17 @@ export function TopInvestorsSection({ brandId }: TopInvestorsSectionProps) {
   
   // Detect if company is likely private (no shareholders data)
   const isLikelyPrivate = !shareholdersLoading && shareholders.length === 0;
+  
+  // Check if all shareholders are placeholder data (0.00% or source='placeholder')
+  const allPlaceholder = shareholders.length > 0 && shareholders.every(sh => 
+    (sh.percent_owned === 0 || sh.percent_owned === null) ||
+    sh.source === 'placeholder'
+  );
+  
+  // Don't render if all data is placeholder
+  if (allPlaceholder) {
+    return null;
+  }
 
   return (
     <Card className="p-6">

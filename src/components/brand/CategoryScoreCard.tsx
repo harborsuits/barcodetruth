@@ -37,6 +37,9 @@ export function CategoryScoreCard({ category, score, eventCount, onClick, hasEno
   const config = categoryConfig[category];
   const Icon = config.icon;
   
+  // If there are no events, treat score as unknown regardless of the numeric value
+  const effectiveScore = eventCount === 0 ? null : score;
+  
   // Score color logic
   const getScoreColor = (score: number) => {
     if (score >= 70) return 'text-green-600';
@@ -62,10 +65,10 @@ export function CategoryScoreCard({ category, score, eventCount, onClick, hasEno
         </Badge>
       </div>
       
-      {score !== null ? (
+      {effectiveScore !== null ? (
         <div className="flex items-baseline gap-2">
-          <span className={`text-3xl font-bold ${getScoreColor(score)}`}>
-            {score}
+          <span className={`text-3xl font-bold ${getScoreColor(effectiveScore)}`}>
+            {effectiveScore}
           </span>
           <span className="text-muted-foreground text-sm">/100</span>
         </div>
