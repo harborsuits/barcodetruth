@@ -40,7 +40,6 @@ import { ValueMatchCard } from '@/components/ValueMatchCard';
 import { getUserPreferences } from '@/lib/userPreferences';
 import { DataHealthBadge } from '@/components/DataHealthBadge';
 import { AlternativeCard } from '@/components/brand/AlternativeCard';
-import { ReEnrichButton } from '@/components/brand/ReEnrichButton';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { isUUID } from '@/lib/utils';
 import { usePersonalizedScore } from '@/hooks/usePersonalizedScore';
@@ -608,7 +607,7 @@ export default function BrandProfile() {
 
   // Use personalized score if user is logged in, otherwise fallback to baseline
   const displayScore = personalizedScore ?? brandScores?.score ?? null;
-  const baselineScore = brandScores?.score ?? 50;
+  const baselineScore = brandScores?.score ?? null;
 
   // Compute safe display name (no more unnamed brands after migration)
   const displayBrandName = data.brand.name || 'Brand';
@@ -735,47 +734,6 @@ export default function BrandProfile() {
                     sourcesCount={coverage.independent_sources}
                   />
                 </div>
-              </div>
-              
-              {/* Personalized Score Display */}
-              <div className="min-w-[140px] text-right space-y-2">
-                {displayScore !== null ? (
-                  <>
-                    <div className="space-y-1">
-                      <div className="text-xs text-muted-foreground">
-                        {user && personalizedScore !== null ? 'Your Score' : 'Baseline Score'}
-                      </div>
-                      <div className="text-5xl font-bold text-foreground">
-                        {Math.round(displayScore)}
-                      </div>
-                      <div className="text-sm text-muted-foreground">/100</div>
-                    </div>
-                    
-                    {user && personalizedScore !== null && userPreferences && (
-                      <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
-                        <div>Baseline: {Math.round(baselineScore)}</div>
-                        <div className="text-[10px] leading-tight">
-                          Based on your values: Labor {userPreferences.cares_labor}, Env {userPreferences.cares_environment}, Politics {userPreferences.cares_politics}, Social {userPreferences.cares_social}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {(!user || personalizedScore === null) && (
-                      <div className="text-xs text-muted-foreground pt-2">
-                        <a href="/settings" className="text-primary hover:underline">
-                          Set your values
-                        </a> for personalized scores
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="space-y-1">
-                    <div className="text-xs text-muted-foreground">Score Status</div>
-                    <div className="text-sm text-muted-foreground bg-muted px-3 py-2 rounded-lg">
-                      Monitoring in progress — score will appear once enough verified events are collected
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </CardContent>
