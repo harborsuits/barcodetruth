@@ -54,6 +54,10 @@ export function CorporateFamilyTree({ brandName, ownershipData, isLoading }: Cor
   const parent = ownershipData.structure.chain?.[0];
   const siblings = ownershipData.structure.siblings || [];
 
+  // Hide parent tile if it's the same as the current brand (self-referential)
+  const showParent = parent && 
+    parent.name.trim().toLowerCase() !== brandName.trim().toLowerCase();
+
   const handleEntityClick = async (entity: { id: string; name: string }) => {
     console.log('[Entity Click] Navigating to brand:', entity.id);
     navigate(`/brand/${entity.id}`);
@@ -62,7 +66,7 @@ export function CorporateFamilyTree({ brandName, ownershipData, isLoading }: Cor
   return (
     <div className="space-y-6">
       {/* Parent Company */}
-      {parent && (
+      {showParent && (
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
             <h4 className="text-sm font-medium text-muted-foreground">Parent Company</h4>
@@ -158,7 +162,7 @@ export function CorporateFamilyTree({ brandName, ownershipData, isLoading }: Cor
       )}
       
       {/* Empty state */}
-      {!parent && siblings.length === 0 && (
+      {!showParent && siblings.length === 0 && (
         <div className="text-center py-8 px-4">
           <Building2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
           <h4 className="font-semibold mb-2">No Parent or Subsidiary Relationships</h4>
