@@ -48,7 +48,7 @@ export function PersonalizedScoreCard({
   });
 
   // Decide what we actually show
-  const hasPersonalized = user && prefs && typeof personalizedScore === 'number';
+  const hasPersonalized = user && typeof personalizedScore === 'number';
   const effectiveScore = (hasPersonalized ? personalizedScore : baselineScore) ?? null;
 
   if (effectiveScore === null) {
@@ -76,7 +76,7 @@ export function PersonalizedScoreCard({
           <span className="text-sm text-muted-foreground">/100</span>
         </div>
 
-        {hasPersonalized && (
+        {hasPersonalized && prefs && (
           <p className="mt-2 text-sm text-muted-foreground">
             Baseline score:{' '}
             <span className="font-medium">
