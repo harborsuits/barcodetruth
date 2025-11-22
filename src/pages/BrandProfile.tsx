@@ -43,6 +43,7 @@ import { AlternativeCard } from '@/components/brand/AlternativeCard';
 import { ReEnrichButton } from '@/components/brand/ReEnrichButton';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { isUUID } from '@/lib/utils';
+import { usePersonalizedScore } from '@/hooks/usePersonalizedScore';
 
 // Hardcoded alternatives mapping for major brands
 const BRAND_ALTERNATIVES: Record<string, Array<{
@@ -266,6 +267,9 @@ export default function BrandProfile() {
     });
   }, []);
 
+  // Fetch personalized score if user is logged in
+  const { data: personalizedScore } = usePersonalizedScore(resolvedBrandId, user?.id);
+
   // Redirect UUID route to canonical slug once loaded
   useEffect(() => {
     if (isUuidRoute && brandInfo?.slug && brandInfo.slug !== actualId) {
@@ -410,12 +414,17 @@ export default function BrandProfile() {
   const loading = brandLoading || scoresLoading || evidenceLoading;
   const error = brandError ? (brandError as Error).message : null;
 
-  // Fetch user preferences for value matching
+  // Fetch user preferences for value matching and personalization
   const { data: userPreferences } = useQuery({
-    queryKey: ['user-preferences', user?.id],
+    queryKey: ['user-value-preferences', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      return await getUserPreferences();
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('cares_labor, cares_environment, cares_politics, cares_social')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      return data;
     },
     enabled: !!user?.id,
   });
@@ -435,35 +444,6 @@ export default function BrandProfile() {
     
     setHasSetDefaultFilter(true);
   }, [evidence, hasSetDefaultFilter, loading]);
-
-  const { data: personalizedScore } = useQuery({
-    queryKey: ['personalized-score', resolvedBrandId, user?.id],
-    enabled: FEATURES.companyScore && Boolean(resolvedBrandId) && Boolean(user?.id),
-    queryFn: async () => {
-      if (!resolvedBrandId || !user?.id) return null;
-      
-      // Use direct RPC call since types not yet updated
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/personalized_brand_score`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
-          },
-          body: JSON.stringify({
-            p_brand_id: resolvedBrandId,
-            p_user_id: user.id
-          })
-        }
-      );
-      
-      if (!response.ok) return null;
-      const result = await response.json();
-      return result?.[0] ?? null;
-    },
-  });
 
   // Fetch data confidence to determine if we show scores or monitoring badge
   const { data: confidenceData } = useQuery({
@@ -626,9 +606,9 @@ export default function BrandProfile() {
     );
   }
 
-  // Legacy: Use personalized score if available, otherwise global score
-  // Now hidden behind feature flag in favor of Community Outlook
-  const displayScore = personalizedScore?.personalized_score ?? data.score?.score ?? null;
+  // Use personalized score if user is logged in, otherwise fallback to baseline
+  const displayScore = personalizedScore ?? brandScores?.score ?? null;
+  const baselineScore = brandScores?.score ?? 50;
 
   // Compute safe display name (no more unnamed brands after migration)
   const displayBrandName = data.brand.name || 'Brand';
@@ -763,7 +743,47 @@ export default function BrandProfile() {
                   />
                 </div>
               </div>
-              {/* Overall company score hidden - replaced by Community Outlook */}
+              
+              {/* Personalized Score Display */}
+              <div className="min-w-[140px] text-right space-y-2">
+                {displayScore !== null ? (
+                  <>
+                    <div className="space-y-1">
+                      <div className="text-xs text-muted-foreground">
+                        {user && personalizedScore !== null ? 'Your Score' : 'Baseline Score'}
+                      </div>
+                      <div className="text-5xl font-bold text-foreground">
+                        {Math.round(displayScore)}
+                      </div>
+                      <div className="text-sm text-muted-foreground">/100</div>
+                    </div>
+                    
+                    {user && personalizedScore !== null && userPreferences && (
+                      <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
+                        <div>Baseline: {Math.round(baselineScore)}</div>
+                        <div className="text-[10px] leading-tight">
+                          Based on your values: Labor {userPreferences.cares_labor}, Env {userPreferences.cares_environment}, Politics {userPreferences.cares_politics}, Social {userPreferences.cares_social}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {(!user || personalizedScore === null) && (
+                      <div className="text-xs text-muted-foreground pt-2">
+                        <a href="/settings" className="text-primary hover:underline">
+                          Set your values
+                        </a> for personalized scores
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">Score Status</div>
+                    <div className="text-sm text-muted-foreground bg-muted px-3 py-2 rounded-lg">
+                      Monitoring in progress — score will appear once enough verified events are collected
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -783,30 +803,30 @@ export default function BrandProfile() {
         <QuickTakeSnapshot brandId={resolvedBrandId!} />
 
         {/* Value Match Analysis - Personalized for User */}
-        {userPreferences && data.score && (
-          userPreferences.value_labor !== undefined &&
-          userPreferences.value_environment !== undefined &&
-          userPreferences.value_politics !== undefined &&
-          userPreferences.value_social !== undefined &&
-          data.score.score_labor !== null &&
-          data.score.score_environment !== null &&
-          data.score.score_politics !== null &&
-          data.score.score_social !== null
+        {userPreferences && brandScores && (
+          userPreferences.cares_labor !== undefined &&
+          userPreferences.cares_environment !== undefined &&
+          userPreferences.cares_politics !== undefined &&
+          userPreferences.cares_social !== undefined &&
+          brandScores.score_labor !== null &&
+          brandScores.score_environment !== null &&
+          brandScores.score_politics !== null &&
+          brandScores.score_social !== null
         ) && (
           <>
             <SectionHeader>Does {displayBrandName} match your values?</SectionHeader>
             <ValueMatchCard
               userValues={{
-                value_labor: userPreferences.value_labor,
-                value_environment: userPreferences.value_environment,
-                value_politics: userPreferences.value_politics,
-                value_social: userPreferences.value_social,
+                value_labor: userPreferences.cares_labor,
+                value_environment: userPreferences.cares_environment,
+                value_politics: userPreferences.cares_politics,
+                value_social: userPreferences.cares_social,
               }}
               brandScores={{
-                score_labor: data.score.score_labor,
-                score_environment: data.score.score_environment,
-                score_politics: data.score.score_politics,
-                score_social: data.score.score_social,
+                score_labor: brandScores.score_labor,
+                score_environment: brandScores.score_environment,
+                score_politics: brandScores.score_politics,
+                score_social: brandScores.score_social,
               }}
               brandName={displayBrandName}
               brandId={data.brand.id}
@@ -852,33 +872,33 @@ export default function BrandProfile() {
         <SectionHeader>Who owns {data.brand.name}?</SectionHeader>
         <WhoProfits brandId={resolvedBrandId!} brandName={data.brand.name} />
 
-        {/* 5) Detailed Category Scores */}
+        {/* 5) Detailed Category Scores - Always show objective scores */}
         <SectionHeader>How is {data.brand.name} rated by category?</SectionHeader>
         <div className="grid grid-cols-2 gap-4">
           <CategoryScoreCard 
             category="labor" 
-            score={personalizedScore?.score_labor ?? data.score?.score_labor ?? 50}
+            score={brandScores?.score_labor ?? 50}
             eventCount={data.evidence?.filter(e => e.category === 'labor').length || 0}
             onClick={() => setCategoryFilter('labor')}
             hasEnoughRatings={hasEnoughRatings}
           />
           <CategoryScoreCard 
             category="environment" 
-            score={personalizedScore?.score_environment ?? data.score?.score_environment ?? 50}
+            score={brandScores?.score_environment ?? 50}
             eventCount={data.evidence?.filter(e => e.category === 'environment').length || 0}
             onClick={() => setCategoryFilter('environment')}
             hasEnoughRatings={hasEnoughRatings}
           />
           <CategoryScoreCard 
             category="politics" 
-            score={personalizedScore?.score_politics ?? data.score?.score_politics ?? 50}
+            score={brandScores?.score_politics ?? 50}
             eventCount={data.evidence?.filter(e => e.category === 'politics').length || 0}
             onClick={() => setCategoryFilter('politics')}
             hasEnoughRatings={hasEnoughRatings}
           />
           <CategoryScoreCard 
             category="social" 
-            score={personalizedScore?.score_social ?? data.score?.score_social ?? 50}
+            score={brandScores?.score_social ?? 50}
             eventCount={data.evidence?.filter(e => e.category === 'social').length || 0}
             onClick={() => setCategoryFilter('social')}
             hasEnoughRatings={hasEnoughRatings}
