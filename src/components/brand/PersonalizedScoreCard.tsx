@@ -38,9 +38,11 @@ export function PersonalizedScoreCard({
         .maybeSingle();
 
       if (error) {
-        console.error('Error loading user preferences', error);
+        console.error('[PersonalizedScoreCard] Error loading user preferences:', error);
         return null;
       }
+      
+      console.log('[PersonalizedScoreCard] User preferences loaded:', data);
       return data;
     },
   });

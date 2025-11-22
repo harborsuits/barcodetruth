@@ -13,11 +13,14 @@ export function usePersonalizedScore(brandId: string | undefined, userId: string
       });
       
       if (error) {
-        console.error('Error fetching personalized score:', error);
+        console.error('[usePersonalizedScore] RPC error:', error);
         return null;
       }
       
-      return data as number | null;
+      // Handle both scalar and array returns
+      const result = Array.isArray(data) ? data[0] : data;
+      console.log('[usePersonalizedScore] Result:', { brandId, userId, result });
+      return result as number | null;
     },
     enabled: !!brandId && !!userId,
     staleTime: 1000 * 60 * 5, // 5 minutes
