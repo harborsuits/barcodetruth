@@ -4,7 +4,7 @@ import { Briefcase, Leaf, Vote, Users } from "lucide-react";
 
 interface CategoryScoreCardProps {
   category: 'labor' | 'environment' | 'politics' | 'social';
-  score: number;
+  score: number | null;
   eventCount: number;
   onClick?: () => void;
   hasEnoughRatings?: boolean;
@@ -62,12 +62,18 @@ export function CategoryScoreCard({ category, score, eventCount, onClick, hasEno
         </Badge>
       </div>
       
-      <div className="flex items-baseline gap-2">
-        <span className={`text-3xl font-bold ${getScoreColor(score)}`}>
-          {score}
-        </span>
-        <span className="text-muted-foreground text-sm">/100</span>
-      </div>
+      {score !== null ? (
+        <div className="flex items-baseline gap-2">
+          <span className={`text-3xl font-bold ${getScoreColor(score)}`}>
+            {score}
+          </span>
+          <span className="text-muted-foreground text-sm">/100</span>
+        </div>
+      ) : (
+        <div className="text-sm text-muted-foreground italic">
+          Monitoring in progress
+        </div>
+      )}
     </Card>
   );
 }

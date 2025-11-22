@@ -645,14 +645,7 @@ export default function BrandProfile() {
                     />
                   </div>
                   
-                  {/* Re-enrich button (admin-only troubleshooting tool for fixing wrong Wikidata matches) */}
-                  {isAdmin && brandInfo?.wikidata_qid && (
-                    <ReEnrichButton 
-                      brandId={brandInfo.id}
-                      brandName={brandInfo.name}
-                      currentQid={brandInfo.wikidata_qid}
-                    />
-                  )}
+                  {/* Re-enrich button removed from consumer view - use admin panel instead */}
                 </div>
                 
                 {/* Ownership banner */}
@@ -803,7 +796,6 @@ export default function BrandProfile() {
         <PersonalizedScoreCard
           personalizedScore={personalizedScore}
           baselineScore={baselineScore}
-          userPreferences={userPreferences}
         />
 
         {/* Value Match Analysis - Personalized for User */}
@@ -883,28 +875,28 @@ export default function BrandProfile() {
           <div className="grid grid-cols-2 gap-4">
             <CategoryScoreCard 
               category="labor" 
-              score={brandScores.score_labor ?? 50}
+              score={brandScores.score_labor}
               eventCount={data.evidence?.filter(e => e.category === 'labor').length || 0}
               onClick={() => setCategoryFilter('labor')}
               hasEnoughRatings={hasEnoughRatings}
             />
             <CategoryScoreCard 
               category="environment" 
-              score={brandScores.score_environment ?? 50}
+              score={brandScores.score_environment}
               eventCount={data.evidence?.filter(e => e.category === 'environment').length || 0}
               onClick={() => setCategoryFilter('environment')}
               hasEnoughRatings={hasEnoughRatings}
             />
             <CategoryScoreCard 
               category="politics" 
-              score={brandScores.score_politics ?? 50}
+              score={brandScores.score_politics}
               eventCount={data.evidence?.filter(e => e.category === 'politics').length || 0}
               onClick={() => setCategoryFilter('politics')}
               hasEnoughRatings={hasEnoughRatings}
             />
             <CategoryScoreCard 
               category="social" 
-              score={brandScores.score_social ?? 50}
+              score={brandScores.score_social}
               eventCount={data.evidence?.filter(e => e.category === 'social').length || 0}
               onClick={() => setCategoryFilter('social')}
               hasEnoughRatings={hasEnoughRatings}

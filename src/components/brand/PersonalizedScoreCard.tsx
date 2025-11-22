@@ -7,98 +7,102 @@ import { useNavigate } from "react-router-dom";
 interface PersonalizedScoreCardProps {
   personalizedScore: number | null;
   baselineScore: number | null;
-  userPreferences?: {
-    cares_labor: number;
-    cares_environment: number;
-    cares_politics: number;
-    cares_social: number;
-  } | null;
 }
 
 export function PersonalizedScoreCard({
   personalizedScore,
   baselineScore,
-  userPreferences,
 }: PersonalizedScoreCardProps) {
   const navigate = useNavigate();
   
+  // Fetch user + preferences in here so the card can decide copy cleanly
   const { data: session } = useQuery({
-    queryKey: ['session'],
+    queryKey: ['supabase-session'],
     queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      return session;
-    }
+      const { data } = await supabase.auth.getSession();
+      return data.session ?? null;
+    },
   });
-  
-  const user = session?.user;
 
-  const displayScore = personalizedScore ?? baselineScore ?? null;
+  const user = session?.user ?? null;
 
-  if (displayScore === null) {
+  const { data: prefs } = useQuery({
+    queryKey: ['user-value-preferences', user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('cares_labor, cares_environment, cares_politics, cares_social')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error loading user preferences', error);
+        return null;
+      }
+      return data;
+    },
+  });
+
+  // Decide what we actually show
+  const hasPersonalized = user && prefs && typeof personalizedScore === 'number';
+  const effectiveScore = (hasPersonalized ? personalizedScore : baselineScore) ?? null;
+
+  if (effectiveScore === null) {
     return (
-      <Card className="p-6 bg-gradient-to-r from-muted/50 to-muted/30">
-        <div className="text-center space-y-2">
-          <h3 className="text-lg font-semibold text-muted-foreground">
-            Score Status
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            Monitoring in progress — this brand's ethical score will appear once
-            enough verified events are collected.
-          </p>
-        </div>
+      <Card className="p-4 sm:p-6">
+        <p className="font-medium mb-1">Score status</p>
+        <p className="text-sm text-muted-foreground">
+          Monitoring in progress — this brand's ethical score will appear once
+          enough verified events are collected.
+        </p>
       </Card>
     );
   }
 
   return (
-    <Card className="p-6 bg-gradient-to-r from-primary/5 via-background to-primary/5 border-2">
-      <div className="space-y-4">
-        {/* Main Score Display */}
-        <div className="text-center">
-          <div className="text-sm text-muted-foreground mb-2">
-            {user && personalizedScore !== null ? "Your Ethical Score" : "Baseline Ethical Score"}
-          </div>
-          <div className="text-6xl font-bold text-foreground">
-            {Math.round(displayScore)}
-            <span className="text-3xl text-muted-foreground">/100</span>
-          </div>
+    <Card className="p-4 sm:p-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="text-sm font-medium text-muted-foreground">
+          {hasPersonalized ? 'Your ethical score' : 'Baseline ethical score'}
+        </p>
+        <div className="flex items-baseline gap-2 mt-1">
+          <span className="text-4xl font-semibold">
+            {Math.round(effectiveScore)}
+          </span>
+          <span className="text-sm text-muted-foreground">/100</span>
         </div>
 
-        {/* Personalized Info */}
-        {user && personalizedScore !== null && userPreferences ? (
-          <div className="border-t pt-4 space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Baseline Score:</span>
-              <span className="font-semibold">{Math.round(baselineScore ?? 50)}/100</span>
-            </div>
-            <div className="text-xs text-muted-foreground space-y-1">
-              <p className="font-medium">Based on your values:</p>
-              <div className="grid grid-cols-2 gap-2">
-                <div>Labor: {userPreferences.cares_labor}</div>
-                <div>Environment: {userPreferences.cares_environment}</div>
-                <div>Politics: {userPreferences.cares_politics}</div>
-                <div>Social: {userPreferences.cares_social}</div>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground italic text-center pt-2 border-t">
-              Scores are personalized — two people with different values will see different scores for the same brand.
-            </p>
-          </div>
-        ) : (
-          <div className="border-t pt-4 text-center">
-            <p className="text-sm text-muted-foreground mb-3">
-              This is the neutral baseline score based on objective events.
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate("/settings")}
-            >
-              Set Your Values to Personalize This Score
-            </Button>
-          </div>
+        {hasPersonalized && (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Baseline score:{' '}
+            <span className="font-medium">
+              {Math.round(baselineScore ?? 50)}/100
+            </span>
+            <br />
+            Based on your values – Labor {prefs.cares_labor}, Environment{' '}
+            {prefs.cares_environment}, Politics {prefs.cares_politics}, Social{' '}
+            {prefs.cares_social}. Two people with different values will see
+            different scores for the same brand.
+          </p>
+        )}
+
+        {!hasPersonalized && (
+          <p className="mt-2 text-sm text-muted-foreground">
+            This is the neutral baseline score based on objective events
+            we've collected so far.
+          </p>
         )}
       </div>
+
+      {!hasPersonalized && (
+        <div className="mt-3 sm:mt-0">
+          <Button size="sm" onClick={() => navigate('/settings')}>
+            Set your values to personalize this score
+          </Button>
+        </div>
+      )}
     </Card>
   );
 }
