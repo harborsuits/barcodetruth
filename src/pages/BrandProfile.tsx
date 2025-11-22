@@ -33,7 +33,7 @@ import { useOwnership } from '@/hooks/useOwnership';
 import { useKeyPeople } from '@/hooks/useKeyPeople';
 import { useTopShareholders } from '@/hooks/useTopShareholders';
 import { SectionHeader } from '@/components/brand/SectionHeader';
-import { QuickTakeSnapshot } from '@/components/brand/QuickTakeSnapshot';
+import { PersonalizedScoreCard } from '@/components/brand/PersonalizedScoreCard';
 import { WhoProfits } from '@/components/brand/WhoProfits';
 import { EvidencePanel } from '@/components/brand/EvidencePanel';
 import { ValueMatchCard } from '@/components/ValueMatchCard';
@@ -798,9 +798,13 @@ export default function BrandProfile() {
           </Alert>
         )}
 
-        {/* 2) Quick Take Snapshot */}
+        {/* 2) Personalized Score Card */}
         <SectionHeader>How is {displayBrandName} doing overall?</SectionHeader>
-        <QuickTakeSnapshot brandId={resolvedBrandId!} />
+        <PersonalizedScoreCard
+          personalizedScore={personalizedScore}
+          baselineScore={baselineScore}
+          userPreferences={userPreferences}
+        />
 
         {/* Value Match Analysis - Personalized for User */}
         {userPreferences && brandScores && (
@@ -868,42 +872,51 @@ export default function BrandProfile() {
           );
         })()}
 
-        {/* 3) Who Profits */}
-        <SectionHeader>Who owns {data.brand.name}?</SectionHeader>
+        {/* 3) Corporate Ownership Structure */}
+        <SectionHeader>Corporate Ownership</SectionHeader>
         <WhoProfits brandId={resolvedBrandId!} brandName={data.brand.name} />
 
         {/* 5) Detailed Category Scores - Always show objective scores */}
         <SectionHeader>How is {data.brand.name} rated by category?</SectionHeader>
-        <div className="grid grid-cols-2 gap-4">
-          <CategoryScoreCard 
-            category="labor" 
-            score={brandScores?.score_labor ?? 50}
-            eventCount={data.evidence?.filter(e => e.category === 'labor').length || 0}
-            onClick={() => setCategoryFilter('labor')}
-            hasEnoughRatings={hasEnoughRatings}
-          />
-          <CategoryScoreCard 
-            category="environment" 
-            score={brandScores?.score_environment ?? 50}
-            eventCount={data.evidence?.filter(e => e.category === 'environment').length || 0}
-            onClick={() => setCategoryFilter('environment')}
-            hasEnoughRatings={hasEnoughRatings}
-          />
-          <CategoryScoreCard 
-            category="politics" 
-            score={brandScores?.score_politics ?? 50}
-            eventCount={data.evidence?.filter(e => e.category === 'politics').length || 0}
-            onClick={() => setCategoryFilter('politics')}
-            hasEnoughRatings={hasEnoughRatings}
-          />
-          <CategoryScoreCard 
-            category="social" 
-            score={brandScores?.score_social ?? 50}
-            eventCount={data.evidence?.filter(e => e.category === 'social').length || 0}
-            onClick={() => setCategoryFilter('social')}
-            hasEnoughRatings={hasEnoughRatings}
-          />
-        </div>
+        {brandScores && (brandScores.score_labor !== null || brandScores.score_environment !== null || 
+         brandScores.score_politics !== null || brandScores.score_social !== null) ? (
+          <div className="grid grid-cols-2 gap-4">
+            <CategoryScoreCard 
+              category="labor" 
+              score={brandScores.score_labor ?? 50}
+              eventCount={data.evidence?.filter(e => e.category === 'labor').length || 0}
+              onClick={() => setCategoryFilter('labor')}
+              hasEnoughRatings={hasEnoughRatings}
+            />
+            <CategoryScoreCard 
+              category="environment" 
+              score={brandScores.score_environment ?? 50}
+              eventCount={data.evidence?.filter(e => e.category === 'environment').length || 0}
+              onClick={() => setCategoryFilter('environment')}
+              hasEnoughRatings={hasEnoughRatings}
+            />
+            <CategoryScoreCard 
+              category="politics" 
+              score={brandScores.score_politics ?? 50}
+              eventCount={data.evidence?.filter(e => e.category === 'politics').length || 0}
+              onClick={() => setCategoryFilter('politics')}
+              hasEnoughRatings={hasEnoughRatings}
+            />
+            <CategoryScoreCard 
+              category="social" 
+              score={brandScores.score_social ?? 50}
+              eventCount={data.evidence?.filter(e => e.category === 'social').length || 0}
+              onClick={() => setCategoryFilter('social')}
+              hasEnoughRatings={hasEnoughRatings}
+            />
+          </div>
+        ) : (
+          <Card className="p-6 text-center text-muted-foreground">
+            <p className="text-sm">
+              Category scores will appear once enough verified events are collected across each dimension.
+            </p>
+          </Card>
+        )}
 
         {/* 6) Who's Behind the Brand - Ownership, People, Shareholders */}
         <SectionHeader>Who's behind {data.brand.name}?</SectionHeader>

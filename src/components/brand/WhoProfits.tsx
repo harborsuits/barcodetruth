@@ -1,7 +1,8 @@
 import { useRpc } from "@/hooks/useRpc";
-import { Building2, Network } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { CorporateFamilyTree } from "./CorporateFamilyTree";
 import { useOwnership } from "@/hooks/useOwnership";
+import { Card } from "@/components/ui/card";
 
 interface OwnershipHeader {
   is_ultimate_parent: boolean;
@@ -26,80 +27,44 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
   if (isLoading || !data) return null;
 
   return (
-    <div className="rounded-2xl border-2 border-border p-6 bg-card">
-      <div className="text-sm text-muted-foreground mb-4">
-        Who profits from your purchase
-      </div>
-      
-      <div className="flex items-center gap-3 flex-wrap">
-        <Node label="You" />
-        <Arrow />
-        <Node label={brandName} emphasis />
-        
-        {!data.is_ultimate_parent && data.owner_company_name && (
-          <>
-            <Arrow />
-            <Node label={data.owner_company_name} />
-          </>
-        )}
-        
-        {data.ultimate_parent_name && (
-          <>
-            <Arrow />
-            <Node
-              label={data.ultimate_parent_name}
-              badge="Ultimate parent"
-            />
-          </>
-        )}
-      </div>
-      
-      <div className="mt-4 text-xs text-muted-foreground bg-muted/30 p-3 rounded-lg">
-        <strong>Note:</strong> Revenue flows to {data.is_ultimate_parent ? brandName : "controlling entities"} and then to their shareholders (e.g., index funds, institutional investors) who are listed in the shareholders section below.
+    <Card className="p-6">
+      <div className="flex items-center gap-2 mb-6">
+        <Building2 className="h-5 w-5 text-primary" />
+        <h3 className="font-semibold text-lg">Corporate Structure</h3>
       </div>
 
-      {/* Corporate Family Tree Section */}
-      <div className="mt-6 pt-6 border-t border-border">
-        <div className="flex items-center gap-2 mb-4">
-          <Network className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold">Corporate Family</h3>
-        </div>
-
-        <CorporateFamilyTree 
-          brandName={brandName}
-          ownershipData={ownershipData}
-          isLoading={ownershipLoading}
-        />
+      {/* Parent Company Display */}
+      <div className="mb-6">
+        {data.is_ultimate_parent ? (
+          <div className="p-4 rounded-lg bg-muted/30 border border-border">
+            <p className="text-sm font-medium">Independently Operated</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              No parent company found in our data. This brand appears to operate independently.
+            </p>
+          </div>
+        ) : (
+          <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+            <p className="text-sm text-muted-foreground mb-1">Owned by</p>
+            <p className="text-lg font-semibold">
+              {data.ultimate_parent_name || data.owner_company_name}
+            </p>
+            {data.owner_company_name && data.ultimate_parent_name && 
+             data.owner_company_name !== data.ultimate_parent_name && (
+              <p className="text-xs text-muted-foreground mt-2">
+                via {data.owner_company_name}
+              </p>
+            )}
+          </div>
+        )}
       </div>
-    </div>
+
+      {/* Subsidiaries/Sister Brands */}
+      <CorporateFamilyTree 
+        brandName={brandName}
+        ownershipData={ownershipData}
+        isLoading={ownershipLoading}
+      />
+    </Card>
   );
 }
 
-function Node({
-  label,
-  badge,
-  emphasis,
-}: {
-  label: string;
-  badge?: string;
-  emphasis?: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-xl px-4 py-2 border bg-background ${
-        emphasis ? "font-semibold shadow-md border-2 border-primary/30" : ""
-      }`}
-    >
-      <div className="text-sm">{label}</div>
-      {badge && (
-        <div className="mt-1 text-[10px] text-emerald-700 bg-emerald-100 dark:bg-emerald-900 dark:text-emerald-300 inline-block px-2 py-0.5 rounded-full font-medium">
-          {badge}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Arrow() {
-  return <div className="text-2xl text-muted-foreground">→</div>;
-}
