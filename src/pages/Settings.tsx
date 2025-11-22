@@ -268,37 +268,50 @@ export const Settings = () => {
           </CardContent>
         </Card>
 
-        <ValueSliders
-          initialValues={{
-            value_labor: values.labor,
-            value_environment: values.environment,
-            value_politics: values.politics,
-            value_social: values.social,
-          }}
-          onSave={async (newValues) => {
-            setValues({
-              labor: newValues.value_labor,
-              environment: newValues.value_environment,
-              politics: newValues.value_politics,
-              social: newValues.value_social,
-            });
-            
-            const success = await updateUserValues(newValues);
-            
-            if (success) {
-              toast({
-                title: "Values saved",
-                description: "Your preferences have been updated",
-              });
-            } else {
-              toast({
-                title: "Failed to save",
-                description: "Please try again",
-                variant: "destructive",
-              });
-            }
-          }}
-        />
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Heart className="h-5 w-5 text-primary" />
+              Your Values
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-2">
+              Set your priorities to get personalized brand scores. Adjust these sliders to control how much each category matters to you.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <ValueSliders
+              initialValues={{
+                value_labor: values.labor,
+                value_environment: values.environment,
+                value_politics: values.politics,
+                value_social: values.social,
+              }}
+              onSave={async (newValues) => {
+                setValues({
+                  labor: newValues.value_labor,
+                  environment: newValues.value_environment,
+                  politics: newValues.value_politics,
+                  social: newValues.value_social,
+                });
+                
+                const success = await updateUserValues(newValues);
+                
+                if (success) {
+                  toast({
+                    title: "Values saved",
+                    description: "Your personalized scores have been recalculated",
+                  });
+                } else {
+                  toast({
+                    title: "Failed to save",
+                    description: "Please try again",
+                    variant: "destructive",
+                  });
+                }
+              }}
+            />
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

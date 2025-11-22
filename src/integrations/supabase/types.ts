@@ -5202,6 +5202,10 @@ export type Database = {
       user_profiles: {
         Row: {
           age_range: string | null
+          cares_environment: number
+          cares_labor: number
+          cares_politics: number
+          cares_social: number
           created_at: string | null
           id: string
           location: string | null
@@ -5214,6 +5218,10 @@ export type Database = {
         }
         Insert: {
           age_range?: string | null
+          cares_environment?: number
+          cares_labor?: number
+          cares_politics?: number
+          cares_social?: number
           created_at?: string | null
           id?: string
           location?: string | null
@@ -5226,6 +5234,10 @@ export type Database = {
         }
         Update: {
           age_range?: string | null
+          cares_environment?: number
+          cares_labor?: number
+          cares_politics?: number
+          cares_social?: number
           created_at?: string | null
           id?: string
           location?: string | null
@@ -8177,7 +8189,7 @@ export type Database = {
       normalize_brand_label: { Args: { txt: string }; Returns: string }
       personalized_brand_score: {
         Args: { p_brand_id: string; p_user_id: string }
-        Returns: Json
+        Returns: number
       }
       reclassify_all_events: {
         Args: never

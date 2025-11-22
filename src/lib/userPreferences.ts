@@ -49,6 +49,7 @@ export async function updateUserValues(values: {
     
     console.log('Saving values for user:', user.id, values);
     
+    // Map to new column names and save to both tables for backward compatibility
     const { data, error } = await supabase
       .from('user_preferences')
       .upsert({
@@ -59,8 +60,24 @@ export async function updateUserValues(values: {
       .select();
     
     if (error) {
-      console.error('Supabase error:', error);
+      console.error('Supabase error saving to user_preferences:', error);
       throw error;
+    }
+    
+    // Also save to user_profiles for personalized scoring
+    const { error: profileError } = await supabase
+      .from('user_profiles')
+      .upsert({
+        user_id: user.id,
+        cares_labor: values.value_labor,
+        cares_environment: values.value_environment,
+        cares_politics: values.value_politics,
+        cares_social: values.value_social,
+      }, { onConflict: 'user_id' });
+    
+    if (profileError) {
+      console.error('Supabase error saving to user_profiles:', profileError);
+      throw profileError;
     }
     
     console.log('Values saved successfully:', data);
