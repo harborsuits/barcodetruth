@@ -174,3 +174,6 @@ verify_jwt = false
 [functions.enrich-top-brands]
 verify_jwt = false
 
+# SEC 13F institutional holders sync
+[functions.sync-13f]
+verify_jwt = false
