@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
 
     console.log(`[sync-13f] Found company: ${companyName} (${companyId})`);
 
-    // 2) Call FMP institutional holders endpoint
+    // 2) Call FMP institutional holders endpoint (v3 API)
     const fmpUrl = `https://financialmodelingprep.com/api/v3/institutional-holder/${ticker}?apikey=${FMP_API_KEY}`;
     console.log(`[sync-13f] Fetching from FMP: ${fmpUrl.replace(FMP_API_KEY, '***')}`);
     
