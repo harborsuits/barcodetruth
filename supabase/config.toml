@@ -177,3 +177,4 @@ verify_jwt = false
 # SEC 13F institutional holders sync
 [functions.sync-13f]
 verify_jwt = false
+verify_jwt = false
