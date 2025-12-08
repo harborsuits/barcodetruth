@@ -1,8 +1,9 @@
 import { useRpc } from "@/hooks/useRpc";
-import { Building2 } from "lucide-react";
+import { Building2, AlertTriangle } from "lucide-react";
 import { CorporateFamilyTree } from "./CorporateFamilyTree";
 import { useOwnership } from "@/hooks/useOwnership";
 import { Card } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface OwnershipHeader {
   is_ultimate_parent: boolean;
@@ -26,6 +27,22 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
 
   if (isLoading || !data) return null;
 
+  // Extract siblings/subsidiaries from ownership data
+  const siblings = ownershipData?.structure?.siblings || [];
+  const chain = ownershipData?.structure?.chain || [];
+  const hasParentInChain = chain.length > 0;
+  
+  // Detect data inconsistency: if we have siblings but header says "independent"
+  // This means the brand IS the parent company (like Kroger itself)
+  const isParentCompany = data.is_ultimate_parent && siblings.length > 0;
+  
+  // True independence: no parent AND no siblings/subsidiaries
+  const isTrulyIndependent = data.is_ultimate_parent && siblings.length === 0 && !hasParentInChain;
+  
+  // Incomplete data: we have siblings but no parent resolved
+  // (This should be rare if data is correct, but handle it gracefully)
+  const hasIncompleteData = !data.is_ultimate_parent && !data.owner_company_name && siblings.length > 0;
+
   return (
     <Card className="p-6">
       <div className="flex items-center gap-2 mb-6">
@@ -33,16 +50,45 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
         <h3 className="font-semibold text-lg">Corporate Structure</h3>
       </div>
 
+      {/* Incomplete Data Warning */}
+      {hasIncompleteData && (
+        <Alert variant="default" className="mb-4 bg-amber-50 border-amber-200">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-800 text-sm">
+            Sister brands detected but parent company not resolved. Corporate tree may be incomplete.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Parent Company Display */}
       <div className="mb-6">
-        {data.is_ultimate_parent ? (
+        {isParentCompany ? (
+          // This brand IS a parent company with subsidiaries
+          <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+            <p className="text-sm text-muted-foreground mb-1">Parent Company</p>
+            <p className="text-lg font-semibold">{brandName}</p>
+            <p className="text-xs text-muted-foreground mt-2">
+              This is a parent corporation that owns multiple brands and subsidiaries.
+            </p>
+          </div>
+        ) : isTrulyIndependent ? (
+          // Truly independent: no parent, no siblings
           <div className="p-4 rounded-lg bg-muted/30 border border-border">
             <p className="text-sm font-medium">Independently Operated</p>
             <p className="text-xs text-muted-foreground mt-1">
               No parent company found in our data. This brand appears to operate independently.
             </p>
           </div>
+        ) : data.is_ultimate_parent ? (
+          // Ultimate parent but we're not showing subsidiaries label (fallback)
+          <div className="p-4 rounded-lg bg-muted/30 border border-border">
+            <p className="text-sm font-medium">Corporate Headquarters</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              This appears to be the top-level entity in the corporate structure.
+            </p>
+          </div>
         ) : (
+          // Has a parent company
           <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
             <p className="text-sm text-muted-foreground mb-1">Owned by</p>
             <p className="text-lg font-semibold">
@@ -63,8 +109,8 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
         brandName={brandName}
         ownershipData={ownershipData}
         isLoading={ownershipLoading}
+        isParentCompany={isParentCompany}
       />
     </Card>
   );
 }
-

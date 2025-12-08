@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Loader2 } from 'lucide-react';
+import { Building2, Loader2, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface OwnershipData {
   company_id: string | null;
@@ -21,11 +20,16 @@ interface CorporateFamilyTreeProps {
   brandName: string;
   ownershipData?: OwnershipData | null;
   isLoading?: boolean;
+  isParentCompany?: boolean;
 }
 
-export function CorporateFamilyTree({ brandName, ownershipData, isLoading }: CorporateFamilyTreeProps) {
+export function CorporateFamilyTree({ 
+  brandName, 
+  ownershipData, 
+  isLoading,
+  isParentCompany = false 
+}: CorporateFamilyTreeProps) {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [loadingEntity, setLoadingEntity] = useState<string | null>(null);
   
   if (isLoading) {
@@ -55,8 +59,14 @@ export function CorporateFamilyTree({ brandName, ownershipData, isLoading }: Cor
   const siblings = ownershipData.structure.siblings || [];
 
   // Hide parent tile if it's the same as the current brand (self-referential)
+  // OR if this brand IS the parent company
   const showParent = parent && 
-    parent.name.trim().toLowerCase() !== brandName.trim().toLowerCase();
+    parent.name.trim().toLowerCase() !== brandName.trim().toLowerCase() &&
+    !isParentCompany;
+
+  // Detect logical inconsistency: siblings exist but no parent shown
+  // This could mean incomplete data OR this brand IS the parent
+  const hasSiblingsWithoutParent = siblings.length > 0 && !showParent && !isParentCompany;
 
   const handleEntityClick = async (entity: { id: string; name: string }) => {
     console.log('[Entity Click] Navigating to brand:', entity.id);
@@ -65,6 +75,16 @@ export function CorporateFamilyTree({ brandName, ownershipData, isLoading }: Cor
 
   return (
     <div className="space-y-6">
+      {/* Data Inconsistency Warning */}
+      {hasSiblingsWithoutParent && (
+        <Alert variant="default" className="bg-amber-50 border-amber-200">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-800 text-sm">
+            Related brands detected but parent company not fully resolved. This may indicate incomplete data.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Parent Company */}
       {showParent && (
         <div className="mb-6">
@@ -109,11 +129,13 @@ export function CorporateFamilyTree({ brandName, ownershipData, isLoading }: Cor
         </div>
       )}
       
-      {/* Sister Brands */}
+      {/* Subsidiaries (when this is a parent company) or Sister Brands (when this has siblings) */}
       {siblings.length > 0 && (
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
-            <h4 className="text-sm font-medium text-muted-foreground">Sister Brands</h4>
+            <h4 className="text-sm font-medium text-muted-foreground">
+              {isParentCompany ? 'Owned Brands & Subsidiaries' : 'Sister Brands'}
+            </h4>
             <Badge variant="secondary" className="text-xs">
               {siblings.length}
             </Badge>
@@ -161,7 +183,7 @@ export function CorporateFamilyTree({ brandName, ownershipData, isLoading }: Cor
         </div>
       )}
       
-      {/* Empty state */}
+      {/* Empty state - only show when truly no relationships */}
       {!showParent && siblings.length === 0 && (
         <div className="text-center py-8 px-4">
           <Building2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
