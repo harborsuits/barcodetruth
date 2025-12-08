@@ -125,6 +125,7 @@ export function OwnershipSection({ brandId, brandName }: OwnershipSectionProps) 
             <OwnershipBarChart
               items={shareholdersData?.items ?? []}
               others={shareholdersData?.others ?? null}
+              brandName={brandName}
             />
           )}
         </CardContent>
