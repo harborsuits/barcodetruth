@@ -8,7 +8,6 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type ShareholderItem = {
   holder_name: string;
@@ -62,9 +61,10 @@ export function OwnershipBarChart({ items, others }: OwnershipBarChartProps) {
         logo: item.approx_brand_logo_url,
       }));
 
-  const handleBarClick = (data: { slug?: string | null }) => {
-    if (data.slug) {
-      navigate(`/brand/${data.slug}`);
+  const handleBarClick = (data: any) => {
+    const slug = data?.payload?.slug as string | undefined | null;
+    if (slug) {
+      navigate(`/brand/${slug}`);
     }
   };
 
@@ -82,14 +82,15 @@ export function OwnershipBarChart({ items, others }: OwnershipBarChartProps) {
       <g transform={`translate(${x},${y})`}>
         <foreignObject x={-160} y={-12} width={155} height={24}>
           <div className="flex items-center gap-2 justify-end">
-            <Avatar className="h-5 w-5">
+            <div className="h-5 w-5 rounded-full overflow-hidden bg-muted flex items-center justify-center flex-shrink-0">
               {item?.logo ? (
-                <AvatarImage src={item.logo} alt={payload.value} />
-              ) : null}
-              <AvatarFallback className="text-[10px] bg-muted">
-                {getInitials(payload.value)}
-              </AvatarFallback>
-            </Avatar>
+                <img src={item.logo} alt={payload.value} className="h-full w-full object-contain" />
+              ) : (
+                <span className="text-[10px] font-medium text-muted-foreground">
+                  {getInitials(payload.value)}
+                </span>
+              )}
+            </div>
             <span className="text-xs truncate max-w-[120px]">
               {payload.value}
             </span>
