@@ -8090,6 +8090,7 @@ export type Database = {
           wikidata_qid: string
         }[]
       }
+      get_key_people_for_brand: { Args: { p_brand_id: string }; Returns: Json }
       get_next_brands_fair_rotation: {
         Args: { p_limit?: number }
         Returns: {
@@ -8122,6 +8123,10 @@ export type Database = {
         }[]
       }
       get_scans_used_month: { Args: { p_user: string }; Returns: number }
+      get_shareholder_breakdown: {
+        Args: { p_brand_id: string; p_max_items?: number }
+        Returns: Json
+      }
       get_source_credibility: {
         Args: { source_name_param: string }
         Returns: number
