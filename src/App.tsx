@@ -45,6 +45,7 @@ const AdminDashboard = lazyNamed(() => import("./pages/AdminDashboard"), "defaul
 const AdminCategoryTester = lazyNamed(() => import("./pages/AdminCategoryTester"), "default");
 const AdminTestScorer = lazyNamed(() => import("./pages/AdminTestScorer"), "default");
 const AdminOpsHealth = lazyNamed(() => import("./pages/AdminOpsHealth"), "default");
+const AdminIngestionHealth = lazyNamed(() => import("./pages/AdminIngestionHealth"), "default");
 const AdminRSSMonitor = lazyNamed(() => import("./pages/AdminRSSMonitor"), "default");
 const AdminEnrichmentMonitor = lazyNamed(() => import("./pages/AdminEnrichmentMonitor"), "default");
 const AdminCommunityRatings = lazyNamed(() => import("./pages/AdminCommunityRatings"), "default");
@@ -513,6 +514,20 @@ const App = () => {
                   <RouteErrorBoundary>
                     <Suspense fallback={<RouteFallback label="Loading ops health…" />}>
                       <AdminOpsHealth />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/ingestion-health"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading ingestion health…" />}>
+                      <AdminIngestionHealth />
                     </Suspense>
                   </RouteErrorBoundary>
                 </AdminRoute>

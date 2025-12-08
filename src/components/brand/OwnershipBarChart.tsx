@@ -34,7 +34,7 @@ function getInitials(name: string): string {
 export function OwnershipBarChart({ items, others }: OwnershipBarChartProps) {
   const navigate = useNavigate();
 
-  if (!items.length && !others) {
+  if (!items.length) {
     return (
       <p className="text-sm text-muted-foreground py-4">
         We don't yet have verified shareholder data for this company.
@@ -42,18 +42,25 @@ export function OwnershipBarChart({ items, others }: OwnershipBarChartProps) {
     );
   }
 
-  // Build chart data
-  const chartData = [
-    ...items.map((item) => ({
-      name: item.holder_name,
-      value: item.ownership_percentage ?? 0,
-      slug: item.approx_brand_slug,
-      logo: item.approx_brand_logo_url,
-    })),
-    ...(others && others > 0
-      ? [{ name: "Others", value: others, slug: null, logo: null }]
-      : []),
-  ];
+  // Check if we have actual percentages or just names
+  const hasPercentages = items.some((item) => item.ownership_percentage > 0);
+
+  // Build chart data - only show items with percentages if we have them
+  const chartData = hasPercentages
+    ? items
+        .filter((item) => item.ownership_percentage > 0)
+        .map((item) => ({
+          name: item.holder_name,
+          value: item.ownership_percentage,
+          slug: item.approx_brand_slug,
+          logo: item.approx_brand_logo_url,
+        }))
+    : items.map((item, idx) => ({
+        name: item.holder_name,
+        value: 1, // Equal weight when no percentages
+        slug: item.approx_brand_slug,
+        logo: item.approx_brand_logo_url,
+      }));
 
   const handleBarClick = (data: { slug?: string | null }) => {
     if (data.slug) {
@@ -103,8 +110,9 @@ export function OwnershipBarChart({ items, others }: OwnershipBarChartProps) {
           <XAxis
             type="number"
             domain={[0, "dataMax"]}
-            tickFormatter={(v) => `${v.toFixed(1)}%`}
+            tickFormatter={(v) => hasPercentages ? `${v.toFixed(1)}%` : ""}
             tick={{ fontSize: 11 }}
+            hide={!hasPercentages}
           />
           <YAxis
             type="category"
@@ -115,7 +123,10 @@ export function OwnershipBarChart({ items, others }: OwnershipBarChartProps) {
             width={165}
           />
           <Tooltip
-            formatter={(value: number) => [`${value.toFixed(2)}%`, "Ownership"]}
+            formatter={(value: number) => [
+              hasPercentages ? `${value.toFixed(2)}%` : "Major holder",
+              "Ownership"
+            ]}
             contentStyle={{
               backgroundColor: "hsl(var(--popover))",
               border: "1px solid hsl(var(--border))",
