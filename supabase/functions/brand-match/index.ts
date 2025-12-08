@@ -2,8 +2,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { requireInternal } from '../_shared/internal.ts';
 
-const BATCH = parseInt(Deno.env.get('MATCH_BATCH') || '25', 10);
-const ACCEPT_THRESHOLD = 0.80;
+const BATCH = parseInt(Deno.env.get('MATCH_BATCH') || '50', 10);
+const ACCEPT_THRESHOLD = 0.60; // Lowered from 0.80 to get more matches through
 
 // EMERGENCY VALIDATION: Prevent patents/trademarks/generic descriptions from being created as brands
 const INVALID_BRAND_PATTERNS = [
@@ -65,8 +65,8 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   );
 
-  // Rate limiting check
-  const MIN_GAP_MS = 3 * 60 * 1000; // 3 minutes
+// Rate limiting check - reduced to allow more frequent runs
+  const MIN_GAP_MS = 1 * 60 * 1000; // 1 minute (reduced from 3)
   const { data: lastRun } = await supabase
     .from('cron_runs')
     .select('last_run')
