@@ -2504,6 +2504,53 @@ export type Database = {
         }
         Relationships: []
       }
+      company_institutional_holders: {
+        Row: {
+          cik: string | null
+          company_id: string
+          created_at: string
+          holder_name: string
+          id: string
+          percent_outstanding: number | null
+          position_value: number | null
+          reported_at: string | null
+          shares: number | null
+          source: string
+        }
+        Insert: {
+          cik?: string | null
+          company_id: string
+          created_at?: string
+          holder_name: string
+          id?: string
+          percent_outstanding?: number | null
+          position_value?: number | null
+          reported_at?: string | null
+          shares?: number | null
+          source?: string
+        }
+        Update: {
+          cik?: string | null
+          company_id?: string
+          created_at?: string
+          holder_name?: string
+          id?: string
+          percent_outstanding?: number | null
+          position_value?: number | null
+          reported_at?: string | null
+          shares?: number | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_institutional_holders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_ownership: {
         Row: {
           child_brand_id: string | null
