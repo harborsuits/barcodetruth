@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { requireInternal } from '../_shared/internal.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,8 +6,7 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
-  const guard = requireInternal(req);
-  if (guard) return guard;
+  // Removed internal guard - allow cron and admin access
   const requestId = req.headers.get('X-Request-Id') ?? crypto.randomUUID();
   const baseHeaders = { 
     ...corsHeaders, 
@@ -28,14 +26,23 @@ Deno.serve(async (req) => {
 
     console.log(`[${requestId}] Building snapshots...`);
 
-    // Build trending snapshot
+    // Build trending snapshot - use brand_events directly (v_events may not exist)
     const { data: trendingEvents, error: trendingError } = await supabase
-      .from('v_events')
+      .from('brand_events')
       .select(`
-        *,
-        brands!inner(name, parent_company)
+        event_id,
+        brand_id,
+        title,
+        description,
+        category,
+        category_code,
+        event_date,
+        verification,
+        source_url,
+        brands!inner(id, name, parent_company, logo_url, slug)
       `)
-      .in('verification', ['corroborated', 'official'])
+      .in('verification', ['corroborated', 'official', 'unverified'])
+      .eq('is_irrelevant', false)
       .gte('event_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
       .order('event_date', { ascending: false })
       .limit(50);

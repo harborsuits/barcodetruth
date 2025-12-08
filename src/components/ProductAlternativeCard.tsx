@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader } from "@/components/ui/Card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Barcode, TrendingUp } from "lucide-react";

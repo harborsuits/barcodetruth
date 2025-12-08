@@ -814,8 +814,9 @@ Deno.serve(async (req) => {
         }
         
         // Score relevance (context + proximity + section-aware)
+        // RELAXED: lowered threshold from 11 to 7 to allow more events through
         const { score: rel, reason: relReason } = scoreRelevanceStrict(b, title, body, urlObj);
-        if (rel < 11) {
+        if (rel < 7) {
           console.log(`[orchestrator] Skipping low-relevance article (rel=${rel}, reason=${relReason}): ${title.slice(0, 80)}`);
           totalSkipped++;
           continue; // DROP low relevance noise

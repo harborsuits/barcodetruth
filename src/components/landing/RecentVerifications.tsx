@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatEventTime } from '@/lib/formatTime';
 import { Link } from 'react-router-dom';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function RecentVerifications() {
   const { data: recentEvents, isLoading } = useQuery({
