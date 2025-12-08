@@ -8090,6 +8090,7 @@ export type Database = {
           wikidata_qid: string
         }[]
       }
+      get_ingestion_health: { Args: never; Returns: Json }
       get_key_people_for_brand: { Args: { p_brand_id: string }; Returns: Json }
       get_next_brands_fair_rotation: {
         Args: { p_limit?: number }
