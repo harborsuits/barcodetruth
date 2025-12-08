@@ -76,7 +76,7 @@ export function OwnershipBarChart({ items, others }: OwnershipBarChartProps) {
     const item = chartData.find((d) => d.name === payload.value);
     return (
       <g transform={`translate(${x},${y})`}>
-        <foreignObject x={-140} y={-14} width={135} height={28}>
+        <foreignObject x={-150} y={-14} width={145} height={28}>
           <div className="flex items-center gap-2 justify-end">
             <div className="h-6 w-6 rounded-full overflow-hidden bg-muted flex items-center justify-center flex-shrink-0">
               {item?.logo ? (
@@ -91,7 +91,7 @@ export function OwnershipBarChart({ items, others }: OwnershipBarChartProps) {
                 </span>
               )}
             </div>
-            <span className="text-xs truncate max-w-[100px]" title={payload.value}>
+            <span className="text-xs truncate max-w-[110px]" title={payload.value}>
               {payload.value}
             </span>
           </div>
