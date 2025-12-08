@@ -25,6 +25,7 @@ import { DataCollectionBadge } from '@/components/brand/DataCollectionBadge';
 import { ReportIssueDialog } from '@/components/ReportIssueDialog';
 import { SuggestEvidenceDialog } from '@/components/SuggestEvidenceDialog';
 import { TopInvestorsSection } from '@/components/brand/TopInvestorsSection';
+import { OwnershipSection } from '@/components/brand/OwnershipSection';
 import { KeyPeopleRow } from '@/components/brand/KeyPeopleRow';
 import { ValuationChip } from '@/components/brand/ValuationChip';
 import { CommunityOutlookCard } from '@/components/brand/CommunityOutlookCard';
@@ -873,10 +874,9 @@ export default function BrandProfile() {
           <WhoProfits brandId={resolvedBrandId} brandName={displayBrandName} />
         )}
 
-        {/* 7) Top Investors - Separate from Corporate Ownership */}
-        <SectionHeader>Who invests in {data.brand.name}?</SectionHeader>
+        {/* 7) Top Shareholders + Key Figures - Horizontal Bar Chart */}
         {resolvedBrandId && (
-          <TopInvestorsSection brandId={resolvedBrandId} />
+          <OwnershipSection brandId={resolvedBrandId} brandName={displayBrandName} />
         )}
 
         {/* Valuation */}
