@@ -137,30 +137,28 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
     try {
       console.log('[Scanner] Starting scanner...');
       
-      // Guard against double initialization
-      if (videoRef.current?.srcObject) {
-        console.log('[Scanner] Already initialized, skipping');
-        return;
-      }
-      
-      // IMPORTANT: Reset pause state and scanning flag
-      setIsPaused(false);
-      isScanningRef.current = false;
-      
-      // Stop any existing stream first
+      // CRITICAL: Full cleanup before starting (fixes first-open not scanning)
       if (streamRef.current) {
-        console.log('[Scanner] Stopping existing stream before restart');
+        console.log('[Scanner] Cleaning up existing stream before restart');
         streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
       }
-      
-      // Cancel any pending animation frames
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = undefined;
       }
+      if (readerRef.current) {
+        readerRef.current = null;
+      }
       
-      // Initialize reader
+      // Reset all state
+      setIsPaused(false);
+      isScanningRef.current = false;
+      
+      // Initialize reader with barcode formats
       const hints = new Map();
       hints.set(DecodeHintType.POSSIBLE_FORMATS, [
         BarcodeFormat.UPC_A,
@@ -186,35 +184,57 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
         audio: false
       };
 
-      console.log('[Scanner] Getting camera stream...');
+      console.log('[Scanner] Requesting camera stream...');
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
 
-      if (videoRef.current) {
-        // Set video attributes for iOS and autoplay policy compliance
-        videoRef.current.setAttribute('playsinline', 'true');
-        videoRef.current.muted = true;
-        videoRef.current.autoplay = true;
-        videoRef.current.srcObject = stream;
-        
-        // CRITICAL: Wait for video to be fully ready before scanning
-        await new Promise((resolve) => {
-          if (videoRef.current) {
-            videoRef.current.onloadedmetadata = async () => {
-              console.log('[Scanner] Video metadata loaded');
-              if (videoRef.current) {
-                await videoRef.current.play();
-                // Ensure first frame is painted
-                await new Promise(r => requestAnimationFrame(r));
-                // Additional buffer for stability
-                await new Promise(r => setTimeout(r, 100));
-                console.log('[Scanner] Video playing and ready');
-                resolve(true);
-              }
-            };
-          }
-        });
+      if (!videoRef.current) {
+        throw new Error('Video element not available');
       }
+
+      // Set video attributes for iOS and autoplay policy compliance
+      videoRef.current.setAttribute('playsinline', 'true');
+      videoRef.current.muted = true;
+      videoRef.current.autoplay = true;
+      videoRef.current.srcObject = stream;
+      
+      // CRITICAL: Wait for video to be ACTUALLY playing (not just metadata loaded)
+      await new Promise<void>((resolve, reject) => {
+        const video = videoRef.current;
+        if (!video) {
+          reject(new Error('Video element lost'));
+          return;
+        }
+        
+        const timeout = setTimeout(() => {
+          reject(new Error('Video start timeout'));
+        }, 5000);
+        
+        const handlePlaying = () => {
+          clearTimeout(timeout);
+          video.removeEventListener('playing', handlePlaying);
+          video.removeEventListener('error', handleError);
+          console.log('[Scanner] Video is now playing');
+          resolve();
+        };
+        
+        const handleError = (e: Event) => {
+          clearTimeout(timeout);
+          video.removeEventListener('playing', handlePlaying);
+          video.removeEventListener('error', handleError);
+          reject(new Error('Video playback error'));
+        };
+        
+        video.addEventListener('playing', handlePlaying);
+        video.addEventListener('error', handleError);
+        
+        // Start playback
+        video.play().catch(reject);
+      });
+      
+      // CRITICAL: Warm-up delay for camera stabilization (fixes first-open issue)
+      console.log('[Scanner] Waiting for camera to stabilize...');
+      await new Promise(r => setTimeout(r, 300));
 
       // Check for torch capability
       const videoTrack = stream.getVideoTracks()[0];
@@ -235,6 +255,16 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
       console.log('[Scanner] ✅ Scanner started successfully');
     } catch (error: any) {
       console.error('[Scanner] Failed to start:', error);
+      
+      // Cleanup on failure
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+      
       setHasPermission(false);
       setIsScanning(false);
       onError?.(error);
@@ -247,20 +277,38 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
   }, [facingMode, currentResolution, onError, scanFrame]);
 
   const stopScanning = useCallback(() => {
-    console.log('[Scanner] Stopping scanner');
+    console.log('[Scanner] Stopping scanner - full cleanup');
+    
+    // Cancel animation frame first
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = undefined;
     }
+    
+    // Stop all media tracks
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current.getTracks().forEach(track => {
+        track.stop();
+        console.log('[Scanner] Stopped track:', track.kind);
+      });
       streamRef.current = null;
     }
+    
+    // Clear video element
     if (videoRef.current) {
       videoRef.current.srcObject = null;
+      videoRef.current.load(); // Reset video element completely
     }
+    
+    // Clear reader
     readerRef.current = null;
+    isScanningRef.current = false;
+    
+    // Reset state
     setIsScanning(false);
     setTorchEnabled(false);
+    
+    console.log('[Scanner] Cleanup complete');
   }, []);
 
   const togglePause = useCallback(() => {
