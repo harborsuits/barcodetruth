@@ -67,8 +67,19 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
   }, []);
 
   const isScanningRef = useRef(false);
+  const tickCountRef = useRef(0);
+  const lastHeartbeatRef = useRef(0);
 
   const scanFrame = useCallback(async () => {
+    // Heartbeat log every ~1 second
+    const now = Date.now();
+    if (now - lastHeartbeatRef.current > 1000) {
+      tickCountRef.current++;
+      const video = videoRef.current;
+      console.log(`[Scanner] tick ${tickCountRef.current}, video=${video?.videoWidth || 0}x${video?.videoHeight || 0}, paused=${isPaused}, processing=${isProcessing}, hasReader=${!!readerRef.current}`);
+      lastHeartbeatRef.current = now;
+    }
+    
     if (isPaused || isProcessing || !videoRef.current || !readerRef.current || isScanningRef.current) {
       animationFrameRef.current = requestAnimationFrame(scanFrame);
       return;
