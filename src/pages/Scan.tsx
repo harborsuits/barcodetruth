@@ -192,12 +192,21 @@ export const Scan = () => {
       const t0 = performance.now();
       
       // Use smart tiered lookup (cache → OpenFoodFacts → UPCitemdb → user submission)
+      console.log('[Scan] Calling smart-product-lookup for:', barcode);
       const { data: smartLookup, error: smartError } = await supabase.functions.invoke('smart-product-lookup', {
         body: { barcode }
       });
       
-      // Handle product not found case
-      if (smartError && smartError.status === 404 && smartLookup?.requires_submission) {
+      console.log('[Scan] smart-product-lookup response:', { 
+        data: smartLookup, 
+        error: smartError,
+        hasProduct: !!smartLookup?.product,
+        source: smartLookup?.source
+      });
+      
+      // Handle "not found" response (edge function returns 404 but supabase wraps it)
+      // The data will contain { product: null, requires_submission: true } for not found
+      if (smartLookup?.requires_submission === true || smartLookup?.source === 'not_found') {
         setScanResult('not_found');
         const dur = Math.round(performance.now() - t0);
         console.log('[Analytics] scan_not_found_requires_submission', { barcode, dur_ms: dur });
@@ -207,16 +216,22 @@ export const Scan = () => {
           state: { 
             barcode, 
             requiresSubmission: true,
-            manufacturerPrefix: smartLookup.manufacturer_prefix 
+            manufacturerPrefix: smartLookup?.manufacturer_prefix 
           } 
         });
         return;
       }
       
-      if (smartError) throw smartError;
+      // Handle actual error (network failure, etc)
+      if (smartError && !smartLookup) {
+        console.error('[Scan] Edge function error:', smartError);
+        throw new Error(smartError.message || 'Failed to lookup product');
+      }
       
-      // Use fallback lookup flow if smart lookup didn't return a product
+      // Check if we got a valid product with brand
       if (!smartLookup?.product?.brands?.id) {
+        console.log('[Scan] No product/brand in response, trying fallback lookup');
+        
         // Fallback to old system
         const result = await lookupScanAndLog(barcode, user.id);
         

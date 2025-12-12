@@ -125,17 +125,22 @@ serve(async (req) => {
     }
 
     // Tier 4: Not found - return manufacturer info from barcode
+    // IMPORTANT: Return 200 so supabase.functions.invoke doesn't treat as error
     const manufacturerPrefix = barcode.substring(0, 3);
+    
+    console.log(`[Tier 4] Product not found for ${barcode}, manufacturer prefix: ${manufacturerPrefix}`);
     
     return new Response(
       JSON.stringify({ 
+        ok: true,
         product: null,
         source: 'not_found',
         barcode,
         manufacturer_prefix: manufacturerPrefix,
-        requires_submission: true
+        requires_submission: true,
+        message: 'Product not found in any data source'
       }),
-      { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
