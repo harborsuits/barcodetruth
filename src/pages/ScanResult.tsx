@@ -71,9 +71,28 @@ export default function ScanResult() {
 
   console.log('[ScanResult] Component rendering with barcode:', barcode);
 
+  // CRITICAL: Handle missing barcode - never show blank screen
+  if (!barcode) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-6 space-y-4 text-center">
+            <Package className="h-12 w-12 mx-auto text-muted-foreground" />
+            <h2 className="text-lg font-semibold">No barcode provided</h2>
+            <p className="text-sm text-muted-foreground">
+              Please scan a product barcode to see results.
+            </p>
+            <Button onClick={() => navigate('/scan')} className="w-full">
+              Scan a Product
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   // Debounce repeated scans (10s)
   useEffect(() => {
-    if (!barcode) return;
     const now = Date.now();
     if (lastScanRef.current?.barcode === barcode && now - lastScanRef.current.timestamp < 10000) {
       return;
@@ -720,6 +739,10 @@ export default function ScanResult() {
           <>
             <Card>
               <CardContent className="pt-6 space-y-4">
+                <div className="text-center mb-4">
+                  <p className="text-sm text-muted-foreground">Looking up barcode</p>
+                  <p className="font-mono text-lg">{barcode}</p>
+                </div>
                 <Skeleton className="h-24 w-full" />
                 <Skeleton className="h-16 w-full" />
               </CardContent>

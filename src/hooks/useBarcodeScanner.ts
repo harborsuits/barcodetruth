@@ -233,8 +233,9 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
       });
       
       // CRITICAL: Warm-up delay for camera stabilization (fixes first-open issue)
-      console.log('[Scanner] Waiting for camera to stabilize...');
-      await new Promise(r => setTimeout(r, 300));
+      // 500ms is the minimum reliable delay across iOS Safari and Android Chrome
+      console.log('[Scanner] Waiting 500ms for camera to stabilize...');
+      await new Promise(r => setTimeout(r, 500));
 
       // Check for torch capability
       const videoTrack = stream.getVideoTracks()[0];
