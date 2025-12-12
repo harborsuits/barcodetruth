@@ -236,11 +236,51 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
         }).catch(reject);
       });
       
-      // CRITICAL: Warm-up delay for camera stabilization (fixes first-open issue)
-      // 500ms is the minimum reliable delay across iOS Safari and Android Chrome
-      console.log('[Scanner] waiting 500ms warmup...');
-      await new Promise(r => setTimeout(r, 500));
-      console.log('[Scanner] warmup delay done (500ms)');
+      // CRITICAL: Frame-ready gate - wait until camera produces REAL frames
+      // This definitively solves iOS/Safari timing issues where 'playing' fires
+      // before the camera is actually producing frames
+      const waitForRealFrames = async (): Promise<void> => {
+        const video = videoRef.current;
+        if (!video) throw new Error('Video lost during frame check');
+        
+        const testCanvas = document.createElement('canvas');
+        testCanvas.width = 64;
+        testCanvas.height = 64;
+        const ctx = testCanvas.getContext('2d');
+        if (!ctx) throw new Error('Canvas context unavailable');
+        
+        const maxAttempts = 15; // 1.5 seconds max
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          // Draw current video frame to canvas
+          ctx.drawImage(video, 0, 0, 64, 64);
+          const imageData = ctx.getImageData(0, 0, 64, 64);
+          const data = imageData.data;
+          
+          // Calculate average brightness
+          let totalBrightness = 0;
+          for (let i = 0; i < data.length; i += 4) {
+            // Luminance formula
+            totalBrightness += (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+          }
+          const avgBrightness = totalBrightness / (data.length / 4);
+          
+          // If brightness > 5, we have real frames (not black)
+          const hasRealFrames = avgBrightness > 5;
+          console.log(`[Scanner] frame-ready: ${hasRealFrames} (attempt ${attempt}, brightness=${avgBrightness.toFixed(1)})`);
+          
+          if (hasRealFrames) {
+            return;
+          }
+          
+          // Wait 100ms before next attempt
+          await new Promise(r => setTimeout(r, 100));
+        }
+        
+        // After max attempts, proceed anyway but log warning
+        console.warn('[Scanner] Frame-ready timeout - proceeding anyway');
+      };
+      
+      await waitForRealFrames();
 
       // Check for torch capability
       const videoTrack = stream.getVideoTracks()[0];
