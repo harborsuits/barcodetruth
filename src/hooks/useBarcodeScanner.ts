@@ -106,7 +106,7 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
           }
         }
         
-        console.log('[Scanner] ✅ DETECTED (centered):', detectedBarcode, 'at', new Date().toISOString());
+        console.log('[Scanner] decode success:', detectedBarcode);
         
         const mappedPoints = points.map(p => ({ x: p.getX(), y: p.getY() }));
         drawBoundingBox(mappedPoints);
@@ -187,6 +187,7 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
       console.log('[Scanner] Requesting camera stream...');
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
+      console.log('[Scanner] getUserMedia success');
 
       if (!videoRef.current) {
         throw new Error('Video element not available');
@@ -197,6 +198,7 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
       videoRef.current.muted = true;
       videoRef.current.autoplay = true;
       videoRef.current.srcObject = stream;
+      console.log('[Scanner] video srcObject set');
       
       // CRITICAL: Wait for video to be ACTUALLY playing (not just metadata loaded)
       await new Promise<void>((resolve, reject) => {
@@ -214,7 +216,7 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
           clearTimeout(timeout);
           video.removeEventListener('playing', handlePlaying);
           video.removeEventListener('error', handleError);
-          console.log('[Scanner] Video is now playing');
+          console.log('[Scanner] playing event fired');
           resolve();
         };
         
@@ -229,13 +231,16 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
         video.addEventListener('error', handleError);
         
         // Start playback
-        video.play().catch(reject);
+        video.play().then(() => {
+          console.log('[Scanner] video.play resolved');
+        }).catch(reject);
       });
       
       // CRITICAL: Warm-up delay for camera stabilization (fixes first-open issue)
       // 500ms is the minimum reliable delay across iOS Safari and Android Chrome
-      console.log('[Scanner] Waiting 500ms for camera to stabilize...');
+      console.log('[Scanner] waiting 500ms warmup...');
       await new Promise(r => setTimeout(r, 500));
+      console.log('[Scanner] warmup delay done (500ms)');
 
       // Check for torch capability
       const videoTrack = stream.getVideoTracks()[0];
@@ -250,7 +255,7 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
       
       // NOW set scanning to true and start detection loop
       setIsScanning(true);
-      console.log('[Scanner] Starting detection loop');
+      console.log('[Scanner] decode loop started');
       animationFrameRef.current = requestAnimationFrame(scanFrame);
       
       console.log('[Scanner] ✅ Scanner started successfully');

@@ -164,7 +164,7 @@ export const Scan = () => {
     lastDetectedRef.current = detected;
     lastDetectedAtRef.current = now;
 
-    console.log('[Scan.tsx] Showing confirmation for barcode:', detected);
+    console.log('[Scan] confirmed barcode:', detected);
     // Pause scanning and show confirmation
     setPendingBarcode(detected);
     setShowConfirmDialog(true);
@@ -197,12 +197,12 @@ export const Scan = () => {
         body: { barcode }
       });
       
-      console.log('[Scan] smart-product-lookup response:', { 
+      console.log('[Scan] smart-product-lookup response:', JSON.stringify({ 
         data: smartLookup, 
         error: smartError,
         hasProduct: !!smartLookup?.product,
         source: smartLookup?.source
-      });
+      }, null, 2));
       
       // Handle "not found" response (edge function returns 404 but supabase wraps it)
       // The data will contain { product: null, requires_submission: true } for not found
@@ -212,7 +212,9 @@ export const Scan = () => {
         console.log('[Analytics] scan_not_found_requires_submission', { barcode, dur_ms: dur });
         
         // Navigate to submission form with barcode in URL
-        navigate(`/scan-result/${barcode}?submission=true`);
+        const route = `/scan-result/${barcode}?submission=true`;
+        console.log('[Scan] navigating to:', route);
+        navigate(route);
         return;
       }
       
@@ -309,13 +311,15 @@ export const Scan = () => {
       
       // Navigate to brand profile
       setTimeout(() => {
+        const route = `/brand/${product.brands.id}`;
+        console.log('[Scan] navigating to:', route);
         analytics.track('scan_route_brand', { 
           brand_id: product.brands.id, 
           barcode,
           product_name: product.name,
           source: smartLookup.source
         });
-        navigate(`/brand/${product.brands.id}`);
+        navigate(route);
       }, 800);
       
     } catch (error: any) {

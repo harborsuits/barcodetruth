@@ -69,7 +69,7 @@ export default function ScanResult() {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const lastScanRef = useRef<{ barcode: string; timestamp: number } | null>(null);
 
-  console.log('[ScanResult] Component rendering with barcode:', barcode);
+  console.log('[ScanResult] barcode param:', barcode);
 
   // CRITICAL: Handle missing barcode - never show blank screen
   if (!barcode) {
@@ -104,13 +104,14 @@ export default function ScanResult() {
   const { data: product, isLoading: productLoading, error: productError } = useQuery({
     queryKey: ['product', barcode],
     queryFn: async () => {
+      console.log('[ScanResult] querying products table for barcode:', barcode);
       const { data, error } = await supabase
         .from('products')
         .select('*')
         .eq('barcode', barcode)
         .maybeSingle();
       
-      console.log('[ScanResult] Product query result:', { data, error, barcode });
+      console.log('[ScanResult] lookup response:', JSON.stringify({ data, error, barcode }, null, 2));
       
       if (error) throw error;
       return data as Product | null;
