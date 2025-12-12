@@ -282,7 +282,7 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
               return;
             }
           } catch (err) {
-            console.log(`[Scanner] frame-ready: false (attempt ${attempt}, drawImage error)`);
+            console.log(`[Scanner] frame-ready: false (attempt ${attempt}, drawImage error)`, err);
           }
           
           await new Promise(r => setTimeout(r, 100));
