@@ -233,12 +233,15 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
         // Start playback
         video.play().then(() => {
           console.log('[Scanner] video.play resolved');
-        }).catch(reject);
+      }).catch(reject);
       });
       
+      // Short warmup for initial frame stability
+      console.log('[Scanner] waiting 250ms warmup...');
+      await new Promise(r => setTimeout(r, 250));
+      console.log('[Scanner] warmup done');
+      
       // CRITICAL: Frame-ready gate - wait until camera produces REAL frames
-      // This definitively solves iOS/Safari timing issues where 'playing' fires
-      // before the camera is actually producing frames
       const waitForRealFrames = async (): Promise<void> => {
         const video = videoRef.current;
         if (!video) throw new Error('Video lost during frame check');
@@ -251,32 +254,40 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
         
         const maxAttempts = 15; // 1.5 seconds max
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-          // Draw current video frame to canvas
-          ctx.drawImage(video, 0, 0, 64, 64);
-          const imageData = ctx.getImageData(0, 0, 64, 64);
-          const data = imageData.data;
-          
-          // Calculate average brightness
-          let totalBrightness = 0;
-          for (let i = 0; i < data.length; i += 4) {
-            // Luminance formula
-            totalBrightness += (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
-          }
-          const avgBrightness = totalBrightness / (data.length / 4);
-          
-          // If brightness > 5, we have real frames (not black)
-          const hasRealFrames = avgBrightness > 5;
-          console.log(`[Scanner] frame-ready: ${hasRealFrames} (attempt ${attempt}, brightness=${avgBrightness.toFixed(1)})`);
-          
-          if (hasRealFrames) {
-            return;
+          // Check video has dimensions first
+          if (video.videoWidth === 0 || video.videoHeight === 0) {
+            console.log(`[Scanner] frame-ready: false (attempt ${attempt}, video dimensions 0x0)`);
+            await new Promise(r => setTimeout(r, 100));
+            continue;
           }
           
-          // Wait 100ms before next attempt
+          try {
+            // Draw current video frame to canvas
+            ctx.drawImage(video, 0, 0, 64, 64);
+            const imageData = ctx.getImageData(0, 0, 64, 64);
+            const data = imageData.data;
+            
+            // Calculate average brightness
+            let totalBrightness = 0;
+            for (let i = 0; i < data.length; i += 4) {
+              totalBrightness += (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+            }
+            const avgBrightness = totalBrightness / (data.length / 4);
+            
+            // If brightness > 5, we have real frames (not black)
+            const hasRealFrames = avgBrightness > 5;
+            console.log(`[Scanner] frame-ready: ${hasRealFrames} (attempt ${attempt}, brightness=${avgBrightness.toFixed(1)})`);
+            
+            if (hasRealFrames) {
+              return;
+            }
+          } catch (err) {
+            console.log(`[Scanner] frame-ready: false (attempt ${attempt}, drawImage error)`);
+          }
+          
           await new Promise(r => setTimeout(r, 100));
         }
         
-        // After max attempts, proceed anyway but log warning
         console.warn('[Scanner] Frame-ready timeout - proceeding anyway');
       };
       
