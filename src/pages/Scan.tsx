@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Camera, AlertCircle, WifiOff, X, Flashlight, FlashlightOff, Wrench, Upload, FlipHorizontal, Pause, Play } from "lucide-react";
+import { Camera, AlertCircle, WifiOff, X, Flashlight, FlashlightOff, Wrench, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -211,14 +211,8 @@ export const Scan = () => {
         const dur = Math.round(performance.now() - t0);
         console.log('[Analytics] scan_not_found_requires_submission', { barcode, dur_ms: dur });
         
-        // Navigate to submission form
-        navigate('/scan-result', { 
-          state: { 
-            barcode, 
-            requiresSubmission: true,
-            manufacturerPrefix: smartLookup?.manufacturer_prefix 
-          } 
-        });
+        // Navigate to submission form with barcode in URL
+        navigate(`/scan-result/${barcode}?submission=true`);
         return;
       }
       
@@ -642,37 +636,8 @@ export const Scan = () => {
                     </div>
                   </div>
 
-                  {/* Camera controls */}
-                  <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-50 px-4">
-                    <Button
-                      onClick={toggleFacingMode}
-                      variant="secondary"
-                      size="sm"
-                      className="bg-card/90 backdrop-blur pointer-events-auto"
-                      aria-label="Flip camera"
-                    >
-                      <FlipHorizontal className="h-4 w-4 mr-1" />
-                      Flip
-                    </Button>
-                    <Button
-                      onClick={togglePause}
-                      variant="secondary"
-                      size="sm"
-                      className="bg-card/90 backdrop-blur pointer-events-auto"
-                      aria-label={isPaused ? "Resume scanning" : "Pause scanning"}
-                    >
-                      {isPaused ? (
-                        <>
-                          <Play className="h-4 w-4 mr-1" />
-                          Resume
-                        </>
-                      ) : (
-                        <>
-                          <Pause className="h-4 w-4 mr-1" />
-                          Pause
-                        </>
-                      )}
-                    </Button>
+                  {/* Camera controls - simplified: just Torch (if available) and Stop */}
+                  <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3 z-50 px-4">
                     {hasTorch && (
                       <Button
                         onClick={toggleTorch}
@@ -684,7 +649,7 @@ export const Scan = () => {
                         {torchEnabled ? (
                           <>
                             <FlashlightOff className="h-4 w-4 mr-1" />
-                            Torch
+                            Off
                           </>
                         ) : (
                           <>
@@ -696,7 +661,7 @@ export const Scan = () => {
                     )}
                     <Button
                       onClick={stopScanner}
-                      variant="ghost"
+                      variant="secondary"
                       size="sm"
                       className="bg-card/90 backdrop-blur pointer-events-auto"
                       aria-label="Stop scanning"
