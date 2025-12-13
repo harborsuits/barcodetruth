@@ -1,5 +1,13 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { BrowserMultiFormatReader, DecodeHintType, BarcodeFormat } from '@zxing/library';
+import { 
+  MultiFormatReader, 
+  DecodeHintType, 
+  BarcodeFormat,
+  BinaryBitmap,
+  HybridBinarizer,
+  RGBLuminanceSource,
+  NotFoundException
+} from '@zxing/library';
 import { toast } from '@/hooks/use-toast';
 
 interface ScannerOptions {
@@ -31,7 +39,7 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const decodeCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  const readerRef = useRef<MultiFormatReader | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number>();
 
@@ -104,70 +112,39 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
       }
       const canvas = decodeCanvasRef.current;
       
-      // Set canvas to video dimensions (or reasonable downscale)
-      const maxWidth = 1280;
-      const scale = Math.min(1, maxWidth / video.videoWidth);
-      canvas.width = Math.floor(video.videoWidth * scale);
-      canvas.height = Math.floor(video.videoHeight * scale);
+      const w = video.videoWidth;
+      const h = video.videoHeight;
+      
+      // Size offscreen decode canvas to video dimensions
+      canvas.width = w;
+      canvas.height = h;
       
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (!ctx) {
         throw new Error('Canvas context unavailable');
       }
       
-      // Draw video frame to canvas
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      // Draw current video frame
+      ctx.drawImage(video, 0, 0, w, h);
       
-      // Convert canvas to image for decoding (more reliable than decodeFromVideoElement)
-      const dataUrl = canvas.toDataURL('image/png');
-      const img = new Image();
-      img.src = dataUrl;
-      await new Promise<void>((resolve) => {
-        img.onload = () => resolve();
-        // If already loaded (cached), resolve immediately
-        if (img.complete) resolve();
-      });
+      // Get raw pixel data and decode via BinaryBitmap (fast, no dataURL/Image)
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const luminanceSource = new RGBLuminanceSource(imageData.data as unknown as Uint8ClampedArray, w, h);
+      const binaryBitmap = new BinaryBitmap(new HybridBinarizer(luminanceSource));
       
-      const result = await reader.decodeFromImageElement(img);
+      const result = reader.decode(binaryBitmap);
+      const detectedBarcode = result.getText();
       
-      if (result) {
-        const detectedBarcode = result.getText();
-        const points = result.getResultPoints();
-        
-        // CRITICAL: Only accept barcodes in the CENTER of the frame
-        if (points && points.length >= 2) {
-          const centerX = canvas.width / 2;
-          const centerY = canvas.height / 2;
-          
-          // Calculate barcode center
-          const barcodeX = points.reduce((sum, p) => sum + p.getX(), 0) / points.length;
-          const barcodeY = points.reduce((sum, p) => sum + p.getY(), 0) / points.length;
-          
-          // Calculate distance from center
-          const distanceX = Math.abs(barcodeX - centerX);
-          const distanceY = Math.abs(barcodeY - centerY);
-          
-          // Only accept if within 40% of center
-          const maxDistanceX = canvas.width * 0.4;
-          const maxDistanceY = canvas.height * 0.4;
-          
-          if (distanceX > maxDistanceX || distanceY > maxDistanceY) {
-            console.log('[Scanner] Barcode detected but too far from center - ignoring');
-            isScanningRef.current = false;
-            animationFrameRef.current = requestAnimationFrame(scanFrame);
-            return;
-          }
-        }
-        
-        console.log('[Scanner] decode success:', detectedBarcode);
-        
-        // Scale points back to video dimensions for bounding box
+      console.log('[Scanner] decode success:', detectedBarcode);
+      
+      // Get points for bounding box (if available)
+      const points = result.getResultPoints?.() || [];
+      if (points.length > 0) {
         const mappedPoints = points.map(p => ({ 
-          x: p.getX() / scale, 
-          y: p.getY() / scale 
+          x: p.getX(), 
+          y: p.getY() 
         }));
         drawBoundingBox(mappedPoints);
-        onScan(detectedBarcode);
         
         // Clear bounding box after 500ms
         setTimeout(() => {
@@ -178,9 +155,11 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
           }
         }, 500);
       }
+      
+      onScan(detectedBarcode);
     } catch (error) {
-      // Ignore NotFoundExceptions (no barcode in frame)
-      if (error && (error as Error).name !== 'NotFoundException') {
+      // No barcode found in this frame is normal - only log other errors
+      if (!(error instanceof NotFoundException)) {
         console.warn('[Scanner] Detection error:', error);
       }
     }
@@ -221,11 +200,14 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
         BarcodeFormat.UPC_E,
         BarcodeFormat.EAN_13,
         BarcodeFormat.EAN_8,
+        BarcodeFormat.CODE_128,
       ]);
+      hints.set(DecodeHintType.TRY_HARDER, true);
 
-      const reader = new BrowserMultiFormatReader(hints);
+      const reader = new MultiFormatReader();
+      reader.setHints(hints);
       readerRef.current = reader;
-      console.log('[Scanner] Reader initialized with formats:', ['UPC_A', 'UPC_E', 'EAN_13', 'EAN_8']);
+      console.log('[Scanner] Reader initialized with formats:', ['UPC_A', 'UPC_E', 'EAN_13', 'EAN_8', 'CODE_128']);
 
       const constraints: MediaStreamConstraints = {
         video: {
