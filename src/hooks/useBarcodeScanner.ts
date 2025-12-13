@@ -127,9 +127,22 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
       // Draw current video frame
       ctx.drawImage(video, 0, 0, w, h);
       
-      // Get raw pixel data and decode via BinaryBitmap (fast, no dataURL/Image)
+      // Get raw pixel data
       const imageData = ctx.getImageData(0, 0, w, h);
-      const luminanceSource = new RGBLuminanceSource(imageData.data as unknown as Uint8ClampedArray, w, h);
+      const rgba = imageData.data;
+      
+      // Convert RGBA to luminance (grayscale) - RGBLuminanceSource expects 1 byte per pixel
+      const len = w * h;
+      const luminance = new Uint8ClampedArray(len);
+      for (let i = 0; i < len; i++) {
+        const r = rgba[i * 4];
+        const g = rgba[i * 4 + 1];
+        const b = rgba[i * 4 + 2];
+        // Standard luminance formula
+        luminance[i] = ((r * 0.299 + g * 0.587 + b * 0.114) | 0) & 0xFF;
+      }
+      
+      const luminanceSource = new RGBLuminanceSource(luminance, w, h);
       const binaryBitmap = new BinaryBitmap(new HybridBinarizer(luminanceSource));
       
       const result = reader.decode(binaryBitmap);
