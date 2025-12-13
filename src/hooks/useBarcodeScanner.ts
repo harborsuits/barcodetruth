@@ -85,7 +85,7 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
     if (now - lastHeartbeatRef.current > 1000) {
       tickCountRef.current++;
       const video = videoRef.current;
-      console.log(`[Scanner] tick ${tickCountRef.current}, video=${video?.videoWidth || 0}x${video?.videoHeight || 0}, paused=${isPaused}, processing=${isProcessing}, hasReader=${!!readerRef.current}`);
+      console.log(`[Scanner] tick ${tickCountRef.current}, video=${video?.videoWidth || 0}x${video?.videoHeight || 0}, readyState=${video?.readyState || 0}, paused=${isPaused}, processing=${isProcessing}`);
       lastHeartbeatRef.current = now;
     }
     
@@ -157,10 +157,10 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
       }
       
       onScan(detectedBarcode);
-    } catch (error) {
+    } catch (error: any) {
       // No barcode found in this frame is normal - only log other errors
       if (!(error instanceof NotFoundException)) {
-        console.warn('[Scanner] Detection error:', error);
+        console.log('[Scanner] non-NotFoundException:', error?.name, error);
       }
     }
 

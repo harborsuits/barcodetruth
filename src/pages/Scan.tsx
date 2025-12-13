@@ -35,6 +35,7 @@ function isValidProductBarcode(barcode: string): boolean {
 }
 
 export const Scan = () => {
+  console.log('[Scanner] UI opened (first load)');
   const navigate = useNavigate();
   const { can_scan, scans_remaining, is_subscribed, trackScan, checkLimit } = useScanLimit();
   const [scanResult, setScanResult] = useState<'idle' | 'scanning' | 'processing' | 'success' | 'not_found'>('idle');
