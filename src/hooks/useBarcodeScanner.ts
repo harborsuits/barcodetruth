@@ -30,6 +30,7 @@ interface ScannerControls {
 export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOptions): ScannerControls {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const decodeCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number>();
@@ -80,23 +81,63 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
       lastHeartbeatRef.current = now;
     }
     
-    if (isPaused || isProcessing || !videoRef.current || !readerRef.current || isScanningRef.current) {
+    const video = videoRef.current;
+    const reader = readerRef.current;
+    
+    if (isPaused || isProcessing || !video || !reader || isScanningRef.current) {
+      animationFrameRef.current = requestAnimationFrame(scanFrame);
+      return;
+    }
+
+    // Skip if video dimensions not ready
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
       animationFrameRef.current = requestAnimationFrame(scanFrame);
       return;
     }
 
     isScanningRef.current = true;
+    
     try {
-      const result = await readerRef.current.decodeFromVideoElement(videoRef.current);
+      // Create decode canvas if needed
+      if (!decodeCanvasRef.current) {
+        decodeCanvasRef.current = document.createElement('canvas');
+      }
+      const canvas = decodeCanvasRef.current;
+      
+      // Set canvas to video dimensions (or reasonable downscale)
+      const maxWidth = 1280;
+      const scale = Math.min(1, maxWidth / video.videoWidth);
+      canvas.width = Math.floor(video.videoWidth * scale);
+      canvas.height = Math.floor(video.videoHeight * scale);
+      
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) {
+        throw new Error('Canvas context unavailable');
+      }
+      
+      // Draw video frame to canvas
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      // Convert canvas to image for decoding (more reliable than decodeFromVideoElement)
+      const dataUrl = canvas.toDataURL('image/png');
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise<void>((resolve) => {
+        img.onload = () => resolve();
+        // If already loaded (cached), resolve immediately
+        if (img.complete) resolve();
+      });
+      
+      const result = await reader.decodeFromImageElement(img);
+      
       if (result) {
         const detectedBarcode = result.getText();
         const points = result.getResultPoints();
         
         // CRITICAL: Only accept barcodes in the CENTER of the frame
         if (points && points.length >= 2) {
-          const video = videoRef.current;
-          const centerX = video.videoWidth / 2;
-          const centerY = video.videoHeight / 2;
+          const centerX = canvas.width / 2;
+          const centerY = canvas.height / 2;
           
           // Calculate barcode center
           const barcodeX = points.reduce((sum, p) => sum + p.getX(), 0) / points.length;
@@ -107,11 +148,12 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
           const distanceY = Math.abs(barcodeY - centerY);
           
           // Only accept if within 40% of center
-          const maxDistanceX = video.videoWidth * 0.4;
-          const maxDistanceY = video.videoHeight * 0.4;
+          const maxDistanceX = canvas.width * 0.4;
+          const maxDistanceY = canvas.height * 0.4;
           
           if (distanceX > maxDistanceX || distanceY > maxDistanceY) {
             console.log('[Scanner] Barcode detected but too far from center - ignoring');
+            isScanningRef.current = false;
             animationFrameRef.current = requestAnimationFrame(scanFrame);
             return;
           }
@@ -119,22 +161,25 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
         
         console.log('[Scanner] decode success:', detectedBarcode);
         
-        const mappedPoints = points.map(p => ({ x: p.getX(), y: p.getY() }));
+        // Scale points back to video dimensions for bounding box
+        const mappedPoints = points.map(p => ({ 
+          x: p.getX() / scale, 
+          y: p.getY() / scale 
+        }));
         drawBoundingBox(mappedPoints);
         onScan(detectedBarcode);
         
         // Clear bounding box after 500ms
         setTimeout(() => {
-          const canvas = canvasRef.current;
-          if (canvas) {
-            const ctx = canvas.getContext('2d');
-            ctx?.clearRect(0, 0, canvas.width, canvas.height);
+          const overlayCanvas = canvasRef.current;
+          if (overlayCanvas) {
+            const overlayCtx = overlayCanvas.getContext('2d');
+            overlayCtx?.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
           }
         }, 500);
       }
     } catch (error) {
       // Ignore NotFoundExceptions (no barcode in frame)
-      // Log other errors
       if (error && (error as Error).name !== 'NotFoundException') {
         console.warn('[Scanner] Detection error:', error);
       }
