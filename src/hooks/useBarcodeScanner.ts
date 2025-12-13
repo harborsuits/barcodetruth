@@ -218,7 +218,6 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
         BarcodeFormat.UPC_E,
         BarcodeFormat.EAN_13,
         BarcodeFormat.EAN_8,
-        BarcodeFormat.CODE_128,
       ]);
       hints.set(DecodeHintType.TRY_HARDER, true);
 
