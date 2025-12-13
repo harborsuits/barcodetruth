@@ -79,22 +79,28 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
   const tickCountRef = useRef(0);
   const lastHeartbeatRef = useRef(0);
 
-  const scanFrame = useCallback(async () => {
+  const scanFrame = useCallback(() => {
+    const video = videoRef.current;
+    const reader = readerRef.current;
+    
+    // Early exit but still schedule next frame
+    if (isPaused || isProcessing || !video || !reader) {
+      animationFrameRef.current = requestAnimationFrame(scanFrame);
+      return;
+    }
+
+    // Skip if already processing a frame
+    if (isScanningRef.current) {
+      animationFrameRef.current = requestAnimationFrame(scanFrame);
+      return;
+    }
+
     // Heartbeat log every ~1 second
     const now = Date.now();
     if (now - lastHeartbeatRef.current > 1000) {
       tickCountRef.current++;
-      const video = videoRef.current;
-      console.log(`[Scanner] tick ${tickCountRef.current}, video=${video?.videoWidth || 0}x${video?.videoHeight || 0}, readyState=${video?.readyState || 0}, paused=${isPaused}, processing=${isProcessing}`);
+      console.log(`[Scanner] tick ${tickCountRef.current}, video=${video.videoWidth}x${video.videoHeight}, readyState=${video.readyState}`);
       lastHeartbeatRef.current = now;
-    }
-    
-    const video = videoRef.current;
-    const reader = readerRef.current;
-    
-    if (isPaused || isProcessing || !video || !reader || isScanningRef.current) {
-      animationFrameRef.current = requestAnimationFrame(scanFrame);
-      return;
     }
 
     // Skip if video dimensions not ready
@@ -104,52 +110,51 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
     }
 
     isScanningRef.current = true;
-    
+
     try {
       // Create decode canvas if needed
       if (!decodeCanvasRef.current) {
         decodeCanvasRef.current = document.createElement('canvas');
       }
-      const canvas = decodeCanvasRef.current;
-      
+      const decodeCanvas = decodeCanvasRef.current;
+
       const w = video.videoWidth;
       const h = video.videoHeight;
-      
-      // Size offscreen decode canvas to video dimensions
-      canvas.width = w;
-      canvas.height = h;
-      
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      if (!ctx) {
-        throw new Error('Canvas context unavailable');
-      }
-      
-      // Draw current video frame
+
+      decodeCanvas.width = w;
+      decodeCanvas.height = h;
+
+      const ctx = decodeCanvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return;
+
       ctx.drawImage(video, 0, 0, w, h);
-      
-      // Get raw pixel data
+
       const imageData = ctx.getImageData(0, 0, w, h);
-      const rgba = imageData.data;
-      
-      // Convert RGBA to luminance (grayscale) - RGBLuminanceSource expects 1 byte per pixel
-      const len = w * h;
-      const luminance = new Uint8ClampedArray(len);
-      for (let i = 0; i < len; i++) {
-        const r = rgba[i * 4];
-        const g = rgba[i * 4 + 1];
-        const b = rgba[i * 4 + 2];
-        // Standard luminance formula
-        luminance[i] = ((r * 0.299 + g * 0.587 + b * 0.114) | 0) & 0xFF;
+      const data = imageData.data;
+
+      // --- Robust luminance source creation ---
+      // Try grayscale (1 byte per pixel) first, then fallback to RGBA.
+      let luminanceSource: RGBLuminanceSource;
+
+      try {
+        const luminance = new Uint8ClampedArray(w * h);
+        for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+          // BT.601-ish luma
+          luminance[j] = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) | 0;
+        }
+        luminanceSource = new RGBLuminanceSource(luminance, w, h);
+      } catch (e) {
+        // Fallback: pass RGBA directly
+        luminanceSource = new RGBLuminanceSource(data as unknown as Uint8ClampedArray, w, h);
       }
-      
-      const luminanceSource = new RGBLuminanceSource(luminance, w, h);
+
       const binaryBitmap = new BinaryBitmap(new HybridBinarizer(luminanceSource));
-      
+
       const result = reader.decode(binaryBitmap);
       const detectedBarcode = result.getText();
-      
+
       console.log('[Scanner] decode success:', detectedBarcode);
-      
+
       // Get points for bounding box (if available)
       const points = result.getResultPoints?.() || [];
       if (points.length > 0) {
@@ -168,17 +173,17 @@ export function useBarcodeScanner({ onScan, onError, isProcessing }: ScannerOpti
           }
         }, 500);
       }
-      
-      onScan(detectedBarcode);
-    } catch (error: any) {
-      // No barcode found in this frame is normal - only log other errors
-      if (!(error instanceof NotFoundException)) {
-        console.log('[Scanner] non-NotFoundException:', error?.name, error);
-      }
-    }
 
-    isScanningRef.current = false;
-    animationFrameRef.current = requestAnimationFrame(scanFrame);
+      onScan(detectedBarcode);
+    } catch (error: unknown) {
+      // Ignore "no barcode found" errors
+      if (!(error instanceof NotFoundException)) {
+        console.warn('[Scanner] Detection error:', error instanceof Error ? error.name : error, error);
+      }
+    } finally {
+      isScanningRef.current = false;
+      animationFrameRef.current = requestAnimationFrame(scanFrame);
+    }
   }, [isPaused, isProcessing, onScan, drawBoundingBox]);
 
   const startScanning = useCallback(async () => {
