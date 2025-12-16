@@ -22,7 +22,7 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, maxRetries
       const res = await fetch(url, { ...options, signal: controller.signal });
       clearTimeout(timeout);
       
-      if (res.status >= 500 || res.status === 429) {
+      if (res.status >= 500 || res.status === 429 || res.status === 403) {
         throw new Error(`HTTP_${res.status}`);
       }
       return res;
@@ -35,6 +35,63 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, maxRetries
     }
   }
   throw lastError || new Error('Fetch failed');
+}
+
+// Wikipedia REST API fallback - doesn't require Wikidata
+async function fetchWikipediaSummary(searchTerm: string): Promise<{ title: string; extract: string } | null> {
+  try {
+    log('Attempting Wikipedia REST API fallback for:', searchTerm);
+    
+    // Search Wikipedia directly for the brand name
+    const searchUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(searchTerm)}&limit=5&namespace=0&format=json`;
+    const searchRes = await fetch(searchUrl);
+    if (!searchRes.ok) return null;
+    
+    const searchData = await searchRes.json();
+    const titles = searchData[1] as string[];
+    
+    if (!titles || titles.length === 0) {
+      log('Wikipedia search returned no results');
+      return null;
+    }
+    
+    // Find best match (prefer exact or company-like titles)
+    const normalizedSearch = searchTerm.toLowerCase().replace(/[^a-z0-9]/g, '');
+    let bestTitle = titles[0];
+    
+    for (const title of titles) {
+      const normalizedTitle = title.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (normalizedTitle === normalizedSearch || 
+          title.toLowerCase().includes('(company)') ||
+          title.toLowerCase().includes('(brand)') ||
+          title.toLowerCase().includes('(retailer)')) {
+        bestTitle = title;
+        break;
+      }
+    }
+    
+    log('Wikipedia best match:', bestTitle);
+    
+    // Fetch the extract for best match
+    const extractUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=true&explaintext=true&titles=${encodeURIComponent(bestTitle)}&format=json`;
+    const extractRes = await fetch(extractUrl);
+    if (!extractRes.ok) return null;
+    
+    const extractData = await extractRes.json();
+    const pages = extractData.query?.pages;
+    const pageId = Object.keys(pages)[0];
+    const extract = pages[pageId]?.extract;
+    
+    if (extract && extract.length > 50) {
+      log('Wikipedia fallback found extract:', extract.substring(0, 100) + '...');
+      return { title: bestTitle, extract };
+    }
+    
+    return null;
+  } catch (e) {
+    warn('Wikipedia fallback failed:', (e as Error).message);
+    return null;
+  }
 }
 
 // Reliable entity fetch that handles redirects/normalized QIDs
@@ -750,10 +807,87 @@ Deno.serve(async (req) => {
     console.error('[STEP ERROR] Function crashed:', error);
     err('Error in enrich-brand-wiki:', error);
     
-    // Try to mark brand as 'failed' if we have brand_id
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+    const isRateLimit = errorMsg.includes('HTTP_429') || errorMsg.includes('HTTP_403');
+    
+    // Try Wikipedia fallback if Wikidata rate-limited
     try {
       const bodyText = await req.clone().text();
       const body = JSON.parse(bodyText || '{}');
+      
+      if (body.brand_id && isRateLimit) {
+        log('Wikidata rate-limited, attempting Wikipedia fallback');
+        
+        const fallbackSupabase = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        );
+        
+        // Get brand name for Wikipedia search
+        const { data: brand } = await fallbackSupabase
+          .from('brands')
+          .select('name, description')
+          .eq('id', body.brand_id)
+          .maybeSingle();
+        
+        if (brand?.name && !brand.description) {
+          const wikiResult = await fetchWikipediaSummary(brand.name);
+          
+          if (wikiResult) {
+            log('Wikipedia fallback succeeded, storing description with low confidence');
+            await fallbackSupabase
+              .from('brands')
+              .update({ 
+                description: wikiResult.extract,
+                description_source: 'wikipedia_fallback',
+                identity_confidence: 'low',
+                identity_notes: 'Wikipedia fallback (Wikidata unavailable) - needs verification',
+                status: 'stub', // Keep as stub for retry
+                last_build_error: 'Wikidata rate-limited; description from Wikipedia needs verification'
+              })
+              .eq('id', body.brand_id);
+            
+            return new Response(
+              JSON.stringify({ 
+                ok: true,
+                success: true,
+                fallback_used: 'wikipedia',
+                description_stored: true,
+                identity_confidence: 'low',
+                message: 'Description from Wikipedia fallback - needs verification'
+              }),
+              {
+                status: 200,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              }
+            );
+          }
+        }
+        
+        // Wikipedia fallback didn't help, mark for retry
+        await fallbackSupabase
+          .from('brands')
+          .update({ 
+            status: 'stub', // Keep as stub for retry instead of failed
+            last_build_error: 'Wikidata rate-limited; will retry later'
+          })
+          .eq('id', body.brand_id);
+        
+        return new Response(
+          JSON.stringify({ 
+            ok: true,
+            success: false,
+            rate_limited: true,
+            message: 'Wikidata rate-limited, will retry later'
+          }),
+          {
+            status: 200, // Return 200 so it's not treated as crash
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+      
+      // Not rate-limited or no brand_id - mark as failed
       if (body.brand_id) {
         const failSupabase = createClient(
           Deno.env.get("SUPABASE_URL")!,
@@ -763,7 +897,7 @@ Deno.serve(async (req) => {
           .from('brands')
           .update({ 
             status: 'failed', 
-            last_build_error: error instanceof Error ? error.message : 'Unknown error'
+            last_build_error: errorMsg
           })
           .eq('id', body.brand_id);
       }
@@ -774,7 +908,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         ok: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMsg,
         message: 'Function crashed - check logs'
       }),
       {
