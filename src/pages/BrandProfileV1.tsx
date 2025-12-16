@@ -431,22 +431,34 @@ export default function BrandProfileV1() {
                   <p className="text-sm text-muted-foreground mt-2 line-clamp-3">
                     {brand.description}
                   </p>
-                ) : brand.identity_confidence === 'low' && brand.description ? (
-                  <p className="text-sm text-muted-foreground/60 italic mt-2">
-                    Description pending verification
-                  </p>
                 ) : (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    No description yet
-                  </p>
-                )}
-                
-                {/* Show identity warning for low confidence */}
-                {brand.identity_confidence === 'low' && brand.identity_notes && (
-                  <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    {brand.identity_notes}
-                  </p>
+                  <div className="mt-2 space-y-1">
+                    <p className="text-sm text-muted-foreground/60 italic">
+                      {brandStatus === 'stub' || brandStatus === 'building' 
+                        ? 'Building brand profile…'
+                        : brandStatus === 'failed'
+                        ? 'Build failed — retrying soon'
+                        : brand.identity_confidence === 'low' && brand.description
+                        ? 'Description pending verification'
+                        : 'No description yet'}
+                    </p>
+                    {/* Status explanation */}
+                    <p className="text-xs text-muted-foreground/50">
+                      {brandStatus === 'stub' || brandStatus === 'building' 
+                        ? 'Enrichment in progress'
+                        : brandStatus === 'failed'
+                        ? 'Enrichment will retry automatically'
+                        : brand.identity_confidence === 'low'
+                        ? 'Pending verification (to prevent incorrect matches)'
+                        : 'Coverage expanding soon'}
+                    </p>
+                    {/* Admin: show build error if failed */}
+                    {isAdmin && brandStatus === 'failed' && brand.last_build_error && (
+                      <p className="text-xs text-destructive mt-1">
+                        Error: {brand.last_build_error}
+                      </p>
+                    )}
+                  </div>
                 )}
                 
                 {/* Admin: Mark identity verified button */}
