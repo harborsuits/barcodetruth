@@ -4460,9 +4460,12 @@ export type Database = {
           brand_id: string | null
           cache_expires_at: string | null
           category: string | null
+          confidence_score: number | null
           created_at: string
+          data_source: string | null
           id: string
           image_url: string | null
+          metadata: Json | null
           name: string
           source: string | null
           upc_type: string | null
@@ -4474,9 +4477,12 @@ export type Database = {
           brand_id?: string | null
           cache_expires_at?: string | null
           category?: string | null
+          confidence_score?: number | null
           created_at?: string
+          data_source?: string | null
           id?: string
           image_url?: string | null
+          metadata?: Json | null
           name: string
           source?: string | null
           upc_type?: string | null
@@ -4488,9 +4494,12 @@ export type Database = {
           brand_id?: string | null
           cache_expires_at?: string | null
           category?: string | null
+          confidence_score?: number | null
           created_at?: string
+          data_source?: string | null
           id?: string
           image_url?: string | null
+          metadata?: Json | null
           name?: string
           source?: string | null
           upc_type?: string | null
