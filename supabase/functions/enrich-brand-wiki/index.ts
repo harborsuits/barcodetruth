@@ -38,7 +38,8 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, maxRetries
 }
 
 // Wikipedia REST API fallback - doesn't require Wikidata
-async function fetchWikipediaSummary(searchTerm: string): Promise<{ title: string; extract: string } | null> {
+// Returns title, extract, and official_url if found in infobox
+async function fetchWikipediaSummary(searchTerm: string): Promise<{ title: string; extract: string; official_url?: string } | null> {
   try {
     log('Attempting Wikipedia REST API fallback for:', searchTerm);
     
@@ -72,24 +73,45 @@ async function fetchWikipediaSummary(searchTerm: string): Promise<{ title: strin
     
     log('Wikipedia best match:', bestTitle);
     
-    // Fetch the extract for best match
-    const extractUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=true&explaintext=true&titles=${encodeURIComponent(bestTitle)}&format=json`;
+    // Fetch the extract AND external links (official website) for best match
+    const extractUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|extlinks&exintro=true&explaintext=true&titles=${encodeURIComponent(bestTitle)}&format=json&ellimit=20`;
     const extractRes = await fetch(extractUrl);
     if (!extractRes.ok) return null;
     
     const extractData = await extractRes.json();
     const pages = extractData.query?.pages;
     const pageId = Object.keys(pages)[0];
-    const extract = pages[pageId]?.extract;
+    const page = pages[pageId];
+    const extract = page?.extract;
+    
+    // Try to find official website from external links
+    let official_url: string | undefined;
+    const extlinks = page?.extlinks as Array<{ '*': string }> | undefined;
+    if (extlinks && extlinks.length > 0) {
+      // First external link is often the official site
+      official_url = extlinks[0]?.['*'];
+      log('Wikipedia found external link:', official_url);
+    }
     
     if (extract && extract.length > 50) {
       log('Wikipedia fallback found extract:', extract.substring(0, 100) + '...');
-      return { title: bestTitle, extract };
+      return { title: bestTitle, extract, official_url };
     }
     
     return null;
   } catch (e) {
     warn('Wikipedia fallback failed:', (e as Error).message);
+    return null;
+  }
+}
+
+// Helper: extract domain from URL for comparison
+function extractDomainFromUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url.startsWith("http") ? url : `https://${url}`);
+    return u.hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
     return null;
   }
 }
@@ -823,10 +845,10 @@ Deno.serve(async (req) => {
           Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
         );
         
-        // Get brand name for Wikipedia search
+        // Get brand name AND canonical_domain for Wikipedia search + domain verification
         const { data: brand } = await fallbackSupabase
           .from('brands')
-          .select('name, description')
+          .select('name, description, canonical_domain')
           .eq('id', body.brand_id)
           .maybeSingle();
         
@@ -834,16 +856,27 @@ Deno.serve(async (req) => {
           const wikiResult = await fetchWikipediaSummary(brand.name);
           
           if (wikiResult) {
-            log('Wikipedia fallback succeeded, storing description with low confidence');
+            // Domain-gated verification: if canonical_domain matches Wikipedia's official URL, upgrade to medium
+            const brandDomain = extractDomainFromUrl(brand.canonical_domain);
+            const wikiDomain = extractDomainFromUrl(wikiResult.official_url);
+            
+            const domainMatches = brandDomain && wikiDomain && brandDomain === wikiDomain;
+            const confidenceLevel = domainMatches ? 'medium' : 'low';
+            const identityNotes = domainMatches 
+              ? `Wikipedia fallback - domain verified (${brandDomain})` 
+              : 'Wikipedia fallback (Wikidata unavailable) - needs verification';
+            
+            log(`Wikipedia fallback: domain match=${domainMatches}, brandDomain=${brandDomain}, wikiDomain=${wikiDomain}, confidence=${confidenceLevel}`);
+            
             await fallbackSupabase
               .from('brands')
               .update({ 
                 description: wikiResult.extract,
                 description_source: 'wikipedia_fallback',
-                identity_confidence: 'low',
-                identity_notes: 'Wikipedia fallback (Wikidata unavailable) - needs verification',
-                status: 'stub', // Keep as stub for retry
-                last_build_error: 'Wikidata rate-limited; description from Wikipedia needs verification'
+                identity_confidence: confidenceLevel,
+                identity_notes: identityNotes,
+                status: domainMatches ? 'ready' : 'stub', // Ready if domain verified, else keep as stub
+                last_build_error: domainMatches ? null : 'Wikidata rate-limited; description from Wikipedia needs verification'
               })
               .eq('id', body.brand_id);
             
@@ -853,8 +886,11 @@ Deno.serve(async (req) => {
                 success: true,
                 fallback_used: 'wikipedia',
                 description_stored: true,
-                identity_confidence: 'low',
-                message: 'Description from Wikipedia fallback - needs verification'
+                domain_verified: domainMatches,
+                identity_confidence: confidenceLevel,
+                message: domainMatches 
+                  ? 'Description from Wikipedia fallback - domain verified' 
+                  : 'Description from Wikipedia fallback - needs verification'
               }),
               {
                 status: 200,
