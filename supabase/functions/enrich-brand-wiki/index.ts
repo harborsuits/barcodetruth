@@ -455,13 +455,14 @@ Deno.serve(async (req) => {
     let passesIndustry = true;
     let industryNote = "";
     
-    const looksLikeRetailByName = /\b(retail|supermarket|grocery|stores?|market|shop)\b/i.test(brand.name);
     const allEntityTypes = [...instanceOf, ...industries];
     const entityLooksOptics = allEntityTypes.some((q) => OPTICS_QIDS.has(q));
     
-    if (looksLikeRetailByName && entityLooksOptics) {
+    // STRONGER RULE: If entity looks optics AND (domain doesn't match OR no domain) AND not exact match → FAIL
+    // This catches Tesco→Tasco even without brand name containing "retail"
+    if (entityLooksOptics && !isExactMatch && !passesDomain) {
       passesIndustry = false;
-      industryNote = "Industry mismatch: brand looks retail but entity looks optics";
+      industryNote = `Industry mismatch: entity has optics-related type but no domain/exact match to confirm`;
       log(`Industry FAILED: ${industryNote}`);
     }
     
@@ -723,18 +724,24 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Mark brand as 'ready' after successful enrichment
-    await supabase
-      .from('brands')
-      .update({ 
-        status: 'ready', 
-        built_at: new Date().toISOString(),
-        last_build_error: null 
-      })
-      .eq('id', brand_id);
-    
-    log('Brand status set to ready');
-    result.status = 'ready';
+    // Mark brand as 'ready' ONLY if identity validation passed
+    // (Don't override the 'failed' status set earlier if identityPass was false)
+    if (identityPass) {
+      await supabase
+        .from('brands')
+        .update({ 
+          status: 'ready', 
+          built_at: new Date().toISOString(),
+          last_build_error: null 
+        })
+        .eq('id', brand_id);
+      
+      log('Brand status set to ready');
+      result.status = 'ready';
+    } else {
+      log('Brand status remains failed due to identity mismatch');
+      result.status = 'failed';
+    }
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
