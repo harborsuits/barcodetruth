@@ -44,7 +44,8 @@ serve(async (req) => {
       .select('*, brands(id, name, logo_url)')
       .eq('barcode', barcode)
       .gte('cache_expires_at', new Date().toISOString())
-      .single();
+      .limit(1)
+      .maybeSingle();
 
     if (cached) {
       console.log(`[Tier 1] Cache hit for ${barcode}`);
@@ -184,7 +185,8 @@ async function saveToCache(supabase: any, productData: any) {
       .from('brands')
       .select('id')
       .ilike('name', normalizedName)
-      .single();
+      .limit(1)
+      .maybeSingle();
     
     if (existingBrand) {
       brandId = existingBrand.id;
