@@ -36,6 +36,10 @@ interface DashboardMetrics {
   pending_claims: number;
   failed_jobs: number;
   queue_pending: number;
+  brands_stub: number;
+  brands_building: number;
+  brands_ready: number;
+  brands_failed: number;
 }
 
 export default function AdminDashboard() {
@@ -60,7 +64,11 @@ export default function AdminDashboard() {
         irrelevant,
         claims,
         failedJobs,
-        queue
+        queue,
+        brandsStub,
+        brandsBuilding,
+        brandsReady,
+        brandsFailed
       ] = await Promise.all([
         supabase.from('brand_events').select('event_id', { count: 'exact', head: true }).gte('created_at', yesterday.toISOString()),
         supabase.from('brand_events').select('event_id', { count: 'exact', head: true }).gte('created_at', weekAgo.toISOString()),
@@ -71,7 +79,11 @@ export default function AdminDashboard() {
         supabase.from('brand_events').select('event_id', { count: 'exact', head: true }).eq('is_irrelevant', true),
         supabase.from('product_claims').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('processing_queue').select('id', { count: 'exact', head: true }).eq('status', 'failed').gte('created_at', yesterday.toISOString()),
-        supabase.from('processing_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending')
+        supabase.from('processing_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('brands').select('id', { count: 'exact', head: true }).eq('status', 'stub'),
+        supabase.from('brands').select('id', { count: 'exact', head: true }).eq('status', 'building'),
+        supabase.from('brands').select('id', { count: 'exact', head: true }).eq('status', 'ready'),
+        supabase.from('brands').select('id', { count: 'exact', head: true }).eq('status', 'failed')
       ]);
 
       return {
@@ -85,6 +97,10 @@ export default function AdminDashboard() {
         pending_claims: claims.count || 0,
         failed_jobs: failedJobs.count || 0,
         queue_pending: queue.count || 0,
+        brands_stub: brandsStub.count || 0,
+        brands_building: brandsBuilding.count || 0,
+        brands_ready: brandsReady.count || 0,
+        brands_failed: brandsFailed.count || 0,
       } as DashboardMetrics;
     },
     refetchInterval: 30000, // Refresh every 30s
@@ -434,6 +450,54 @@ export default function AdminDashboard() {
               </Card>
             </div>
           )}
+        </div>
+
+        {/* Brand Build Health */}
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Brand Build Health</h2>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="text-center p-3 bg-yellow-500/10 rounded-lg">
+                  <div className="text-2xl font-bold text-yellow-600">{metrics?.brands_stub || 0}</div>
+                  <div className="text-sm text-muted-foreground">Stubs</div>
+                </div>
+                <div className="text-center p-3 bg-blue-500/10 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">{metrics?.brands_building || 0}</div>
+                  <div className="text-sm text-muted-foreground">Building</div>
+                </div>
+                <div className="text-center p-3 bg-green-500/10 rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">{metrics?.brands_ready || 0}</div>
+                  <div className="text-sm text-muted-foreground">Ready</div>
+                </div>
+                <div className="text-center p-3 bg-red-500/10 rounded-lg">
+                  <div className="text-2xl font-bold text-red-600">{metrics?.brands_failed || 0}</div>
+                  <div className="text-sm text-muted-foreground">Failed</div>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    toast({ title: "Running brand stub processor..." });
+                    try {
+                      const { data, error } = await supabase.functions.invoke('process-brand-stubs');
+                      if (error) throw error;
+                      toast({
+                        title: "✅ Stub processing complete",
+                        description: `Processed: ${data?.processed || 0} | Succeeded: ${data?.succeeded || 0} | Failed: ${data?.failed || 0}`,
+                      });
+                    } catch (e: any) {
+                      toast({ title: "Error", description: e.message, variant: "destructive" });
+                    }
+                  }}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Run Stub Builder Now
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* High Priority Tools */}
