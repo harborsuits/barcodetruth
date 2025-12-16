@@ -758,9 +758,18 @@ export default function ScanResult() {
         ) : product ? (
           <>
             {/* Product + Brand Info */}
-            <Card 
-              className={brandInfo ? "cursor-pointer hover:bg-accent/5 transition-colors" : ""}
-              onClick={() => brandInfo && navigate(`/brand/${product.brand_id}`)}
+            {(() => {
+              const brandExists = Boolean(brandInfo?.id && product?.brand_id);
+              return (
+                <Card 
+                  className={brandExists ? "cursor-pointer hover:bg-accent/5 transition-colors" : ""}
+                  role={brandExists ? "button" : undefined}
+                  aria-disabled={!brandExists}
+                  onClick={() => {
+                    if (brandExists) {
+                      navigate(`/brand/${product.brand_id}`);
+                    }
+                  }}
             >
               <CardContent className="pt-6 space-y-4">
                 <div className="flex items-start justify-between gap-3">
@@ -805,7 +814,7 @@ export default function ScanResult() {
                   </p>
                 ) : (
                   <div className="flex gap-2 justify-center">
-                    <Button variant="outline" size="sm" onClick={() => navigate('/search')}>
+                    <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); navigate('/search'); }}>
                       Search Brands
                     </Button>
                   </div>
@@ -813,6 +822,8 @@ export default function ScanResult() {
 
               </CardContent>
             </Card>
+              );
+            })()}
 
             {/* Why Should I Care - Personalized explanation */}
             {brandData && currentBrandData && (() => {
