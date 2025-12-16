@@ -109,6 +109,8 @@ export default function ScanResult() {
         .from('products')
         .select('*')
         .eq('barcode', barcode)
+        .order('updated_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
       
       console.log('[ScanResult] lookup response:', JSON.stringify({ data, error, barcode }, null, 2));
@@ -179,6 +181,7 @@ export default function ScanResult() {
         .from('brand_scores')
         .select('score_labor, score_environment, score_politics, score_social')
         .eq('brand_id', product!.brand_id)
+        .order('last_updated', { ascending: false })
         .limit(1)
         .maybeSingle();
       if (error) return null;
