@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatEventTime } from '@/lib/formatTime';
 import { Link } from 'react-router-dom';
 import { Skeleton } from "@/components/ui/skeleton";
+import { ExternalLink } from 'lucide-react';
 
 export function RecentVerifications() {
   const { data: recentEvents, isLoading } = useQuery({
@@ -60,9 +61,8 @@ export function RecentVerifications() {
       
       <div className="space-y-3 max-h-96 overflow-y-auto">
         {recentEvents?.map(event => (
-          <Link
+          <div
             key={event.event_id}
-            to={`/brand/${event.brand_id}`}
             className="flex gap-3 p-3 hover:bg-accent rounded border transition-colors"
           >
             {/* Company logo */}
@@ -75,16 +75,35 @@ export function RecentVerifications() {
             )}
             
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium line-clamp-2">{event.title}</div>
+              <Link 
+                to={`/brand/${event.brand_id}`}
+                className="text-sm font-medium line-clamp-2 hover:underline"
+              >
+                {event.title}
+              </Link>
               <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground flex-wrap">
                 <span>{event.brands?.name}</span>
                 <span>•</span>
                 <span className="capitalize">{event.category}</span>
                 <span>•</span>
                 <span>{formatEventTime(event.created_at)}</span>
+                {event.source_url && (
+                  <>
+                    <span>•</span>
+                    <a 
+                      href={event.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline inline-flex items-center gap-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      View source <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </>
+                )}
               </div>
             </div>
-          </Link>
+          </div>
         ))}
       </div>
       
