@@ -177,4 +177,7 @@ verify_jwt = false
 # SEC 13F institutional holders sync
 [functions.sync-13f]
 verify_jwt = false
+
+# Brand stub processor (runs on schedule to build stubs)
+[functions.process-brand-stubs]
 verify_jwt = false
