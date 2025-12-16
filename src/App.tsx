@@ -26,10 +26,11 @@ const BrandRedirect = lazyNamed(() => import("./components/routes/BrandRedirect"
 const Home = lazyNamed(() => import("./pages/Home"), "Home");
 const Search = lazyNamed(() => import("./pages/Search"), "default");
 const Discover = lazyNamed(() => import("./pages/Discover"), "default");
-const BrandProfile = lazyNamed(() => import("./pages/BrandProfile"), "default");
+// V1 Consumer Contract - simplified pages
+const BrandProfile = lazyNamed(() => import("./pages/BrandProfileV1"), "default");
 const BrandProof = lazyNamed(() => import("./pages/BrandProof"), "default");
 const Scan = lazyNamed(() => import("./pages/Scan"), "Scan");
-const ScanResult = lazyNamed(() => import("./pages/ScanResult"), "default");
+const ScanResult = lazyNamed(() => import("./pages/ScanResultV1"), "default");
 const Trending = lazyNamed(() => import("./pages/Trending"), "Trending");
 const Lists = lazyNamed(() => import("./pages/Lists"), "Lists");
 const Settings = lazyNamed(() => import("./pages/Settings"), "Settings");
