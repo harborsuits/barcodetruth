@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatEventTime } from '@/lib/formatTime';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExternalLink } from 'lucide-react';
 
 export function RecentVerifications() {
+  const navigate = useNavigate();
   const { data: recentEvents, isLoading } = useQuery({
     queryKey: ['recent-verifications'],
     queryFn: async () => {
@@ -30,7 +31,7 @@ export function RecentVerifications() {
       
       return data || [];
     },
-    refetchInterval: 60000 // Refresh every minute
+    refetchInterval: 60000
   });
 
   if (isLoading) {
@@ -63,45 +64,46 @@ export function RecentVerifications() {
         {recentEvents?.map(event => (
           <div
             key={event.event_id}
-            className="flex gap-3 p-3 hover:bg-accent rounded border transition-colors"
+            onClick={() => navigate(`/brand/${event.brand_id}`)}
+            className="cursor-pointer rounded-lg border p-4 hover:bg-muted transition"
           >
             {/* Company logo */}
             {event.brands?.logo_url && (
-              <img 
+              <img
                 src={event.brands.logo_url}
                 alt={event.brands.name}
-                className="w-10 h-10 rounded object-contain shrink-0"
+                className="h-8 w-8 rounded mb-2 object-contain"
               />
             )}
-            
-            <div className="flex-1 min-w-0">
-              <Link 
-                to={`/brand/${event.brand_id}`}
-                className="text-sm font-medium line-clamp-2 hover:underline"
-              >
-                {event.title}
-              </Link>
-              <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground flex-wrap">
-                <span>{event.brands?.name}</span>
-                <span>•</span>
-                <span className="capitalize">{event.category}</span>
-                <span>•</span>
-                <span>{formatEventTime(event.created_at)}</span>
-                {event.source_url && (
-                  <>
-                    <span>•</span>
-                    <a 
-                      href={event.source_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline inline-flex items-center gap-1"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      View source <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </>
-                )}
-              </div>
+
+            {/* Title */}
+            <div className="font-medium line-clamp-2">
+              {event.title}
+            </div>
+
+            {/* Meta row */}
+            <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-1 mt-1">
+              <span>{event.brands?.name}</span>
+              <span>•</span>
+              <span className="capitalize">{event.category}</span>
+              <span>•</span>
+              <span>{formatEventTime(event.created_at)}</span>
+
+              {event.source_url && (
+                <>
+                  <span>•</span>
+                  <a
+                    href={event.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center gap-1 text-primary hover:underline"
+                  >
+                    View source
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </>
+              )}
             </div>
           </div>
         ))}
