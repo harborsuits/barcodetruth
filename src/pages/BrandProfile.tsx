@@ -229,8 +229,8 @@ export default function BrandProfile() {
     queryFn: async () => {
       // Query by UUID or slug depending on route
       const query = isUuidRoute
-        ? supabase.from('brands').select('*').eq('id', actualId).single()
-        : supabase.from('brands').select('*').eq('slug', actualId).single();
+        ? supabase.from('brands').select('*').eq('id', actualId).limit(1).maybeSingle()
+        : supabase.from('brands').select('*').eq('slug', actualId).limit(1).maybeSingle();
       
       const { data, error } = await query;
       if (error) throw error;

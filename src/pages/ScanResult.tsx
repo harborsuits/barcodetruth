@@ -395,6 +395,7 @@ export default function ScanResult() {
         .from('user_follows')
         .select('notifications_enabled')
         .eq('brand_id', product!.brand_id)
+        .limit(1)
         .maybeSingle();
       
       if (error) throw error;
