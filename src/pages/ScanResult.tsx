@@ -124,9 +124,18 @@ export default function ScanResult() {
   console.log('[ScanResult] Product state:', { product, productLoading, productError });
 
   // Query basic brand info including status (always needed for navigation)
-  const { data: brandInfo } = useQuery({
+  // Poll every 10s if brand is not ready to catch when enrichment completes
+  const { data: brandInfo, refetch: refetchBrandInfo } = useQuery({
     queryKey: ['brand-info', product?.brand_id],
     enabled: !!product?.brand_id,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      // Poll every 10s if status is stub or building
+      if (status === 'stub' || status === 'building') {
+        return 10000;
+      }
+      return false; // Stop polling once ready/failed
+    },
     queryFn: async () => {
       const { data, error } = await supabase
         .from('brands')
