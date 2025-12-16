@@ -61,8 +61,27 @@ serve(async (req) => {
     // Tier 2: OpenFoodFacts (FREE)
     try {
       console.log(`[Tier 2] Trying OpenFoodFacts for ${barcode}`);
-      const offResponse = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
-      const offData = await offResponse.json();
+      const offResponse = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, {
+        headers: { 'Accept': 'application/json' }
+      });
+      
+      // Check content-type to avoid parsing HTML error pages
+      const contentType = offResponse.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        console.log(`[Tier 2] OpenFoodFacts returned non-JSON: ${contentType}`);
+        throw new Error('Non-JSON response from OpenFoodFacts');
+      }
+      
+      const offText = await offResponse.text();
+      
+      // Safely parse JSON
+      let offData;
+      try {
+        offData = JSON.parse(offText);
+      } catch (parseErr) {
+        console.error('[Tier 2] OpenFoodFacts JSON parse failed, response starts with:', offText.substring(0, 100));
+        throw new Error('Invalid JSON from OpenFoodFacts');
+      }
       
       if (offData.status === 1 && offData.product) {
         const product = offData.product;
