@@ -245,7 +245,11 @@ export const Scan = () => {
           });
           
           analytics.track('scan_not_found_soft_promise', { barcode });
-          setTimeout(() => setScanResult('idle'), 1200);
+          
+          // Navigate to result page instead of going idle
+          setTimeout(() => {
+            navigate(`/scan-result/${barcode}`);
+          }, 600);
           return;
         }
 
@@ -268,13 +272,16 @@ export const Scan = () => {
             navigate(`/brand/${product.brand_id}`);
           }, 800);
         } else {
+          // No product in fallback system either - navigate to scan result page
           setScanResult('not_found');
           toast({ 
             title: "Product not found", 
-            description: "Try another barcode or search by brand",
-            variant: "destructive" 
+            description: "Checking our database for this barcode...",
+            variant: "default" 
           });
-          setTimeout(() => setScanResult('idle'), 800);
+          setTimeout(() => {
+            navigate(`/scan-result/${barcode}`);
+          }, 600);
         }
         return;
       }
