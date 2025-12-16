@@ -35,7 +35,8 @@ export function usePredictiveCache(currentBrandId?: string) {
             )
           `)
           .eq('id', currentBrandId)
-          .single();
+          .limit(1)
+          .maybeSingle();
 
         if (!brand?.company_ownership?.[0]) return;
 
@@ -61,7 +62,8 @@ export function usePredictiveCache(currentBrandId?: string) {
           .from('companies')
           .select('*, brands(id, name, logo_url, description)')
           .eq('id', parentCompanyId)
-          .single();
+          .limit(1)
+          .maybeSingle();
 
         if (parentData) {
           cacheData(`company:${parentCompanyId}`, parentData);

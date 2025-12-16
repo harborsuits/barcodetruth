@@ -95,7 +95,8 @@ export function OwnershipTrail({ brandId }: OwnershipTrailProps) {
         .from('brands')
         .select('id, name, logo_url')
         .eq('id', brandId)
-        .single();
+        .limit(1)
+        .maybeSingle();
       
       if (brandData) {
         chain.push({
