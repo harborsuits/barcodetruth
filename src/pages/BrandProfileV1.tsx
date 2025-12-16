@@ -330,19 +330,14 @@ export default function BrandProfileV1() {
     }
   });
 
-  // Admin action: Mark identity verified
+  // Admin action: Mark identity verified (server-side enforced)
   const markIdentityVerified = async () => {
     if (!resolvedBrandId) return;
     setVerifying(true);
     try {
-      const { error } = await supabase
-        .from('brands')
-        .update({
-          identity_confidence: 'high',
-          identity_notes: 'manual_verified',
-          status: 'ready'
-        })
-        .eq('id', resolvedBrandId);
+      const { data, error } = await supabase.rpc('admin_verify_brand_identity', {
+        p_brand_id: resolvedBrandId
+      });
       
       if (error) throw error;
       
