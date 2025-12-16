@@ -1,12 +1,15 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, ExternalLink, AlertCircle, Building2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { ArrowLeft, ExternalLink, AlertCircle, Building2, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useBrandLogo } from '@/hooks/useBrandLogo';
+import { useAutoEnrichment } from '@/hooks/useAutoEnrichment';
 import { isUUID } from '@/lib/utils';
 
 // V1 Consumer Contract:
@@ -41,6 +44,30 @@ function BrandLogo({
   return (
     <div className="w-16 h-16 rounded-2xl border-2 grid place-items-center text-2xl font-bold bg-muted flex-shrink-0">
       {monogram}
+    </div>
+  );
+}
+
+function EnrichmentProgress({ 
+  status, 
+  message, 
+  step, 
+  totalSteps 
+}: { 
+  status: string; 
+  message: string; 
+  step: number; 
+  totalSteps: number;
+}) {
+  if (status === 'idle' || status === 'complete') return null;
+  
+  return (
+    <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg space-y-2">
+      <div className="flex items-center gap-2">
+        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+        <span className="text-sm font-medium">{message}</span>
+      </div>
+      <Progress value={(step / totalSteps) * 100} className="h-1" />
     </div>
   );
 }
@@ -213,6 +240,15 @@ export default function BrandProfileV1() {
   });
 
   const resolvedBrandId = brand?.id;
+  const brandStatus = brand?.status;
+  const needsEnrichment = brandStatus === 'stub' || brandStatus === 'building' || !brand?.description;
+
+  // Auto-enrichment for stubs/building brands
+  const enrichmentProgress = useAutoEnrichment(
+    resolvedBrandId || '',
+    brand?.name || '',
+    needsEnrichment && !!resolvedBrandId
+  );
 
   // Redirect UUID route to canonical slug
   useEffect(() => {
@@ -286,7 +322,15 @@ export default function BrandProfileV1() {
                 brandName={brand.name}
               />
               <div className="flex-1 min-w-0">
-                <h1 className="text-2xl font-bold truncate">{brand.name}</h1>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-2xl font-bold truncate">{brand.name}</h1>
+                  {brandStatus && brandStatus !== 'ready' && (
+                    <Badge variant="secondary" className="text-xs">
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      Building...
+                    </Badge>
+                  )}
+                </div>
                 {brand.website && (
                   <a 
                     href={brand.website} 
@@ -308,6 +352,18 @@ export default function BrandProfileV1() {
                 )}
               </div>
             </div>
+            
+            {/* Show enrichment progress if actively enriching */}
+            {enrichmentProgress.status === 'enriching' && (
+              <div className="mt-4">
+                <EnrichmentProgress 
+                  status={enrichmentProgress.status}
+                  message={enrichmentProgress.message}
+                  step={enrichmentProgress.step}
+                  totalSteps={enrichmentProgress.totalSteps}
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
 
