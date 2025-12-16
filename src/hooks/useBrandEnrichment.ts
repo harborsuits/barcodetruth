@@ -57,7 +57,8 @@ export function useBrandEnrichment() {
         .from('brands')
         .select('id, name, wikidata_qid, website, logo_url')
         .eq('id', brandId)
-        .single();
+        .limit(1)
+        .maybeSingle();
       
       console.log('🔵 [fetchLogo] Brand data:', brand);
       
@@ -66,7 +67,7 @@ export function useBrandEnrichment() {
         throw brandError;
       }
       
-      if (!brand.wikidata_qid && !brand.website) {
+      if (!brand || (!brand.wikidata_qid && !brand.website)) {
         console.log('🔴 [fetchLogo] Cannot enrich - no wikidata_qid or website');
         toast({
           title: 'Cannot fetch logo',

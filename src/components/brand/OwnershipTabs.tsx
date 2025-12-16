@@ -23,7 +23,8 @@ export function OwnershipTabs({ brandId }: OwnershipTabsProps) {
         .from('brands')
         .select('id, name, wikidata_qid')
         .eq('id', brandId)
-        .single();
+        .limit(1)
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
