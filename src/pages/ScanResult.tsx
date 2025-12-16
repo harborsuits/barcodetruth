@@ -123,14 +123,14 @@ export default function ScanResult() {
 
   console.log('[ScanResult] Product state:', { product, productLoading, productError });
 
-  // Query basic brand info (always needed for navigation)
+  // Query basic brand info including status (always needed for navigation)
   const { data: brandInfo } = useQuery({
     queryKey: ['brand-info', product?.brand_id],
     enabled: !!product?.brand_id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('brands')
-        .select('id, name')
+        .select('id, name, status')
         .eq('id', product!.brand_id)
         .limit(1)
         .maybeSingle();
@@ -759,14 +759,16 @@ export default function ScanResult() {
           <>
             {/* Product + Brand Info */}
             {(() => {
-              const brandExists = Boolean(brandInfo?.id && product?.brand_id);
+              // Only navigate if brand exists AND is ready (has real data)
+              const brandIsReady = brandInfo?.id && brandInfo?.status === 'ready';
+              const brandExists = Boolean(brandInfo?.id);
               return (
                 <Card 
-                  className={brandExists ? "cursor-pointer hover:bg-accent/5 transition-colors" : ""}
-                  role={brandExists ? "button" : undefined}
-                  aria-disabled={!brandExists}
+                  className={brandIsReady ? "cursor-pointer hover:bg-accent/5 transition-colors" : ""}
+                  role={brandIsReady ? "button" : undefined}
+                  aria-disabled={!brandIsReady}
                   onClick={() => {
-                    if (brandExists) {
+                    if (brandIsReady) {
                       navigate(`/brand/${product.brand_id}`);
                     }
                   }}
@@ -796,21 +798,30 @@ export default function ScanResult() {
 
                 {currentBrandData ? (
                   <ValueFitBar score={currentBrandData.valueFit} showExplainer />
-                ) : brandInfo ? (
+                ) : brandIsReady ? (
                   <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
                     <Package className="h-4 w-4" />
                     Scores coming soon
                   </div>
+                ) : brandExists ? (
+                  <div className="flex items-center gap-2 text-sm text-amber-600">
+                    <AlertCircle className="h-4 w-4" />
+                    Brand profile building...
+                  </div>
                 ) : (
                   <div className="flex items-center gap-2 text-sm text-amber-600">
                     <AlertCircle className="h-4 w-4" />
-                    {product.brand_id ? 'Building brand profile...' : 'No brand data available'}
+                    No brand data available
                   </div>
                 )}
 
-                {brandInfo ? (
+                {brandIsReady ? (
                   <p className="text-xs text-muted-foreground text-center">
                     Tap to view full brand profile →
+                  </p>
+                ) : brandExists ? (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Profile building — check back soon
                   </p>
                 ) : (
                   <div className="flex gap-2 justify-center">
