@@ -338,20 +338,71 @@ Deno.serve(async (req) => {
     console.log('[STEP 11a] Brand entity fetched successfully:', brandQid);
     log('Brand entity fetched', brandQid);
 
+    // === IDENTITY VALIDATION ===
+    // Compute name similarity to prevent entity collisions (e.g., Tesco vs Tasco)
+    const entityLabel = getLabel(brandEntity) || '';
+    const brandNameLower = brand.name.toLowerCase().trim();
+    const entityLabelLower = entityLabel.toLowerCase().trim();
+    
+    // Simple similarity check - exact match or contains
+    const isExactMatch = brandNameLower === entityLabelLower;
+    const brandContainsEntity = brandNameLower.includes(entityLabelLower) || entityLabelLower.includes(brandNameLower);
+    
+    // Levenshtein-like similarity for short names
+    const levenshteinSimilarity = (a: string, b: string): number => {
+      if (a === b) return 1;
+      if (a.length === 0 || b.length === 0) return 0;
+      const longer = a.length > b.length ? a : b;
+      const shorter = a.length > b.length ? b : a;
+      const longerLength = longer.length;
+      if (longerLength === 0) return 1;
+      
+      // Simple char-by-char distance
+      let matches = 0;
+      for (let i = 0; i < shorter.length; i++) {
+        if (longer[i] === shorter[i]) matches++;
+      }
+      return matches / longerLength;
+    };
+    
+    const similarity = levenshteinSimilarity(brandNameLower, entityLabelLower);
+    const passesNameCheck = isExactMatch || brandContainsEntity || similarity >= 0.7;
+    
+    log(`Identity check: brand="${brand.name}" vs entity="${entityLabel}" | exact=${isExactMatch} contains=${brandContainsEntity} sim=${similarity.toFixed(2)} pass=${passesNameCheck}`);
+    
+    // Determine identity confidence
+    let identityConfidence: 'low' | 'medium' | 'high' = 'low';
+    let identityNotes = '';
+    
+    if (isExactMatch) {
+      identityConfidence = 'high';
+    } else if (brandContainsEntity || similarity >= 0.8) {
+      identityConfidence = 'medium';
+    } else if (passesNameCheck) {
+      identityConfidence = 'medium';
+      identityNotes = `Entity label "${entityLabel}" differs from brand name`;
+    } else {
+      identityConfidence = 'low';
+      identityNotes = `MISMATCH: Entity "${entityLabel}" may not match brand "${brand.name}"`;
+      warn(`Identity mismatch detected: brand="${brand.name}" vs entity="${entityLabel}"`);
+    }
+
     const result: any = {
       success: true,
       wikidata_qid: brandQid,
-      updated: false
+      updated: false,
+      identity_confidence: identityConfidence,
+      name_similarity: similarity
     };
 
-    // Step 3: Update description if needed
+    // Step 3: Update description if needed (ONLY if identity passes validation)
     console.log('[STEP 12] Checking for Wikipedia description');
     const wikiEnTitle = brandEntity?.sitelinks?.enwiki?.title;
     result.wiki_en_title = wikiEnTitle;
     console.log('[STEP 12a] Wikipedia title:', wikiEnTitle);
 
-    if (wikiEnTitle && brand.description_source !== 'wikipedia') {
-      console.log('[STEP 12b] Fetching Wikipedia extract');
+    if (wikiEnTitle && brand.description_source !== 'wikipedia' && passesNameCheck) {
+      console.log('[STEP 12b] Fetching Wikipedia extract (identity validated)');
       log('Fetching Wikipedia extract');
       const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=true&explaintext=true&titles=${encodeURIComponent(wikiEnTitle)}&format=json`;
       const wikiRes = await fetchWithRetry(wikiUrl);
@@ -371,7 +422,9 @@ Deno.serve(async (req) => {
           .update({
             description: extract,
             description_source: 'wikipedia',
-            wikidata_qid: brandQid
+            wikidata_qid: brandQid,
+            identity_confidence: identityConfidence,
+            identity_notes: identityNotes || null
           })
           .eq('id', brand_id);
         
@@ -380,12 +433,34 @@ Deno.serve(async (req) => {
         console.log('[STEP 12g] Description updated successfully');
         log('Description updated from Wikipedia');
       }
-    } else {
-      console.log('[STEP 12h] Updating QID only');
-      // Update QID even if description not updated
+    } else if (!passesNameCheck) {
+      // Identity validation FAILED - don't write description, mark as low confidence
+      console.log('[STEP 12h] IDENTITY MISMATCH - skipping description write');
+      warn(`Blocked description write due to identity mismatch: ${brand.name} vs ${entityLabel}`);
+      
       await supabase
         .from('brands')
-        .update({ wikidata_qid: brandQid })
+        .update({ 
+          wikidata_qid: brandQid,
+          identity_confidence: 'low',
+          identity_notes: identityNotes,
+          status: 'failed',
+          last_build_error: `Identity mismatch: expected "${brand.name}", got entity "${entityLabel}"`
+        })
+        .eq('id', brand_id);
+      
+      result.identity_blocked = true;
+      result.blocked_reason = identityNotes;
+    } else {
+      console.log('[STEP 12h] Updating QID and identity confidence only');
+      // Update QID + identity confidence even if description not updated
+      await supabase
+        .from('brands')
+        .update({ 
+          wikidata_qid: brandQid,
+          identity_confidence: identityConfidence,
+          identity_notes: identityNotes || null
+        })
         .eq('id', brand_id);
       console.log('[STEP 12i] QID updated');
     }

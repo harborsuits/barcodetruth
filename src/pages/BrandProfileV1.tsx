@@ -341,13 +341,26 @@ export default function BrandProfileV1() {
                     Visit website <ExternalLink className="h-3 w-3" />
                   </a>
                 )}
-                {brand.description ? (
+                {/* Only show description if identity_confidence is medium/high */}
+                {brand.description && brand.identity_confidence !== 'low' ? (
                   <p className="text-sm text-muted-foreground mt-2 line-clamp-3">
                     {brand.description}
+                  </p>
+                ) : brand.identity_confidence === 'low' && brand.description ? (
+                  <p className="text-sm text-muted-foreground/60 italic mt-2">
+                    Description pending verification
                   </p>
                 ) : (
                   <p className="text-sm text-muted-foreground mt-2">
                     No description yet
+                  </p>
+                )}
+                
+                {/* Show identity warning for low confidence */}
+                {brand.identity_confidence === 'low' && brand.identity_notes && (
+                  <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {brand.identity_notes}
                   </p>
                 )}
               </div>
