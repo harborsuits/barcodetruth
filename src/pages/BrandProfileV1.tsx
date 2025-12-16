@@ -132,8 +132,11 @@ function OwnershipDisplay({ brandId }: { brandId: string }) {
   }
   
   const chain = (ownership as any)?.structure?.chain || [];
+  const selfEntity = chain.length > 0 ? chain[0] : null;
   const parentCompany = chain.length > 1 ? chain[chain.length - 1] : null;
+  const isPublicCompany = selfEntity?.is_public === true;
   
+  // Case 1: Has a parent company above it
   if (parentCompany) {
     return (
       <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
@@ -146,6 +149,22 @@ function OwnershipDisplay({ brandId }: { brandId: string }) {
     );
   }
   
+  // Case 2: This IS a public parent company (no parent above it)
+  if (isPublicCompany && selfEntity) {
+    return (
+      <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
+        <Building2 className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+        <div>
+          <p className="font-medium">Public Company</p>
+          <p className="text-xs text-muted-foreground">
+            {selfEntity.name} is publicly traded — no parent corporation
+          </p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Case 3: No ownership data or truly independent
   return (
     <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
       <Building2 className="h-5 w-5 text-muted-foreground flex-shrink-0" />
@@ -199,18 +218,49 @@ function EvidenceList({ brandId }: { brandId: string }) {
   
   return (
     <div className="space-y-2">
-      {evidence.map((ev) => (
-        <div key={ev.event_id} className="p-3 bg-muted/50 rounded-lg">
-          <p className="text-sm font-medium line-clamp-2">{ev.title}</p>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-xs text-muted-foreground capitalize">{ev.category}</span>
-            <span className="text-xs text-muted-foreground">•</span>
-            <span className="text-xs text-muted-foreground">
-              {new Date(ev.event_date).toLocaleDateString()}
-            </span>
+      {evidence.map((ev) => {
+        const hasUrl = !!ev.source_url;
+        const content = (
+          <>
+            <p className="text-sm font-medium line-clamp-2">{ev.title}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs text-muted-foreground capitalize">{ev.category}</span>
+              <span className="text-xs text-muted-foreground">•</span>
+              <span className="text-xs text-muted-foreground">
+                {new Date(ev.event_date).toLocaleDateString()}
+              </span>
+              {hasUrl && (
+                <>
+                  <span className="text-xs text-muted-foreground">•</span>
+                  <span className="text-xs text-primary inline-flex items-center gap-1">
+                    View source <ExternalLink className="h-3 w-3" />
+                  </span>
+                </>
+              )}
+            </div>
+          </>
+        );
+
+        if (hasUrl) {
+          return (
+            <a 
+              key={ev.event_id} 
+              href={ev.source_url!} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="block p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors cursor-pointer"
+            >
+              {content}
+            </a>
+          );
+        }
+
+        return (
+          <div key={ev.event_id} className="p-3 bg-muted/50 rounded-lg opacity-60">
+            {content}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
