@@ -338,61 +338,162 @@ Deno.serve(async (req) => {
     console.log('[STEP 11a] Brand entity fetched successfully:', brandQid);
     log('Brand entity fetched', brandQid);
 
-    // === IDENTITY VALIDATION ===
-    // Compute name similarity to prevent entity collisions (e.g., Tesco vs Tasco)
-    const entityLabel = getLabel(brandEntity) || '';
-    const brandNameLower = brand.name.toLowerCase().trim();
-    const entityLabelLower = entityLabel.toLowerCase().trim();
+    // === IDENTITY VALIDATION WITH THREE GUARDRAILS ===
     
-    // Simple similarity check - exact match or contains
-    const isExactMatch = brandNameLower === entityLabelLower;
-    const brandContainsEntity = brandNameLower.includes(entityLabelLower) || entityLabelLower.includes(brandNameLower);
+    // Helper: normalize name for comparison
+    const normalizeName = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
     
-    // Levenshtein-like similarity for short names
-    const levenshteinSimilarity = (a: string, b: string): number => {
-      if (a === b) return 1;
-      if (a.length === 0 || b.length === 0) return 0;
-      const longer = a.length > b.length ? a : b;
-      const shorter = a.length > b.length ? b : a;
-      const longerLength = longer.length;
-      if (longerLength === 0) return 1;
-      
-      // Simple char-by-char distance
-      let matches = 0;
-      for (let i = 0; i < shorter.length; i++) {
-        if (longer[i] === shorter[i]) matches++;
+    // Helper: extract domain from URL
+    const extractDomain = (url: string | null | undefined): string | null => {
+      if (!url) return null;
+      try {
+        const u = new URL(url.startsWith("http") ? url : `https://${url}`);
+        return u.hostname.replace(/^www\./, "").toLowerCase();
+      } catch {
+        return null;
       }
-      return matches / longerLength;
     };
     
-    const similarity = levenshteinSimilarity(brandNameLower, entityLabelLower);
-    const passesNameCheck = isExactMatch || brandContainsEntity || similarity >= 0.7;
+    // Helper: real Levenshtein distance
+    const levenshtein = (a: string, b: string): number => {
+      const m = a.length, n = b.length;
+      const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+      for (let i = 0; i <= m; i++) dp[i][0] = i;
+      for (let j = 0; j <= n; j++) dp[0][j] = j;
+      for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+          const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+          dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+        }
+      }
+      return dp[m][n];
+    };
     
-    log(`Identity check: brand="${brand.name}" vs entity="${entityLabel}" | exact=${isExactMatch} contains=${brandContainsEntity} sim=${similarity.toFixed(2)} pass=${passesNameCheck}`);
+    const similarityScore = (a: string, b: string): number => {
+      if (!a || !b) return 0;
+      if (a === b) return 1;
+      const dist = levenshtein(a, b);
+      const maxLen = Math.max(a.length, b.length);
+      return maxLen === 0 ? 1 : 1 - dist / maxLen;
+    };
     
-    // Determine identity confidence
-    let identityConfidence: 'low' | 'medium' | 'high' = 'low';
-    let identityNotes = '';
+    // Helper: get string claims from Wikidata entity
+    const getWikidataStringClaims = (entity: any, pid: string): string[] => {
+      const claims = entity?.claims?.[pid];
+      if (!claims) return [];
+      const out: string[] = [];
+      for (const c of claims) {
+        const v = c?.mainsnak?.datavalue?.value;
+        if (typeof v === "string") out.push(v);
+      }
+      return out;
+    };
     
-    if (isExactMatch) {
-      identityConfidence = 'high';
-    } else if (brandContainsEntity || similarity >= 0.8) {
-      identityConfidence = 'medium';
-    } else if (passesNameCheck) {
-      identityConfidence = 'medium';
-      identityNotes = `Entity label "${entityLabel}" differs from brand name`;
-    } else {
-      identityConfidence = 'low';
-      identityNotes = `MISMATCH: Entity "${entityLabel}" may not match brand "${brand.name}"`;
-      warn(`Identity mismatch detected: brand="${brand.name}" vs entity="${entityLabel}"`);
+    // Helper: get entity IDs from claims
+    const getWikidataEntityIds = (entity: any, pid: string): string[] => {
+      const claims = entity?.claims?.[pid];
+      if (!claims) return [];
+      const ids: string[] = [];
+      for (const c of claims) {
+        const v = c?.mainsnak?.datavalue?.value;
+        const id = v?.id;
+        if (typeof id === "string") ids.push(id);
+      }
+      return ids;
+    };
+    
+    // === GUARDRAIL 1: Name similarity with short-name strictness ===
+    const brandName = normalizeName(brand.name);
+    const entityLabelRaw = getLabel(brandEntity) || '';
+    const entityLabel = normalizeName(entityLabelRaw);
+    
+    const isExactMatch = brandName === entityLabel;
+    const containsEitherWay = brandName.includes(entityLabel) || entityLabel.includes(brandName);
+    const sim = similarityScore(brandName.replace(/\s+/g, ""), entityLabel.replace(/\s+/g, ""));
+    
+    // SHORT-NAME GUARDRAIL: if either name is ≤6 chars, require 0.95+ similarity
+    const minLen = Math.min(brandName.replace(/\s+/g, "").length, entityLabel.replace(/\s+/g, "").length);
+    const shortNameStrict = minLen <= 6;
+    const similarityThreshold = shortNameStrict ? 0.95 : 0.80;
+    
+    const passesName = isExactMatch || containsEitherWay || sim >= similarityThreshold;
+    log(`Name check: brand="${brandName}" entity="${entityLabel}" sim=${sim.toFixed(2)} threshold=${similarityThreshold} pass=${passesName}`);
+    
+    // === GUARDRAIL 2: Domain validation via Wikidata P856 ===
+    const brandDomain = extractDomain(brand.canonical_domain) || extractDomain(brand.website);
+    const entityWebsites = getWikidataStringClaims(brandEntity, "P856");
+    const entityDomains = entityWebsites.map(extractDomain).filter((d): d is string => !!d);
+    
+    let passesDomain = true;
+    let domainNote = "";
+    
+    if (brandDomain && entityDomains.length > 0) {
+      // Allow subdomain equivalence
+      passesDomain = entityDomains.some((d) => 
+        d === brandDomain || d.endsWith(`.${brandDomain}`) || brandDomain.endsWith(`.${d}`)
+      );
+      if (!passesDomain) {
+        domainNote = `Domain mismatch: brand=${brandDomain} entity=${entityDomains.join(", ")}`;
+        log(`Domain FAILED: ${domainNote}`);
+      }
     }
+    
+    // === GUARDRAIL 3: Industry/instance sanity check ===
+    const instanceOf = getWikidataEntityIds(brandEntity, "P31");
+    const industries = getWikidataEntityIds(brandEntity, "P452");
+    
+    // Retail-related QIDs
+    const RETAIL_QIDS = new Set([
+      "Q126793", "Q507619", "Q16917", "Q264307", "Q215380", // retail, supermarket, grocery, discount store, etc.
+    ]);
+    
+    // Optics/telescope/non-retail QIDs to reject when brand looks like retailer
+    const OPTICS_QIDS = new Set([
+      "Q190117", "Q14619", "Q193933", "Q851782", // optical instrument, binoculars, telescope, etc.
+    ]);
+    
+    let passesIndustry = true;
+    let industryNote = "";
+    
+    const looksLikeRetailByName = /\b(retail|supermarket|grocery|stores?|market|shop)\b/i.test(brand.name);
+    const allEntityTypes = [...instanceOf, ...industries];
+    const entityLooksOptics = allEntityTypes.some((q) => OPTICS_QIDS.has(q));
+    
+    if (looksLikeRetailByName && entityLooksOptics) {
+      passesIndustry = false;
+      industryNote = "Industry mismatch: brand looks retail but entity looks optics";
+      log(`Industry FAILED: ${industryNote}`);
+    }
+    
+    // === COMBINE ALL THREE GUARDRAILS ===
+    const identityPass = passesName && passesDomain && passesIndustry;
+    
+    let identityConfidence: 'low' | 'medium' | 'high' = 'low';
+    const identityNotesArr: string[] = [];
+    
+    if (!passesName) identityNotesArr.push(`Name mismatch (sim=${sim.toFixed(2)} thresh=${similarityThreshold})`);
+    if (!passesDomain && domainNote) identityNotesArr.push(domainNote);
+    if (!passesIndustry) identityNotesArr.push(industryNote);
+    
+    if (identityPass) {
+      // High confidence only if exact match OR domain matched
+      if (isExactMatch || (passesDomain && brandDomain && entityDomains.length > 0)) {
+        identityConfidence = 'high';
+      } else {
+        identityConfidence = 'medium';
+      }
+    }
+    
+    const identityNotes = identityNotesArr.join(' | ');
+    log(`Identity result: pass=${identityPass} confidence=${identityConfidence} notes="${identityNotes}"`);
 
     const result: any = {
       success: true,
       wikidata_qid: brandQid,
       updated: false,
       identity_confidence: identityConfidence,
-      name_similarity: similarity
+      name_similarity: sim,
+      identity_pass: identityPass
     };
 
     // Step 3: Update description if needed (ONLY if identity passes validation)
@@ -401,7 +502,7 @@ Deno.serve(async (req) => {
     result.wiki_en_title = wikiEnTitle;
     console.log('[STEP 12a] Wikipedia title:', wikiEnTitle);
 
-    if (wikiEnTitle && brand.description_source !== 'wikipedia' && passesNameCheck) {
+    if (wikiEnTitle && brand.description_source !== 'wikipedia' && identityPass) {
       console.log('[STEP 12b] Fetching Wikipedia extract (identity validated)');
       log('Fetching Wikipedia extract');
       const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=true&explaintext=true&titles=${encodeURIComponent(wikiEnTitle)}&format=json`;
@@ -433,10 +534,10 @@ Deno.serve(async (req) => {
         console.log('[STEP 12g] Description updated successfully');
         log('Description updated from Wikipedia');
       }
-    } else if (!passesNameCheck) {
+    } else if (!identityPass) {
       // Identity validation FAILED - don't write description, mark as low confidence
       console.log('[STEP 12h] IDENTITY MISMATCH - skipping description write');
-      warn(`Blocked description write due to identity mismatch: ${brand.name} vs ${entityLabel}`);
+      warn(`Blocked description write due to identity mismatch: ${brand.name} vs ${entityLabelRaw}`);
       
       await supabase
         .from('brands')
@@ -445,7 +546,7 @@ Deno.serve(async (req) => {
           identity_confidence: 'low',
           identity_notes: identityNotes,
           status: 'failed',
-          last_build_error: `Identity mismatch: expected "${brand.name}", got entity "${entityLabel}"`
+          last_build_error: `Identity mismatch: expected "${brand.name}", got entity "${entityLabelRaw}"`
         })
         .eq('id', brand_id);
       
