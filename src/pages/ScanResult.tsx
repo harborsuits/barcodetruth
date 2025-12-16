@@ -130,6 +130,7 @@ export default function ScanResult() {
         .from('brands')
         .select('id, name')
         .eq('id', product!.brand_id)
+        .limit(1)
         .maybeSingle();
       
       if (error) throw error;
