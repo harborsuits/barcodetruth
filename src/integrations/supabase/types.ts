@@ -8002,6 +8002,10 @@ export type Database = {
             Returns: Json
           }
       admin_refresh_coverage: { Args: never; Returns: undefined }
+      admin_verify_brand_identity: {
+        Args: { p_brand_id: string }
+        Returns: Json
+      }
       allow_push_send: {
         Args: { p_brand: string; p_category: string; p_user_id: string }
         Returns: boolean
