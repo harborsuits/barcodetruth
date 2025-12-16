@@ -1982,12 +1982,15 @@ export type Database = {
         Row: {
           aliases: string[] | null
           built_at: string | null
+          canonical_domain: string | null
           company_size: string | null
           created_at: string
           description: string | null
           description_lang: string | null
           description_source: string | null
           id: string
+          identity_confidence: string | null
+          identity_notes: string | null
           ingestion_frequency: string | null
           is_active: boolean | null
           is_test: boolean
@@ -2015,12 +2018,15 @@ export type Database = {
         Insert: {
           aliases?: string[] | null
           built_at?: string | null
+          canonical_domain?: string | null
           company_size?: string | null
           created_at?: string
           description?: string | null
           description_lang?: string | null
           description_source?: string | null
           id?: string
+          identity_confidence?: string | null
+          identity_notes?: string | null
           ingestion_frequency?: string | null
           is_active?: boolean | null
           is_test?: boolean
@@ -2048,12 +2054,15 @@ export type Database = {
         Update: {
           aliases?: string[] | null
           built_at?: string | null
+          canonical_domain?: string | null
           company_size?: string | null
           created_at?: string
           description?: string | null
           description_lang?: string | null
           description_source?: string | null
           id?: string
+          identity_confidence?: string | null
+          identity_notes?: string | null
           ingestion_frequency?: string | null
           is_active?: boolean | null
           is_test?: boolean
