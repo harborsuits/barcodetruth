@@ -38,10 +38,10 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Tier 1: Check cache
+    // Tier 1: Check cache (left join so products without brands still return)
     const { data: cached } = await supabase
       .from('products')
-      .select('*, brands!inner(id, name, logo_url)')
+      .select('*, brands(id, name, logo_url)')
       .eq('barcode', barcode)
       .gte('cache_expires_at', new Date().toISOString())
       .single();
@@ -225,7 +225,7 @@ async function saveToCache(supabase: any, productData: any) {
     }, {
       onConflict: 'barcode',
     })
-    .select('*, brands!inner(id, name, logo_url)')
+    .select('*, brands(id, name, logo_url)')
     .single();
 
   if (error) {
