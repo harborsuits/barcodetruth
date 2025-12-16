@@ -225,9 +225,9 @@ export const Scan = () => {
         throw new Error(smartError.message || 'Failed to lookup product');
       }
       
-      // Check if we got a valid product with brand
-      if (!smartLookup?.product?.brands?.id) {
-        console.log('[Scan] No product/brand in response, trying fallback lookup');
+      // Check if we got a valid product
+      if (!smartLookup?.product) {
+        console.log('[Scan] No product in response, trying fallback lookup');
         
         // Fallback to old system
         const result = await lookupScanAndLog(barcode, user.id);
@@ -281,12 +281,14 @@ export const Scan = () => {
       
       // Smart lookup success!
       const product = smartLookup.product;
+      const brand = product.brands; // May be null for new/unmapped brands
       const dur = Math.round(performance.now() - t0);
       
       setScanResult('success');
       console.log('[Analytics] scan_success_smart', { 
         barcode, 
-        brand_id: product.brands.id,
+        brand_id: brand?.id || null,
+        product_name: product.name,
         source: smartLookup.source,
         confidence: smartLookup.confidence,
         dur_ms: dur 
@@ -296,7 +298,7 @@ export const Scan = () => {
       const recentScan = {
         upc: barcode,
         product_name: product.name,
-        brand_name: product.brands.name,
+        brand_name: brand?.name || 'Unknown Brand',
         timestamp: Date.now()
       };
       
@@ -307,20 +309,33 @@ export const Scan = () => {
       
       toast({ 
         title: "Product found!", 
-        description: `${product.name} - ${product.brands.name}`
+        description: `${product.name} - ${brand?.name || 'Unknown Brand'}`
       });
       
-      // Navigate to brand profile
+      // Navigate based on whether we have a brand profile
       setTimeout(() => {
-        const route = `/brand/${product.brands.id}`;
-        console.log('[Scan] navigating to:', route);
-        analytics.track('scan_route_brand', { 
-          brand_id: product.brands.id, 
-          barcode,
-          product_name: product.name,
-          source: smartLookup.source
-        });
-        navigate(route);
+        if (brand?.id) {
+          // Navigate to brand profile
+          const route = `/brand/${brand.id}`;
+          console.log('[Scan] navigating to brand:', route);
+          analytics.track('scan_route_brand', { 
+            brand_id: brand.id, 
+            barcode,
+            product_name: product.name,
+            source: smartLookup.source
+          });
+          navigate(route);
+        } else {
+          // Navigate to scan result page (product found but no brand profile yet)
+          const route = `/scan-result/${barcode}`;
+          console.log('[Scan] navigating to scan-result (no brand):', route);
+          analytics.track('scan_route_result_no_brand', { 
+            barcode,
+            product_name: product.name,
+            source: smartLookup.source
+          });
+          navigate(route);
+        }
       }, 800);
       
     } catch (error: any) {
