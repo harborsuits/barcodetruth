@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import * as React from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Bell, BellOff, Bookmark, Package, Share2 } from "lucide-react";
+import { ArrowLeft, Bell, BellOff, Bookmark, Package, Share2, AlertCircle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -759,8 +759,8 @@ export default function ScanResult() {
           <>
             {/* Product + Brand Info */}
             <Card 
-              className="cursor-pointer hover:bg-accent/5 transition-colors"
-              onClick={() => navigate(`/brand/${product.brand_id}`)}
+              className={brandInfo ? "cursor-pointer hover:bg-accent/5 transition-colors" : ""}
+              onClick={() => brandInfo && navigate(`/brand/${product.brand_id}`)}
             >
               <CardContent className="pt-6 space-y-4">
                 <div className="flex items-start justify-between gap-3">
@@ -768,9 +768,11 @@ export default function ScanResult() {
                     <h2 className="text-lg font-semibold">{product.name}</h2>
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-[var(--muted)]">
-                        {brandData?.name || brandInfo?.name || 'Loading brand...'}
+                        {brandData?.name || brandInfo?.name || (
+                          product.brand_id ? 'Brand profile building...' : 'Brand unknown'
+                        )}
                       </p>
-                      {(brandData || brandInfo) && (
+                      {brandInfo && (
                         <OwnershipDrawer 
                           brandId={product.brand_id} 
                           brandName={brandData?.name || brandInfo?.name || ''} 
@@ -785,16 +787,29 @@ export default function ScanResult() {
 
                 {currentBrandData ? (
                   <ValueFitBar score={currentBrandData.valueFit} showExplainer />
-                ) : (
+                ) : brandInfo ? (
                   <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
                     <Package className="h-4 w-4" />
                     Scores coming soon
                   </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-sm text-amber-600">
+                    <AlertCircle className="h-4 w-4" />
+                    {product.brand_id ? 'Building brand profile...' : 'No brand data available'}
+                  </div>
                 )}
 
-                <p className="text-xs text-muted-foreground text-center">
-                  Tap to view full brand profile →
-                </p>
+                {brandInfo ? (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Tap to view full brand profile →
+                  </p>
+                ) : (
+                  <div className="flex gap-2 justify-center">
+                    <Button variant="outline" size="sm" onClick={() => navigate('/search')}>
+                      Search Brands
+                    </Button>
+                  </div>
+                )}
 
               </CardContent>
             </Card>
