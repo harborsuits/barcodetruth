@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -6,10 +6,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, ExternalLink, AlertCircle, Building2, Loader2 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { ArrowLeft, ExternalLink, AlertCircle, Building2, Loader2, ShieldCheck } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBrandLogo } from '@/hooks/useBrandLogo';
 import { useAutoEnrichment } from '@/hooks/useAutoEnrichment';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { useToast } from '@/hooks/use-toast';
 import { isUUID } from '@/lib/utils';
 
 // V1 Consumer Contract:
@@ -268,6 +270,10 @@ function EvidenceList({ brandId }: { brandId: string }) {
 export default function BrandProfileV1() {
   const { id, brandId } = useParams<{ id?: string; brandId?: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const isAdmin = useIsAdmin();
+  const [verifying, setVerifying] = useState(false);
   const slugOrId = id || brandId;
   const isUuidRoute = isUUID(slugOrId);
   
@@ -323,6 +329,40 @@ export default function BrandProfileV1() {
       return data;
     }
   });
+
+  // Admin action: Mark identity verified
+  const markIdentityVerified = async () => {
+    if (!resolvedBrandId) return;
+    setVerifying(true);
+    try {
+      const { error } = await supabase
+        .from('brands')
+        .update({
+          identity_confidence: 'high',
+          identity_notes: 'manual_verified',
+          status: 'ready'
+        })
+        .eq('id', resolvedBrandId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: 'Identity verified',
+        description: 'Brand identity marked as verified. Description now visible.',
+      });
+      
+      // Refresh brand data
+      queryClient.invalidateQueries({ queryKey: ['brand-v1', slugOrId] });
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to verify identity',
+        variant: 'destructive'
+      });
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   // Loading state
   if (brandLoading) {
@@ -412,6 +452,24 @@ export default function BrandProfileV1() {
                     <AlertCircle className="h-3 w-3" />
                     {brand.identity_notes}
                   </p>
+                )}
+                
+                {/* Admin: Mark identity verified button */}
+                {isAdmin && brand.identity_confidence === 'low' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={markIdentityVerified}
+                    disabled={verifying}
+                  >
+                    {verifying ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <ShieldCheck className="h-4 w-4 mr-2" />
+                    )}
+                    Mark Identity Verified
+                  </Button>
                 )}
               </div>
             </div>
