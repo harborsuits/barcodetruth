@@ -166,6 +166,12 @@ Deno.serve(async (req) => {
     }
     console.log('[STEP 8e] Brand found:', brand.name);
 
+    // Set status to 'building' at start of enrichment
+    await supabase
+      .from('brands')
+      .update({ status: 'building' })
+      .eq('id', brand_id);
+    log('Set brand status to building');
     // Validate brand has a name
     if (!brand.name || brand.name.trim() === '') {
       err('Brand has no name:', { brand_id, name: brand.name });
@@ -541,22 +547,57 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Mark brand as 'ready' after successful enrichment
+    await supabase
+      .from('brands')
+      .update({ 
+        status: 'ready', 
+        built_at: new Date().toISOString(),
+        last_build_error: null 
+      })
+      .eq('id', brand_id);
+    
+    log('Brand status set to ready');
+    result.status = 'ready';
+
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('[STEP ERROR] Function crashed:', error);
-    console.error('[STEP ERROR] Error message:', error instanceof Error ? error.message : 'Unknown');
-    console.error('[STEP ERROR] Error stack:', error instanceof Error ? error.stack : 'No stack');
     err('Error in enrich-brand-wiki:', error);
-    return new Response(JSON.stringify({ 
-      ok: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      message: 'Function crashed - check logs for [STEP X] to see where it failed'
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    
+    // Try to mark brand as 'failed' if we have brand_id
+    try {
+      const bodyText = await req.clone().text();
+      const body = JSON.parse(bodyText || '{}');
+      if (body.brand_id) {
+        const failSupabase = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        );
+        await failSupabase
+          .from('brands')
+          .update({ 
+            status: 'failed', 
+            last_build_error: error instanceof Error ? error.message : 'Unknown error'
+          })
+          .eq('id', body.brand_id);
+      }
+    } catch (_e) {
+      // Ignore errors in error handler
+    }
+    
+    return new Response(
+      JSON.stringify({ 
+        ok: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        message: 'Function crashed - check logs'
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 });
