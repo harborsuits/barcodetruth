@@ -179,6 +179,7 @@ export default function ScanResult() {
         .from('brand_scores')
         .select('score_labor, score_environment, score_politics, score_social')
         .eq('brand_id', product!.brand_id)
+        .limit(1)
         .maybeSingle();
       if (error) return null;
       return data as BrandScores | null;
