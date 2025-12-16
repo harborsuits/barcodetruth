@@ -423,6 +423,7 @@ export default function BrandProfile() {
         .from('user_profiles')
         .select('cares_labor, cares_environment, cares_politics, cares_social')
         .eq('user_id', user.id)
+        .limit(1)
         .maybeSingle();
       return data;
     },
