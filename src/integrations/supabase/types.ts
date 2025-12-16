@@ -1981,6 +1981,7 @@ export type Database = {
       brands: {
         Row: {
           aliases: string[] | null
+          built_at: string | null
           company_size: string | null
           created_at: string
           description: string | null
@@ -1990,6 +1991,7 @@ export type Database = {
           ingestion_frequency: string | null
           is_active: boolean | null
           is_test: boolean
+          last_build_error: string | null
           last_ingestion_status: string | null
           last_news_ingestion: string | null
           logo_attribution: string | null
@@ -2004,6 +2006,7 @@ export type Database = {
           parent_company: string | null
           push_paused: boolean
           slug: string
+          status: string | null
           ticker: string | null
           updated_at: string
           website: string | null
@@ -2011,6 +2014,7 @@ export type Database = {
         }
         Insert: {
           aliases?: string[] | null
+          built_at?: string | null
           company_size?: string | null
           created_at?: string
           description?: string | null
@@ -2020,6 +2024,7 @@ export type Database = {
           ingestion_frequency?: string | null
           is_active?: boolean | null
           is_test?: boolean
+          last_build_error?: string | null
           last_ingestion_status?: string | null
           last_news_ingestion?: string | null
           logo_attribution?: string | null
@@ -2034,6 +2039,7 @@ export type Database = {
           parent_company?: string | null
           push_paused?: boolean
           slug: string
+          status?: string | null
           ticker?: string | null
           updated_at?: string
           website?: string | null
@@ -2041,6 +2047,7 @@ export type Database = {
         }
         Update: {
           aliases?: string[] | null
+          built_at?: string | null
           company_size?: string | null
           created_at?: string
           description?: string | null
@@ -2050,6 +2057,7 @@ export type Database = {
           ingestion_frequency?: string | null
           is_active?: boolean | null
           is_test?: boolean
+          last_build_error?: string | null
           last_ingestion_status?: string | null
           last_news_ingestion?: string | null
           logo_attribution?: string | null
@@ -2064,6 +2072,7 @@ export type Database = {
           parent_company?: string | null
           push_paused?: boolean
           slug?: string
+          status?: string | null
           ticker?: string | null
           updated_at?: string
           website?: string | null
