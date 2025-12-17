@@ -318,16 +318,17 @@ export default function BrandProfile() {
           verification,
           description,
           ai_summary,
-          event_sources!inner(source_name, canonical_url)
+          source_url
         `)
         .eq('brand_id', resolvedBrandId)
+        .eq('is_irrelevant', false)
         .gte('event_date', ninetyDaysAgo)
         .order('event_date', { ascending: false })
         .limit(50);
       
       if (error) throw error;
       
-      // Transform to match expected structure
+      // Transform to match expected structure - use source_url directly
       return (data || []).map(event => ({
         event_id: event.event_id,
         title: event.title,
@@ -336,8 +337,8 @@ export default function BrandProfile() {
         category_code: event.category_code,
         verification: event.verification,
         ai_summary: event.ai_summary,
-        source_name: event.event_sources?.[0]?.source_name || null,
-        canonical_url: event.event_sources?.[0]?.canonical_url || null
+        source_name: event.source_url ? new URL(event.source_url).hostname.replace('www.', '') : null,
+        canonical_url: event.source_url || null
       }));
     }
   });
