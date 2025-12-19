@@ -302,6 +302,7 @@ export default function BrandProfile() {
   });
 
   // DIRECT QUERY: Brand events/evidence (use resolved UUID)
+  // Two-lane approach: fetch ALL events (relevant + irrelevant) so UI can show both lanes
   const { data: evidence, isLoading: evidenceLoading } = useQuery({
     queryKey: ['brand-evidence-direct', resolvedBrandId, refreshKey],
     enabled: !!resolvedBrandId,
@@ -318,32 +319,47 @@ export default function BrandProfile() {
           verification,
           description,
           ai_summary,
-          source_url
+          source_url,
+          is_irrelevant,
+          noise_reason
         `)
         .eq('brand_id', resolvedBrandId)
-        .eq('is_irrelevant', false)
         .gte('event_date', ninetyDaysAgo)
         .order('event_date', { ascending: false })
-        .limit(50);
+        .limit(100);
       
       if (error) throw error;
       
       // Transform to match expected structure - use source_url directly
-      return (data || []).map(event => ({
-        event_id: event.event_id,
-        title: event.title,
-        event_date: event.event_date,
-        category: event.category,
-        category_code: event.category_code,
-        verification: event.verification,
-        ai_summary: event.ai_summary,
-        source_name: event.source_url ? new URL(event.source_url).hostname.replace('www.', '') : null,
-        canonical_url: event.source_url || null
-      }));
+      return (data || []).map(event => {
+        let sourceName = null;
+        if (event.source_url) {
+          try {
+            sourceName = new URL(event.source_url).hostname.replace('www.', '');
+          } catch {
+            sourceName = 'Unknown source';
+          }
+        }
+        return {
+          event_id: event.event_id,
+          title: event.title,
+          event_date: event.event_date,
+          category: event.category,
+          // For irrelevant items, ensure they get NOISE category code for proper UI grouping
+          category_code: event.is_irrelevant && !event.category_code?.startsWith('NOISE') 
+            ? 'NOISE.FILTERED' 
+            : event.category_code,
+          verification: event.verification,
+          ai_summary: event.ai_summary,
+          source_name: sourceName,
+          canonical_url: event.source_url || null,
+          noise_reason: event.noise_reason || (event.is_irrelevant ? 'Marked as low relevance' : null)
+        };
+      });
     }
   });
 
-  // Calculate coverage stats from evidence
+  // Calculate coverage stats from evidence (only count relevant events for stats)
   const coverage = useMemo(() => {
     if (!evidence) return {
       events_7d: 0,
@@ -355,21 +371,24 @@ export default function BrandProfile() {
       last_event_at: null
     };
 
+    // Filter to only relevant events for coverage stats
+    const relevantEvidence = evidence.filter(e => !e.category_code?.startsWith('NOISE'));
+    
     const now = Date.now();
     const day7 = now - 7 * 24 * 60 * 60 * 1000;
     const day30 = now - 30 * 24 * 60 * 60 * 1000;
     const day90 = now - 90 * 24 * 60 * 60 * 1000;
     
-    const events7d = evidence.filter(e => new Date(e.event_date).getTime() >= day7).length;
-    const events30d = evidence.filter(e => new Date(e.event_date).getTime() >= day30).length;
-    const events90d = evidence.length;
+    const events7d = relevantEvidence.filter(e => new Date(e.event_date).getTime() >= day7).length;
+    const events30d = relevantEvidence.filter(e => new Date(e.event_date).getTime() >= day30).length;
+    const events90d = relevantEvidence.length;
     
-    const verified = evidence.filter(e => e.verification === 'official').length;
+    const verified = relevantEvidence.filter(e => e.verification === 'official').length;
     const verifiedRate = events90d > 0 ? verified / events90d : 0;
     
-    const uniqueSources = new Set(evidence.map(e => e.source_name).filter(Boolean)).size;
+    const uniqueSources = new Set(relevantEvidence.map(e => e.source_name).filter(Boolean)).size;
     
-    const lastEvent = evidence.length > 0 ? evidence[0].event_date : null;
+    const lastEvent = relevantEvidence.length > 0 ? relevantEvidence[0].event_date : null;
 
     return {
       events_7d: events7d,

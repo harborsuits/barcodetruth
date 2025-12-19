@@ -230,6 +230,24 @@ export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
         </div>
       )}
 
+      {/* Two-lane summary when showing all */}
+      {categoryFilter === 'all' && evidence.length > 0 && (
+        <div className="flex gap-4 text-xs">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 rounded-full">
+            <span className="w-2 h-2 rounded-full bg-primary" />
+            <span className="text-primary font-medium">
+              {evidence.filter(e => !e.category_code?.startsWith('NOISE')).length} verified mentions
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-muted rounded-full">
+            <span className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+            <span className="text-muted-foreground">
+              {evidence.filter(e => e.category_code?.startsWith('NOISE')).length} other coverage
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Evidence list with semantic structure */}
       {!displayedEvidence.length ? (
         <div className="text-center py-12 text-muted-foreground">
