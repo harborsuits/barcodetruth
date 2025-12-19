@@ -1031,11 +1031,13 @@ export type Database = {
           category: Database["public"]["Enums"]["event_category"]
           category_code: string | null
           category_confidence: number | null
+          category_impacts: Json | null
           category_score: number | null
           company_response_date: string | null
           company_response_summary: string | null
           company_response_url: string | null
           created_at: string
+          credibility: number | null
           description: string
           disambiguation_reason: string | null
           event_date: string | null
@@ -1066,6 +1068,7 @@ export type Database = {
           title: string | null
           updated_at: string
           verification: Database["public"]["Enums"]["verification_level"] | null
+          verification_factor: number | null
           verified: boolean | null
         }
         Insert: {
@@ -1076,11 +1079,13 @@ export type Database = {
           category?: Database["public"]["Enums"]["event_category"]
           category_code?: string | null
           category_confidence?: number | null
+          category_impacts?: Json | null
           category_score?: number | null
           company_response_date?: string | null
           company_response_summary?: string | null
           company_response_url?: string | null
           created_at?: string
+          credibility?: number | null
           description: string
           disambiguation_reason?: string | null
           event_date?: string | null
@@ -1113,6 +1118,7 @@ export type Database = {
           verification?:
             | Database["public"]["Enums"]["verification_level"]
             | null
+          verification_factor?: number | null
           verified?: boolean | null
         }
         Update: {
@@ -1123,11 +1129,13 @@ export type Database = {
           category?: Database["public"]["Enums"]["event_category"]
           category_code?: string | null
           category_confidence?: number | null
+          category_impacts?: Json | null
           category_score?: number | null
           company_response_date?: string | null
           company_response_summary?: string | null
           company_response_url?: string | null
           created_at?: string
+          credibility?: number | null
           description?: string
           disambiguation_reason?: string | null
           event_date?: string | null
@@ -1160,6 +1168,7 @@ export type Database = {
           verification?:
             | Database["public"]["Enums"]["verification_level"]
             | null
+          verification_factor?: number | null
           verified?: boolean | null
         }
         Relationships: [
@@ -1981,9 +1990,12 @@ export type Database = {
       brands: {
         Row: {
           aliases: string[] | null
+          baseline_vector: Json | null
           built_at: string | null
           canonical_domain: string | null
           company_size: string | null
+          confidence_notes: string | null
+          confidence_overall: number | null
           created_at: string
           description: string | null
           description_lang: string | null
@@ -2004,6 +2016,7 @@ export type Database = {
           logo_url: string | null
           monitoring_config: Json | null
           name: string
+          news_vector_cache: Json | null
           newsroom_domains: string[] | null
           norm_name: string | null
           parent_company: string | null
@@ -2017,9 +2030,12 @@ export type Database = {
         }
         Insert: {
           aliases?: string[] | null
+          baseline_vector?: Json | null
           built_at?: string | null
           canonical_domain?: string | null
           company_size?: string | null
+          confidence_notes?: string | null
+          confidence_overall?: number | null
           created_at?: string
           description?: string | null
           description_lang?: string | null
@@ -2040,6 +2056,7 @@ export type Database = {
           logo_url?: string | null
           monitoring_config?: Json | null
           name: string
+          news_vector_cache?: Json | null
           newsroom_domains?: string[] | null
           norm_name?: string | null
           parent_company?: string | null
@@ -2053,9 +2070,12 @@ export type Database = {
         }
         Update: {
           aliases?: string[] | null
+          baseline_vector?: Json | null
           built_at?: string | null
           canonical_domain?: string | null
           company_size?: string | null
+          confidence_notes?: string | null
+          confidence_overall?: number | null
           created_at?: string
           description?: string | null
           description_lang?: string | null
@@ -2076,6 +2096,7 @@ export type Database = {
           logo_url?: string | null
           monitoring_config?: Json | null
           name?: string
+          news_vector_cache?: Json | null
           newsroom_domains?: string[] | null
           norm_name?: string | null
           parent_company?: string | null
@@ -5284,12 +5305,14 @@ export type Database = {
           cares_politics: number
           cares_social: number
           created_at: string | null
+          dealbreakers: Json | null
           id: string
           location: string | null
           pref_environment: boolean | null
           pref_labor: boolean | null
           pref_politics: boolean | null
           pref_social: boolean | null
+          preference_mode: string | null
           updated_at: string | null
           user_id: string
         }
@@ -5300,12 +5323,14 @@ export type Database = {
           cares_politics?: number
           cares_social?: number
           created_at?: string | null
+          dealbreakers?: Json | null
           id?: string
           location?: string | null
           pref_environment?: boolean | null
           pref_labor?: boolean | null
           pref_politics?: boolean | null
           pref_social?: boolean | null
+          preference_mode?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -5316,12 +5341,14 @@ export type Database = {
           cares_politics?: number
           cares_social?: number
           created_at?: string | null
+          dealbreakers?: Json | null
           id?: string
           location?: string | null
           pref_environment?: boolean | null
           pref_labor?: boolean | null
           pref_politics?: boolean | null
           pref_social?: boolean | null
+          preference_mode?: string | null
           updated_at?: string | null
           user_id?: string
         }
