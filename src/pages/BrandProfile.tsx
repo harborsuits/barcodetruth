@@ -41,6 +41,7 @@ import { ValueMatchCard } from '@/components/ValueMatchCard';
 import { getUserPreferences } from '@/lib/userPreferences';
 import { DataHealthBadge } from '@/components/DataHealthBadge';
 import { AlternativeCard } from '@/components/brand/AlternativeCard';
+import { DraftDescriptionCard } from '@/components/brand/DraftDescriptionCard';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { isUUID } from '@/lib/utils';
 import { usePersonalizedScore } from '@/hooks/usePersonalizedScore';
@@ -125,7 +126,7 @@ type BrandProfile = {
   }>;
 };
 
-// Logo component with instant fallback
+// Logo component with instant fallback and proper referrer handling
 function BrandLogoWithFallback({ 
   logoUrl, 
   website, 
@@ -138,14 +139,23 @@ function BrandLogoWithFallback({
   monogram: string;
 }) {
   const displayLogo = useBrandLogo(logoUrl || null, website);
+  const [isBroken, setIsBroken] = useState(false);
   
-  if (displayLogo) {
+  // Reset broken state when logo changes
+  useEffect(() => {
+    setIsBroken(false);
+  }, [displayLogo]);
+  
+  if (displayLogo && !isBroken) {
     return (
       <img 
         src={displayLogo} 
         alt={`${brandName} logo`}
         className="w-16 h-16 rounded-2xl border-2 object-contain bg-muted flex-shrink-0 p-2"
         loading="lazy"
+        referrerPolicy="no-referrer"
+        crossOrigin="anonymous"
+        onError={() => setIsBroken(true)}
       />
     );
   }
@@ -720,33 +730,61 @@ export default function BrandProfile() {
                   </a>
                 )}
                 
-                {/* Wikipedia description */}
-                {data.brand.description ? (
-                  <div className="mt-3 text-sm text-muted-foreground leading-relaxed">
-                    <p>
-                      {data.brand.description.length > 200 
-                        ? `${data.brand.description.substring(0, 200)}...` 
-                        : data.brand.description}
-                    </p>
-                    {data.brand.description_source === 'wikipedia' && (
-                      <a
-                        href={`https://en.wikipedia.org/wiki/${encodeURIComponent(data.brand.name)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
-                      >
-                        Source: Wikipedia <ExternalLink className="h-3 w-3" />
-                      </a>
-                    )}
-                  </div>
-                ) : (
-                  <div className="mt-3">
-                    <ManualEnrichButton 
-                      brandId={resolvedBrandId}
-                      brandName={displayBrandName}
-                    />
-                  </div>
-                )}
+                {/* Wikipedia description - conditional on identity confidence */}
+                {(() => {
+                  const identityConfidence = brandInfo?.identity_confidence;
+                  const hasDescription = !!data.brand.description;
+                  const isVerified = identityConfidence === 'high' || identityConfidence === 'medium';
+                  
+                  // Case 1: Has verified description - show it publicly
+                  if (hasDescription && isVerified) {
+                    return (
+                      <div className="mt-3 text-sm text-muted-foreground leading-relaxed">
+                        <p>
+                          {data.brand.description!.length > 200 
+                            ? `${data.brand.description!.substring(0, 200)}...` 
+                            : data.brand.description}
+                        </p>
+                        {data.brand.description_source === 'wikipedia' && (
+                          <a
+                            href={`https://en.wikipedia.org/wiki/${encodeURIComponent(data.brand.name)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
+                          >
+                            Source: Wikipedia <ExternalLink className="h-3 w-3" />
+                          </a>
+                        )}
+                      </div>
+                    );
+                  }
+                  
+                  // Case 2: Has unverified description - show draft preview (admin can see full, non-admin sees notice)
+                  if (hasDescription && !isVerified) {
+                    return (
+                      <div className="mt-3">
+                        <DraftDescriptionCard
+                          brandId={resolvedBrandId!}
+                          brandName={displayBrandName}
+                          description={data.brand.description!}
+                          descriptionSource={data.brand.description_source}
+                          wikidataQid={brandInfo?.wikidata_qid}
+                          isAdmin={isAdmin}
+                        />
+                      </div>
+                    );
+                  }
+                  
+                  // Case 3: No description - show enrich button
+                  return (
+                    <div className="mt-3">
+                      <ManualEnrichButton 
+                        brandId={resolvedBrandId}
+                        brandName={displayBrandName}
+                      />
+                    </div>
+                  );
+                })()}
                 
                 {/* Data Health Badge */}
                 <div className="mt-4">

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useBrandLogo } from '@/hooks/useBrandLogo';
 import { cn } from '@/lib/utils';
 
@@ -22,18 +23,24 @@ export function LogoDisplay({
   size = 'md', 
   className 
 }: LogoDisplayProps) {
+  const [isBroken, setIsBroken] = useState(false);
   const displayLogo = useBrandLogo(logoUrl, website, brandName);
   
-  if (displayLogo) {
+  // Reset broken state when logo URL changes
+  useEffect(() => {
+    setIsBroken(false);
+  }, [displayLogo]);
+  
+  if (displayLogo && !isBroken) {
     return (
       <img 
         src={displayLogo} 
         alt={`${brandName} logo`}
         className={cn('object-contain', sizeClasses[size], className)}
-        onError={(e) => {
-          // Hide broken images
-          e.currentTarget.style.display = 'none';
-        }}
+        referrerPolicy="no-referrer"
+        crossOrigin="anonymous"
+        onError={() => setIsBroken(true)}
+        loading="lazy"
       />
     );
   }
