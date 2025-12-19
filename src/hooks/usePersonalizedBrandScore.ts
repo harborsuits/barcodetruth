@@ -4,13 +4,10 @@ import {
   computePersonalizedScore,
   computeCategoryScores,
   normalizeWeights,
-  getVerificationFactor,
-  getSeverityValue,
   type CategoryVector,
   type UserWeights,
   type Dealbreakers,
   type ScoringResult,
-  type EventScore,
 } from "@/lib/personalizedScoring";
 
 interface UserPreferences {
@@ -68,32 +65,8 @@ async function fetchBrandVectors(brandId: string): Promise<BrandVectors | null> 
   };
 }
 
-/**
- * Fetch recent events for real-time scoring (fallback when cache is stale)
- */
-async function fetchRecentEvents(brandId: string, days = 90): Promise<EventScore[]> {
-  const since = new Date();
-  since.setDate(since.getDate() - days);
-
-  const { data, error } = await supabase
-    .from('brand_events')
-    .select('category_impacts, severity, credibility, verification_factor, verification, event_date, created_at')
-    .eq('brand_id', brandId)
-    .gte('created_at', since.toISOString())
-    .eq('is_irrelevant', false)
-    .order('created_at', { ascending: false })
-    .limit(100);
-
-  if (error || !data) return [];
-
-  return data.map(e => ({
-    category_impacts: (e.category_impacts as Partial<CategoryVector>) || {},
-    severity: e.severity ? getSeverityValue(e.severity) : 0.5,
-    credibility: e.credibility ?? 0.5,
-    verification_factor: e.verification_factor ?? getVerificationFactor(e.verification),
-    event_date: e.event_date || e.created_at,
-  }));
-}
+// Note: Real-time event fetching moved to server-side edge function
+// Client uses cached news_vector_cache for performance
 
 /**
  * Main hook: compute personalized score for a user-brand pair

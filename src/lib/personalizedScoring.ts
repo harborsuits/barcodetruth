@@ -52,10 +52,10 @@ export interface ScoringResult {
   dealbreaker: { triggered: boolean; category?: Category; threshold?: number };
 }
 
-// Constants
-const HALF_LIFE_DAYS = 45;
-const SCORE_SCALE_K = 1.0;
-const CATEGORIES: Category[] = ['labor', 'environment', 'politics', 'social'];
+// Constants - exported for use across the app
+export const HALF_LIFE_DAYS = 45;
+export const SCORE_SCALE_K = 1.0;
+export const CATEGORIES: Category[] = ['labor', 'environment', 'politics', 'social'];
 
 /**
  * Calculate recency decay factor using exponential decay
