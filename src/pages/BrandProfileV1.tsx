@@ -13,6 +13,7 @@ import { useAutoEnrichment } from '@/hooks/useAutoEnrichment';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useToast } from '@/hooks/use-toast';
 import { isUUID } from '@/lib/utils';
+import { PersonalizedScoreDisplay } from '@/components/brand/PersonalizedScoreDisplay';
 
 // V1 Consumer Contract:
 // Card 1: Header (name, logo, description)
@@ -503,13 +504,14 @@ export default function BrandProfileV1() {
           </CardContent>
         </Card>
 
-        {/* Card 3: Score */}
-        <Card>
-          <CardContent className="pt-6">
-            <h2 className="text-lg font-semibold mb-3">Should I care?</h2>
-            <ScoreDisplay score={scoreData?.score ?? null} />
-          </CardContent>
-        </Card>
+        {/* Card 3: Personalized Score */}
+        {resolvedBrandId && (
+          <PersonalizedScoreDisplay 
+            brandId={resolvedBrandId} 
+            brandName={brand.name}
+            identityConfidence={brand.identity_confidence}
+          />
+        )}
 
         {/* Card 4: Evidence */}
         <Card>
