@@ -90,8 +90,8 @@ export function useTopScoringEvents(brandId: string | undefined, limit = 5) {
         })
         .map(e => {
           const impacts = e.category_impacts as Record<string, number>;
-          const verificationFactor = (e.verification_factor as number) ?? 1.0;
-          const credibility = (e.credibility as number) ?? 1.0;
+          const verificationFactor = (e.verification_factor as number) ?? 0.5;
+          const credibility = (e.credibility as number) ?? 0.5;
           const displayDate = e.event_date || e.created_at;
           const recencyDecay = getRecencyDecay(displayDate);
           
