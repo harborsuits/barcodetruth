@@ -184,3 +184,6 @@ verify_jwt = false
 
 [functions.recompute-brand-vectors]
 verify_jwt = false
+
+[functions.backfill-event-impacts]
+verify_jwt = false

@@ -163,38 +163,90 @@ Deno.serve(async (req) => {
     const hasNegative = negativeSignals.some(sig => textLower.includes(sig));
     
     let orientation: 'positive' | 'negative' | 'mixed' = 'mixed';
-    let impact = -3; // Default neutral/mixed impact
     
+    // Determine base impact magnitude based on severity signals
+    // NOTE: DB constraint requires 'minor'/'moderate'/'severe'
+    const severitySignals = {
+      severe: ["death", "explosion", "fatal", "mass casualty", "criminal charges", "indictment", "recall", "contamination"],
+      moderate: ["lawsuit", "fine", "penalty", "violation", "investigation", "complaint", "dispute", "backlash", "criticism", "alleged", "accused"],
+      minor: ["settlement", "resolved", "clarification", "minor"]
+    };
+    
+    let severity: 'minor' | 'moderate' | 'severe' = 'moderate';
+    if (severitySignals.severe.some(s => textLower.includes(s))) severity = 'severe';
+    else if (severitySignals.minor.some(s => textLower.includes(s))) severity = 'minor';
+    
+    // Map severity to numeric (0-1)
+    const severityMap: Record<string, number> = { minor: 0.3, moderate: 0.5, severe: 1.0 };
+    const severityNumeric = severityMap[severity];
+    
+    // Determine impact magnitude (in [-1, +1] range)
+    let impactMagnitude = 0;
     if (primary === "noise") {
       orientation = 'mixed';
-      impact = 0;
+      impactMagnitude = 0;
     } else if (hasNegative && !hasPositive) {
       orientation = 'negative';
-      impact = -5;
+      impactMagnitude = -0.5 * severityNumeric; // Scale by severity, max -0.5 for single event
     } else if (hasPositive && !hasNegative) {
       orientation = 'positive';
-      impact = 3;
+      impactMagnitude = 0.3 * severityNumeric; // Positive news is less impactful
+    } else {
+      // Mixed or unclear
+      impactMagnitude = -0.1 * severityNumeric; // Slight negative bias for uncertainty
     }
     
+    // Build category_impacts JSONB (the canonical scoring field)
+    const categoryImpacts: Record<string, number> = {
+      labor: simpleCategory === "labor" ? impactMagnitude : 0,
+      environment: simpleCategory === "environment" ? impactMagnitude : 0,
+      politics: simpleCategory === "politics" ? impactMagnitude : 0,
+      social: simpleCategory === "social" ? impactMagnitude : 0,
+    };
+    
+    // Add secondary category impacts at reduced weight
+    for (const sec of secondary) {
+      const secSimple = simpleCategoryMap[categoryCodeMap[sec] || ""] || null;
+      if (secSimple && secSimple !== simpleCategory && categoryImpacts[secSimple] !== undefined) {
+        categoryImpacts[secSimple] = impactMagnitude * 0.3; // 30% weight for secondary
+      }
+    }
+    
+    // Determine credibility based on domain
+    const highCredDomains = ["reuters.com", "apnews.com", "bbc.com", "npr.org", "nytimes.com", "washingtonpost.com"];
+    const officialDomains = [".gov", "sec.gov", "epa.gov", "fda.gov", "osha.gov", "nlrb.gov"];
+    let credibility = 0.6; // default
+    if (officialDomains.some(d => domain.includes(d))) credibility = 1.0;
+    else if (highCredDomains.some(d => domain.includes(d))) credibility = 0.9;
+    
+    // Determine verification_factor (default: unverified)
+    // This should be updated by corroboration system later
+    const verificationFactor = 0.5; // "other_coverage" default
+    
+    // Legacy impact columns (kept for compatibility)
     const impactScores = {
-      impact_labor: simpleCategory === "labor" ? impact : 0,
-      impact_environment: simpleCategory === "environment" ? impact : 0,
-      impact_politics: simpleCategory === "politics" ? impact : 0,
-      impact_social: simpleCategory === "social" ? impact : 0,
+      impact_labor: Math.round((categoryImpacts.labor || 0) * 10),
+      impact_environment: Math.round((categoryImpacts.environment || 0) * 10),
+      impact_politics: Math.round((categoryImpacts.politics || 0) * 10),
+      impact_social: Math.round((categoryImpacts.social || 0) * 10),
     };
 
     // persist to brand_events
     const { error: updateError } = await supabase
       .from("brand_events")
       .update({
-        category: simpleCategory,          // ← FIX: populate enum column for scorer
-        category_code: finalCategoryCode,  // Keep detailed code
+        category: simpleCategory,
+        category_code: finalCategoryCode,
         category_confidence: confidence,
         secondary_categories: secondary,
-        orientation,                        // ← FIX: set orientation
-        is_irrelevant: primary === "noise", // ← FIX: mark noise as irrelevant
+        orientation,
+        is_irrelevant: primary === "noise",
         noise_reason: primary === "noise" ? "Stock tips/market chatter" : null,
-        ...impactScores,                    // ← FIX: set correct impact scores
+        severity,
+        credibility,
+        verification_factor: verificationFactor,
+        category_impacts: categoryImpacts, // ← THE KEY FIELD for scoring
+        ...impactScores,
       })
       .eq("event_id", event_id)
       .eq("brand_id", brand_id);
