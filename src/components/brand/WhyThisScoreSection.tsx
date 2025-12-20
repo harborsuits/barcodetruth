@@ -35,9 +35,9 @@ function getSeverityBadge(severity: string | null) {
   }
 }
 
-function getVerificationIcon(verification: string | null) {
-  switch (verification) {
-    case 'official':
+function getVerificationIcon(verificationLabel: string) {
+  switch (verificationLabel) {
+    case 'verified':
       return <CheckCircle className="h-3 w-3 text-success" />;
     case 'corroborated':
       return <CheckCircle className="h-3 w-3 text-muted-foreground" />;
@@ -82,8 +82,8 @@ function EventImpactRow({ event }: { event: TopScoringEvent }) {
           {getSeverityBadge(event.severity)}
           
           <span className="flex items-center gap-1">
-            {getVerificationIcon(event.verification)}
-            <span className="capitalize">{event.verification || 'unverified'}</span>
+            {getVerificationIcon(event.verification_label)}
+            <span className="capitalize">{event.verification_label}</span>
           </span>
           
           <span>
