@@ -2017,6 +2017,7 @@ export type Database = {
           monitoring_config: Json | null
           name: string
           news_vector_cache: Json | null
+          news_vector_updated_at: string | null
           newsroom_domains: string[] | null
           norm_name: string | null
           parent_company: string | null
@@ -2057,6 +2058,7 @@ export type Database = {
           monitoring_config?: Json | null
           name: string
           news_vector_cache?: Json | null
+          news_vector_updated_at?: string | null
           newsroom_domains?: string[] | null
           norm_name?: string | null
           parent_company?: string | null
@@ -2097,6 +2099,7 @@ export type Database = {
           monitoring_config?: Json | null
           name?: string
           news_vector_cache?: Json | null
+          news_vector_updated_at?: string | null
           newsroom_domains?: string[] | null
           norm_name?: string | null
           parent_company?: string | null

@@ -85,6 +85,9 @@ serve(async (req) => {
     const { brandId, batchSize = 100 } = await req.json().catch(() => ({}));
     const since = new Date();
     since.setDate(since.getDate() - LOOKBACK_DAYS);
+    
+    // Staleness threshold: 24 hours
+    const staleThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
     let brandsToUpdate: string[] = [];
 
@@ -92,11 +95,13 @@ serve(async (req) => {
       // Single brand update
       brandsToUpdate = [brandId];
     } else {
-      // Batch: get brands that need updates (stale or null news_vector_cache)
+      // Batch: get brands that need updates (stale or null news_vector_updated_at)
+      // Using dedicated timestamp instead of updated_at to avoid false staleness from unrelated edits
       const { data: brands, error: brandsError } = await supabase
         .from('brands')
         .select('id')
-        .or(`news_vector_cache.is.null,updated_at.lt.${new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()}`)
+        .eq('is_active', true)
+        .or(`news_vector_updated_at.is.null,news_vector_updated_at.lt.${staleThreshold}`)
         .limit(batchSize);
 
       if (brandsError) throw brandsError;
@@ -133,12 +138,12 @@ serve(async (req) => {
         // Compute the news vector
         const newsVector = computeNewsVector(events || []);
 
-        // Update the brand
+        // Update the brand with dedicated staleness timestamp
         const { error: updateError } = await supabase
           .from('brands')
           .update({ 
             news_vector_cache: newsVector,
-            updated_at: new Date().toISOString()
+            news_vector_updated_at: new Date().toISOString()
           })
           .eq('id', bid);
 

@@ -47,6 +47,10 @@ async function fetchUserPreferences(userId: string): Promise<UserPreferences | n
 
 /**
  * Fetch brand vectors (baseline + news cache)
+ * 
+ * IMPORTANT: Client never aggregates events directly.
+ * The server job (recompute-brand-vectors edge function) owns the news_vector_cache.
+ * This hook only reads the pre-computed cached vectors for performance.
  */
 async function fetchBrandVectors(brandId: string): Promise<BrandVectors | null> {
   const { data, error } = await supabase
@@ -64,9 +68,6 @@ async function fetchBrandVectors(brandId: string): Promise<BrandVectors | null> 
     newsCache: (data.news_vector_cache as unknown as CategoryVector) || defaultVector,
   };
 }
-
-// Note: Real-time event fetching moved to server-side edge function
-// Client uses cached news_vector_cache for performance
 
 /**
  * Main hook: compute personalized score for a user-brand pair

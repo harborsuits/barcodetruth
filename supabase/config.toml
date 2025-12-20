@@ -181,3 +181,6 @@ verify_jwt = false
 # Brand stub processor (runs on schedule to build stubs)
 [functions.process-brand-stubs]
 verify_jwt = false
+
+[functions.recompute-brand-vectors]
+verify_jwt = false
