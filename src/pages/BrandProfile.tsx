@@ -45,7 +45,9 @@ import { DraftDescriptionCard } from '@/components/brand/DraftDescriptionCard';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { isUUID } from '@/lib/utils';
 import { usePersonalizedScore } from '@/hooks/usePersonalizedScore';
-
+import { WhyThisScoreSection } from '@/components/brand/WhyThisScoreSection';
+import { CategoryBreakdownBars } from '@/components/brand/CategoryBreakdownBars';
+import { TrustSignals } from '@/components/brand/TrustSignals';
 // Hardcoded alternatives mapping for major brands
 const BRAND_ALTERNATIVES: Record<string, Array<{
   brand_id: string;
@@ -809,6 +811,11 @@ export default function BrandProfile() {
           </Alert>
         )}
 
+        {/* Trust Signals - Quick visual indicators */}
+        {resolvedBrandId && (
+          <TrustSignals brandId={resolvedBrandId} />
+        )}
+
         {/* 2) Personalized Score Card */}
         <SectionHeader>
           How is {displayBrandName} doing overall?
@@ -817,6 +824,29 @@ export default function BrandProfile() {
           personalizedScore={personalizedScore}
           baselineScore={baselineScore}
         />
+        
+        {/* Why This Score - Evidence-backed explanation */}
+        {resolvedBrandId && (
+          <WhyThisScoreSection 
+            brandId={resolvedBrandId}
+            brandName={displayBrandName}
+            isPersonalized={!!user && !!personalizedScore}
+          />
+        )}
+        
+        {/* Category Breakdown Bars */}
+        {brandInfo?.news_vector_cache && (
+          <CategoryBreakdownBars 
+            newsVector={brandInfo.news_vector_cache as any}
+            userWeights={userPreferences ? {
+              labor: (userPreferences.cares_labor || 50) / 100,
+              environment: (userPreferences.cares_environment || 50) / 100,
+              politics: (userPreferences.cares_politics || 50) / 100,
+              social: (userPreferences.cares_social || 50) / 100,
+            } : undefined}
+            isPersonalized={!!user}
+          />
+        )}
 
         {/* Value Match Analysis - Personalized for User */}
         {userPreferences && brandScores && (
