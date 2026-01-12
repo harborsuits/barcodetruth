@@ -109,7 +109,7 @@ function FallingLogo({ logo, index, side }: FallingLogoProps) {
     const leftPosition = ((seed * 13) % 85) + 5; // 5-90% spread across full gutter
     const delay = ((seed * 17) % 80) / 10; // 0-8s delay for better staggering
     const duration = 10 + ((seed * 11) % 100) / 10; // 10-20s duration
-    const size = 20 + ((seed * 19) % 24); // 20-44px size
+    const size = 32 + ((seed * 19) % 28); // 32-60px size
     const rotation = ((seed * 23) % 30) - 15; // -15 to +15 degrees
     
     return {
