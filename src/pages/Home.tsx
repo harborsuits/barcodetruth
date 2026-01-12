@@ -1,13 +1,13 @@
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, List, Settings, Search, Shield, History } from "lucide-react";
+import { TrendingUp, List, Settings, Search, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HeroSection } from "@/components/landing/HeroSection";
+import { QuickDemo } from "@/components/landing/QuickDemo";
 import { TrendingPreview } from "@/components/landing/TrendingPreview";
 import { TrustedSources } from "@/components/landing/TrustedSources";
-import { LatestVerifications } from "@/components/landing/LatestVerifications";
 import { RecentVerifications } from "@/components/landing/RecentVerifications";
-import { TopMovers24h } from "@/components/landing/TopMovers24h";
+import { HowItWorks } from "@/components/landing/HowItWorks";
 import { AttributionFooter } from "@/components/AttributionFooter";
 import { SubscriptionBanner } from "@/components/SubscriptionBanner";
 import { WelcomeTour } from "@/components/WelcomeTour";
@@ -35,12 +35,12 @@ export const Home = () => {
 
           <TabsContent value="discover" className="space-y-8 mt-0">
             <HeroSection />
-            <SubscriptionBanner />
-            <TopMovers24h />
-            <RecentVerifications />
-            <LatestVerifications />
+            <QuickDemo />
             <TrendingPreview />
+            <RecentVerifications />
+            <HowItWorks />
             <TrustedSources />
+            <SubscriptionBanner />
             <AttributionFooter />
           </TabsContent>
 
