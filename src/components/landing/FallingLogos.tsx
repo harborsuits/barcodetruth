@@ -114,6 +114,7 @@ function FallingLogo({ logo, index, side }: FallingLogoProps) {
     
     return {
       left: `${leftPosition}%`,
+      top: "-60px",
       width: `${size}px`,
       height: `${size}px`,
       animationDelay: `${delay}s`,
@@ -124,7 +125,7 @@ function FallingLogo({ logo, index, side }: FallingLogoProps) {
 
   return (
     <div
-      className="absolute opacity-0 text-white/15 animate-logo-fall pointer-events-none"
+      className="absolute text-white/30 animate-logo-fall pointer-events-none"
       style={style}
     >
       {logo}
@@ -159,8 +160,8 @@ export function FallingLogos({ side, className = "" }: FallingLogosProps) {
     <div
       className={`fixed top-0 bottom-0 overflow-hidden pointer-events-none z-0 ${className}`}
       style={{
-        // Dynamic width: fills from edge to hero (max-w-5xl = 1024px)
-        width: "clamp(100px, calc((100vw - 1024px) / 2), 400px)",
+        // Dynamic width: fills from edge to hero content area
+        width: "clamp(80px, calc((100vw - 768px) / 2 - 16px), 400px)",
         [side]: 0,
         ...maskStyle,
       }}
