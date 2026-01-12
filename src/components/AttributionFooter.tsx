@@ -48,6 +48,13 @@ export function AttributionFooter() {
                   Methodology
                   <ExternalLink className="h-3 w-3" />
                 </a>
+                <a 
+                  href="/responsible-use" 
+                  className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                >
+                  Responsible Use
+                  <ExternalLink className="h-3 w-3" />
+                </a>
               </div>
             </div>
           </div>

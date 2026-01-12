@@ -107,26 +107,62 @@ export default function Methodology() {
 
             <p>Only verified and corroborated events affect brand confidence indicators.</p>
 
-            <h2 className="text-xl font-semibold mt-6 mb-3">5. Community Outlook (Beta)</h2>
+            <h2 className="text-xl font-semibold mt-6 mb-3">5. What We Do and Don't Know</h2>
+            <div className="bg-muted/50 rounded-lg p-4 my-4">
+              <h4 className="font-medium mb-2">We show:</h4>
+              <ul className="list-disc pl-6 space-y-1 mb-4">
+                <li>Verified news events from credible sources</li>
+                <li>Public ownership filings and SEC disclosures</li>
+                <li>Government database records (OSHA, FDA, EPA, FEC)</li>
+                <li>Documented corporate actions and legal proceedings</li>
+              </ul>
+              
+              <h4 className="font-medium mb-2">We may not show:</h4>
+              <ul className="list-disc pl-6 space-y-1 mb-4">
+                <li>Private equity layers and complex investment structures</li>
+                <li>Brand licensing arrangements vs. direct ownership</li>
+                <li>Internal company practices not publicly reported</li>
+                <li>Recent developments not yet indexed by our sources</li>
+                <li>Minority investment stakes below disclosure thresholds</li>
+              </ul>
+              
+              <h4 className="font-medium mb-2">We cannot guarantee:</h4>
+              <ul className="list-disc pl-6 space-y-1">
+                <li>Completeness of any brand's profile</li>
+                <li>Real-time accuracy of all information</li>
+                <li>That absence of events means absence of issues</li>
+              </ul>
+            </div>
+            <p className="text-sm text-muted-foreground italic">
+              This is best-effort research, not authoritative truth. Use it as one input in your decision-making.
+            </p>
+
+            <h2 className="text-xl font-semibold mt-6 mb-3">6. Community Outlook (Beta)</h2>
             <p>
               The company-level numerical scores are being replaced by <strong>Community Outlook</strong>, which aggregates how users interpret evidence across the same four pillars.
               Participants rate each pillar on a 1–5 scale ("Strongly Negative" → "Strongly Positive").
               Aggregates use Bayesian weighting to balance early data and prevent bias.
             </p>
 
-            <h2 className="text-xl font-semibold mt-6 mb-3">6. Educational Purpose</h2>
+            <h2 className="text-xl font-semibold mt-6 mb-3">7. Educational Purpose</h2>
             <p>
               BarcodeTruth is an informational tool intended to promote transparency and critical thinking.
-              It should not be interpreted as definitive corporate evaluation or endorsement.
+              <strong> It should not be interpreted as definitive corporate evaluation, investment advice, or endorsement.</strong>
+            </p>
+            <p className="mt-2">
+              For more on how to use this information responsibly, see our <a href="/responsible-use" className="text-primary hover:underline">Responsible Use Guide</a>.
             </p>
 
-            <h2 className="text-xl font-semibold mt-6 mb-3">7. Corrections & Feedback</h2>
+            <h2 className="text-xl font-semibold mt-6 mb-3">8. Corrections & Feedback</h2>
             <p>
               If you believe an event or categorization is inaccurate, contact us at <a href="mailto:corrections@barcodetruth.app" className="text-primary hover:underline">corrections@barcodetruth.app</a>.
               We review verified correction requests and adjust records accordingly.
             </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Brands also have the right to request corrections through the same channels.
+            </p>
 
-            <h2 className="text-xl font-semibold mt-6 mb-3">8. Acknowledgments</h2>
+            <h2 className="text-xl font-semibold mt-6 mb-3">9. Acknowledgments</h2>
             <p>
               Our platform architecture combines open data, community contributions, and AI-assisted categorization to make complex corporate information accessible to the public.
             </p>
