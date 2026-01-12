@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import React from "react";
 
 // Brand logos as SVG components
 const logos = [
@@ -101,27 +102,29 @@ interface FallingLogoProps {
   side: "left" | "right";
 }
 
-function FallingLogo({ logo, index, totalLogos, side }: FallingLogoProps) {
-  // Randomize position, delay, and duration
+function FallingLogo({ logo, index, side }: FallingLogoProps) {
   const style = useMemo(() => {
-    const leftPosition = side === "left" 
-      ? (index / totalLogos) * 80 + 5 
-      : (index / totalLogos) * 80 + 5;
-    const delay = (index * 0.7) % 6;
-    const duration = 8 + (index % 4);
-    const size = 32 + (index % 3) * 8;
+    // Create deterministic but varied values based on index
+    const seed = index * 7 + (side === "left" ? 0 : 100);
+    const leftPosition = ((seed * 13) % 85) + 5; // 5-90% spread across full gutter
+    const delay = ((seed * 17) % 80) / 10; // 0-8s delay for better staggering
+    const duration = 10 + ((seed * 11) % 100) / 10; // 10-20s duration
+    const size = 20 + ((seed * 19) % 24); // 20-44px size
+    const rotation = ((seed * 23) % 30) - 15; // -15 to +15 degrees
     
     return {
       left: `${leftPosition}%`,
       width: `${size}px`,
+      height: `${size}px`,
       animationDelay: `${delay}s`,
       animationDuration: `${duration}s`,
+      transform: `rotate(${rotation}deg)`,
     };
-  }, [index, totalLogos, side]);
+  }, [index, side]);
 
   return (
-    <div 
-      className="absolute opacity-0 text-white/20 animate-logo-fall pointer-events-none"
+    <div
+      className="absolute opacity-0 text-white/15 animate-logo-fall pointer-events-none"
       style={style}
     >
       {logo}
@@ -135,35 +138,48 @@ interface FallingLogosProps {
 }
 
 export function FallingLogos({ side, className = "" }: FallingLogosProps) {
-  // Use a subset of logos for each side, offset to show different logos
+  // Select different logos for each side - more logos for better coverage
   const sideLogos = useMemo(() => {
-    const offset = side === "left" ? 0 : 8;
-    return logos.slice(offset, offset + 8);
+    const startIndex = side === "left" ? 0 : 8;
+    return logos.slice(startIndex, startIndex + 8);
   }, [side]);
 
+  // Mask gradient to fade logos near the hero edge
+  const maskStyle: React.CSSProperties = side === "left"
+    ? {
+        maskImage: "linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%)",
+        WebkitMaskImage: "linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%)",
+      }
+    : {
+        maskImage: "linear-gradient(to left, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%)",
+        WebkitMaskImage: "linear-gradient(to left, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%)",
+      };
+
   return (
-    <div 
+    <div
       className={`absolute top-0 bottom-0 overflow-hidden pointer-events-none ${className}`}
       style={{
-        width: "120px",
+        // Dynamic width: fills from edge to hero (max-w-5xl = 1024px)
+        width: "clamp(100px, calc((100vw - 1024px) / 2), 400px)",
         [side]: 0,
+        ...maskStyle,
       }}
     >
       {sideLogos.map((logo, index) => (
-        <FallingLogo 
-          key={index} 
-          logo={logo} 
-          index={index} 
+        <FallingLogo
+          key={`${side}-${index}`}
+          logo={logo}
+          index={index}
           totalLogos={sideLogos.length}
           side={side}
         />
       ))}
-      {/* Duplicate for continuous stream */}
+      {/* Duplicate set for continuous stream */}
       {sideLogos.map((logo, index) => (
-        <FallingLogo 
-          key={`dup-${index}`} 
-          logo={logo} 
-          index={index + sideLogos.length} 
+        <FallingLogo
+          key={`${side}-${index}-dup`}
+          logo={logo}
+          index={index + sideLogos.length}
           totalLogos={sideLogos.length}
           side={side}
         />
