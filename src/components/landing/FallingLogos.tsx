@@ -125,7 +125,7 @@ function FallingLogo({ logo, index, side }: FallingLogoProps) {
 
   return (
     <div
-      className="absolute text-primary/50 animate-logo-fall pointer-events-none"
+      className="absolute text-primary/70 animate-logo-fall pointer-events-none"
       style={style}
     >
       {logo}
