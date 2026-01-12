@@ -19,7 +19,7 @@ export function HeroSection() {
 
   return (
     <section className="-mx-4 sm:-mx-6">
-      <LampContainer className="min-h-[450px] pt-20">
+      <LampContainer className="min-h-[420px] pt-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
