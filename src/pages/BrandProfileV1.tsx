@@ -14,6 +14,7 @@ import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useToast } from '@/hooks/use-toast';
 import { isUUID } from '@/lib/utils';
 import { PersonalizedScoreDisplay } from '@/components/brand/PersonalizedScoreDisplay';
+import { TrustPledge } from '@/components/brand/TrustPledge';
 
 // V1 Consumer Contract:
 // Card 1: Header (name, logo, description)
@@ -551,6 +552,9 @@ export default function BrandProfileV1() {
             identityConfidence={brand.identity_confidence}
           />
         )}
+
+        {/* Trust Pledge - How We Stay Neutral */}
+        <TrustPledge />
 
         {/* Card 4: Evidence */}
         <Card>
