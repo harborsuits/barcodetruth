@@ -5,10 +5,61 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Safe error messages - never expose internal details to clients
+const SAFE_ERRORS = {
+  auth_required: 'Authentication required',
+  unauthorized: 'Unauthorized: Admin role required',
+  invalid_input: 'Invalid request data',
+  not_found: 'Resource not found',
+  operation_failed: 'Operation failed',
+  internal_error: 'An unexpected error occurred',
+};
+
 interface ModerateRequest {
   claim_id: string;
   action: 'verify' | 'reject';
   rejection_reason?: string;
+}
+
+// Input validation helpers
+function isValidUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
+function validateModerateRequest(body: unknown): { valid: true; data: ModerateRequest } | { valid: false; error: string } {
+  if (!body || typeof body !== 'object') {
+    return { valid: false, error: 'Request body must be a JSON object' };
+  }
+
+  const { claim_id, action, rejection_reason } = body as Record<string, unknown>;
+
+  if (!claim_id || typeof claim_id !== 'string' || !isValidUUID(claim_id)) {
+    return { valid: false, error: 'Valid claim_id (UUID) is required' };
+  }
+
+  if (!action || (action !== 'verify' && action !== 'reject')) {
+    return { valid: false, error: 'Action must be "verify" or "reject"' };
+  }
+
+  // Validate rejection_reason if provided - max 500 characters
+  if (rejection_reason !== undefined) {
+    if (typeof rejection_reason !== 'string') {
+      return { valid: false, error: 'rejection_reason must be a string' };
+    }
+    if (rejection_reason.length > 500) {
+      return { valid: false, error: 'rejection_reason must be 500 characters or less' };
+    }
+  }
+
+  return {
+    valid: true,
+    data: {
+      claim_id,
+      action,
+      rejection_reason: rejection_reason ? String(rejection_reason).slice(0, 500) : undefined,
+    },
+  };
 }
 
 Deno.serve(async (req) => {
@@ -19,7 +70,10 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('No authorization header');
+      return new Response(
+        JSON.stringify({ ok: false, error: SAFE_ERRORS.auth_required }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -31,7 +85,11 @@ Deno.serve(async (req) => {
     // Authenticate user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      throw new Error('Authentication failed');
+      console.error('[moderate-claim] Auth error:', authError);
+      return new Response(
+        JSON.stringify({ ok: false, error: SAFE_ERRORS.auth_required }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Check if user is admin
@@ -42,27 +100,39 @@ Deno.serve(async (req) => {
       .eq('role', 'admin')
       .maybeSingle();
 
-    if (roleError || !roleData) {
+    if (roleError) {
+      console.error('[moderate-claim] Role check error:', roleError);
+    }
+
+    if (!roleData) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized: Admin role required' }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
+        JSON.stringify({ ok: false, error: SAFE_ERRORS.unauthorized }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const { claim_id, action, rejection_reason } = await req.json() as ModerateRequest;
-
-    if (!claim_id || !action) {
-      throw new Error('Missing required fields: claim_id, action');
+    // Parse and validate input
+    let requestBody: unknown;
+    try {
+      requestBody = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ ok: false, error: SAFE_ERRORS.invalid_input }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    if (action !== 'verify' && action !== 'reject') {
-      throw new Error('Invalid action. Must be "verify" or "reject"');
+    const validation = validateModerateRequest(requestBody);
+    if (!validation.valid) {
+      return new Response(
+        JSON.stringify({ ok: false, error: validation.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log(`Moderating claim ${claim_id}: ${action}`);
+    const { claim_id, action, rejection_reason } = validation.data;
+
+    console.log(`[moderate-claim] Moderating claim ${claim_id}: ${action}`);
 
     // Fetch the claim
     const { data: claim, error: fetchError } = await supabase
@@ -71,8 +141,15 @@ Deno.serve(async (req) => {
       .eq('id', claim_id)
       .single();
 
-    if (fetchError || !claim) {
-      throw new Error('Claim not found');
+    if (fetchError) {
+      console.error('[moderate-claim] Fetch error:', fetchError);
+    }
+
+    if (!claim) {
+      return new Response(
+        JSON.stringify({ ok: false, error: SAFE_ERRORS.not_found }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     if (action === 'verify') {
@@ -88,7 +165,11 @@ Deno.serve(async (req) => {
         });
 
       if (productError) {
-        throw new Error(`Failed to create product: ${productError.message}`);
+        console.error('[moderate-claim] Product upsert error:', productError);
+        return new Response(
+          JSON.stringify({ ok: false, error: SAFE_ERRORS.operation_failed }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
       // 2. Update claim to verified
@@ -102,10 +183,14 @@ Deno.serve(async (req) => {
         .eq('id', claim_id);
 
       if (updateError) {
-        throw new Error(`Failed to verify claim: ${updateError.message}`);
+        console.error('[moderate-claim] Update error:', updateError);
+        return new Response(
+          JSON.stringify({ ok: false, error: SAFE_ERRORS.operation_failed }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
-      console.log(`✅ Verified claim ${claim_id}`);
+      console.log(`[moderate-claim] ✅ Verified claim ${claim_id}`);
       return new Response(
         JSON.stringify({ ok: true, action: 'verified', claim_id }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -123,23 +208,25 @@ Deno.serve(async (req) => {
         .eq('id', claim_id);
 
       if (updateError) {
-        throw new Error(`Failed to reject claim: ${updateError.message}`);
+        console.error('[moderate-claim] Reject error:', updateError);
+        return new Response(
+          JSON.stringify({ ok: false, error: SAFE_ERRORS.operation_failed }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
-      console.log(`❌ Rejected claim ${claim_id}: ${rejection_reason}`);
+      console.log(`[moderate-claim] ❌ Rejected claim ${claim_id}`);
       return new Response(
         JSON.stringify({ ok: true, action: 'rejected', claim_id }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-  } catch (error: any) {
-    console.error('Moderation error:', error);
+  } catch (error) {
+    // Log full error server-side, return generic message to client
+    console.error('[moderate-claim] Unexpected error:', error);
     return new Response(
-      JSON.stringify({ ok: false, error: error.message }),
-      {
-        status: error.message.includes('Unauthorized') ? 403 : 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      JSON.stringify({ ok: false, error: SAFE_ERRORS.internal_error }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
