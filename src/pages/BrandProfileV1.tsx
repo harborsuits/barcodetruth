@@ -281,18 +281,52 @@ export default function BrandProfileV1() {
   const routerLocation = useLocation();
   const cameFromBrand = (routerLocation as any)?.state?.fromBrand;
 
-  // Query brand info
+  // Query brand info with alias fallback
   const { data: brand, isLoading: brandLoading, error: brandError } = useQuery({
     queryKey: ['brand-v1', slugOrId],
     enabled: !!slugOrId,
     queryFn: async () => {
-      const query = isUuidRoute
-        ? supabase.from('brands').select('*').eq('id', slugOrId).limit(1).maybeSingle()
-        : supabase.from('brands').select('*').eq('slug', slugOrId).limit(1).maybeSingle();
-      
-      const { data, error } = await query;
-      if (error) throw error;
-      return data;
+      if (!slugOrId) return null;
+
+      // 1) UUID route - direct ID lookup
+      if (isUuidRoute) {
+        const { data, error } = await supabase
+          .from('brands')
+          .select('*')
+          .eq('id', slugOrId)
+          .maybeSingle();
+        if (error) throw error;
+        return data;
+      }
+
+      // 2) Canonical slug lookup
+      const { data: bySlug, error: slugErr } = await supabase
+        .from('brands')
+        .select('*')
+        .eq('slug', slugOrId)
+        .maybeSingle();
+      if (slugErr) throw slugErr;
+      if (bySlug) return bySlug;
+
+      // 3) Alias lookup (for old slugs or common misspellings)
+      const { data: aliasRow, error: aliasErr } = await supabase
+        .from('brand_slug_aliases')
+        .select('brand_id')
+        .eq('alias', slugOrId)
+        .maybeSingle();
+      if (aliasErr) throw aliasErr;
+
+      if (aliasRow?.brand_id) {
+        const { data: byAliasId, error: idErr } = await supabase
+          .from('brands')
+          .select('*')
+          .eq('id', aliasRow.brand_id)
+          .maybeSingle();
+        if (idErr) throw idErr;
+        return byAliasId;
+      }
+
+      return null; // Not found - will trigger redirect
     }
   });
 
@@ -313,6 +347,13 @@ export default function BrandProfileV1() {
       navigate(`/brand/${brand.slug}`, { replace: true });
     }
   }, [isUuidRoute, brand?.slug, slugOrId, navigate]);
+
+  // Hook-safe redirect: if brand not found after loading, redirect to search
+  useEffect(() => {
+    if (!brandLoading && !brand && slugOrId && !brandError) {
+      navigate(`/search?q=${encodeURIComponent(slugOrId)}`, { replace: true });
+    }
+  }, [brandLoading, brand, slugOrId, navigate, brandError]);
 
   // Query score
   const { data: scoreData } = useQuery({
@@ -374,15 +415,13 @@ export default function BrandProfileV1() {
     );
   }
 
-  // Error state
+  // Error state - show brief "searching" message while redirect kicks in
   if (brandError || !brand) {
     return (
       <div className="min-h-screen bg-background">
         <main className="container max-w-2xl mx-auto px-4 py-12 text-center space-y-4">
-          <AlertCircle className="h-16 w-16 mx-auto text-muted-foreground" />
-          <h1 className="text-2xl font-semibold">Brand not found</h1>
-          <p className="text-muted-foreground">The brand you're looking for doesn't exist.</p>
-          <Button onClick={() => navigate('/search')}>Search Brands</Button>
+          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+          <p className="text-muted-foreground">Searching for "{slugOrId}"...</p>
         </main>
       </div>
     );

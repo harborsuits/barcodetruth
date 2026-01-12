@@ -59,18 +59,27 @@ export default function Discover() {
 
   async function fetchTrending() {
     setLoadingTrending(true);
+    const url = `${API_BASE}/v1-brands/trending?limit=25`;
+    console.log("[Discover] Fetching trending from:", url);
+    
     try {
-      const response = await fetch(`${API_BASE}/v1-brands/trending?limit=25`, {
+      const response = await fetch(url, {
         headers: {
           'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         }
       });
       
-      if (!response.ok) throw new Error('Failed to fetch trending');
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[Discover] Trending failed:", response.status, errorText);
+        throw new Error(`Trending failed: ${response.status}`);
+      }
+      
       const data = await response.json();
+      console.log("[Discover] Got", data?.length || 0, "trending brands");
       setTrending(data || []);
     } catch (error) {
-      console.error("Trending fetch error:", error);
+      console.error("[Discover] Trending fetch error:", error);
       toast.error("Failed to load trending brands");
     } finally {
       setLoadingTrending(false);
