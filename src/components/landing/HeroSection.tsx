@@ -59,7 +59,7 @@ export function HeroSection() {
               className="text-center"
             >
               <span className="block text-2xl sm:text-3xl font-medium text-white/90">
-                Discover Who Really
+                Scan a barcode.
               </span>
               <motion.span
                 initial={{ opacity: 0, y: 8 }}
@@ -71,7 +71,7 @@ export function HeroSection() {
                 }}
                 className="block text-4xl sm:text-5xl font-bold text-primary mt-1"
               >
-                Owns What You Buy
+                See who owns it.
               </motion.span>
             </motion.h1>
 
@@ -85,7 +85,20 @@ export function HeroSection() {
               }}
               className="text-base leading-relaxed text-slate-400/80 max-w-sm mx-auto"
             >
-              See the people, power, and practices behind the brands — without being told what to think.
+              Ownership chains + verified events from public sources — without telling you what to think.
+            </motion.p>
+
+            <motion.p
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              transition={{
+                delay: 0.7,
+                duration: 0.5,
+                ease: "easeOut",
+              }}
+              className="text-xs text-slate-500/70"
+            >
+              No results? Add it once and it works next time.
             </motion.p>
 
             <motion.form
