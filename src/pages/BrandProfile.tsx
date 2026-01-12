@@ -411,6 +411,17 @@ export default function BrandProfile() {
     
     const lastEvent = relevantEvidence.length > 0 ? relevantEvidence[0].event_date : null;
 
+    // Detect ethical impact by checking category codes (more reliable)
+    const hasEthicalImpact = relevantEvidence.some(e => {
+      const code = (e.category_code || '').toUpperCase();
+      const cat = (e.category || '').toLowerCase();
+      return code.startsWith('LABOR') || code.startsWith('ENV') || 
+             code.startsWith('POLITICS') || code.startsWith('SOCIAL') ||
+             code.startsWith('GOV') ||
+             cat === 'labor' || cat === 'environment' || 
+             cat === 'politics' || cat === 'social' || cat === 'governance';
+    });
+
     return {
       events_7d: events7d,
       events_30d: events30d,
@@ -419,10 +430,7 @@ export default function BrandProfile() {
       verified_rate: verifiedRate,
       independent_sources: uniqueSources,
       last_event_at: lastEvent,
-      has_ethical_impact: relevantEvidence.some(e => 
-        e.category === 'labor' || e.category === 'environment' || 
-        e.category === 'politics' || e.category === 'social'
-      )
+      has_ethical_impact: hasEthicalImpact
     };
   }, [evidence]);
 
@@ -826,6 +834,7 @@ export default function BrandProfile() {
             ownerName={ownership?.structure?.chain?.[0]?.name || data.brand.parent_company}
             isPublicCompany={isPublicCompany}
             isParentCompany={isParentCompany}
+            companyType={brandInfo?.company_type as any}
           />
         )}
 
@@ -1012,7 +1021,11 @@ export default function BrandProfile() {
         {/* 6) Who Owns the Brand - Corporate Structure */}
         <SectionHeader>Who owns {data.brand.name}?</SectionHeader>
         {resolvedBrandId && (
-          <WhoProfits brandId={resolvedBrandId} brandName={displayBrandName} />
+          <WhoProfits 
+            brandId={resolvedBrandId} 
+            brandName={displayBrandName} 
+            companyType={brandInfo?.company_type as any}
+          />
         )}
 
         {/* 7) Top Shareholders + Key Figures - Horizontal Bar Chart */}

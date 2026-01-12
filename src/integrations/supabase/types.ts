@@ -2107,6 +2107,7 @@ export type Database = {
           built_at: string | null
           canonical_domain: string | null
           company_size: string | null
+          company_type: Database["public"]["Enums"]["company_type_enum"] | null
           confidence_notes: string | null
           confidence_overall: number | null
           created_at: string
@@ -2148,6 +2149,7 @@ export type Database = {
           built_at?: string | null
           canonical_domain?: string | null
           company_size?: string | null
+          company_type?: Database["public"]["Enums"]["company_type_enum"] | null
           confidence_notes?: string | null
           confidence_overall?: number | null
           created_at?: string
@@ -2189,6 +2191,7 @@ export type Database = {
           built_at?: string | null
           canonical_domain?: string | null
           company_size?: string | null
+          company_type?: Database["public"]["Enums"]["company_type_enum"] | null
           confidence_notes?: string | null
           confidence_overall?: number | null
           created_at?: string
@@ -8563,6 +8566,12 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user" | "moderator"
+      company_type_enum:
+        | "public"
+        | "private"
+        | "subsidiary"
+        | "independent"
+        | "unknown"
       data_confidence: "none" | "low" | "medium" | "high"
       event_category:
         | "labor"
@@ -8710,6 +8719,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user", "moderator"],
+      company_type_enum: [
+        "public",
+        "private",
+        "subsidiary",
+        "independent",
+        "unknown",
+      ],
       data_confidence: ["none", "low", "medium", "high"],
       event_category: [
         "labor",
