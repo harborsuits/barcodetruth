@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { LampContainer } from "@/components/ui/lamp";
+import { FallingLogos } from "./FallingLogos";
 
 export function HeroSection() {
   const navigate = useNavigate();
@@ -18,8 +19,12 @@ export function HeroSection() {
   };
 
   return (
-    <section className="w-full py-6 sm:py-10">
-      <div className="max-w-5xl mx-auto px-4">
+    <section className="w-full py-6 sm:py-10 relative overflow-hidden">
+      {/* Falling logos on both sides */}
+      <FallingLogos side="left" className="hidden md:block" />
+      <FallingLogos side="right" className="hidden md:block" />
+      
+      <div className="max-w-5xl mx-auto px-4 relative z-10">
         <LampContainer className="min-h-[420px]">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
