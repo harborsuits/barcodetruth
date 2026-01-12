@@ -31,6 +31,7 @@ const BrandProfile = lazyNamed(() => import("./pages/BrandProfileV1"), "default"
 const BrandProof = lazyNamed(() => import("./pages/BrandProof"), "default");
 const Scan = lazyNamed(() => import("./pages/Scan"), "Scan");
 const ScanResult = lazyNamed(() => import("./pages/ScanResultV1"), "default");
+const UnknownProduct = lazyNamed(() => import("./pages/UnknownProduct"), "default");
 const Trending = lazyNamed(() => import("./pages/Trending"), "Trending");
 const Lists = lazyNamed(() => import("./pages/Lists"), "Lists");
 const Settings = lazyNamed(() => import("./pages/Settings"), "Settings");
@@ -184,6 +185,18 @@ const App = () => {
                   <ScanResult />
                 </Suspense>
               </RouteErrorBoundary>
+            }
+          />
+          <Route
+            path="/unknown/:barcode"
+            element={
+              <ProtectedRoute>
+                <RouteErrorBoundary>
+                  <Suspense fallback={<RouteFallback label="Loading…" />}>
+                    <UnknownProduct />
+                  </Suspense>
+                </RouteErrorBoundary>
+              </ProtectedRoute>
             }
           />
           <Route

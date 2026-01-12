@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, ExternalLink, AlertCircle, Building2, Loader2, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ExternalLink, AlertCircle, Building2, Loader2, ShieldCheck, Bell, BellOff, Trophy } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBrandLogo } from '@/hooks/useBrandLogo';
 import { useAutoEnrichment } from '@/hooks/useAutoEnrichment';
@@ -428,6 +428,10 @@ export default function BrandProfileV1() {
     );
   }
 
+  // Determine if this is a pending/stub brand
+  const isPending = brandStatus === 'stub' || brandStatus === 'building';
+  const fromPendingSubmission = (routerLocation as any)?.state?.pending;
+
   return (
     <div className="min-h-screen bg-background">
       <main className="container max-w-2xl mx-auto px-4 py-6 space-y-4">
@@ -436,6 +440,32 @@ export default function BrandProfileV1() {
           <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="-mt-2 mb-2">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back
           </Button>
+        )}
+
+        {/* Pending/Building Profile Banner */}
+        {isPending && (
+          <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+                  <Trophy className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-amber-900 dark:text-amber-100">
+                    Profile in progress
+                  </h3>
+                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-0.5">
+                    We're gathering evidence for this brand. Follow for updates.
+                  </p>
+                  {fromPendingSubmission && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                      Thanks for contributing — you're an early contributor!
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Card 1: Header */}

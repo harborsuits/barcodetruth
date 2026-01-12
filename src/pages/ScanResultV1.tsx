@@ -114,7 +114,7 @@ export default function ScanResultV1() {
     );
   }
 
-  // Product not found
+  // Product not found - redirect to unknown product submission page
   if (productError || !product) {
     return (
       <div className="min-h-screen bg-background">
@@ -129,18 +129,21 @@ export default function ScanResultV1() {
           </div>
         </header>
         <main className="container max-w-md mx-auto px-4 py-6">
-          <Card>
+          <Card className="border-primary/20 bg-primary/5">
             <CardContent className="pt-6 space-y-4 text-center">
-              <Package className="h-12 w-12 mx-auto text-muted-foreground" />
-              <h2 className="text-lg font-semibold">Product not found</h2>
+              <Package className="h-12 w-12 mx-auto text-primary" />
+              <h2 className="text-lg font-semibold">We don't recognize this barcode yet</h2>
               <p className="text-sm text-muted-foreground">
-                We don't recognize barcode <span className="font-mono">{barcode}</span> yet.
+                Help us identify barcode <span className="font-mono">{barcode}</span> — it'll work instantly for everyone next time.
               </p>
               <div className="space-y-2 pt-2">
-                <Button className="w-full" onClick={() => navigate('/search')}>
+                <Button className="w-full" onClick={() => navigate(`/unknown/${barcode}`)}>
+                  Add This Product
+                </Button>
+                <Button variant="outline" className="w-full" onClick={() => navigate('/search')}>
                   Search Brands
                 </Button>
-                <Button variant="outline" className="w-full" onClick={() => navigate('/scan')}>
+                <Button variant="ghost" className="w-full" onClick={() => navigate('/scan')}>
                   Scan Again
                 </Button>
               </div>

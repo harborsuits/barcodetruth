@@ -187,3 +187,6 @@ verify_jwt = false
 
 [functions.backfill-event-impacts]
 verify_jwt = false
+
+[functions.submit-unknown-product]
+verify_jwt = false

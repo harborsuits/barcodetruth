@@ -212,9 +212,9 @@ export const Scan = () => {
         const dur = Math.round(performance.now() - t0);
         console.log('[Analytics] scan_not_found_requires_submission', { barcode, dur_ms: dur });
         
-        // Navigate to submission form with barcode in URL
-        const route = `/scan-result/${barcode}?submission=true`;
-        console.log('[Scan] navigating to:', route);
+        // Navigate to unknown product submission page
+        const route = `/unknown/${barcode}`;
+        console.log('[Scan] navigating to unknown product page:', route);
         navigate(route);
         return;
       }
