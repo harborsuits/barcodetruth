@@ -21,8 +21,8 @@ export function HeroSection() {
   return (
     <section className="w-full py-6 sm:py-10 relative overflow-hidden">
       {/* Falling logos on both sides - fills edge to hero dynamically */}
-      <FallingLogos side="left" className="hidden lg:block" />
-      <FallingLogos side="right" className="hidden lg:block" />
+      <FallingLogos side="left" className="hidden md:block" />
+      <FallingLogos side="right" className="hidden md:block" />
       
       <div className="max-w-5xl mx-auto px-4 relative z-10">
         <LampContainer className="min-h-[420px]">
