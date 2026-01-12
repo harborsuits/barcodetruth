@@ -23,23 +23,26 @@ function generateSlug(name: string): string {
 
 // Find an available slug with incrementing suffix (-2, -3, etc.)
 // deno-lint-ignore no-explicit-any
-async function findAvailableSlug(
-  supabase: any,
-  baseSlug: string
-): Promise<string> {
-  let slug = baseSlug;
-  let suffix = 2;
+async function findAvailableSlug(supabase: any, baseSlug: string): Promise<string> {
+  // 1) Try base slug first
+  const { data: base } = await supabase
+    .from('brands')
+    .select('id')
+    .eq('slug', baseSlug)
+    .maybeSingle();
 
-  while (suffix <= 100) {
+  if (!base) return baseSlug;
+
+  // 2) Try suffixes -2 through -100
+  for (let suffix = 2; suffix <= 100; suffix++) {
+    const candidate = `${baseSlug}-${suffix}`;
     const { data } = await supabase
       .from('brands')
       .select('id')
-      .eq('slug', slug)
+      .eq('slug', candidate)
       .maybeSingle();
 
-    if (!data) return slug;
-    slug = `${baseSlug}-${suffix}`;
-    suffix++;
+    if (!data) return candidate;
   }
 
   throw new Error('Too many slug collisions');
@@ -156,6 +159,7 @@ Deno.serve(async (req) => {
               slug: availableSlug,
               status: 'stub',
               identity_confidence: 'low',
+              data_source: 'user_submitted',
             })
             .select('id, slug')
             .single();
@@ -194,6 +198,7 @@ Deno.serve(async (req) => {
             slug: placeholderSlug,
             status: 'stub',
             identity_confidence: 'low',
+            data_source: 'user_submitted',
           })
           .select('id, slug')
           .single();
@@ -218,6 +223,7 @@ Deno.serve(async (req) => {
         brand_id: brandId,
         category: category || null,
         confidence_score: 40, // Low confidence for user-submitted
+        data_source: 'user_submitted',
         metadata: {
           submitted_by: userId,
           submitted_at: new Date().toISOString(),
@@ -242,7 +248,7 @@ Deno.serve(async (req) => {
           brand_id: brandId,
           notifications_enabled: true,
         }, {
-          onConflict: 'user_follows_user_brand_unique',
+          onConflict: 'user_id,brand_id',
         });
 
       if (followError) {
