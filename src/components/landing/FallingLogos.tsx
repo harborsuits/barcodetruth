@@ -158,11 +158,9 @@ export function FallingLogos({ side, className = "" }: FallingLogosProps) {
 
   return (
     <div
-      className={`fixed top-0 bottom-0 overflow-hidden pointer-events-none z-0 ${className}`}
+      className={`fixed top-0 bottom-0 overflow-hidden pointer-events-none z-10 ${className}`}
       style={{
-        // Dynamic width: fills from edge to hero content area  
-        width: "max(100px, calc((100vw - 768px) / 2 - 16px))",
-        minWidth: "100px",
+        width: "clamp(100px, 15vw, 300px)",
         [side]: 0,
         ...maskStyle,
       }}
