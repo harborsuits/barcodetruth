@@ -43,9 +43,9 @@ export function HowItWorks() {
               <Sparkles className="h-7 w-7" />
             </div>
             <div>
-              <div className="font-semibold text-lg mb-1">See alignment, skip greenwashing</div>
+              <div className="font-semibold text-lg mb-1">See alignment, skip the marketing</div>
               <div className="text-sm text-muted-foreground">
-                Read evidence, compare scores, find better alternatives
+                Read evidence, compare scores, find higher-aligned alternatives
               </div>
             </div>
           </div>
@@ -147,17 +147,17 @@ export function HowItWorks() {
           <div className="space-y-4 text-left">
             <div className="p-4 rounded-xl bg-card border border-border/50">
               <p className="text-sm leading-relaxed">
-                <span className="font-semibold text-primary">Every purchase is a vote.</span> But most brands hide behind vague promises like "eco-friendly" or "we care." We cut through the marketing by tracking real news—labor disputes, environmental fines, political donations, community impact—and turning it into scores you can actually use.
+                <span className="font-semibold text-primary">Every purchase supports someone — now you can see who.</span> Most brands hide behind vague promises like "eco-friendly" or "we care." We cut through the marketing by tracking real news—labor disputes, environmental fines, political donations, community impact—and turning it into scores you can actually use.
               </p>
             </div>
             <div className="p-4 rounded-xl bg-card border border-border/50">
               <p className="text-sm leading-relaxed">
-                <span className="font-semibold text-primary">Your match % shows alignment.</span> If you care deeply about worker rights (say, 90/100) but a brand scores 35 on labor, that's a huge gap. We'll show you alternatives that score 80+ instead—brands that actually match what you stand for.
+                <span className="font-semibold text-primary">Your match % shows alignment.</span> If you care deeply about worker rights (say, 90/100) but a brand scores 35 on labor, that's a huge gap. We'll show you alternatives that score 80+ instead—brands that align more closely with your priorities.
               </p>
             </div>
             <div className="p-4 rounded-xl bg-card border border-border/50">
               <p className="text-sm leading-relaxed">
-                <span className="font-semibold text-primary">No greenwashing, no guessing.</span> All scores link back to verified sources—news articles, government records, court filings. You see exactly why a brand scored the way it did, so you can make informed choices that feel good.
+                <span className="font-semibold text-primary">Real evidence, not marketing claims.</span> All scores link back to verified sources—news articles, government records, court filings. You see exactly why a brand scored the way it did, so you can make informed choices with full visibility.
               </p>
             </div>
           </div>

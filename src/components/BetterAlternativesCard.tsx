@@ -45,10 +45,10 @@ export function BetterAlternativesCard({
       <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold">Better-Aligned Alternatives</h3>
+          <h3 className="text-sm font-semibold">Higher-Aligned Alternatives</h3>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          These brands match your values better ({betterAlts.length} found)
+          These brands align more closely with your priorities ({betterAlts.length} found)
         </p>
       </CardHeader>
       <CardContent className="space-y-3">

@@ -53,16 +53,16 @@ export function AlternativesDrawer({ alternatives, currentScore, currentScores, 
       <SheetTrigger asChild>
         <Button variant="outline" className="w-full" data-alternatives-trigger>
           <TrendingUp className="h-4 w-4 mr-2" />
-          Better options ({alternatives.length})
+          More aligned options ({alternatives.length})
         </Button>
       </SheetTrigger>
       <SheetContent side="bottom" className="h-[80vh] overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Better Alternatives</SheetTitle>
+          <SheetTitle>Higher-Aligned Alternatives</SheetTitle>
           <SheetDescription>
             {productCategory
-              ? "Brands in the same product category, ranked by your values and priorities"
-              : "No same-category options yet — showing generally better-aligned brands"}
+              ? "These brands align more closely with your priorities"
+              : "No same-category options yet — showing brands that align more closely with your priorities"}
             {excludingSameParent && (
               <span className="block mt-1 text-xs">
                 Excluding alternatives owned by the same parent company
@@ -88,7 +88,7 @@ export function AlternativesDrawer({ alternatives, currentScore, currentScores, 
                       <h4 className="font-semibold text-base">{alt.brand_name}</h4>
                       {delta > 0 && (
                         <Badge variant="outline" className="mt-1 bg-success/10 text-success border-success/20">
-                          {formatDelta(delta)} better for you
+                          {formatDelta(delta)} higher alignment
                         </Badge>
                       )}
                     </div>

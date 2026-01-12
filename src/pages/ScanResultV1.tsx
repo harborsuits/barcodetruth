@@ -180,6 +180,9 @@ export default function ScanResultV1() {
             <div>
               <p className="text-sm text-muted-foreground">Product</p>
               <h2 className="text-lg font-semibold">{product.name}</h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                This product's profile reflects the broader practices of its brand.
+              </p>
             </div>
 
             {/* Brand name + status */}

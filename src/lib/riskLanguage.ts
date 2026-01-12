@@ -66,6 +66,26 @@ export const BASELINE_EXPLANATION =
 export const BASELINE_TOOLTIP = 
   'An average weighting across all concerns — not personalized to your values yet.';
 
+export const TRUST_PLEDGE = {
+  title: 'How We Stay Neutral',
+  principles: [
+    { label: 'Facts are shared', detail: 'Events are verified and categorized, not editorialized' },
+    { label: 'Weighting is personal', detail: 'Your score reflects your priorities — someone else might see this differently' },
+    { label: 'You decide what matters', detail: 'We surface evidence; you make the call' }
+  ],
+  footer: "This score isn't universal truth — it's how this brand aligns with you.",
+} as const;
+
+export const ALTERNATIVES_LABELS = {
+  header: 'Higher-Aligned Alternatives',
+  buttonText: 'More aligned options',
+  deltaLabel: 'higher alignment',
+  description: 'These brands align more closely with your priorities',
+} as const;
+
+export const PRODUCT_BRAND_EXPLAINER = 
+  "This product's profile reflects the broader practices of its brand.";
+
 /**
  * Get score label based on numeric score
  */
