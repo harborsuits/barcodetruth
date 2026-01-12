@@ -49,7 +49,10 @@ import { WhyThisScoreSection } from '@/components/brand/WhyThisScoreSection';
 import { CategoryBreakdownBars } from '@/components/brand/CategoryBreakdownBars';
 import { TrustSignals } from '@/components/brand/TrustSignals';
 import { ConsumerSummary } from '@/components/brand/ConsumerSummary';
-// Hardcoded alternatives mapping for major brands
+import { InlineDisclaimer } from '@/components/brand/InlineDisclaimer';
+import { DataLimitationsNotice } from '@/components/brand/DataLimitationsNotice';
+import { DataFreshnessChip } from '@/components/brand/DataFreshnessChip';
+import { FeedbackFAB } from '@/components/FeedbackFAB';
 const BRAND_ALTERNATIVES: Record<string, Array<{
   brand_id: string;
   brand_name: string;
@@ -692,6 +695,7 @@ export default function BrandProfile() {
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h2 className="text-2xl font-bold truncate">{displayBrandName}</h2>
+                    <DataFreshnessChip lastUpdated={brandScores?.last_updated || coverage.last_event_at} />
                     <DataCompletenessBadge 
                       hasLogo={hasLogo}
                       hasDescription={hasDescription}
@@ -1124,6 +1128,12 @@ export default function BrandProfile() {
           brandId={resolvedBrandId!}
           brandName={data.brand.name}
         />
+        
+        {/* Inline Disclaimer */}
+        <InlineDisclaimer variant="expandable" className="mt-6" />
+        
+        {/* Feedback FAB */}
+        <FeedbackFAB brandId={resolvedBrandId} brandName={data.brand.name} />
       </main>
     </div>
   );

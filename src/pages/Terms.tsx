@@ -41,6 +41,10 @@ export default function Terms() {
             <p>
               We reserve the right to remove content or suspend accounts that violate these terms.
             </p>
+            <p className="mt-2 font-medium text-destructive">
+              Harassment, doxxing, pile-ons, or misuse of information from this platform to harm individuals 
+              is strictly prohibited and may result in permanent account suspension.
+            </p>
 
             <h2 className="text-xl font-semibold mt-6 mb-3">4. Disclaimers</h2>
             <ul className="list-disc pl-6 space-y-1">

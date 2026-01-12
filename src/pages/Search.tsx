@@ -2,11 +2,9 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search as SearchIcon, Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ReportIssue } from "@/components/ReportIssue";
+import { EmptyStateExplainer } from "@/components/EmptyStateExplainer";
 import { searchCatalog, type ProductSearchResult, type BrandSearchResult } from "@/lib/searchCatalog";
 import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
@@ -92,23 +90,20 @@ export default function Search() {
         )}
 
         {!isSearching && query && totalResults === 0 && (
-          <div className="text-center py-8 space-y-3">
-            <p className="text-muted-foreground">No results found for "{query}"</p>
-            <ReportIssue
-              subjectType="product"
-              subjectId={query}
-              trigger={
-                <Button variant="outline" size="sm">
-                  Request this product/brand
-                </Button>
-              }
-            />
-          </div>
+          <EmptyStateExplainer 
+            type="search-no-results" 
+            searchQuery={query}
+          />
         )}
 
         {!isSearching && !query && (
-          <div className="text-center py-8 text-muted-foreground">
-            Start typing to search for products and brands
+          <div className="text-center py-8 space-y-2">
+            <p className="text-muted-foreground">
+              Start typing to search for products and brands
+            </p>
+            <p className="text-xs text-muted-foreground/70">
+              Not all products are indexed yet — we're growing daily
+            </p>
           </div>
         )}
 

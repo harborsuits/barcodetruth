@@ -46,9 +46,12 @@ export function CorporateFamilyTree({
     return (
       <div className="text-center py-8 px-4">
         <Building2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
-        <h4 className="font-semibold mb-2">No Ownership Data Available</h4>
+        <h4 className="font-semibold mb-2">Ownership Information Unavailable</h4>
         <p className="text-sm text-muted-foreground max-w-md mx-auto">
-          Corporate ownership information is being collected. Check back soon.
+          We couldn't determine the ownership structure for this brand.
+        </p>
+        <p className="text-xs text-muted-foreground/70 mt-3 italic">
+          Private equity, licensing arrangements, and complex corporate structures may not be publicly documented.
         </p>
       </div>
     );
@@ -187,12 +190,12 @@ export function CorporateFamilyTree({
       {!showParent && siblings.length === 0 && (
         <div className="text-center py-8 px-4">
           <Building2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
-          <h4 className="font-semibold mb-2">No Parent or Subsidiary Relationships</h4>
+          <h4 className="font-semibold mb-2">No Known Subsidiaries or Parent</h4>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            {brandName} appears to operate independently with no controlling parent company or owned subsidiaries.
+            {brandName} appears to operate independently, or ownership relationships aren't publicly documented.
           </p>
-          <p className="text-xs text-muted-foreground/70 mt-3">
-            Note: This shows corporate control relationships only. Shareholder and investor information may exist separately.
+          <p className="text-xs text-muted-foreground/70 mt-3 italic">
+            Some companies operate under a single brand, or their corporate structure may not be publicly disclosed.
           </p>
         </div>
       )}

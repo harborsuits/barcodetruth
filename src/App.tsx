@@ -61,6 +61,7 @@ const BootstrapAdmin = lazyNamed(() => import("./pages/BootstrapAdmin"), "defaul
 const Privacy = lazyNamed(() => import("./pages/Privacy"), "default");
 const Terms = lazyNamed(() => import("./pages/Terms"), "default");
 const Methodology = lazyNamed(() => import("./pages/Methodology"), "default");
+const ResponsibleUse = lazyNamed(() => import("./pages/ResponsibleUse"), "default");
 const InvestorProfile = lazyNamed(() => import("./pages/InvestorProfile"), "default");
 const PersonProfile = lazyNamed(() => import("./pages/PersonProfile"), "default");
 
@@ -582,6 +583,14 @@ const App = () => {
             element={
               <Suspense fallback={<RouteFallback label="Loading…" />}>
                 <Methodology />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/responsible-use"
+            element={
+              <Suspense fallback={<RouteFallback label="Loading…" />}>
+                <ResponsibleUse />
               </Suspense>
             }
           />
