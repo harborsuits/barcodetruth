@@ -47,7 +47,7 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
     <Card className="p-6">
       <div className="flex items-center gap-2 mb-6">
         <Building2 className="h-5 w-5 text-primary" />
-        <h3 className="font-semibold text-lg">Corporate Structure</h3>
+        <h3 className="font-semibold text-lg">Who Benefits from Your Purchase</h3>
       </div>
 
       {/* Incomplete Data Warning */}
@@ -90,7 +90,7 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
         ) : (
           // Has a parent company
           <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
-            <p className="text-sm text-muted-foreground mb-1">Owned by</p>
+            <p className="text-sm text-muted-foreground mb-1">Revenue flows to</p>
             <p className="text-lg font-semibold">
               {data.ultimate_parent_name || data.owner_company_name}
             </p>

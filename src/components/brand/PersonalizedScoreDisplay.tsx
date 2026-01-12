@@ -268,10 +268,10 @@ export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidenc
             ) : (
               <Tooltip>
                 <TooltipTrigger>
-                  <Badge variant="outline" className="text-xs">General</Badge>
+                  <Badge variant="outline" className="text-xs">Baseline</Badge>
                 </TooltipTrigger>
-                <TooltipContent>
-                  <p>Set your values in Settings for a personalized score</p>
+                <TooltipContent className="max-w-xs">
+                  <p>This is a baseline score using equal weight across all concerns. Sign in to see how it matches your specific values.</p>
                 </TooltipContent>
               </Tooltip>
             )}
@@ -285,9 +285,9 @@ export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidenc
           <ScoreRing score={result.personalScore} />
           <div className="flex-1 min-w-0">
             <p className="text-sm text-muted-foreground mb-2">
-              {result.personalScore >= 70 && "Good alignment with your values"}
-              {result.personalScore >= 40 && result.personalScore < 70 && "Mixed alignment with your values"}
-              {result.personalScore < 40 && "Poor alignment with your values"}
+              {result.personalScore >= 70 && "Strong alignment with your values"}
+              {result.personalScore >= 40 && result.personalScore < 70 && "Partial alignment — some tradeoffs"}
+              {result.personalScore < 40 && "Low alignment — review concerns below"}
             </p>
             
             {/* Category breakdown mini bars */}
