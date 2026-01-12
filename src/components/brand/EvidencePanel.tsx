@@ -24,6 +24,7 @@ type Props = {
   evidence: EvidenceItem[];
   onReport: (eventId?: string) => void;
   onSuggest: () => void;
+  brandName?: string;
 };
 
 const CATEGORY_GROUPS: Record<string, number> = {
@@ -67,7 +68,7 @@ const CODE_TO_GROUP: Record<string, string> = {
     'NOISE.FINANCIAL': 'Noise'
   };
 
-export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
+export function EvidencePanel({ evidence, onReport, onSuggest, brandName = "this brand" }: Props) {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [showAll, setShowAll] = useState(false);
   const [showDuplicates, setShowDuplicates] = useState(false);
@@ -175,8 +176,22 @@ export function EvidencePanel({ evidence, onReport, onSuggest }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* Context Header - Explain what they're looking at */}
+      <div className="p-4 rounded-lg bg-muted/30 border border-border">
+        <p className="font-medium text-sm mb-1">Recent Signals</p>
+        <p className="text-xs text-muted-foreground">
+          These are third-party reports connected to {brandName}. We categorize by type but don't rank or editorialize them.
+        </p>
+        <div className="flex flex-wrap gap-2 mt-3 text-xs">
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" /> Labor — worker rights, safety</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" /> Environment — climate, pollution</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500" /> Politics — lobbying, donations</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500" /> Social — conduct, discrimination</span>
+        </div>
+      </div>
+
       {/* Header with stats and toggle */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
           Showing {uniqueCount} unique {uniqueCount === 1 ? 'story' : 'stories'}
           {totalCount > uniqueCount && (
