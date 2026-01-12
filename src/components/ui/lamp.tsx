@@ -1,5 +1,4 @@
 import * as React from "react";
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 export const LampContainer = ({
@@ -12,85 +11,38 @@ export const LampContainer = ({
   return (
     <div
       className={cn(
-        "relative flex min-h-[500px] flex-col items-center justify-center overflow-hidden bg-slate-950 w-full rounded-md z-0",
+        "relative flex min-h-[420px] flex-col items-center justify-center overflow-hidden bg-slate-950 w-full rounded-2xl border border-white/5 shadow-2xl shadow-black/20 z-0",
         className
       )}
     >
-      {/* Lamp effect container */}
-      <div className="relative flex w-full flex-1 scale-y-125 items-center justify-center isolate z-0">
-        {/* Left gradient beam */}
-        <motion.div
-          initial={{ opacity: 0.5, width: "8rem" }}
-          whileInView={{ opacity: 1, width: "16rem" }}
-          transition={{
-            delay: 0.3,
-            duration: 0.8,
-            ease: "easeInOut",
-          }}
-          style={{
-            backgroundImage: `conic-gradient(var(--conic-position), var(--tw-gradient-stops))`,
-          }}
-          className="absolute inset-auto right-1/2 h-56 overflow-visible w-[16rem] bg-gradient-conic from-primary via-transparent to-transparent text-white [--conic-position:from_70deg_at_center_top]"
-        >
-          <div className="absolute w-[100%] left-0 bg-slate-950 h-40 bottom-0 z-20 [mask-image:linear-gradient(to_top,white,transparent)]" />
-          <div className="absolute w-40 h-[100%] left-0 bg-slate-950 bottom-0 z-20 [mask-image:linear-gradient(to_right,white,transparent)]" />
-        </motion.div>
+      {/* Noise texture for premium material feel */}
+      <div 
+        className="absolute inset-0 opacity-[0.015] pointer-events-none"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+        }}
+      />
 
-        {/* Right gradient beam */}
-        <motion.div
-          initial={{ opacity: 0.5, width: "8rem" }}
-          whileInView={{ opacity: 1, width: "16rem" }}
-          transition={{
-            delay: 0.3,
-            duration: 0.8,
-            ease: "easeInOut",
-          }}
-          style={{
-            backgroundImage: `conic-gradient(var(--conic-position), var(--tw-gradient-stops))`,
-          }}
-          className="absolute inset-auto left-1/2 h-56 w-[16rem] bg-gradient-conic from-transparent via-transparent to-primary text-white [--conic-position:from_290deg_at_center_top]"
-        >
-          <div className="absolute w-40 h-[100%] right-0 bg-slate-950 bottom-0 z-20 [mask-image:linear-gradient(to_left,white,transparent)]" />
-          <div className="absolute w-[100%] right-0 bg-slate-950 h-40 bottom-0 z-20 [mask-image:linear-gradient(to_top,white,transparent)]" />
-        </motion.div>
+      {/* Vignette overlay */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-slate-950/80 pointer-events-none" />
 
-        {/* Center glow effects */}
-        <div className="absolute top-1/2 h-48 w-full translate-y-12 scale-x-150 bg-slate-950 blur-2xl"></div>
-        <div className="absolute top-1/2 z-50 h-48 w-full bg-transparent opacity-10 backdrop-blur-md"></div>
-        
-        {/* Primary color orb */}
-        <div className="absolute inset-auto z-50 h-36 w-[28rem] -translate-y-1/2 rounded-full bg-primary opacity-50 blur-3xl"></div>
-        
-        {/* Animated light spread */}
-        <motion.div
-          initial={{ width: "8rem" }}
-          whileInView={{ width: "16rem" }}
-          transition={{
-            delay: 0.3,
-            duration: 0.8,
-            ease: "easeInOut",
-          }}
-          className="absolute inset-auto z-30 h-36 w-64 -translate-y-[6rem] rounded-full bg-primary blur-2xl"
-        ></motion.div>
-        
+      {/* Lamp glow area */}
+      <div className="relative flex w-full flex-1 items-center justify-center isolate z-0">
+        {/* Ambient glow - wide, very soft */}
+        <div className="absolute top-1/4 h-64 w-[40rem] -translate-y-1/2 rounded-full bg-primary/20 blur-[120px]" />
+
+        {/* Focused orb - tight, brighter */}
+        <div className="absolute top-1/4 h-24 w-[16rem] -translate-y-1/2 rounded-full bg-primary opacity-50 blur-3xl" />
+
         {/* Lamp base line */}
-        <motion.div
-          initial={{ width: "8rem" }}
-          whileInView={{ width: "16rem" }}
-          transition={{
-            delay: 0.3,
-            duration: 0.8,
-            ease: "easeInOut",
-          }}
-          className="absolute inset-auto z-50 h-0.5 w-[16rem] -translate-y-[7rem] bg-primary"
-        ></motion.div>
+        <div className="absolute top-1/4 h-px w-[12rem] -translate-y-[5rem] bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
 
-        {/* Bottom gradient fade */}
-        <div className="absolute inset-auto z-40 h-44 w-full -translate-y-[12.5rem] bg-slate-950"></div>
+        {/* Top fade mask */}
+        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-slate-950 to-transparent" />
       </div>
 
-      {/* Content container - positioned below lamp */}
-      <div className="relative z-50 -mt-28 flex flex-col items-center px-5 pb-8">
+      {/* Content container */}
+      <div className="relative z-50 -mt-32 flex flex-col items-center px-5 pb-10">
         {children}
       </div>
     </div>
