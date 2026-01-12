@@ -307,7 +307,15 @@ export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidenc
         
         <WhyFlaggedSection result={result} />
         
-        {!isPersonalized && (
+        {!isPersonalized && !userId && (
+          <p className="text-xs text-muted-foreground text-center pt-2 border-t">
+            <a href="/auth" className="text-primary hover:underline">
+              Sign in
+            </a>
+            {' '}to see a score personalized to your values
+          </p>
+        )}
+        {!isPersonalized && userId && (
           <p className="text-xs text-muted-foreground text-center pt-2 border-t">
             <a href="/settings" className="text-primary hover:underline">
               Set your values
