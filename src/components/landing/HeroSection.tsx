@@ -18,8 +18,8 @@ export function HeroSection() {
   };
 
   return (
-    <section className="-mx-4 sm:-mx-6">
-      <LampContainer className="min-h-[420px] pt-8">
+    <section className="w-full">
+      <LampContainer className="min-h-[520px]">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -38,7 +38,7 @@ export function HeroSection() {
               duration: 0.6,
               ease: "easeOut",
             }}
-            className="text-3xl sm:text-4xl font-bold bg-gradient-to-b from-foreground to-muted-foreground bg-clip-text text-transparent"
+            className="text-3xl sm:text-4xl font-bold text-white"
           >
             Discover Who Really
             <br />
@@ -53,7 +53,7 @@ export function HeroSection() {
               duration: 0.6,
               ease: "easeOut",
             }}
-            className="text-sm text-muted-foreground max-w-md mx-auto"
+            className="text-sm text-slate-400 max-w-md mx-auto"
           >
             See the people, power, and practices behind the brands — without being told what to think.
           </motion.p>
@@ -70,13 +70,13 @@ export function HeroSection() {
             className="space-y-3 max-w-md mx-auto"
           >
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
               <Input
                 type="text"
                 placeholder="Search for any brand..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-12 text-base bg-card/80 backdrop-blur-sm border-primary/20 focus:border-primary"
+                className="pl-10 h-12 text-base bg-slate-900/80 backdrop-blur-sm border-slate-700 text-white placeholder:text-slate-500 focus:border-primary"
               />
             </div>
             <div className="flex gap-2">
@@ -91,7 +91,7 @@ export function HeroSection() {
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1 h-11 border-primary/30 hover:bg-primary/10"
+                className="flex-1 h-11 border-slate-700 bg-slate-900/50 text-white hover:bg-slate-800 hover:text-white"
                 onClick={() => navigate("/scan")}
               >
                 <ScanLine className="mr-2 h-4 w-4" />
