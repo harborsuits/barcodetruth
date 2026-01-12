@@ -21,6 +21,30 @@ function generateSlug(name: string): string {
     .slice(0, 50);
 }
 
+// Find an available slug with incrementing suffix (-2, -3, etc.)
+// deno-lint-ignore no-explicit-any
+async function findAvailableSlug(
+  supabase: any,
+  baseSlug: string
+): Promise<string> {
+  let slug = baseSlug;
+  let suffix = 2;
+
+  while (suffix <= 100) {
+    const { data } = await supabase
+      .from('brands')
+      .select('id')
+      .eq('slug', slug)
+      .maybeSingle();
+
+    if (!data) return slug;
+    slug = `${baseSlug}-${suffix}`;
+    suffix++;
+  }
+
+  throw new Error('Too many slug collisions');
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -98,67 +122,60 @@ Deno.serve(async (req) => {
       const normalizedBrandName = brand_name.trim();
       const candidateSlug = generateSlug(normalizedBrandName);
 
-      // Check if brand exists by name or slug
-      const { data: existingBrand } = await supabase
+      // Step 1: Try exact slug match first (most deterministic)
+      const { data: slugMatch } = await supabase
         .from('brands')
         .select('id, slug')
-        .or(`name.ilike.${normalizedBrandName},slug.eq.${candidateSlug}`)
-        .limit(1)
+        .eq('slug', candidateSlug)
         .maybeSingle();
 
-      if (existingBrand) {
-        brandId = existingBrand.id;
-        brandSlug = existingBrand.slug;
-        console.log('[submit-unknown-product] Found existing brand:', existingBrand);
+      if (slugMatch) {
+        brandId = slugMatch.id;
+        brandSlug = slugMatch.slug;
+        console.log('[submit-unknown-product] Found brand by slug:', slugMatch);
       } else {
-        // Create brand stub
-        const { data: newBrand, error: brandError } = await supabase
+        // Step 2: Try exact name match (case-insensitive but exact)
+        const { data: nameMatch } = await supabase
           .from('brands')
-          .insert({
-            name: normalizedBrandName,
-            slug: candidateSlug,
-            status: 'stub',
-            data_source: 'user_submitted',
-            identity_confidence: 'low',
-          })
           .select('id, slug')
-          .single();
+          .ilike('name', normalizedBrandName)
+          .maybeSingle();
 
-        if (brandError) {
-          console.error('[submit-unknown-product] Brand creation failed:', brandError);
-          // If slug collision, try with suffix
-          if (brandError.code === '23505') {
-            const slugWithSuffix = `${candidateSlug}-${Date.now()}`;
-            const { data: retryBrand, error: retryError } = await supabase
-              .from('brands')
-              .insert({
-                name: normalizedBrandName,
-                slug: slugWithSuffix,
-                status: 'stub',
-                data_source: 'user_submitted',
-                identity_confidence: 'low',
-              })
-              .select('id, slug')
-              .single();
-            
-            if (retryError) throw retryError;
-            brandId = retryBrand.id;
-            brandSlug = retryBrand.slug;
-          } else {
+        if (nameMatch) {
+          brandId = nameMatch.id;
+          brandSlug = nameMatch.slug;
+          console.log('[submit-unknown-product] Found brand by exact name:', nameMatch);
+        } else {
+          // Step 3: Create new brand stub with collision-safe slug
+          const availableSlug = await findAvailableSlug(supabase, candidateSlug);
+          
+          const { data: newBrand, error: brandError } = await supabase
+            .from('brands')
+            .insert({
+              name: normalizedBrandName,
+              slug: availableSlug,
+              status: 'stub',
+              identity_confidence: 'low',
+            })
+            .select('id, slug')
+            .single();
+
+          if (brandError) {
+            console.error('[submit-unknown-product] Brand creation failed:', brandError);
             throw brandError;
           }
-        } else {
+
           brandId = newBrand.id;
           brandSlug = newBrand.slug;
+          console.log('[submit-unknown-product] Created brand stub:', { brandId, brandSlug });
         }
-        console.log('[submit-unknown-product] Created brand stub:', { brandId, brandSlug });
       }
     } else {
-      // No brand name provided - create a placeholder brand from barcode prefix
-      const prefix = barcode.slice(0, 6);
-      const placeholderName = `Unknown Brand (${prefix})`;
-      const placeholderSlug = `unknown-${prefix}`;
+      // No brand name provided - create a unique placeholder brand per barcode
+      const placeholderName = `Unknown Brand (barcode: ${barcode})`;
+      const placeholderSlug = `unknown-barcode-${barcode}`;
 
+      // Check if this exact placeholder already exists
       const { data: existingPlaceholder } = await supabase
         .from('brands')
         .select('id, slug')
@@ -168,6 +185,7 @@ Deno.serve(async (req) => {
       if (existingPlaceholder) {
         brandId = existingPlaceholder.id;
         brandSlug = existingPlaceholder.slug;
+        console.log('[submit-unknown-product] Found existing placeholder:', existingPlaceholder);
       } else {
         const { data: newBrand, error: brandError } = await supabase
           .from('brands')
@@ -175,17 +193,20 @@ Deno.serve(async (req) => {
             name: placeholderName,
             slug: placeholderSlug,
             status: 'stub',
-            data_source: 'user_submitted',
             identity_confidence: 'low',
           })
           .select('id, slug')
           .single();
 
-        if (brandError) throw brandError;
+        if (brandError) {
+          console.error('[submit-unknown-product] Placeholder brand creation failed:', brandError);
+          throw brandError;
+        }
+
         brandId = newBrand.id;
         brandSlug = newBrand.slug;
+        console.log('[submit-unknown-product] Created placeholder brand:', { brandId, brandSlug });
       }
-      console.log('[submit-unknown-product] Created placeholder brand:', { brandId, brandSlug });
     }
 
     // Create product record
@@ -196,7 +217,6 @@ Deno.serve(async (req) => {
         name: product_name.trim(),
         brand_id: brandId,
         category: category || null,
-        data_source: 'user_submitted',
         confidence_score: 40, // Low confidence for user-submitted
         metadata: {
           submitted_by: userId,
@@ -222,7 +242,7 @@ Deno.serve(async (req) => {
           brand_id: brandId,
           notifications_enabled: true,
         }, {
-          onConflict: 'user_id,brand_id',
+          onConflict: 'user_follows_user_brand_unique',
         });
 
       if (followError) {
