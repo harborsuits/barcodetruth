@@ -14,6 +14,7 @@ interface ConsumerSummaryProps {
   isPublicCompany: boolean;
   isParentCompany: boolean;
   headquarters?: string | null;
+  companyType?: 'public' | 'private' | 'subsidiary' | 'independent' | 'unknown' | null;
 }
 
 export function ConsumerSummary({
@@ -27,20 +28,30 @@ export function ConsumerSummary({
   isPublicCompany,
   isParentCompany,
   headquarters,
+  companyType: companyTypeProp,
 }: ConsumerSummaryProps) {
-  // Check for shareholders to determine public company status
+  // Check for shareholders to determine public company status (fallback)
   const { data: shareholders = [] } = useTopShareholders(brandId, 3);
   const hasSignificantShareholders = shareholders.length > 0;
   
-  // Determine company type for display
-  const getCompanyType = () => {
+  // Determine company type for display - prioritize database field
+  const getCompanyTypeDisplay = () => {
+    // 1. Use explicit company_type from database if available
+    if (companyTypeProp === 'public') return "Public Company";
+    if (companyTypeProp === 'private') return "Private Company";
+    if (companyTypeProp === 'subsidiary') return "Subsidiary";
+    if (companyTypeProp === 'independent') return "Independent Brand";
+    
+    // 2. Fallback to inferred logic
     if (isParentCompany) return "Parent Company";
     if (isPublicCompany || hasSignificantShareholders) return "Public Company";
     if (ownerName) return "Subsidiary";
-    return "Private Company";
+    
+    // 3. Unknown - don't claim private, say we're still verifying
+    return "Ownership Pending";
   };
   
-  const companyType = getCompanyType();
+  const companyType = getCompanyTypeDisplay();
 
   // Build summary points
   const summaryPoints: { icon: React.ReactNode; text: string }[] = [];
@@ -61,10 +72,21 @@ export function ConsumerSummary({
       icon: <Building2 className="h-4 w-4 text-primary flex-shrink-0" />,
       text: `${brandName} is owned by ${ownerName}.`,
     });
-  } else {
+  } else if (companyType === "Independent Brand") {
+    summaryPoints.push({
+      icon: <ShieldCheck className="h-4 w-4 text-green-600 flex-shrink-0" />,
+      text: `${brandName} is a verified independent brand with no parent company.`,
+    });
+  } else if (companyType === "Private Company") {
     summaryPoints.push({
       icon: <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />,
-      text: `${brandName} appears to be a private or independent company.`,
+      text: `${brandName} is a privately held company.`,
+    });
+  } else {
+    // Ownership Pending
+    summaryPoints.push({
+      icon: <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />,
+      text: `We're still verifying ownership details for ${brandName}. Check back soon.`,
     });
   }
 
