@@ -41,7 +41,7 @@ function deriveSignals(events: TopScoringEvent[]): TrustSignal[] {
       if (isNegative && (isSevere || isModerate)) {
         signals.push({
           icon: <Users className="h-3.5 w-3.5" />,
-          label: isSevere ? 'Labor dispute' : 'Worker concerns',
+          label: isSevere ? 'Labor exposure' : 'Worker issues reported',
           type: 'warning',
           category: 'labor'
         });
@@ -52,7 +52,7 @@ function deriveSignals(events: TopScoringEvent[]): TrustSignal[] {
       if (isNegative && (isSevere || isModerate)) {
         signals.push({
           icon: <Leaf className="h-3.5 w-3.5" />,
-          label: isSevere ? 'Environmental violation' : 'Sustainability concern',
+          label: isSevere ? 'Environmental exposure' : 'Sustainability questions',
           type: 'warning',
           category: 'environment'
         });
@@ -70,7 +70,7 @@ function deriveSignals(events: TopScoringEvent[]): TrustSignal[] {
       if (isNegative) {
         signals.push({
           icon: <Scale className="h-3.5 w-3.5" />,
-          label: isSevere ? 'Active lawsuit' : 'Legal matter',
+          label: isSevere ? 'Legal exposure' : 'Legal matter',
           type: 'warning',
           category: 'legal'
         });
@@ -81,7 +81,7 @@ function deriveSignals(events: TopScoringEvent[]): TrustSignal[] {
       if (isNegative && (isSevere || isModerate)) {
         signals.push({
           icon: <Building2 className="h-3.5 w-3.5" />,
-          label: 'Political activity',
+          label: 'Political contributions',
           type: 'warning',
           category: 'politics'
         });
@@ -103,7 +103,7 @@ function deriveSignals(events: TopScoringEvent[]): TrustSignal[] {
   if (hasSevereNegative && signals.length === 0) {
     signals.push({
       icon: <TrendingDown className="h-3.5 w-3.5" />,
-      label: 'Recent concerns',
+      label: 'Recent issues',
       type: 'warning',
       category: 'general'
     });

@@ -167,7 +167,7 @@ export function WhyThisScoreSection({ brandId, brandName, isPersonalized }: WhyT
         <p className="text-sm text-muted-foreground mt-1">
           {isPersonalized 
             ? "Based on your value preferences, these events most affect your score"
-            : "Recent events that most impact this brand's score"
+            : "Recent events that may affect your decision — you decide what matters"
           }
         </p>
       </CardHeader>

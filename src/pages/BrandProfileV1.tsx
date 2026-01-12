@@ -94,9 +94,9 @@ function ScoreDisplay({ score }: { score: number | null }) {
   };
   
   const getScoreLabel = (s: number) => {
-    if (s >= 70) return 'Good';
-    if (s >= 40) return 'Average';
-    return 'Poor';
+    if (s >= 70) return 'Low risk';
+    if (s >= 40) return 'Mixed record';
+    return 'High exposure';
   };
   
   return (
