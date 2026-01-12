@@ -250,11 +250,13 @@ const App = () => {
             path="/admin/review"
             element={
               <ProtectedRoute>
-                <RouteErrorBoundary>
-                  <Suspense fallback={<RouteFallback label="Loading admin review…" />}>
-                    <AdminReview />
-                  </Suspense>
-                </RouteErrorBoundary>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading admin review…" />}>
+                      <AdminReview />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
               </ProtectedRoute>
             }
           />
@@ -262,11 +264,13 @@ const App = () => {
             path="/admin/claims"
             element={
               <ProtectedRoute>
-                <RouteErrorBoundary>
-                  <Suspense fallback={<RouteFallback label="Loading claims moderation…" />}>
-                    <AdminClaims />
-                  </Suspense>
-                </RouteErrorBoundary>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading claims moderation…" />}>
+                      <AdminClaims />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
               </ProtectedRoute>
             }
           />

@@ -60,10 +60,18 @@ export default function Search() {
       });
   }, [debouncedQuery]);
 
+  // XSS protection: escape HTML entities before highlighting
+  const escapeHtml = (text: string) =>
+    text.replace(/[&<>"']/g, (m) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m] || m)
+    );
+
   const highlightMatch = (name: string, q: string) => {
-    if (!q.trim()) return name;
-    const regex = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-    return name.replace(regex, '<mark class="bg-primary/20">$1</mark>');
+    const escapedName = escapeHtml(name);
+    if (!q.trim()) return escapedName;
+    const escapedQuery = escapeHtml(q);
+    const regex = new RegExp(`(${escapedQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return escapedName.replace(regex, '<mark class="bg-primary/20">$1</mark>');
   };
 
   const totalResults = products.length + brands.length;
