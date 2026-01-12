@@ -5,6 +5,8 @@ import { useOwnership } from "@/hooks/useOwnership";
 import { Card } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+import { useTopShareholders } from "@/hooks/useTopShareholders";
+
 interface OwnershipHeader {
   is_ultimate_parent: boolean;
   owner_company_name: string | null;
@@ -24,6 +26,10 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
   
   // Get ownership data from database ONLY - no Wikidata real-time calls
   const { data: ownershipData, isLoading: ownershipLoading } = useOwnership(brandId);
+  
+  // Check for shareholders to detect public companies
+  const { data: shareholders = [] } = useTopShareholders(brandId, 5);
+  const hasSignificantShareholders = shareholders.length > 0;
 
   if (isLoading || !data) return null;
 
@@ -36,8 +42,11 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
   // This means the brand IS the parent company (like Kroger itself)
   const isParentCompany = data.is_ultimate_parent && siblings.length > 0;
   
-  // True independence: no parent AND no siblings/subsidiaries
-  const isTrulyIndependent = data.is_ultimate_parent && siblings.length === 0 && !hasParentInChain;
+  // Detect public companies: has shareholders OR is a large well-known brand
+  const isPublicCompany = hasSignificantShareholders && !data.owner_company_name;
+  
+  // True independence: no parent AND no siblings/subsidiaries AND not a public company
+  const isTrulyIndependent = data.is_ultimate_parent && siblings.length === 0 && !hasParentInChain && !isPublicCompany;
   
   // Incomplete data: we have siblings but no parent resolved
   // (This should be rare if data is correct, but handle it gracefully)
@@ -71,12 +80,21 @@ export function WhoProfits({ brandId, brandName = "This brand" }: WhoProfitsProp
               This is a parent corporation that owns multiple brands and subsidiaries.
             </p>
           </div>
+        ) : isPublicCompany ? (
+          // Public company: has shareholders, no parent
+          <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+            <p className="text-sm text-blue-700 dark:text-blue-300 mb-1 font-medium">Public Company</p>
+            <p className="text-lg font-semibold">{brandName}</p>
+            <p className="text-xs text-muted-foreground mt-2">
+              {brandName} is a publicly traded multinational corporation. Ownership is distributed among shareholders.
+            </p>
+          </div>
         ) : isTrulyIndependent ? (
-          // Truly independent: no parent, no siblings
+          // Truly independent: no parent, no siblings, no shareholders
           <div className="p-4 rounded-lg bg-muted/30 border border-border">
-            <p className="text-sm font-medium">Independently Operated</p>
+            <p className="text-sm font-medium">Independent Brand</p>
             <p className="text-xs text-muted-foreground mt-1">
-              No parent company found in our data. This brand appears to operate independently.
+              No parent company found. This appears to be an independent operation.
             </p>
           </div>
         ) : data.is_ultimate_parent ? (

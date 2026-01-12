@@ -48,6 +48,7 @@ import { usePersonalizedScore } from '@/hooks/usePersonalizedScore';
 import { WhyThisScoreSection } from '@/components/brand/WhyThisScoreSection';
 import { CategoryBreakdownBars } from '@/components/brand/CategoryBreakdownBars';
 import { TrustSignals } from '@/components/brand/TrustSignals';
+import { ConsumerSummary } from '@/components/brand/ConsumerSummary';
 // Hardcoded alternatives mapping for major brands
 const BRAND_ALTERNATIVES: Record<string, Array<{
   brand_id: string;
@@ -265,6 +266,14 @@ export default function BrandProfile() {
   const hasOwnershipData = 
     (ownership?.structure?.chain?.length ?? 0) > 1 ||
     (ownership?.shareholders?.top?.length ?? 0) > 0;
+  
+  // Detect public company from shareholders
+  const { data: topShareholders = [] } = useTopShareholders(resolvedBrandId, 5);
+  const isPublicCompany = topShareholders.length > 0;
+  
+  // Detect parent company
+  const siblings = ownership?.structure?.siblings || [];
+  const isParentCompany = (ownership?.structure?.chain?.length ?? 0) === 0 && siblings.length > 0;
 
   // Check for key people and shareholders to trigger enrichment (use resolved UUID)
   const { data: keyPeople = [] } = useKeyPeople(resolvedBrandId);
@@ -409,7 +418,11 @@ export default function BrandProfile() {
       events_365d: events90d, // Using 90d as proxy
       verified_rate: verifiedRate,
       independent_sources: uniqueSources,
-      last_event_at: lastEvent
+      last_event_at: lastEvent,
+      has_ethical_impact: relevantEvidence.some(e => 
+        e.category === 'labor' || e.category === 'environment' || 
+        e.category === 'politics' || e.category === 'social'
+      )
     };
   }, [evidence]);
 
@@ -801,6 +814,21 @@ export default function BrandProfile() {
           </CardContent>
         </Card>
 
+        {/* 1) Consumer Summary - What We Know So Far */}
+        {resolvedBrandId && (
+          <ConsumerSummary
+            brandId={resolvedBrandId}
+            brandName={displayBrandName}
+            description={data.brand.description}
+            eventsCount={coverage.events_90d}
+            hasEthicalConcerns={coverage.has_ethical_impact}
+            lastEventAt={coverage.last_event_at}
+            ownerName={ownership?.structure?.chain?.[0]?.name || data.brand.parent_company}
+            isPublicCompany={isPublicCompany}
+            isParentCompany={isParentCompany}
+          />
+        )}
+
         {/* Coverage Expanding Banner */}
         {(coverage.events_90d < 20 || !hasDescription || !hasLogo) && (
           <Alert className="border-blue-500/50 bg-blue-50/50 dark:bg-blue-950/20">
@@ -823,6 +851,8 @@ export default function BrandProfile() {
         <PersonalizedScoreCard
           personalizedScore={personalizedScore}
           baselineScore={baselineScore}
+          eventsCount={coverage.events_90d}
+          hasEthicalImpact={coverage.has_ethical_impact}
         />
         
         {/* Why This Score - Evidence-backed explanation */}
@@ -885,32 +915,54 @@ export default function BrandProfile() {
           const brandKey = data.brand.name.toLowerCase();
           const alternatives = BRAND_ALTERNATIVES[brandKey];
           
-          if (!alternatives) return null;
+          // Show hardcoded alternatives if they exist
+          if (alternatives) {
+            return (
+              <>
+                <SectionHeader>Better Alternatives to Consider</SectionHeader>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
+                      <Lightbulb className="w-4 h-4" />
+                      <span>These brands align better with ethical consumer values</span>
+                    </div>
+                    <div className="grid gap-3">
+                      {alternatives.map((alt) => (
+                        <AlternativeCard
+                          key={alt.brand_id}
+                          brand_id={alt.brand_id}
+                          brand_name={alt.brand_name}
+                          reason={alt.reason}
+                          match_score={alt.match_score}
+                          logo_url={alt.logo_url}
+                        />
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            );
+          }
           
+          // Fallback: show category siblings message for brands without alternatives
           return (
-            <>
-              <SectionHeader>Better Alternatives to Consider</SectionHeader>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
-                    <Lightbulb className="w-4 h-4" />
-                    <span>These brands align better with ethical consumer values</span>
-                  </div>
-                  <div className="grid gap-3">
-                    {alternatives.map((alt) => (
-                      <AlternativeCard
-                        key={alt.brand_id}
-                        brand_id={alt.brand_id}
-                        brand_name={alt.brand_name}
-                        reason={alt.reason}
-                        match_score={alt.match_score}
-                        logo_url={alt.logo_url}
-                      />
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </>
+            <Card className="p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Lightbulb className="w-5 h-5 text-muted-foreground" />
+                <h3 className="font-semibold">Looking for Alternatives?</h3>
+              </div>
+              <p className="text-sm text-muted-foreground mb-3">
+                We don't have enough data to recommend ethical alternatives for {data.brand.name} yet.
+                As we collect more verified information, alternatives will appear here.
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => navigate('/discover')}
+              >
+                Browse Similar Brands
+              </Button>
+            </Card>
           );
         })()}
 
@@ -1020,6 +1072,7 @@ export default function BrandProfile() {
         <SectionHeader>What's happening at {data.brand.name}?</SectionHeader>
         <EvidencePanel
           evidence={data.evidence || []}
+          brandName={data.brand.name}
           onReport={(eventId) => {
             setSelectedEventId(eventId);
             setReportDialogOpen(true);

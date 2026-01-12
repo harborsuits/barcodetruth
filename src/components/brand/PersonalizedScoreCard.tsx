@@ -2,16 +2,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
+import { Bell, TrendingUp, Activity, CheckCircle } from "lucide-react";
 
 interface PersonalizedScoreCardProps {
   personalizedScore: number | null;
   baselineScore: number | null;
+  eventsCount?: number;
+  hasEthicalImpact?: boolean;
 }
 
 export function PersonalizedScoreCard({
   personalizedScore,
   baselineScore,
+  eventsCount = 0,
+  hasEthicalImpact = false,
 }: PersonalizedScoreCardProps) {
   const navigate = useNavigate();
   
@@ -51,14 +57,75 @@ export function PersonalizedScoreCard({
   const hasPersonalized = user && typeof personalizedScore === 'number';
   const effectiveScore = (hasPersonalized ? personalizedScore : baselineScore) ?? null;
 
+  // Status-based messaging when no score
   if (effectiveScore === null) {
+    // Case 1: No events at all - collection starting
+    if (eventsCount === 0) {
+      return (
+        <Card className="p-4 sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-full bg-muted">
+              <Activity className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <p className="font-medium">Collection Starting</p>
+                <Badge variant="outline" className="text-xs">In Progress</Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                We haven't collected events for this brand yet. Follow to be notified when data becomes available.
+              </p>
+              <Button size="sm" variant="outline" className="mt-3" onClick={() => navigate('/settings')}>
+                <Bell className="h-4 w-4 mr-2" />
+                Follow this brand
+              </Button>
+            </div>
+          </div>
+        </Card>
+      );
+    }
+    
+    // Case 2: Events exist but no ethical impacts (market news only)
+    if (eventsCount > 0 && !hasEthicalImpact) {
+      return (
+        <Card className="p-4 sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-full bg-green-100 dark:bg-green-950">
+              <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <p className="font-medium">Neutral Activity</p>
+                <Badge variant="secondary" className="text-xs">{eventsCount} events</Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                We found {eventsCount} recent event{eventsCount !== 1 ? 's' : ''} but none indicate ethical concerns 
+                in labor, environment, politics, or social categories. This is generally a good sign.
+              </p>
+            </div>
+          </div>
+        </Card>
+      );
+    }
+    
+    // Case 3: Events with impacts but score not yet calculated
     return (
       <Card className="p-4 sm:p-6">
-        <p className="font-medium mb-1">Score status</p>
-        <p className="text-sm text-muted-foreground">
-          Monitoring in progress — this brand's ethical score will appear once
-          enough verified events are collected.
-        </p>
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-full bg-amber-100 dark:bg-amber-950">
+            <TrendingUp className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <p className="font-medium">Building Score</p>
+              <Badge variant="outline" className="text-xs">Early Data</Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              We're analyzing {eventsCount} event{eventsCount !== 1 ? 's' : ''} to calculate an ethical score. 
+              Check back soon for a complete assessment.
+            </p>
+          </div>
+        </div>
       </Card>
     );
   }
