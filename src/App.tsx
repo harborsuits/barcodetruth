@@ -113,46 +113,38 @@ const App = () => {
           <Route
             path="/search"
             element={
-              <ProtectedRoute>
-                <Suspense fallback={<RouteFallback label="Loading search…" />}>
-                  <Search />
-                </Suspense>
-              </ProtectedRoute>
+              <Suspense fallback={<RouteFallback label="Loading search…" />}>
+                <Search />
+              </Suspense>
             }
           />
           <Route
             path="/discover"
             element={
-              <ProtectedRoute>
-                <Suspense fallback={<RouteFallback label="Loading discover…" />}>
-                  <Discover />
-                </Suspense>
-              </ProtectedRoute>
+              <Suspense fallback={<RouteFallback label="Loading discover…" />}>
+                <Discover />
+              </Suspense>
             }
           />
           <Route
             path="/brand/:brandId"
             element={
-              <ProtectedRoute>
-                <RouteErrorBoundary>
-                  <Suspense fallback={<RouteFallback label="Loading brand…" />}>
-                    <BrandProfile />
-                  </Suspense>
-                </RouteErrorBoundary>
-              </ProtectedRoute>
+              <RouteErrorBoundary>
+                <Suspense fallback={<RouteFallback label="Loading brand…" />}>
+                  <BrandProfile />
+                </Suspense>
+              </RouteErrorBoundary>
             }
           />
           {/* Canonical brand profile route */}
           <Route
             path="/brand/:id"
             element={
-              <ProtectedRoute>
-                <RouteErrorBoundary>
-                  <Suspense fallback={<RouteFallback label="Loading brand profile…" />}>
-                    <BrandProfile />
-                  </Suspense>
-                </RouteErrorBoundary>
-              </ProtectedRoute>
+              <RouteErrorBoundary>
+                <Suspense fallback={<RouteFallback label="Loading brand profile…" />}>
+                  <BrandProfile />
+                </Suspense>
+              </RouteErrorBoundary>
             }
           />
           {/* Redirect /brands/:id to /brand/:id - canonical route */}
@@ -179,35 +171,29 @@ const App = () => {
           <Route
             path="/scan-result"
             element={
-              <ProtectedRoute>
-                <Suspense fallback={<RouteFallback label="Loading…" />}>
-                  <ScanResult />
-                </Suspense>
-              </ProtectedRoute>
+              <Suspense fallback={<RouteFallback label="Loading…" />}>
+                <ScanResult />
+              </Suspense>
             }
           />
           <Route
             path="/scan-result/:barcode"
             element={
-              <ProtectedRoute>
-                <RouteErrorBoundary>
-                  <Suspense fallback={<RouteFallback label="Loading result…" />}>
-                    <ScanResult />
-                  </Suspense>
-                </RouteErrorBoundary>
-              </ProtectedRoute>
+              <RouteErrorBoundary>
+                <Suspense fallback={<RouteFallback label="Loading result…" />}>
+                  <ScanResult />
+                </Suspense>
+              </RouteErrorBoundary>
             }
           />
           <Route
             path="/trending"
             element={
-              <ProtectedRoute>
-                <RouteErrorBoundary>
-                  <Suspense fallback={<RouteFallback label="Loading trending…" />}>
-                    <Trending />
-                  </Suspense>
-                </RouteErrorBoundary>
-              </ProtectedRoute>
+              <RouteErrorBoundary>
+                <Suspense fallback={<RouteFallback label="Loading trending…" />}>
+                  <Trending />
+                </Suspense>
+              </RouteErrorBoundary>
             }
           />
           <Route
@@ -555,13 +541,11 @@ const App = () => {
           <Route
             path="/brands/:id/proof"
             element={
-              <ProtectedRoute>
-                <RouteErrorBoundary>
-                  <Suspense fallback={<RouteFallback label="Loading proof…" />}>
-                    <BrandProof />
-                  </Suspense>
-                </RouteErrorBoundary>
-              </ProtectedRoute>
+              <RouteErrorBoundary>
+                <Suspense fallback={<RouteFallback label="Loading proof…" />}>
+                  <BrandProof />
+                </Suspense>
+              </RouteErrorBoundary>
             }
           />
           <Route
@@ -591,21 +575,17 @@ const App = () => {
           <Route
             path="/investor/:id"
             element={
-              <ProtectedRoute>
-                <Suspense fallback={<RouteFallback label="Loading investor…" />}>
-                  <InvestorProfile />
-                </Suspense>
-              </ProtectedRoute>
+              <Suspense fallback={<RouteFallback label="Loading investor…" />}>
+                <InvestorProfile />
+              </Suspense>
             }
           />
           <Route
             path="/person/:id"
             element={
-              <ProtectedRoute>
-                <Suspense fallback={<RouteFallback label="Loading person…" />}>
-                  <PersonProfile />
-                </Suspense>
-              </ProtectedRoute>
+              <Suspense fallback={<RouteFallback label="Loading person…" />}>
+                <PersonProfile />
+              </Suspense>
             }
           />
           <Route path="*" element={<NotFound />} />
