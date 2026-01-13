@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { User } from "@supabase/supabase-js";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -10,30 +11,57 @@ interface ProtectedRouteProps {
 export const ProtectedRoute = ({ children, requireOnboarding = true }: ProtectedRouteProps) => {
   const navigate = useNavigate();
   const [isChecking, setIsChecking] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const checkAccess = async () => {
-      // Check authentication
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
-
-      // Check onboarding completion if required
-      if (requireOnboarding) {
-        const onboardingComplete = localStorage.getItem("onboardingComplete");
-        if (!onboardingComplete) {
-          navigate("/onboarding");
+    // Set up auth state listener FIRST - this catches OAuth redirects
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        // Update user state synchronously
+        setUser(session?.user ?? null);
+        
+        // If no session after state change settles, redirect to auth
+        if (!session?.user) {
+          navigate("/auth");
           return;
         }
+        
+        // Check onboarding if required (deferred to avoid deadlock)
+        if (requireOnboarding) {
+          setTimeout(() => {
+            const onboardingComplete = localStorage.getItem("onboardingComplete");
+            if (!onboardingComplete) {
+              navigate("/onboarding");
+            } else {
+              setIsChecking(false);
+            }
+          }, 0);
+        } else {
+          setIsChecking(false);
+        }
       }
+    );
 
-      setIsChecking(false);
-    };
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user);
+        
+        if (requireOnboarding) {
+          const onboardingComplete = localStorage.getItem("onboardingComplete");
+          if (!onboardingComplete) {
+            navigate("/onboarding");
+          } else {
+            setIsChecking(false);
+          }
+        } else {
+          setIsChecking(false);
+        }
+      }
+      // Don't redirect immediately - wait for onAuthStateChange to handle no-session case
+    });
 
-    checkAccess();
+    return () => subscription.unsubscribe();
   }, [navigate, requireOnboarding]);
 
   if (isChecking) {
