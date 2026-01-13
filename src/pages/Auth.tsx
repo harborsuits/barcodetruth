@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,44 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+
+  // Check for existing session (handles OAuth redirects)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (session?.user) {
+          // User is authenticated, check onboarding and redirect
+          setTimeout(() => {
+            const onboardingComplete = localStorage.getItem("onboardingComplete");
+            if (onboardingComplete) {
+              navigate("/", { replace: true });
+            } else {
+              navigate("/onboarding", { replace: true });
+            }
+          }, 0);
+        } else {
+          setIsCheckingSession(false);
+        }
+      }
+    );
+
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const onboardingComplete = localStorage.getItem("onboardingComplete");
+        if (onboardingComplete) {
+          navigate("/", { replace: true });
+        } else {
+          navigate("/onboarding", { replace: true });
+        }
+      } else {
+        setIsCheckingSession(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
@@ -198,6 +236,14 @@ export default function Auth() {
       setIsLoading(false);
     }
   };
+
+  if (isCheckingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
