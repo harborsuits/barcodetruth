@@ -27,41 +27,83 @@ export default function Auth() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
 
+  // Check onboarding status from database
+  const checkOnboardingStatus = async (userId: string): Promise<boolean> => {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('onboarding_complete')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (profile?.onboarding_complete) {
+      localStorage.setItem("onboardingComplete", "true");
+      return true;
+    }
+
+    // Fallback: if user has saved preferences, consider onboarding complete
+    const { data: prefs } = await supabase
+      .from('user_preferences')
+      .select('user_id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (prefs) {
+      await supabase.from('profiles').upsert({ id: userId, onboarding_complete: true });
+      localStorage.setItem("onboardingComplete", "true");
+      return true;
+    }
+
+    return false;
+  };
+
   // Check for existing session (handles OAuth redirects)
   useEffect(() => {
+    let mounted = true;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (!mounted) return;
+
         if (session?.user) {
-          // User is authenticated, check onboarding and redirect
-          setTimeout(() => {
-            const onboardingComplete = localStorage.getItem("onboardingComplete");
-            if (onboardingComplete) {
+          // User is authenticated - check onboarding status from DB (deferred to avoid deadlock)
+          setTimeout(async () => {
+            if (!mounted) return;
+            const isComplete = await checkOnboardingStatus(session.user.id);
+            if (isComplete) {
               navigate("/", { replace: true });
             } else {
               navigate("/onboarding", { replace: true });
             }
           }, 0);
-        } else {
+        } else if (event === 'SIGNED_OUT') {
+          // Only show login form on explicit sign out
           setIsCheckingSession(false);
         }
+        // Don't set isCheckingSession(false) during OAuth callback - wait for session
       }
     );
 
     // Check initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return;
+
       if (session?.user) {
-        const onboardingComplete = localStorage.getItem("onboardingComplete");
-        if (onboardingComplete) {
+        const isComplete = await checkOnboardingStatus(session.user.id);
+        if (isComplete) {
           navigate("/", { replace: true });
         } else {
           navigate("/onboarding", { replace: true });
         }
       } else {
+        // No session on initial load - show login form
         setIsCheckingSession(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   const handleGoogleSignIn = async () => {
