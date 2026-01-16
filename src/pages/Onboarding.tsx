@@ -159,47 +159,89 @@ export const Onboarding = () => {
     social: 50,
   });
 
-  // Check authentication on mount
+  // Check authentication using onAuthStateChange to handle OAuth redirects properly
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+    let mounted = true;
+
+    const checkOnboardingStatus = async (userId: string) => {
+      // Check onboarding status from database
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('onboarding_complete')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profile?.onboarding_complete) {
+        navigate("/");
+        return true;
+      }
+
+      // Fallback: if user has saved preferences, consider onboarding complete
+      const { data: prefs } = await supabase
+        .from('user_preferences')
+        .select('user_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (prefs) {
+        await supabase.from('profiles').upsert({ id: userId, onboarding_complete: true });
+        navigate("/");
+        return true;
+      }
+
+      return false;
+    };
+
+    // Set up auth state listener FIRST to catch OAuth callbacks
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (!mounted) return;
+
+        if (!session?.user) {
+          // Only redirect to auth if explicitly signed out
+          if (event === 'SIGNED_OUT') {
+            navigate("/auth");
+          }
+          return;
+        }
+
+        // User is authenticated - check onboarding status with setTimeout to avoid deadlock
+        setTimeout(async () => {
+          if (!mounted) return;
+          const alreadyOnboarded = await checkOnboardingStatus(session.user.id);
+          if (!alreadyOnboarded && mounted) {
+            setIsAuthenticated(true);
+          }
+        }, 0);
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return;
+
+      if (!session?.user) {
+        // No session - redirect to auth
         toast({
           title: "Authentication required",
           description: "Please sign in to continue",
           variant: "destructive",
         });
         navigate("/auth");
-      } else {
-        // Check onboarding status from database; handle missing profile rows (pre-migration users)
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('onboarding_complete')
-          .eq('id', user.id)
-          .maybeSingle();
+        return;
+      }
 
-        if (profile?.onboarding_complete) {
-          navigate("/");
-          return;
-        }
-
-        // Fallback: if user has saved preferences, consider onboarding complete
-        const { data: prefs } = await supabase
-          .from('user_preferences')
-          .select('user_id')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (prefs) {
-          await supabase.from('profiles').upsert({ id: user.id, onboarding_complete: true });
-          navigate("/");
-          return;
-        }
-
+      // Check onboarding status
+      const alreadyOnboarded = await checkOnboardingStatus(session.user.id);
+      if (!alreadyOnboarded && mounted) {
         setIsAuthenticated(true);
       }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
     };
-    checkAuth();
   }, [navigate, toast]);
 
   const handleComplete = async () => {
