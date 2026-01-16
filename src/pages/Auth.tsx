@@ -67,10 +67,11 @@ export default function Auth() {
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
     try {
+      // Redirect to /auth after OAuth - the onAuthStateChange will handle navigation
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/onboarding`,
+          redirectTo: `${window.location.origin}/auth`,
         },
       });
       if (error) throw error;
