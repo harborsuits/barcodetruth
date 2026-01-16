@@ -14,23 +14,59 @@ export const ProtectedRoute = ({ children, requireOnboarding = true }: Protected
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
+    let mounted = true;
+
+    // Check onboarding status from database
+    const checkOnboardingStatus = async (userId: string): Promise<boolean> => {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('onboarding_complete')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profile?.onboarding_complete) {
+        localStorage.setItem("onboardingComplete", "true");
+        return true;
+      }
+
+      // Fallback: check if user has preferences saved
+      const { data: prefs } = await supabase
+        .from('user_preferences')
+        .select('user_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (prefs) {
+        await supabase.from('profiles').upsert({ id: userId, onboarding_complete: true });
+        localStorage.setItem("onboardingComplete", "true");
+        return true;
+      }
+
+      return false;
+    };
+
     // Set up auth state listener FIRST - this catches OAuth redirects
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (!mounted) return;
+
         // Update user state synchronously
         setUser(session?.user ?? null);
         
-        // If no session after state change settles, redirect to auth
+        // Only redirect to auth on explicit SIGNED_OUT - NOT when session is temporarily null during OAuth
         if (!session?.user) {
-          navigate("/auth");
+          if (event === 'SIGNED_OUT') {
+            navigate("/auth");
+          }
           return;
         }
         
         // Check onboarding if required (deferred to avoid deadlock)
         if (requireOnboarding) {
-          setTimeout(() => {
-            const onboardingComplete = localStorage.getItem("onboardingComplete");
-            if (!onboardingComplete) {
+          setTimeout(async () => {
+            if (!mounted) return;
+            const isComplete = await checkOnboardingStatus(session.user.id);
+            if (!isComplete) {
               navigate("/onboarding");
             } else {
               setIsChecking(false);
@@ -43,13 +79,15 @@ export const ProtectedRoute = ({ children, requireOnboarding = true }: Protected
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return;
+
       if (session?.user) {
         setUser(session.user);
         
         if (requireOnboarding) {
-          const onboardingComplete = localStorage.getItem("onboardingComplete");
-          if (!onboardingComplete) {
+          const isComplete = await checkOnboardingStatus(session.user.id);
+          if (!isComplete) {
             navigate("/onboarding");
           } else {
             setIsChecking(false);
@@ -57,11 +95,16 @@ export const ProtectedRoute = ({ children, requireOnboarding = true }: Protected
         } else {
           setIsChecking(false);
         }
+      } else {
+        // No session - redirect to auth
+        navigate("/auth");
       }
-      // Don't redirect immediately - wait for onAuthStateChange to handle no-session case
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [navigate, requireOnboarding]);
 
   if (isChecking) {
