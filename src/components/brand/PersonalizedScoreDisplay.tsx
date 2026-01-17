@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertTriangle, TrendingUp, TrendingDown, HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertTriangle, TrendingUp, TrendingDown, HelpCircle, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -189,9 +189,32 @@ export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidenc
   const { data: personalizedResult, isLoading: personalizedLoading } = usePersonalizedBrandScore(brandId, userId);
   const { data: defaultResult, isLoading: defaultLoading } = useDefaultBrandScore(brandId);
   
-  const isLoading = userId ? personalizedLoading : defaultLoading;
-  const result = userId ? personalizedResult : defaultResult;
+  // FALLBACK: Fetch brand_scores.score directly as backup
+  const { data: fallbackScore, isLoading: fallbackLoading } = useQuery({
+    queryKey: ['brand-scores-fallback', brandId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('brand_scores')
+        .select('score, last_updated')
+        .eq('brand_id', brandId)
+        .maybeSingle();
+      if (error || !data) return null;
+      return data;
+    },
+    enabled: !!brandId,
+  });
+  
+  const isLoading = (userId ? personalizedLoading : defaultLoading) && fallbackLoading;
+  const vectorResult = userId ? personalizedResult : defaultResult;
   const isPersonalized = !!userId && !!personalizedResult;
+  
+  // Check if vector-based score is valid (not all zeros)
+  const vectorScoreIsValid = vectorResult && vectorResult.personalScore !== 50; // 50 is the default when all zeros
+  
+  // Use vector result if valid, otherwise fall back to brand_scores.score
+  const hasValidScore = vectorScoreIsValid || (fallbackScore?.score !== null && fallbackScore?.score !== undefined);
+  const displayScore = vectorScoreIsValid ? vectorResult?.personalScore : fallbackScore?.score;
+  const isFallbackScore = !vectorScoreIsValid && fallbackScore?.score !== null;
 
   // Identity confidence gate
   if (identityConfidence === 'low') {
@@ -235,20 +258,88 @@ export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidenc
     );
   }
 
-  if (!result) {
+  // Show fallback score if vector-based scoring failed but brand_scores exists
+  if (!vectorScoreIsValid && isFallbackScore && displayScore !== null && displayScore !== undefined) {
+    const score = Math.round(displayScore);
     return (
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Alignment Score</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <span>Alignment Score</span>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Badge variant="outline" className="text-xs">Baseline</Badge>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>Aggregate score based on recent evidence. Sign in and set your values for a personalized score.</p>
+                </TooltipContent>
+              </Tooltip>
+            </CardTitle>
+          </div>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Unable to calculate score. Not enough data available.
-          </p>
+        <CardContent className="space-y-4">
+          <div className="flex items-start gap-6">
+            <ScoreRing score={score} />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-muted-foreground mb-2">
+                {score >= 70 && "Low risk — positive track record"}
+                {score >= 40 && score < 70 && "Mixed record — some concerns noted"}
+                {score < 40 && "High exposure — significant concerns"}
+              </p>
+              {fallbackScore?.last_updated && (
+                <p className="text-xs text-muted-foreground">
+                  Last updated: {new Date(fallbackScore.last_updated).toLocaleDateString()}
+                </p>
+              )}
+            </div>
+          </div>
+          
+          {!userId && (
+            <p className="text-xs text-muted-foreground text-center pt-2 border-t">
+              <a href="/auth" className="text-primary hover:underline">
+                Sign in
+              </a>
+              {' '}to see a score personalized to your values
+            </p>
+          )}
+          {userId && (
+            <p className="text-xs text-muted-foreground text-center pt-2 border-t">
+              <a href="/settings" className="text-primary hover:underline">
+                Set your values
+              </a>
+              {' '}to see a personalized score
+            </p>
+          )}
         </CardContent>
       </Card>
     );
   }
+
+  // No score available at all
+  if (!hasValidScore) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <span>Alignment Score</span>
+            <Badge variant="outline" className="text-xs">Computing</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
+            <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
+            <p className="text-sm text-muted-foreground">
+              Score computing. We're gathering and analyzing evidence for {brandName}.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Use the full vector-based result for personalized display
+  const result = vectorResult!;
 
   return (
     <Card>
