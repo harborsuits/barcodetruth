@@ -114,7 +114,7 @@ const DIMENSION_EMOJIS: Record<Dimension, string> = {
 };
 
 // Confidence penalties - low confidence dimensions contribute less
-const CONFIDENCE_MULTIPLIERS: Record<ConfidenceLevel, number> = {
+export const CONFIDENCE_MULTIPLIERS: Record<ConfidenceLevel, number> = {
   low: 0.85,
   medium: 0.95,
   high: 1.0,

@@ -116,8 +116,8 @@ export function ScoreExplainer({ result, brandName, onOpenSettings }: ScoreExpla
               </p>
             </div>
 
-            {/* Dimension breakdown */}
-            <AlignmentBreakdown result={result} />
+            {/* Dimension breakdown with math calculation */}
+            <AlignmentBreakdown result={result} showMath={true} />
 
             {/* Personalization CTA */}
             {!result.isPersonalized && (
