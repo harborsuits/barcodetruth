@@ -21,6 +21,21 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 
+// Helper function to format time ago
+function formatTimeAgo(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+  if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+  return date.toLocaleDateString();
+}
+
 interface PersonalizedScoreDisplayProps {
   brandId: string;
   brandName: string;
@@ -189,13 +204,13 @@ export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidenc
   const { data: personalizedResult, isLoading: personalizedLoading } = usePersonalizedBrandScore(brandId, userId);
   const { data: defaultResult, isLoading: defaultLoading } = useDefaultBrandScore(brandId);
   
-  // FALLBACK: Fetch brand_scores.score directly as backup
+  // FALLBACK: Fetch brand_scores with pillar breakdown as backup
   const { data: fallbackScore, isLoading: fallbackLoading } = useQuery({
     queryKey: ['brand-scores-fallback', brandId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('brand_scores')
-        .select('score, last_updated')
+        .select('score, score_labor, score_environment, score_politics, score_social, last_updated, recomputed_at')
         .eq('brand_id', brandId)
         .maybeSingle();
       if (error || !data) return null;
@@ -208,13 +223,16 @@ export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidenc
   const vectorResult = userId ? personalizedResult : defaultResult;
   const isPersonalized = !!userId && !!personalizedResult;
   
-  // Check if vector-based score is valid (not all zeros)
-  const vectorScoreIsValid = vectorResult && vectorResult.personalScore !== 50; // 50 is the default when all zeros
+  // Check if vector-based score is valid (not all zeros / not exactly 50)
+  const vectorScoreIsValid = vectorResult && vectorResult.personalScore !== 50;
   
-  // Use vector result if valid, otherwise fall back to brand_scores.score
+  // Use vector result if valid, otherwise fall back to brand_scores
   const hasValidScore = vectorScoreIsValid || (fallbackScore?.score !== null && fallbackScore?.score !== undefined);
   const displayScore = vectorScoreIsValid ? vectorResult?.personalScore : fallbackScore?.score;
   const isFallbackScore = !vectorScoreIsValid && fallbackScore?.score !== null;
+  
+  // Get freshness timestamp
+  const lastUpdated = fallbackScore?.recomputed_at || fallbackScore?.last_updated;
 
   // Identity confidence gate
   if (identityConfidence === 'low') {
@@ -258,9 +276,16 @@ export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidenc
     );
   }
 
-  // Show fallback score if vector-based scoring failed but brand_scores exists
+  // Show fallback score with pillar breakdown if vector-based scoring failed but brand_scores exists
   if (!vectorScoreIsValid && isFallbackScore && displayScore !== null && displayScore !== undefined) {
     const score = Math.round(displayScore);
+    const pillars = [
+      { key: 'labor', label: 'Labor', emoji: '👷', value: fallbackScore?.score_labor ?? 0 },
+      { key: 'environment', label: 'Environment', emoji: '🌍', value: fallbackScore?.score_environment ?? 0 },
+      { key: 'politics', label: 'Politics', emoji: '🏛️', value: fallbackScore?.score_politics ?? 0 },
+      { key: 'social', label: 'Social', emoji: '🤝', value: fallbackScore?.score_social ?? 0 },
+    ];
+    
     return (
       <Card>
         <CardHeader className="pb-2">
@@ -282,14 +307,27 @@ export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidenc
           <div className="flex items-start gap-6">
             <ScoreRing score={score} />
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-muted-foreground mb-2">
+              <p className="text-sm text-muted-foreground mb-3">
                 {score >= 70 && "Low risk — positive track record"}
                 {score >= 40 && score < 70 && "Mixed record — some concerns noted"}
                 {score < 40 && "High exposure — significant concerns"}
               </p>
-              {fallbackScore?.last_updated && (
-                <p className="text-xs text-muted-foreground">
-                  Last updated: {new Date(fallbackScore.last_updated).toLocaleDateString()}
+              
+              {/* Pillar breakdown */}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                {pillars.map(p => (
+                  <div key={p.key} className="flex items-center gap-2 text-xs">
+                    <span>{p.emoji}</span>
+                    <span className="text-muted-foreground w-20 truncate">{p.label}</span>
+                    <Progress value={p.value} className="h-1.5 flex-1" />
+                    <span className="w-6 text-right font-medium">{p.value}</span>
+                  </div>
+                ))}
+              </div>
+              
+              {lastUpdated && (
+                <p className="text-xs text-muted-foreground mt-3">
+                  Updated {formatTimeAgo(new Date(lastUpdated))}
                 </p>
               )}
             </div>
@@ -316,22 +354,27 @@ export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidenc
     );
   }
 
-  // No score available at all
+  // No score available at all - show "Score building" state
   if (!hasValidScore) {
     return (
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-lg flex items-center gap-2">
             <span>Alignment Score</span>
-            <Badge variant="outline" className="text-xs">Computing</Badge>
+            <Badge variant="outline" className="text-xs">Building</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
-            <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
-            <p className="text-sm text-muted-foreground">
-              Score computing. We're gathering and analyzing evidence for {brandName}.
-            </p>
+            <Loader2 className="h-5 w-5 text-primary animate-spin" />
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Building score for {brandName}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Usually ready within a few minutes
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
