@@ -1,39 +1,66 @@
 # Cron Secret Setup for process-brand-stubs
 
-The `process-brand-stubs` edge function is now protected with a `CRON_SECRET` header to prevent unauthorized triggering.
+The `process-brand-stubs` edge function is protected with a `CRON_SECRET` header to prevent unauthorized triggering.
 
-## Setup Steps
+## Setup Steps (BOTH REQUIRED)
 
-### 1. Edge Function Secret (Already Done)
-The `CRON_SECRET` environment variable has been added to the Supabase Edge Function secrets.
+### Step 1: Edge Function Secret
+Add `CRON_SECRET` in Supabase Dashboard → Edge Functions → Secrets.
 
-### 2. Database Setting (Required)
-Run this SQL to set the secret in database settings so pg_cron can access it:
+### Step 2: Database Setting (CRITICAL - Must Run Manually)
+
+**This cannot be done via migrations.** Run this SQL directly in the Supabase SQL Editor:
 
 ```sql
--- Replace 'your-actual-secret-value' with the same value you entered in the secrets modal
-ALTER DATABASE postgres SET app.cron_secret = 'your-actual-secret-value';
+-- IMPORTANT: Use the EXACT same value as your Edge Function secret
+ALTER DATABASE postgres SET app.cron_secret = 'YOUR_CRON_SECRET_VALUE';
 ```
 
-After running, disconnect and reconnect to the database (or restart) for the setting to take effect.
-
-### 3. Verify Cron Job
-The cron job `process-brand-stubs-5m` runs every 5 minutes and includes the `x-cron-secret` header.
-
-Check it exists:
+Then verify it persisted:
 ```sql
-SELECT jobname, schedule FROM cron.job WHERE jobname = 'process-brand-stubs-5m';
+SHOW app.cron_secret;
 ```
 
-### How It Works
+### Step 3: Create the Cron Job
 
-1. The cron job calls `process-brand-stubs` with header `x-cron-secret: <value from app.cron_secret>`
-2. The edge function validates this header against its `CRON_SECRET` environment variable
-3. If they don't match, the function returns 401 Unauthorized
+Remove any old job first:
+```sql
+SELECT cron.unschedule('process-brand-stubs-5m');
+```
 
-### Verification
+Create the secure job (no Authorization header needed - x-cron-secret is the gate):
+```sql
+SELECT cron.schedule(
+  'process-brand-stubs-5m',
+  '*/5 * * * *',
+  $$
+    SELECT net.http_post(
+      url := 'https://midmvcwtywnexzdwbekp.supabase.co/functions/v1/process-brand-stubs',
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'x-cron-secret', current_setting('app.cron_secret', true)
+      ),
+      body := '{}'::jsonb
+    );
+  $$
+);
+```
 
-Test manually (should work with correct secret):
+Verify it exists:
+```sql
+SELECT jobid, jobname, schedule, active FROM cron.job WHERE jobname = 'process-brand-stubs-5m';
+```
+
+## How It Works
+
+1. pg_cron reads `app.cron_secret` from database settings via `current_setting()`
+2. Cron job calls `process-brand-stubs` with `x-cron-secret` header
+3. Edge function validates header against `CRON_SECRET` env var
+4. Mismatched/missing secret → 401 Unauthorized
+
+## Verification
+
+Test with correct secret (should return 200):
 ```bash
 curl -X POST https://midmvcwtywnexzdwbekp.supabase.co/functions/v1/process-brand-stubs \
   -H "Content-Type: application/json" \
@@ -48,9 +75,19 @@ curl -X POST https://midmvcwtywnexzdwbekp.supabase.co/functions/v1/process-brand
   -d '{}'
 ```
 
-### Stage Tracking
+## Troubleshooting
 
-The enrichment pipeline now writes these stages to `brands.enrichment_stage`:
+**`SHOW app.cron_secret` returns empty?**
+- You used `set_config()` instead of `ALTER DATABASE` - that's session-only
+- Run `ALTER DATABASE postgres SET app.cron_secret = '...'` properly
+
+**Cron job returns 401?**
+- Check Edge Function secret matches database setting exactly
+- Verify with `SHOW app.cron_secret;`
+
+## Stage Tracking
+
+The enrichment pipeline writes these stages to `brands.enrichment_stage`:
 
 | Stage | Description |
 |-------|-------------|
@@ -63,4 +100,4 @@ The enrichment pipeline now writes these stages to `brands.enrichment_stage`:
 | `done` | Enrichment complete |
 | `failed` | Enrichment failed |
 
-The UI (`EnrichmentStageProgress` component) displays these stages in real-time on brand profile pages.
+The UI (`EnrichmentStageProgress` component) displays these stages in real-time.
