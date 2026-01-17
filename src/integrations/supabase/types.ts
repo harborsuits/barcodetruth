@@ -2116,6 +2116,9 @@ export type Database = {
           description_source: string | null
           enrichment_attempts: number | null
           enrichment_error: string | null
+          enrichment_stage: string | null
+          enrichment_stage_updated_at: string | null
+          enrichment_started_at: string | null
           id: string
           identity_confidence: string | null
           identity_notes: string | null
@@ -2161,6 +2164,9 @@ export type Database = {
           description_source?: string | null
           enrichment_attempts?: number | null
           enrichment_error?: string | null
+          enrichment_stage?: string | null
+          enrichment_stage_updated_at?: string | null
+          enrichment_started_at?: string | null
           id?: string
           identity_confidence?: string | null
           identity_notes?: string | null
@@ -2206,6 +2212,9 @@ export type Database = {
           description_source?: string | null
           enrichment_attempts?: number | null
           enrichment_error?: string | null
+          enrichment_stage?: string | null
+          enrichment_stage_updated_at?: string | null
+          enrichment_started_at?: string | null
           id?: string
           identity_confidence?: string | null
           identity_notes?: string | null

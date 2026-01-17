@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Activity, AlertTriangle, Clock, XCircle, CheckCircle, ArrowLeft } from "lucide-react";
+import { Activity, AlertTriangle, Clock, XCircle, CheckCircle, ArrowLeft, RefreshCw, Loader2 } from "lucide-react";
 import { Helmet } from "react-helmet";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -86,6 +86,28 @@ interface QueueHealth {
   oldest_pending: string | null;
 }
 
+interface IngestionHealth {
+  stub_count: number;
+  building_count: number;
+  failed_count: number;
+  ready_count: number;
+  ready_to_enrich: number;
+  stuck_building: Array<{
+    id: string;
+    name: string;
+    updated_at: string;
+    enrichment_stage: string | null;
+    enrichment_error: string | null;
+  }>;
+  failed_brands: Array<{
+    id: string;
+    name: string;
+    enrichment_attempts: number;
+    enrichment_error: string | null;
+    next_enrichment_at: string | null;
+  }>;
+}
+
 export default function AdminHealth() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -96,6 +118,8 @@ export default function AdminHealth() {
   const [healthMetrics, setHealthMetrics] = useState<HealthMetrics | null>(null);
   const [healthLoading, setHealthLoading] = useState(false);
   const [queueHealth, setQueueHealth] = useState<QueueHealth | null>(null);
+  const [ingestionHealth, setIngestionHealth] = useState<IngestionHealth | null>(null);
+  const [retrying, setRetrying] = useState<string | null>(null);
 
   useEffect(() => {
     checkAdminAndFetch();
@@ -135,11 +159,105 @@ export default function AdminHealth() {
       if (!queueError && queueRows && queueRows.length > 0) {
         setQueueHealth(queueRows[0] as unknown as QueueHealth);
       }
+
+      // Fetch ingestion health (brand status counts + stuck/failed brands)
+      await fetchIngestionHealth();
     } catch (e: any) {
       console.error("Health fetch error:", e);
       toast.error(e.message || "Failed to load health data");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchIngestionHealth() {
+    try {
+      // Get status counts
+      const { data: statusCounts } = await supabase
+        .from('brands')
+        .select('status')
+        .in('status', ['stub', 'building', 'failed', 'ready']);
+      
+      const counts = {
+        stub: 0,
+        building: 0,
+        failed: 0,
+        ready: 0,
+      };
+      statusCounts?.forEach((b: any) => {
+        if (b.status in counts) counts[b.status as keyof typeof counts]++;
+      });
+
+      // Get ready to enrich count
+      const { count: readyToEnrich } = await supabase
+        .from('brands')
+        .select('*', { count: 'exact', head: true })
+        .in('status', ['stub', 'failed'])
+        .lt('enrichment_attempts', 5)
+        .lte('next_enrichment_at', new Date().toISOString());
+
+      // Get stuck building (building for > 15 minutes)
+      const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+      const { data: stuckBuilding } = await supabase
+        .from('brands')
+        .select('id, name, updated_at, enrichment_stage, enrichment_error')
+        .eq('status', 'building')
+        .lt('updated_at', fifteenMinsAgo)
+        .limit(20);
+
+      // Get failed brands
+      const { data: failedBrands } = await supabase
+        .from('brands')
+        .select('id, name, enrichment_attempts, enrichment_error, next_enrichment_at')
+        .eq('status', 'failed')
+        .order('updated_at', { ascending: false })
+        .limit(20);
+
+      setIngestionHealth({
+        stub_count: counts.stub,
+        building_count: counts.building,
+        failed_count: counts.failed,
+        ready_count: counts.ready,
+        ready_to_enrich: readyToEnrich || 0,
+        stuck_building: stuckBuilding || [],
+        failed_brands: failedBrands || [],
+      });
+    } catch (e) {
+      console.error("Failed to fetch ingestion health:", e);
+    }
+  }
+
+  async function retryBrand(brandId: string) {
+    setRetrying(brandId);
+    try {
+      const { error } = await supabase.functions.invoke("admin-brand-retry", {
+        body: { action: "retry_now", brand_ids: [brandId] },
+      });
+      if (error) throw error;
+      toast.success("Brand queued for retry");
+      await fetchIngestionHealth();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to retry brand");
+    } finally {
+      setRetrying(null);
+    }
+  }
+
+  async function retryAllStuck() {
+    if (!ingestionHealth?.stuck_building.length) return;
+    const ids = ingestionHealth.stuck_building.map(b => b.id);
+    setRetrying("all-stuck");
+    try {
+      const { error } = await supabase.functions.invoke("admin-brand-retry", {
+        body: { action: "reset_to_stub", brand_ids: ids },
+      });
+      if (error) throw error;
+      toast.success(`Reset ${ids.length} stuck brands`);
+      await fetchIngestionHealth();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to reset stuck brands");
+    } finally {
+      setRetrying(null);
     }
   }
 
@@ -511,6 +629,202 @@ export default function AdminHealth() {
             </div>
           </Card>
         )}
+
+        {/* Ingestion Health Widget */}
+        <Card className="p-6 border-2 border-purple-200 dark:border-purple-800">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold">Ingestion Health</h3>
+              <p className="text-sm text-muted-foreground">Brand enrichment queue status</p>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={fetchIngestionHealth}
+              disabled={loading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+
+          {ingestionHealth && (
+            <>
+              {/* Status counts */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                <div className="text-center p-3 bg-muted/50 rounded-lg">
+                  <div className="text-2xl font-bold text-gray-600 dark:text-gray-400">
+                    {ingestionHealth.stub_count}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Stub</div>
+                </div>
+                <div className="text-center p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
+                  <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                    {ingestionHealth.building_count}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Building</div>
+                </div>
+                <div className="text-center p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
+                  <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                    {ingestionHealth.failed_count}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Failed</div>
+                </div>
+                <div className="text-center p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                    {ingestionHealth.ready_count}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Ready</div>
+                </div>
+                <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    {ingestionHealth.ready_to_enrich}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Ready to Enrich</div>
+                </div>
+              </div>
+
+              {/* Stuck Building Table */}
+              {ingestionHealth.stuck_building.length > 0 && (
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4" />
+                      Stuck Building ({ingestionHealth.stuck_building.length})
+                    </h4>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={retryAllStuck}
+                      disabled={retrying === 'all-stuck'}
+                    >
+                      {retrying === 'all-stuck' ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                      )}
+                      Reset All
+                    </Button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-muted-foreground text-left">
+                          <th className="p-2">Brand</th>
+                          <th className="p-2">Stage</th>
+                          <th className="p-2">Stuck Since</th>
+                          <th className="p-2">Error</th>
+                          <th className="p-2 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ingestionHealth.stuck_building.map((b) => (
+                          <tr key={b.id} className="border-b hover:bg-muted/50">
+                            <td className="p-2 font-medium">{b.name}</td>
+                            <td className="p-2">
+                              <span className="px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 rounded text-xs">
+                                {b.enrichment_stage || 'unknown'}
+                              </span>
+                            </td>
+                            <td className="p-2 text-xs text-muted-foreground">
+                              {formatDistanceToNow(new Date(b.updated_at), { addSuffix: true })}
+                            </td>
+                            <td className="p-2 text-xs text-muted-foreground max-w-xs truncate">
+                              {b.enrichment_error || '—'}
+                            </td>
+                            <td className="p-2 text-right">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => retryBrand(b.id)}
+                                disabled={retrying === b.id}
+                              >
+                                {retrying === b.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Failed Brands Table */}
+              {ingestionHealth.failed_brands.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-red-600 dark:text-red-400 mb-3 flex items-center gap-2">
+                    <XCircle className="h-4 w-4" />
+                    Failed Enrichment ({ingestionHealth.failed_brands.length})
+                  </h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-muted-foreground text-left">
+                          <th className="p-2">Brand</th>
+                          <th className="p-2">Attempts</th>
+                          <th className="p-2">Next Retry</th>
+                          <th className="p-2">Error</th>
+                          <th className="p-2 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ingestionHealth.failed_brands.map((b) => (
+                          <tr key={b.id} className="border-b hover:bg-muted/50">
+                            <td className="p-2 font-medium">{b.name}</td>
+                            <td className="p-2">
+                              <span className={`px-2 py-1 rounded text-xs ${
+                                b.enrichment_attempts >= 5 
+                                  ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
+                                  : 'bg-muted'
+                              }`}>
+                                {b.enrichment_attempts}/5
+                              </span>
+                            </td>
+                            <td className="p-2 text-xs text-muted-foreground">
+                              {b.next_enrichment_at 
+                                ? formatDistanceToNow(new Date(b.next_enrichment_at), { addSuffix: true })
+                                : '—'}
+                            </td>
+                            <td className="p-2 text-xs text-muted-foreground max-w-xs truncate" title={b.enrichment_error || undefined}>
+                              {b.enrichment_error || '—'}
+                            </td>
+                            <td className="p-2 text-right">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => retryBrand(b.id)}
+                                disabled={retrying === b.id}
+                              >
+                                {retrying === b.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* All healthy message */}
+              {ingestionHealth.stuck_building.length === 0 && ingestionHealth.failed_brands.length === 0 && (
+                <div className="text-center py-6 text-muted-foreground">
+                  <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-500" />
+                  <p>All brands are healthy — no stuck or failed enrichments</p>
+                </div>
+              )}
+            </>
+          )}
+        </Card>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="p-6">
