@@ -430,6 +430,7 @@ export default function BrandProfileV1() {
 
   // Determine if this is a pending/stub brand
   const isPending = brandStatus === 'stub' || brandStatus === 'building';
+  const isFailed = brandStatus === 'failed';
   const fromPendingSubmission = (routerLocation as any)?.state?.pending;
 
   return (
@@ -462,6 +463,27 @@ export default function BrandProfileV1() {
                       Thanks for contributing — you're an early contributor!
                     </p>
                   )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Failed Status Banner - but still show all available content */}
+        {isFailed && (
+          <Card className="border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/20">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center flex-shrink-0">
+                  <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-orange-900 dark:text-orange-100">
+                    Verification pending
+                  </h3>
+                  <p className="text-sm text-orange-700 dark:text-orange-300 mt-0.5">
+                    We're still verifying this brand's identity. Content below may be incomplete.
+                  </p>
                 </div>
               </div>
             </CardContent>
