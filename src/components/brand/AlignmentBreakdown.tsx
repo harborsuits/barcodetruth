@@ -1,18 +1,20 @@
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   AlignmentResult, 
   AlignmentDriver, 
   getAlignmentColor, 
   getConfidenceColor,
-  getDimensionEmoji 
+  getDimensionEmoji,
+  ConfidenceLevel,
+  CONFIDENCE_MULTIPLIERS
 } from "@/lib/alignmentScore";
-import { TrendingUp, TrendingDown, Minus, Info, AlertTriangle } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Info, AlertTriangle, Calculator } from "lucide-react";
 
 interface AlignmentBreakdownProps {
   result: AlignmentResult;
   showConfidence?: boolean;
+  showMath?: boolean;       // Show the full calculation table
   compact?: boolean;
 }
 
@@ -27,12 +29,14 @@ function ImpactIcon({ impact }: { impact: 'positive' | 'negative' | 'neutral' })
   }
 }
 
-function DimensionBar({ driver }: { driver: AlignmentDriver }) {
+function DimensionBar({ driver, showMath = false }: { driver: AlignmentDriver; showMath?: boolean }) {
   const barColor = driver.impact === 'positive' 
     ? 'bg-green-500' 
     : driver.impact === 'negative' 
       ? 'bg-red-500' 
       : 'bg-muted-foreground';
+  
+  const confMultiplier = CONFIDENCE_MULTIPLIERS[driver.confidence];
   
   return (
     <div className="space-y-1">
@@ -71,15 +75,84 @@ function DimensionBar({ driver }: { driver: AlignmentDriver }) {
           style={{ left: `${driver.userWeightRaw}%` }}
         />
       </div>
-      <div className="flex justify-between text-xs text-muted-foreground">
-        <span>Weight: {Math.round(driver.userWeight * 100)}%</span>
-        <span>Contribution: {driver.contribution > 0 ? '+' : ''}{Math.round(driver.contribution)}</span>
-      </div>
+      
+      {/* Math explanation row */}
+      {showMath ? (
+        <div className="flex items-center gap-1 text-xs text-muted-foreground font-mono bg-muted/30 px-2 py-1 rounded">
+          <span>{Math.round(driver.brandScore)}</span>
+          <span>×</span>
+          <span>{(driver.userWeight * 100).toFixed(0)}%</span>
+          <span>×</span>
+          <span>{confMultiplier}</span>
+          <span>=</span>
+          <span className="font-semibold text-foreground">{driver.contribution.toFixed(1)}</span>
+        </div>
+      ) : (
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>Weight: {Math.round(driver.userWeight * 100)}%</span>
+          <span>Contribution: {driver.contribution > 0 ? '+' : ''}{Math.round(driver.contribution)}</span>
+        </div>
+      )}
     </div>
   );
 }
 
-export function AlignmentBreakdown({ result, showConfidence = true, compact = false }: AlignmentBreakdownProps) {
+/** Shows the calculation formula with actual numbers */
+function MathBreakdownTable({ result }: { result: AlignmentResult }) {
+  const totalContribution = result.drivers.reduce((sum, d) => sum + d.contribution, 0);
+  
+  return (
+    <div className="space-y-3 p-3 bg-muted/30 rounded-lg border">
+      <div className="flex items-center gap-2 text-sm font-medium">
+        <Calculator className="h-4 w-4" />
+        <span>How your score is calculated</span>
+      </div>
+      
+      {/* Column headers */}
+      <div className="grid grid-cols-5 gap-2 text-xs text-muted-foreground font-medium border-b pb-2">
+        <div>Dimension</div>
+        <div className="text-right">Brand</div>
+        <div className="text-right">Weight</div>
+        <div className="text-right">Conf.</div>
+        <div className="text-right">= Points</div>
+      </div>
+      
+      {/* Rows */}
+      {result.drivers.map((driver) => {
+        const confMultiplier = CONFIDENCE_MULTIPLIERS[driver.confidence];
+        return (
+          <div key={driver.dimension} className="grid grid-cols-5 gap-2 text-xs items-center">
+            <div className="flex items-center gap-1">
+              <span>{getDimensionEmoji(driver.dimension)}</span>
+              <span className="truncate">{driver.label}</span>
+            </div>
+            <div className="text-right font-mono">{Math.round(driver.brandScore)}</div>
+            <div className="text-right font-mono">{(driver.userWeight * 100).toFixed(0)}%</div>
+            <div className="text-right font-mono text-muted-foreground">×{confMultiplier}</div>
+            <div className={`text-right font-mono font-medium ${driver.impact === 'positive' ? 'text-green-600' : driver.impact === 'negative' ? 'text-red-600' : ''}`}>
+              {driver.contribution.toFixed(1)}
+            </div>
+          </div>
+        );
+      })}
+      
+      {/* Total row */}
+      <div className="grid grid-cols-5 gap-2 text-xs items-center border-t pt-2 font-semibold">
+        <div className="col-span-4 text-right">Total Alignment</div>
+        <div className="text-right font-mono text-primary">
+          {Math.round(totalContribution)}
+        </div>
+      </div>
+      
+      {/* Formula explanation */}
+      <p className="text-xs text-muted-foreground italic">
+        Score = Σ (Brand score × Your weight × Confidence) — normalized to 100
+      </p>
+    </div>
+  );
+}
+
+export function AlignmentBreakdown({ result, showConfidence = true, showMath = false, compact = false }: AlignmentBreakdownProps) {
   if (compact) {
     return (
       <div className="space-y-2">
@@ -114,12 +187,17 @@ export function AlignmentBreakdown({ result, showConfidence = true, compact = fa
         </div>
       )}
 
-      {/* Dimension breakdown */}
-      <div className="space-y-4">
-        {result.drivers.map((driver) => (
-          <DimensionBar key={driver.dimension} driver={driver} />
-        ))}
-      </div>
+      {/* Show calculation table if requested */}
+      {showMath && <MathBreakdownTable result={result} />}
+
+      {/* Dimension breakdown (with math rows if showMath is off) */}
+      {!showMath && (
+        <div className="space-y-4">
+          {result.drivers.map((driver) => (
+            <DimensionBar key={driver.dimension} driver={driver} showMath={false} />
+          ))}
+        </div>
+      )}
 
       {/* Excluded dimensions note */}
       {result.excludedDimensions.length > 0 && (
