@@ -1,21 +1,129 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Package, AlertCircle, ChevronRight } from "lucide-react";
+import { ArrowLeft, Package, AlertCircle, ChevronRight, Loader2, Check, Save, ExternalLink } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 // V1 Consumer Contract:
 // - Product name (from barcode lookup) or "Unknown product"
 // - Brand name (linked brand) or "Brand unknown"
 // - Status: ready/building/unknown
 // - CTA: "View Brand Profile" or "Search Brands"
+// - NEW: Building state shows progress + optional correction form
+
+// Building state progress indicator
+function BuildingProgress({ status }: { status: string }) {
+  const steps = [
+    { label: 'Finding brand data', done: true },
+    { label: 'Checking Wikipedia', done: status !== 'stub' },
+    { label: 'Building profile', done: status === 'ready' },
+  ];
+  
+  const currentStep = status === 'stub' ? 1 : status === 'building' ? 2 : 3;
+  const progress = (currentStep / 3) * 100;
+  
+  return (
+    <div className="space-y-3">
+      <Progress value={progress} className="h-2" />
+      <div className="flex justify-between text-xs">
+        {steps.map((step, i) => (
+          <div key={i} className="flex items-center gap-1">
+            {step.done ? (
+              <Check className="h-3 w-3 text-primary" />
+            ) : (
+              <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+            )}
+            <span className={step.done ? 'text-primary' : 'text-muted-foreground'}>
+              {step.label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Optional correction form for building brands
+function CorrectionForm({ 
+  brandName, 
+  onSubmit 
+}: { 
+  brandName: string; 
+  onSubmit: (data: { name?: string; website?: string }) => void;
+}) {
+  const [name, setName] = useState('');
+  const [website, setWebsite] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() && !website.trim()) return;
+    
+    setSubmitting(true);
+    await onSubmit({ 
+      name: name.trim() || undefined, 
+      website: website.trim() || undefined 
+    });
+    setSubmitting(false);
+  };
+  
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3 pt-3 border-t">
+      <p className="text-xs text-muted-foreground">
+        Help improve this brand's data (optional)
+      </p>
+      <div className="space-y-2">
+        <div>
+          <Label htmlFor="brand-name" className="text-xs">Brand Name</Label>
+          <Input 
+            id="brand-name"
+            placeholder={brandName || "Correct brand name"}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="h-8 text-sm"
+          />
+        </div>
+        <div>
+          <Label htmlFor="brand-website" className="text-xs">Website</Label>
+          <Input 
+            id="brand-website"
+            placeholder="example.com"
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            className="h-8 text-sm"
+          />
+        </div>
+      </div>
+      <Button 
+        type="submit" 
+        variant="outline" 
+        size="sm" 
+        className="w-full"
+        disabled={submitting || (!name.trim() && !website.trim())}
+      >
+        {submitting ? (
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+        ) : (
+          <Check className="h-4 w-4 mr-2" />
+        )}
+        Submit Correction
+      </Button>
+    </form>
+  );
+}
 
 export default function ScanResultV1() {
   const { barcode } = useParams<{ barcode: string }>();
   const navigate = useNavigate();
+  const [showCorrection, setShowCorrection] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   // No barcode provided
   if (!barcode) {
@@ -56,20 +164,20 @@ export default function ScanResultV1() {
   });
 
   // Query brand info (with polling for building status)
-  const { data: brandInfo } = useQuery({
+  const { data: brandInfo, refetch: refetchBrand } = useQuery({
     queryKey: ['brand-info-v1', product?.brand_id],
     enabled: !!product?.brand_id,
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       if (status === 'stub' || status === 'building') {
-        return 10000; // Poll every 10s while building
+        return 5000; // Poll every 5s while building (faster than before)
       }
       return false;
     },
     queryFn: async () => {
       const { data, error } = await supabase
         .from('brands')
-        .select('id, name, slug, status')
+        .select('id, name, slug, status, logo_url, description')
         .eq('id', product!.brand_id)
         .limit(1)
         .maybeSingle();
@@ -82,7 +190,71 @@ export default function ScanResultV1() {
   // Determine states
   const brandIsReady = brandInfo?.status === 'ready';
   const brandIsBuilding = brandInfo?.status === 'stub' || brandInfo?.status === 'building';
+  const brandIsFailed = brandInfo?.status === 'failed';
   const brandExists = Boolean(brandInfo?.id);
+
+  // Auto-navigate to brand page when ready
+  useEffect(() => {
+    if (brandIsReady && brandInfo?.slug) {
+      toast({
+        title: "Profile ready!",
+        description: `${brandInfo.name}'s profile is now available.`,
+      });
+      // Small delay to show the toast
+      const timer = setTimeout(() => {
+        navigate(`/brand/${brandInfo.slug}`);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [brandIsReady, brandInfo?.slug, brandInfo?.name, navigate]);
+
+  // Save scan to user_scans
+  const handleSaveScan = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast({ title: "Sign in to save scans", variant: "default" });
+      return;
+    }
+    
+    try {
+      await supabase.from('user_scans').upsert({
+        user_id: user.id,
+        barcode,
+        product_id: product?.id,
+        brand_id: product?.brand_id,
+        scanned_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,barcode' });
+      
+      setSaved(true);
+      toast({ title: "Scan saved!", description: "Added to your scan history." });
+    } catch (e) {
+      toast({ title: "Failed to save", variant: "destructive" });
+    }
+  };
+
+  // Submit correction
+  const handleCorrection = async (data: { name?: string; website?: string }) => {
+    if (!brandInfo?.id) return;
+    
+    try {
+      // Update brand with corrections (admin will review)
+      const updates: Record<string, any> = {};
+      if (data.name) updates.name = data.name;
+      if (data.website) {
+        updates.website = data.website.startsWith('http') ? data.website : `https://${data.website}`;
+        updates.canonical_domain = data.website.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+      }
+      
+      if (Object.keys(updates).length > 0) {
+        await supabase.from('brands').update(updates).eq('id', brandInfo.id);
+        toast({ title: "Thanks!", description: "Your correction has been submitted." });
+        setShowCorrection(false);
+        refetchBrand();
+      }
+    } catch (e) {
+      toast({ title: "Failed to submit", variant: "destructive" });
+    }
+  };
 
   // Loading state
   if (productLoading) {
@@ -154,7 +326,136 @@ export default function ScanResultV1() {
     );
   }
 
-  // Product found - show result
+  // Brand is building - show dedicated building experience
+  if (brandIsBuilding || brandIsFailed) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b">
+          <div className="container max-w-md mx-auto px-4 py-4">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <h1 className="text-xl font-bold">Building Profile</h1>
+            </div>
+          </div>
+        </header>
+
+        <main className="container max-w-md mx-auto px-4 py-6 space-y-4">
+          {/* Building State Card */}
+          <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+            <CardContent className="pt-6 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center flex-shrink-0">
+                  {brandIsFailed ? (
+                    <AlertCircle className="h-6 w-6 text-amber-600" />
+                  ) : (
+                    <Loader2 className="h-6 w-6 text-amber-600 animate-spin" />
+                  )}
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold">
+                    {brandIsFailed ? 'Profile needs review' : 'Building this profile'}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {brandIsFailed 
+                      ? 'We\'re verifying this brand\'s identity — usually takes a few minutes'
+                      : 'ETA ~30 seconds — this page will update automatically'
+                    }
+                  </p>
+                </div>
+              </div>
+
+              {/* Progress indicator */}
+              {!brandIsFailed && <BuildingProgress status={brandInfo?.status || 'stub'} />}
+
+              {/* Product info */}
+              <div className="pt-2 border-t space-y-2">
+                <div>
+                  <p className="text-xs text-muted-foreground">Product</p>
+                  <p className="font-medium">{product.name}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Brand</p>
+                  <p className="font-medium">{brandInfo?.name || 'Unknown'}</p>
+                </div>
+              </div>
+
+              {/* Save scan button */}
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={handleSaveScan}
+                disabled={saved}
+              >
+                {saved ? (
+                  <>
+                    <Check className="h-4 w-4 mr-2" />
+                    Saved to Your Scans
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save to My Scans
+                  </>
+                )}
+              </Button>
+
+              {/* Correction form toggle */}
+              {!showCorrection ? (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="w-full text-muted-foreground"
+                  onClick={() => setShowCorrection(true)}
+                >
+                  Help improve this brand's data
+                </Button>
+              ) : (
+                <CorrectionForm 
+                  brandName={brandInfo?.name || ''} 
+                  onSubmit={handleCorrection}
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Action buttons */}
+          <div className="space-y-2">
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={() => brandInfo?.slug && navigate(`/brand/${brandInfo.slug}`)}
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              View Profile Anyway
+            </Button>
+            <Button 
+              variant="ghost" 
+              className="w-full" 
+              onClick={() => navigate('/search')}
+            >
+              Search Other Brands
+            </Button>
+            <Button 
+              variant="ghost" 
+              className="w-full" 
+              onClick={() => navigate('/scan')}
+            >
+              Scan Another Product
+            </Button>
+          </div>
+
+          {/* Beta notice */}
+          <p className="text-xs text-center text-muted-foreground px-4">
+            Early beta — new brands are enriched within minutes of first scan.
+          </p>
+        </main>
+      </div>
+    );
+  }
+
+  // Product found, brand ready - show success result
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b">
@@ -202,16 +503,6 @@ export default function ScanResultV1() {
               )}
             </div>
 
-            {/* Status indicator */}
-            {brandIsBuilding && (
-              <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg">
-                <AlertCircle className="h-4 w-4 text-amber-600" />
-                <span className="text-sm text-amber-700 dark:text-amber-400">
-                  Brand profile building... (auto-refreshing)
-                </span>
-              </div>
-            )}
-
             {!brandExists && product.brand_id && (
               <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                 <AlertCircle className="h-4 w-4 text-muted-foreground" />
@@ -222,15 +513,11 @@ export default function ScanResultV1() {
             )}
 
             {/* CTA */}
-            {brandIsReady ? (
+            {brandIsReady && (
               <p className="text-sm text-center text-primary">
                 Tap to view full brand profile →
               </p>
-            ) : brandIsBuilding ? (
-              <p className="text-xs text-center text-muted-foreground">
-                Check back soon or search brands below
-              </p>
-            ) : null}
+            )}
           </CardContent>
         </Card>
 

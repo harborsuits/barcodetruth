@@ -391,16 +391,79 @@ Deno.serve(async (req) => {
         log(`Using potential match ${qid} (no invalid types found)`);
       }
       
+      // === WIKIPEDIA-ONLY FALLBACK when no Wikidata entity found ===
       if (!qid) {
         log('No valid business entity found in Wikidata for:', cleanName);
+        log('Attempting Wikipedia-only fallback...');
         
-        // Return success but indicate no entity found (don't crash UI)
+        // Try Wikipedia fallback for description
+        const wikiResult = await fetchWikipediaSummary(cleanName);
+        
+        if (wikiResult && wikiResult.extract) {
+          log('Wikipedia fallback success, saving description');
+          
+          // Domain verification for confidence level
+          const brandDomain = extractDomainFromUrl(brand.canonical_domain) || extractDomainFromUrl(brand.website);
+          const wikiDomain = extractDomainFromUrl(wikiResult.official_url);
+          const domainMatches = brandDomain && wikiDomain && brandDomain === wikiDomain;
+          const confidenceLevel = domainMatches ? 'medium' : 'low';
+          
+          // Update brand with Wikipedia data
+          await supabase
+            .from('brands')
+            .update({
+              description: wikiResult.extract,
+              description_source: 'wikipedia_fallback',
+              identity_confidence: confidenceLevel,
+              identity_notes: domainMatches 
+                ? `Wikipedia fallback - domain verified (${brandDomain})` 
+                : 'Wikipedia fallback (no Wikidata entity) - lower confidence',
+              status: 'ready', // Mark as ready even with Wikipedia-only
+              built_at: new Date().toISOString(),
+              last_build_error: null
+            })
+            .eq('id', brand_id);
+          
+          return new Response(
+            JSON.stringify({ 
+              ok: true,
+              success: true,
+              wikidata_found: false,
+              wikipedia_fallback: true,
+              identity_confidence: confidenceLevel,
+              domain_verified: domainMatches,
+              message: `Brand enriched from Wikipedia (no Wikidata entity for "${cleanName}")`,
+              brand_name: brand.name
+            }),
+            { 
+              status: 200,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+        
+        // Neither Wikidata nor Wikipedia found anything
+        log('Both Wikidata and Wikipedia failed for:', cleanName);
+        
+        // Mark as ready with minimal data (still usable)
+        await supabase
+          .from('brands')
+          .update({
+            status: 'ready',
+            built_at: new Date().toISOString(),
+            identity_confidence: 'low',
+            identity_notes: 'No Wikidata/Wikipedia data found - profile created from product scan only',
+            last_build_error: null
+          })
+          .eq('id', brand_id);
+        
         return new Response(
           JSON.stringify({ 
             ok: true,
-            success: false,
+            success: true,
             wikidata_found: false,
-            message: `No Wikidata entity found for "${cleanName}"`,
+            wikipedia_fallback: false,
+            message: `No external data found for "${cleanName}" - brand marked ready with minimal profile`,
             brand_name: brand.name
           }),
           { 
