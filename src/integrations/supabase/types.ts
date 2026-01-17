@@ -9021,6 +9021,7 @@ export type Database = {
         }[]
       }
       get_brand_ownership: { Args: { p_brand_id: string }; Returns: Json }
+      get_brand_profile_state: { Args: { p_brand_id: string }; Returns: Json }
       get_brand_profile_tier: { Args: { p_brand_id: string }; Returns: Json }
       get_brand_rollup_scores: { Args: { p_brand_id: string }; Returns: Json }
       get_brands_missing_key_people: {

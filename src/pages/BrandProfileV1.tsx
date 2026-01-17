@@ -16,14 +16,14 @@ import { isUUID } from '@/lib/utils';
 import { PersonalizedScoreDisplay } from '@/components/brand/PersonalizedScoreDisplay';
 import { TrustPledge } from '@/components/brand/TrustPledge';
 import { formatDistanceToNow } from 'date-fns';
-import { useProfileTier } from '@/hooks/useProfileTier';
-import { PreviewProfile } from '@/components/brand/PreviewProfile';
+import { useProfileState } from '@/hooks/useProfileState';
+import { BuildingProfile } from '@/components/brand/BuildingProfile';
+import { NeedsReviewProfile } from '@/components/brand/NeedsReviewProfile';
 
-// V1 Consumer Contract:
-// Card 1: Header (name, logo, description)
-// Card 2: Ownership ("Owned by X" or fallback)
-// Card 3: Score (simple 0-100 or "Score coming soon")
-// Card 4: Evidence (2-3 items or "No evidence yet")
+// V1 Consumer Contract - with 3 explicit states:
+// State A: Assessable (full profile) - identity verified + 3+ dimensions with evidence
+// State B: Building (in progress) - gathering evidence, show progress
+// State C: Needs Review (mismatch) - identity confidence low or name mismatch detected
 
 function BrandLogo({ 
   logoUrl, 
@@ -171,34 +171,51 @@ function OwnershipDisplay({ brandId }: { brandId: string }) {
     );
   }
   
-  // Case 3: No ownership data or truly independent
+  // Case 3: No ownership data - be honest about it
   return (
     <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
       <Building2 className="h-5 w-5 text-muted-foreground flex-shrink-0" />
       <div>
-        <p className="font-medium">Independently Operated</p>
-        <p className="text-xs text-muted-foreground">Or ownership data pending</p>
+        <p className="font-medium text-muted-foreground">Ownership: Not verified yet</p>
+        <p className="text-xs text-muted-foreground">We're still gathering ownership data for this brand</p>
       </div>
     </div>
   );
 }
 
 function EvidenceList({ brandId }: { brandId: string }) {
+  const navigate = useNavigate();
+  
   const { data: evidence, isLoading } = useQuery({
     queryKey: ['brand-evidence-v1', brandId],
     queryFn: async () => {
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      // Removed 30-day filter - show all relevant events
       const { data, error } = await supabase
         .from('brand_events')
         .select('event_id, title, event_date, category, source_url')
         .eq('brand_id', brandId)
         .eq('is_irrelevant', false)
-        .gte('event_date', thirtyDaysAgo)
         .order('event_date', { ascending: false })
-        .limit(3);
+        .limit(5); // Increased from 3 to 5
       
       if (error) return [];
       return data || [];
+    },
+    enabled: !!brandId,
+  });
+  
+  // Get total count for "View all" link
+  const { data: totalCount } = useQuery({
+    queryKey: ['brand-evidence-count', brandId],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('brand_events')
+        .select('*', { count: 'exact', head: true })
+        .eq('brand_id', brandId)
+        .eq('is_irrelevant', false);
+      
+      if (error) return 0;
+      return count || 0;
     },
     enabled: !!brandId,
   });
@@ -268,6 +285,17 @@ function EvidenceList({ brandId }: { brandId: string }) {
           </div>
         );
       })}
+      
+      {/* View all link */}
+      {(totalCount || 0) > 5 && (
+        <Button 
+          variant="ghost" 
+          className="w-full text-sm"
+          onClick={() => navigate(`/proof/${brandId}`)}
+        >
+          View all {totalCount} evidence items →
+        </Button>
+      )}
     </div>
   );
 }
@@ -376,8 +404,8 @@ export default function BrandProfileV1() {
     }
   });
 
-  // Query profile tier for tiered rendering
-  const { data: tierData, isLoading: tierLoading } = useProfileTier(resolvedBrandId);
+  // Query profile state for state-based rendering
+  const { data: profileState, isLoading: stateLoading } = useProfileState(resolvedBrandId);
 
   // Admin action: Mark identity verified (server-side enforced)
   const markIdentityVerified = async () => {
@@ -397,6 +425,7 @@ export default function BrandProfileV1() {
       
       // Refresh brand data
       queryClient.invalidateQueries({ queryKey: ['brand-v1', slugOrId] });
+      queryClient.invalidateQueries({ queryKey: ['brand-profile-state', resolvedBrandId] });
     } catch (err: any) {
       toast({
         title: 'Error',
@@ -409,7 +438,7 @@ export default function BrandProfileV1() {
   };
 
   // Loading state
-  if (brandLoading) {
+  if (brandLoading || stateLoading) {
     return (
       <div className="min-h-screen bg-background">
         <main className="container max-w-2xl mx-auto px-4 py-6 space-y-4">
@@ -439,17 +468,31 @@ export default function BrandProfileV1() {
   const isFailed = brandStatus === 'failed';
   const fromPendingSubmission = (routerLocation as any)?.state?.pending;
 
-  // Tier-based rendering: show PreviewProfile for Tier 0 (incomplete) brands
-  // Only apply tier logic to non-pending, non-failed brands with loaded tier data
-  const shouldShowPreview = 
-    !tierLoading && 
-    tierData?.tier === 'preview' && 
-    !isPending && 
-    !isFailed;
-
-  if (shouldShowPreview) {
+  // State-based rendering: Route to appropriate profile component
+  // State C: Needs Review (identity mismatch detected)
+  if (profileState?.state === 'needs_review' && !isPending && !isFailed) {
     return (
-      <PreviewProfile 
+      <NeedsReviewProfile 
+        brand={{
+          id: brand.id,
+          name: brand.name,
+          slug: brand.slug,
+          description: brand.description,
+          logo_url: brand.logo_url,
+          website: brand.website,
+          wikidata_qid: brand.wikidata_qid,
+          parent_company: brand.parent_company,
+          created_at: brand.created_at,
+        }} 
+        stateData={profileState} 
+      />
+    );
+  }
+
+  // State B: Building (in progress, gathering evidence)
+  if (profileState?.state === 'building' && !isFailed) {
+    return (
+      <BuildingProfile 
         brand={{
           id: brand.id,
           name: brand.name,
@@ -462,10 +505,12 @@ export default function BrandProfileV1() {
           created_at: brand.created_at,
           enrichment_stage: brand.enrichment_stage,
         }} 
-        tierData={tierData} 
+        stateData={profileState} 
       />
     );
   }
+
+  // State A: Assessable (full profile) - continue to render full profile below
 
   return (
     <div className="min-h-screen bg-background">
