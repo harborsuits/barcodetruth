@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
 const BATCH_SIZE = 5; // Process 5 brands per run to avoid timeouts
@@ -15,6 +15,19 @@ const BACKOFF_SCHEDULE = [5, 15, 60, 360, 1440]; // 5m, 15m, 1h, 6h, 24h
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Validate CRON_SECRET for scheduled invocations (security)
+  const cronSecret = req.headers.get("x-cron-secret");
+  const expectedSecret = Deno.env.get("CRON_SECRET");
+  
+  // Only enforce if CRON_SECRET is configured
+  if (expectedSecret && cronSecret !== expectedSecret) {
+    console.log("[process-brand-stubs] Unauthorized: invalid or missing X-Cron-Secret");
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   const supabase = createClient(
@@ -63,13 +76,17 @@ serve(async (req) => {
     results.claimed = brandsToProcess.length;
     console.log(`[process-brand-stubs] Claimed ${brandsToProcess.length} brands for processing`);
 
-    // Mark all claimed brands as "building" to prevent double-processing
+    // Mark all claimed brands as "building" with stage tracking to prevent double-processing
     const brandIds = brandsToProcess.map(b => b.id);
+    const now = new Date().toISOString();
     await supabase
       .from("brands")
       .update({ 
         status: "building",
-        updated_at: new Date().toISOString()
+        enrichment_started_at: now,
+        enrichment_stage: "started",
+        enrichment_stage_updated_at: now,
+        updated_at: now
       })
       .in("id", brandIds);
 
@@ -101,15 +118,18 @@ serve(async (req) => {
           throw new Error(enrichResult.error);
         }
 
-        // Success: reset attempts and mark ready
+        // Success: reset attempts and mark ready with done stage
+        const successNow = new Date().toISOString();
         await supabase
           .from("brands")
           .update({ 
             status: "ready",
+            enrichment_stage: "done",
+            enrichment_stage_updated_at: successNow,
             enrichment_attempts: 0,
             enrichment_error: null,
             next_enrichment_at: null,
-            updated_at: new Date().toISOString()
+            updated_at: successNow
           })
           .eq("id", brand.id);
 
@@ -126,15 +146,18 @@ serve(async (req) => {
         const backoffMinutes = BACKOFF_SCHEDULE[Math.min(currentAttempts - 1, BACKOFF_SCHEDULE.length - 1)];
         const nextRetryAt = new Date(Date.now() + backoffMinutes * 60 * 1000);
         
-        // Update brand with error and schedule retry
+        // Update brand with error, failed stage, and schedule retry
+        const failNow = new Date().toISOString();
         await supabase
           .from("brands")
           .update({ 
             status: currentAttempts >= MAX_ATTEMPTS ? "failed" : "stub",
+            enrichment_stage: "failed",
+            enrichment_stage_updated_at: failNow,
             enrichment_attempts: currentAttempts,
             enrichment_error: errorMessage.slice(0, 500),
             next_enrichment_at: nextRetryAt.toISOString(),
-            updated_at: new Date().toISOString()
+            updated_at: failNow
           })
           .eq("id", brand.id);
         
