@@ -2114,6 +2114,8 @@ export type Database = {
           description: string | null
           description_lang: string | null
           description_source: string | null
+          enrichment_attempts: number | null
+          enrichment_error: string | null
           id: string
           identity_confidence: string | null
           identity_notes: string | null
@@ -2133,6 +2135,7 @@ export type Database = {
           news_vector_cache: Json | null
           news_vector_updated_at: string | null
           newsroom_domains: string[] | null
+          next_enrichment_at: string | null
           norm_name: string | null
           parent_company: string | null
           push_paused: boolean
@@ -2156,6 +2159,8 @@ export type Database = {
           description?: string | null
           description_lang?: string | null
           description_source?: string | null
+          enrichment_attempts?: number | null
+          enrichment_error?: string | null
           id?: string
           identity_confidence?: string | null
           identity_notes?: string | null
@@ -2175,6 +2180,7 @@ export type Database = {
           news_vector_cache?: Json | null
           news_vector_updated_at?: string | null
           newsroom_domains?: string[] | null
+          next_enrichment_at?: string | null
           norm_name?: string | null
           parent_company?: string | null
           push_paused?: boolean
@@ -2198,6 +2204,8 @@ export type Database = {
           description?: string | null
           description_lang?: string | null
           description_source?: string | null
+          enrichment_attempts?: number | null
+          enrichment_error?: string | null
           id?: string
           identity_confidence?: string | null
           identity_notes?: string | null
@@ -2217,6 +2225,7 @@ export type Database = {
           news_vector_cache?: Json | null
           news_vector_updated_at?: string | null
           newsroom_domains?: string[] | null
+          next_enrichment_at?: string | null
           norm_name?: string | null
           parent_company?: string | null
           push_paused?: boolean
