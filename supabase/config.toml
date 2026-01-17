@@ -7,179 +7,55 @@ schemas = ["public", "graphql_public"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
 
-[functions.jobs-runner]
-verify_jwt = false
-
-[functions.publish-snapshots]
-verify_jwt = false
-
+# Core pipeline functions
 [functions.resolve-barcode]
 verify_jwt = false
 
 [functions.categorize-event]
 verify_jwt = false
 
-[functions.verify-event]
-verify_jwt = true
+[functions.publish-snapshots]
+verify_jwt = false
 
 [functions.pull-feeds]
-verify_jwt = false
-
-[functions.send-test-push]
-verify_jwt = false
-
-[functions.fetch-news-events]
-verify_jwt = false
-
-[functions.send-daily-digest]
-verify_jwt = false
-
-[functions.get-ownership-trail]
-verify_jwt = false
-
-[functions.enrich-ownership]
-verify_jwt = false
-
-[functions.seed-brand-base-data]
-verify_jwt = false
-
-[functions.calculate-baselines]
-verify_jwt = false
-
-[functions.simplify-description]
-verify_jwt = false
-
-[functions.upgrade-corroboration]
-verify_jwt = false
-
-[functions.ingest-external-source]
-verify_jwt = true
-
-[functions.archive-url]
-verify_jwt = false
-
-[functions.resolve-evidence-links]
-verify_jwt = false
-
-[functions.generate-evidence-summary]
-verify_jwt = false
-
-[functions.backfill-evidence-summaries]
 verify_jwt = false
 
 [functions.brand-match]
 verify_jwt = false
 
-# New public cron wrappers
-[functions.cron-pull-feeds]
+[functions.resolve-evidence-links]
 verify_jwt = false
 
-[functions.cron-brand-match]
-verify_jwt = false
-
-[functions.cron-resolve-evidence]
-verify_jwt = false
-
-[functions.cron-calc-baselines]
-verify_jwt = false
-
-[functions.sync-internal-token]
-verify_jwt = false
-
-[functions.scan-product]
-verify_jwt = false
-
-[functions.get-product-by-barcode]
-verify_jwt = false
-
-[functions.resolve-wikidata-tree]
-verify_jwt = false
-
-[functions.get-better-alternatives]
-verify_jwt = false
-
-[functions.recompute-brand-scores]
-verify_jwt = false
-
-[functions.calculate-brand-score]
-verify_jwt = false
-
-[functions.simple-brand-scorer]
-verify_jwt = false
-
-[functions.fetch-epa-events]
-verify_jwt = false
-
-[functions.bulk-enrich-brands]
-verify_jwt = false
-
-[functions.enrich-brand-wiki]
+[functions.calculate-baselines]
 verify_jwt = false
 
 [functions.auto-corroborate-events]
 verify_jwt = false
 
-[functions.trigger-brand-ingestion]
-verify_jwt = true
-
-[functions.v1-brands]
-verify_jwt = false
-
-[functions.trigger-enrichment]
-verify_jwt = true
-
-[functions.batch-process-brands]
-verify_jwt = false
-
 [functions.unified-news-orchestrator]
 verify_jwt = false
 
-[functions.bulk-calculate-scores]
+# Brand enrichment
+[functions.enrich-brand-wiki]
 verify_jwt = false
 
-[functions.historical-baseline-scanner]
-verify_jwt = false
-
-[functions.test-relevance-scorer]
-verify_jwt = false
-
-[functions.reclassify-events]
-verify_jwt = true
-
-[functions.delete-brand-data]
-verify_jwt = false
-
-# RSS ingestion functions
-[functions.fetch-google-news-rss]
-verify_jwt = false
-
-[functions.fetch-reddit-rss]
-verify_jwt = false
-
-[functions.fetch-sec-edgar]
-verify_jwt = false
-
-[functions.run-system-wide-heal]
-verify_jwt = false
-
-[functions.delete-user]
-verify_jwt = true
-
-[functions.merge-products]
-verify_jwt = false
-
-[functions.validate-brand-qids]
+[functions.process-brand-stubs]
 verify_jwt = false
 
 [functions.enrich-top-brands]
 verify_jwt = false
 
-# SEC 13F institutional holders sync
-[functions.sync-13f]
+[functions.resolve-brand-logo]
 verify_jwt = false
 
-# Brand stub processor (runs on schedule to build stubs)
-[functions.process-brand-stubs]
+[functions.fetch-brand-summary]
+verify_jwt = false
+
+# Scoring
+[functions.recompute-brand-scores]
+verify_jwt = false
+
+[functions.bulk-calculate-scores]
 verify_jwt = false
 
 [functions.recompute-brand-vectors]
@@ -188,8 +64,148 @@ verify_jwt = false
 [functions.backfill-event-impacts]
 verify_jwt = false
 
+[functions.historical-baseline-scanner]
+verify_jwt = false
+
+# Product lookup
+[functions.scan-product]
+verify_jwt = false
+
+[functions.get-product-by-barcode]
+verify_jwt = false
+
+[functions.smart-product-lookup]
+verify_jwt = false
+
 [functions.submit-unknown-product]
 verify_jwt = false
 
+# Search & API
+[functions.search-brands]
+verify_jwt = false
+
+[functions.v1-brands]
+verify_jwt = false
+
+[functions.get-brand-sources]
+verify_jwt = false
+
+[functions.get-brand-proof]
+verify_jwt = false
+
+# Community features
+[functions.community-rate]
+verify_jwt = false
+
+[functions.community-outlook]
+verify_jwt = false
+
+# Push notifications
+[functions.subscribe-push]
+verify_jwt = false
+
+[functions.unsubscribe-push]
+verify_jwt = false
+
+[functions.send-push-notification]
+verify_jwt = false
+
+# Payments
+[functions.create-checkout]
+verify_jwt = false
+
+[functions.customer-portal]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.create-deep-scan-payment]
+verify_jwt = false
+
+[functions.check-subscription]
+verify_jwt = false
+
+# Admin tools (require auth)
 [functions.admin-brand-retry]
 verify_jwt = true
+
+[functions.admin-health]
+verify_jwt = true
+
+[functions.trigger-enrichment]
+verify_jwt = true
+
+[functions.trigger-brand-ingestion]
+verify_jwt = true
+
+[functions.reclassify-events]
+verify_jwt = true
+
+[functions.delete-user]
+verify_jwt = true
+
+[functions.delete-brand-data]
+verify_jwt = false
+
+[functions.verify-event]
+verify_jwt = true
+
+[functions.ingest-external-source]
+verify_jwt = true
+
+# External data sources
+[functions.fetch-epa-events]
+verify_jwt = false
+
+[functions.fetch-osha-events]
+verify_jwt = false
+
+[functions.fetch-fec-events]
+verify_jwt = false
+
+[functions.fetch-sec-edgar]
+verify_jwt = false
+
+[functions.fetch-google-news-rss]
+verify_jwt = false
+
+[functions.fetch-reddit-rss]
+verify_jwt = false
+
+[functions.bulk-ingest-epa]
+verify_jwt = false
+
+[functions.bulk-ingest-fda]
+verify_jwt = false
+
+[functions.bulk-ingest-fec]
+verify_jwt = false
+
+[functions.bulk-ingest-osha]
+verify_jwt = false
+
+[functions.ingest-fda-recalls]
+verify_jwt = false
+
+[functions.check-fda-recalls]
+verify_jwt = false
+
+[functions.sync-13f]
+verify_jwt = false
+
+# Utilities
+[functions.archive-url]
+verify_jwt = false
+
+[functions.auto-accept-claims]
+verify_jwt = false
+
+[functions.submit-product-claim]
+verify_jwt = false
+
+[functions.batch-process-brands]
+verify_jwt = false
+
+[functions.refresh-coverage-cache]
+verify_jwt = false
