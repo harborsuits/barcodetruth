@@ -16,6 +16,8 @@ import { isUUID } from '@/lib/utils';
 import { PersonalizedScoreDisplay } from '@/components/brand/PersonalizedScoreDisplay';
 import { TrustPledge } from '@/components/brand/TrustPledge';
 import { formatDistanceToNow } from 'date-fns';
+import { useProfileTier } from '@/hooks/useProfileTier';
+import { PreviewProfile } from '@/components/brand/PreviewProfile';
 
 // V1 Consumer Contract:
 // Card 1: Header (name, logo, description)
@@ -374,6 +376,9 @@ export default function BrandProfileV1() {
     }
   });
 
+  // Query profile tier for tiered rendering
+  const { data: tierData, isLoading: tierLoading } = useProfileTier(resolvedBrandId);
+
   // Admin action: Mark identity verified (server-side enforced)
   const markIdentityVerified = async () => {
     if (!resolvedBrandId) return;
@@ -433,6 +438,34 @@ export default function BrandProfileV1() {
   const isPending = brandStatus === 'stub' || brandStatus === 'building';
   const isFailed = brandStatus === 'failed';
   const fromPendingSubmission = (routerLocation as any)?.state?.pending;
+
+  // Tier-based rendering: show PreviewProfile for Tier 0 (incomplete) brands
+  // Only apply tier logic to non-pending, non-failed brands with loaded tier data
+  const shouldShowPreview = 
+    !tierLoading && 
+    tierData?.tier === 'preview' && 
+    !isPending && 
+    !isFailed;
+
+  if (shouldShowPreview) {
+    return (
+      <PreviewProfile 
+        brand={{
+          id: brand.id,
+          name: brand.name,
+          slug: brand.slug,
+          description: brand.description,
+          logo_url: brand.logo_url,
+          website: brand.website,
+          wikidata_qid: brand.wikidata_qid,
+          parent_company: brand.parent_company,
+          created_at: brand.created_at,
+          enrichment_stage: brand.enrichment_stage,
+        }} 
+        tierData={tierData} 
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
