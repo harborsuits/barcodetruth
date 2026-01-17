@@ -8456,6 +8456,7 @@ export type Database = {
       refresh_brand_coverage: { Args: never; Returns: undefined }
       refresh_community_outlook: { Args: never; Returns: undefined }
       refresh_coverage_materialized_view: { Args: never; Returns: undefined }
+      reset_stale_building_brands: { Args: never; Returns: number }
       resolve_company_for_brand: {
         Args: { p_brand_id: string }
         Returns: string
