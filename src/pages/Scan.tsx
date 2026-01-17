@@ -319,19 +319,36 @@ export const Scan = () => {
         description: `${product.name} - ${brand?.name || 'Unknown Brand'}`
       });
       
-      // Navigate based on whether we have a brand profile
+      // Navigate based on brand status
       setTimeout(() => {
         if (brand?.id) {
-          // Navigate to brand profile
-          const route = `/brand/${brand.id}`;
-          console.log('[Scan] navigating to brand:', route);
-          analytics.track('scan_route_brand', { 
-            brand_id: brand.id, 
-            barcode,
-            product_name: product.name,
-            source: smartLookup.source
-          });
-          navigate(route);
+          // Check brand status - only go directly to brand if ready
+          const brandStatus = brand.status;
+          
+          if (brandStatus === 'ready') {
+            // Brand is ready - go directly to brand profile
+            const route = `/brand/${brand.id}`;
+            console.log('[Scan] navigating to ready brand:', route);
+            analytics.track('scan_route_brand_ready', { 
+              brand_id: brand.id, 
+              barcode,
+              product_name: product.name,
+              source: smartLookup.source
+            });
+            navigate(route);
+          } else {
+            // Brand is building/stub/failed - go to scan result page
+            const route = `/scan-result/${barcode}`;
+            console.log('[Scan] navigating to scan-result (brand building):', route, 'status:', brandStatus);
+            analytics.track('scan_route_result_building', { 
+              brand_id: brand.id,
+              brand_status: brandStatus,
+              barcode,
+              product_name: product.name,
+              source: smartLookup.source
+            });
+            navigate(route);
+          }
         } else {
           // Navigate to scan result page (product found but no brand profile yet)
           const route = `/scan-result/${barcode}`;
