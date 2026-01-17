@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, ExternalLink, AlertCircle, Building2, Loader2, ShieldCheck, Bell, BellOff, Trophy } from 'lucide-react';
+import { ArrowLeft, ExternalLink, AlertCircle, Building2, Loader2, ShieldCheck, Bell, BellOff, Trophy, Clock } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBrandLogo } from '@/hooks/useBrandLogo';
 import { useAutoEnrichment } from '@/hooks/useAutoEnrichment';
@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { isUUID } from '@/lib/utils';
 import { PersonalizedScoreDisplay } from '@/components/brand/PersonalizedScoreDisplay';
 import { TrustPledge } from '@/components/brand/TrustPledge';
+import { formatDistanceToNow } from 'date-fns';
 
 // V1 Consumer Contract:
 // Card 1: Header (name, logo, description)
@@ -479,11 +480,19 @@ export default function BrandProfileV1() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-orange-900 dark:text-orange-100">
-                    Verification pending
+                    Verification pending — retrying automatically
                   </h3>
                   <p className="text-sm text-orange-700 dark:text-orange-300 mt-0.5">
                     We're still verifying this brand's identity. Content below may be incomplete.
                   </p>
+                  {brand.next_enrichment_at && (
+                    <div className="flex items-center gap-1 mt-1.5 text-xs text-orange-600 dark:text-orange-400">
+                      <Clock className="h-3 w-3" />
+                      <span>
+                        Next retry: {formatDistanceToNow(new Date(brand.next_enrichment_at), { addSuffix: true })}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>

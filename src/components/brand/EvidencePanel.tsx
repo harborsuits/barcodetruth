@@ -268,7 +268,13 @@ export function EvidencePanel({ evidence, onReport, onSuggest, brandName = "this
         <div className="text-center py-12 text-muted-foreground">
           <AlertCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
           {evidence.length === 0 ? (
-            <p className="text-sm">No evidence available yet for this brand.</p>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">No verified coverage yet</p>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                We haven't tracked verified third-party coverage for {brandName} yet. 
+                This section updates automatically as we find credible sources.
+              </p>
+            </div>
           ) : (
             <div className="space-y-2">
               <p className="text-sm font-medium">

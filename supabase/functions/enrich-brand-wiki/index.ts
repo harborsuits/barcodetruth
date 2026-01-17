@@ -11,6 +11,19 @@ const log = (...args: any[]) => console.log('[enrich-brand-wiki]', ...args);
 const warn = (...args: any[]) => console.warn('[enrich-brand-wiki]', ...args);
 const err = (...args: any[]) => console.error('[enrich-brand-wiki]', ...args);
 
+// Stage update helper - updates enrichment stage for real-time progress
+async function updateStage(supabase: any, brandId: string, stage: string) {
+  const now = new Date().toISOString();
+  await supabase
+    .from('brands')
+    .update({
+      enrichment_stage: stage,
+      enrichment_stage_updated_at: now
+    })
+    .eq('id', brandId);
+  log(`Stage updated: ${stage}`);
+}
+
 // Retry helper with exponential backoff
 async function fetchWithRetry(url: string, options: RequestInit = {}, maxRetries = 3): Promise<Response> {
   let lastError: Error | undefined;
@@ -245,12 +258,19 @@ Deno.serve(async (req) => {
     }
     console.log('[STEP 8e] Brand found:', brand.name);
 
-    // Set status to 'building' at start of enrichment
+    // Set status to 'building' with stage tracking at start of enrichment
+    const enrichStartTime = new Date().toISOString();
     await supabase
       .from('brands')
-      .update({ status: 'building' })
+      .update({ 
+        status: 'building',
+        enrichment_started_at: enrichStartTime,
+        enrichment_stage: 'started',
+        enrichment_stage_updated_at: enrichStartTime
+      })
       .eq('id', brand_id);
-    log('Set brand status to building');
+    log('Set brand status to building with stage: started');
+    
     // Validate brand has a name
     if (!brand.name || brand.name.trim() === '') {
       err('Brand has no name:', { brand_id, name: brand.name });
@@ -288,6 +308,9 @@ Deno.serve(async (req) => {
     console.log('[STEP 9] Resolving Wikidata QID');
     let qid = wikidata_qid ?? brand.wikidata_qid;
     console.log('[STEP 9a] QID from params or brand:', qid);
+    
+    // Update stage: wikidata_search
+    await updateStage(supabase, brand_id, 'wikidata_search');
     
     if (!qid) {
       console.log('[STEP 10] No QID found, searching Wikidata');
@@ -395,6 +418,9 @@ Deno.serve(async (req) => {
       if (!qid) {
         log('No valid business entity found in Wikidata for:', cleanName);
         log('Attempting Wikipedia-only fallback...');
+        
+        // Update stage: wikipedia_fallback
+        await updateStage(supabase, brand_id, 'wikipedia_fallback');
         
         // Try Wikipedia fallback for description
         const wikiResult = await fetchWikipediaSummary(cleanName);
@@ -544,6 +570,9 @@ Deno.serve(async (req) => {
       return ids;
     };
     
+    // Update stage: identity_validation
+    await updateStage(supabase, brand_id, 'identity_validation');
+    
     // === GUARDRAIL 1: Name similarity with short-name strictness ===
     const brandName = normalizeName(brand.name);
     const entityLabelRaw = getLabel(brandEntity) || '';
@@ -661,6 +690,10 @@ Deno.serve(async (req) => {
 
       if (extract) {
         console.log('[STEP 12f] Updating brand description in database');
+        
+        // Update stage: writing_profile
+        await updateStage(supabase, brand_id, 'writing_profile');
+        
         await supabase
           .from('brands')
           .update({
@@ -680,6 +713,9 @@ Deno.serve(async (req) => {
     } else if (!identityPass) {
       // Identity validation FAILED - don't write description, mark as low confidence
       console.log('[STEP 12h] IDENTITY MISMATCH - skipping description write');
+      
+      // Update stage: failed
+      await updateStage(supabase, brand_id, 'failed');
       warn(`Blocked description write due to identity mismatch: ${brand.name} vs ${entityLabelRaw}`);
       
       await supabase
@@ -714,6 +750,9 @@ Deno.serve(async (req) => {
     if (mode === 'full') {
       console.log('[STEP 13a] Starting FULL enrichment');
       log('Starting FULL enrichment');
+      
+      // Update stage: computing_score (covers ownership + people extraction)
+      await updateStage(supabase, brand_id, 'computing_score');
       
       try {
         console.log('[STEP 13b] Calling resolve_company_for_brand RPC');
@@ -869,6 +908,9 @@ Deno.serve(async (req) => {
     // Mark brand as 'ready' ONLY if identity validation passed
     // (Don't override the 'failed' status set earlier if identityPass was false)
     if (identityPass) {
+      // Update stage: done
+      await updateStage(supabase, brand_id, 'done');
+      
       await supabase
         .from('brands')
         .update({ 
