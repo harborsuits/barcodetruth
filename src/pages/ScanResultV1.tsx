@@ -7,9 +7,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { EnrichmentStageProgress } from "@/components/brand/EnrichmentStageProgress";
 
 // V1 Consumer Contract:
 // - Product name (from barcode lookup) or "Unknown product"
@@ -17,38 +17,6 @@ import { toast } from "@/hooks/use-toast";
 // - Status: ready/building/unknown
 // - CTA: "View Brand Profile" or "Search Brands"
 // - NEW: Building state shows progress + optional correction form
-
-// Building state progress indicator
-function BuildingProgress({ status }: { status: string }) {
-  const steps = [
-    { label: 'Finding brand data', done: true },
-    { label: 'Checking Wikipedia', done: status !== 'stub' },
-    { label: 'Building profile', done: status === 'ready' },
-  ];
-  
-  const currentStep = status === 'stub' ? 1 : status === 'building' ? 2 : 3;
-  const progress = (currentStep / 3) * 100;
-  
-  return (
-    <div className="space-y-3">
-      <Progress value={progress} className="h-2" />
-      <div className="flex justify-between text-xs">
-        {steps.map((step, i) => (
-          <div key={i} className="flex items-center gap-1">
-            {step.done ? (
-              <Check className="h-3 w-3 text-primary" />
-            ) : (
-              <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-            )}
-            <span className={step.done ? 'text-primary' : 'text-muted-foreground'}>
-              {step.label}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // Optional correction form for building brands
 function CorrectionForm({ 
@@ -163,21 +131,21 @@ export default function ScanResultV1() {
     enabled: !!barcode,
   });
 
-  // Query brand info (with polling for building status)
+  // Query brand info (with polling for building status and enrichment stage)
   const { data: brandInfo, refetch: refetchBrand } = useQuery({
     queryKey: ['brand-info-v1', product?.brand_id],
     enabled: !!product?.brand_id,
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       if (status === 'stub' || status === 'building') {
-        return 5000; // Poll every 5s while building (faster than before)
+        return 5000; // Poll every 5s while building
       }
       return false;
     },
     queryFn: async () => {
       const { data, error } = await supabase
         .from('brands')
-        .select('id, name, slug, status, logo_url, description')
+        .select('id, name, slug, status, logo_url, description, enrichment_stage, enrichment_stage_updated_at, enrichment_started_at')
         .eq('id', product!.brand_id)
         .limit(1)
         .maybeSingle();
@@ -366,8 +334,14 @@ export default function ScanResultV1() {
                 </div>
               </div>
 
-              {/* Progress indicator */}
-              {!brandIsFailed && <BuildingProgress status={brandInfo?.status || 'stub'} />}
+              {/* Progress indicator with real stages */}
+              <EnrichmentStageProgress 
+                stage={brandInfo?.enrichment_stage as any}
+                stageUpdatedAt={brandInfo?.enrichment_stage_updated_at}
+                startedAt={brandInfo?.enrichment_started_at}
+                status={brandInfo?.status || 'stub'}
+                brandName={brandInfo?.name}
+              />
 
               {/* Product info */}
               <div className="pt-2 border-t space-y-2">
