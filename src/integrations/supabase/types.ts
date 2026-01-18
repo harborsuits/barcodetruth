@@ -2350,6 +2350,7 @@ export type Database = {
           newsroom_domains: string[] | null
           next_enrichment_at: string | null
           norm_name: string | null
+          ownership_confidence: string | null
           parent_company: string | null
           push_paused: boolean
           slug: string
@@ -2398,6 +2399,7 @@ export type Database = {
           newsroom_domains?: string[] | null
           next_enrichment_at?: string | null
           norm_name?: string | null
+          ownership_confidence?: string | null
           parent_company?: string | null
           push_paused?: boolean
           slug: string
@@ -2446,6 +2448,7 @@ export type Database = {
           newsroom_domains?: string[] | null
           next_enrichment_at?: string | null
           norm_name?: string | null
+          ownership_confidence?: string | null
           parent_company?: string | null
           push_paused?: boolean
           slug?: string
@@ -9090,6 +9093,7 @@ export type Database = {
         }[]
       }
       get_ownership_graph: { Args: { p_brand_id: string }; Returns: Json }
+      get_power_profit: { Args: { p_brand_id: string }; Returns: Json }
       get_product_by_barcode: {
         Args: { p_raw_gtin: string }
         Returns: {

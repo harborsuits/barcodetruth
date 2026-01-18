@@ -19,6 +19,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useProfileState } from '@/hooks/useProfileState';
 import { BuildingProfile } from '@/components/brand/BuildingProfile';
 import { NeedsReviewProfile } from '@/components/brand/NeedsReviewProfile';
+import { PowerProfitCard } from '@/components/brand/PowerProfitCard';
 
 // V1 Consumer Contract - with 3 explicit states:
 // State A: Assessable (full profile) - identity verified + 3+ dimensions with evidence
@@ -675,13 +676,10 @@ export default function BrandProfileV1() {
           </CardContent>
         </Card>
 
-        {/* Card 2: Ownership */}
-        <Card>
-          <CardContent className="pt-6">
-            <h2 className="text-lg font-semibold mb-3">Who owns this brand?</h2>
-            {resolvedBrandId && <OwnershipDisplay brandId={resolvedBrandId} />}
-          </CardContent>
-        </Card>
+        {/* Card 2: Power & Profit (Who owns this brand) */}
+        {resolvedBrandId && (
+          <PowerProfitCard brandId={resolvedBrandId} brandName={brand.name} />
+        )}
 
         {/* Card 3: Personalized Score */}
         {resolvedBrandId && (
