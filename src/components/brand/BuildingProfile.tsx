@@ -26,6 +26,7 @@ import type { ProfileStateData } from "@/hooks/useProfileState";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrandLogo } from "@/hooks/useBrandLogo";
+import { PowerProfitCard } from "@/components/brand/PowerProfitCard";
 
 interface BrandData {
   id: string;
@@ -279,7 +280,7 @@ function RecentSignals({ brandId }: { brandId: string }) {
         <Button 
           variant="ghost" 
           className="w-full text-sm"
-          onClick={() => navigate(`/proof/${brandId}`)}
+          onClick={() => navigate(`/brands/${brandId}/proof`)}
         >
           View all {countData} signals →
         </Button>
@@ -487,6 +488,9 @@ export function BuildingProfile({ brand, stateData }: BuildingProfileProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Power & Profit - Who profits from this brand */}
+      <PowerProfitCard brandId={brand.id} brandName={brand.name} />
 
       {/* Verification Progress - Reframed language */}
       <Card className="border-dashed">
