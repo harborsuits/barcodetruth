@@ -1,7 +1,6 @@
-import { Building2, Users, TrendingUp, ExternalLink, HelpCircle, Loader2 } from "lucide-react";
+import { Building2, Users, TrendingUp, HelpCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery } from "@tanstack/react-query";
@@ -56,7 +55,7 @@ const ROLE_LABELS: Record<string, string> = {
   board: "Board Member",
 };
 
-export function PowerProfitCard({ brandId, brandName }: PowerProfitCardProps) {
+export function PowerProfitCard({ brandId }: PowerProfitCardProps) {
   const { data, isLoading, error } = useQuery({
     queryKey: ['power-profit', brandId],
     queryFn: async () => {
@@ -89,11 +88,18 @@ export function PowerProfitCard({ brandId, brandName }: PowerProfitCardProps) {
   }
 
   // Determine what to show based on data
-  const hasHolders = data.top_holders && data.top_holders.length > 0;
-  const hasLeadership = data.leadership && data.leadership.length > 0;
-  const isPublic = data.is_public || data.company_type === 'public';
-  const isSubsidiary = data.has_parent && data.parent_company !== null;
+  const hasHolders = Boolean(data.top_holders && data.top_holders.length > 0);
+  const hasLeadership = Boolean(data.leadership && data.leadership.length > 0);
   const confidenceLevel = data.ownership_confidence || 'none';
+  
+  // Only claim "public" if we have medium+ confidence, or if we have holders/ticker evidence
+  const hasPublicEvidence = Boolean(data.ticker) || hasHolders;
+  const confidenceAllowsPublicClaim = confidenceLevel === 'high' || confidenceLevel === 'medium';
+  const isPublic: boolean = Boolean((data.is_public || data.company_type === 'public') && (confidenceAllowsPublicClaim || hasPublicEvidence));
+  
+  // Only show parent if confidence is high enough
+  const parentConfident = data.parent_company !== null && data.parent_company.confidence >= 0.7;
+  const isSubsidiary: boolean = Boolean(data.has_parent) && parentConfident;
 
   // If no meaningful data, show unknown state
   if (confidenceLevel === 'none' && !hasHolders && !hasLeadership && !isPublic && !isSubsidiary) {
@@ -113,12 +119,18 @@ export function PowerProfitCard({ brandId, brandName }: PowerProfitCardProps) {
         <OwnershipSummary 
           data={data} 
           isPublic={isPublic} 
-          isSubsidiary={isSubsidiary} 
+          isSubsidiary={isSubsidiary}
+          hasHolders={hasHolders}
         />
 
         {/* Top Holders Section */}
         {hasHolders && (
           <TopHoldersSection holders={data.top_holders} />
+        )}
+
+        {/* No holders message for public companies */}
+        {isPublic && !hasHolders && (
+          <NoHoldersMessage exchange={data.exchange} />
         )}
 
         {/* Leadership Section */}
@@ -133,14 +145,31 @@ export function PowerProfitCard({ brandId, brandName }: PowerProfitCardProps) {
   );
 }
 
+function NoHoldersMessage({ exchange }: { exchange: string | null }) {
+  const isUS = !exchange || exchange === 'NYSE' || exchange === 'NASDAQ';
+  
+  return (
+    <div className="p-3 rounded-lg bg-muted/30 border border-dashed">
+      <p className="text-xs text-muted-foreground">
+        {isUS 
+          ? "Top holders not yet verified — we're processing SEC filings."
+          : `Top holders not available yet for this exchange (${exchange || 'non-US'}). We're adding international filings.`
+        }
+      </p>
+    </div>
+  );
+}
+
 function OwnershipSummary({ 
   data, 
   isPublic, 
-  isSubsidiary 
+  isSubsidiary,
+  hasHolders
 }: { 
   data: PowerProfitData; 
   isPublic: boolean; 
   isSubsidiary: boolean;
+  hasHolders: boolean;
 }) {
   const parentCompany = data.parent_company;
   
