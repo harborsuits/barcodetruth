@@ -135,6 +135,26 @@ function DomainChecklist({ progress }: { progress: ProfileStateData['progress'] 
   );
 }
 
+// Category to dimension mapping
+const CATEGORY_DIMENSIONS: Record<string, { label: string; order: number }> = {
+  politics: { label: 'Politics', order: 1 },
+  labor: { label: 'Labor', order: 2 },
+  environment: { label: 'Environment', order: 3 },
+  social: { label: 'Social', order: 4 },
+  legal: { label: 'Legal', order: 5 },
+  product_safety: { label: 'Product Safety', order: 6 },
+  other: { label: 'Other', order: 7 },
+};
+
+interface GroupedSignal {
+  event_id: string;
+  title: string | null;
+  event_date: string | null;
+  category: string;
+  source_url: string | null;
+  verification: string | null;
+}
+
 function RecentSignals({ brandId }: { brandId: string }) {
   const navigate = useNavigate();
   
@@ -147,7 +167,7 @@ function RecentSignals({ brandId }: { brandId: string }) {
         .eq('brand_id', brandId)
         .eq('is_irrelevant', false)
         .order('event_date', { ascending: false })
-        .limit(5);
+        .limit(15); // Get more to show grouped
       
       if (error) return [];
       return data || [];
@@ -193,37 +213,67 @@ function RecentSignals({ brandId }: { brandId: string }) {
     );
   }
 
+  // Group events by category/dimension
+  const grouped = events.reduce((acc, ev) => {
+    const cat = ev.category || 'other';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(ev);
+    return acc;
+  }, {} as Record<string, GroupedSignal[]>);
+
+  // Sort dimensions by predefined order
+  const sortedDimensions = Object.entries(grouped)
+    .sort(([a], [b]) => {
+      const orderA = CATEGORY_DIMENSIONS[a]?.order ?? 99;
+      const orderB = CATEGORY_DIMENSIONS[b]?.order ?? 99;
+      return orderA - orderB;
+    });
+
   return (
-    <div className="space-y-2">
-      {events.map((ev) => {
-        const hasUrl = !!ev.source_url;
-        return (
-          <a 
-            key={ev.event_id} 
-            href={ev.source_url || '#'} 
-            target={hasUrl ? "_blank" : undefined}
-            rel="noopener noreferrer"
-            className={`block p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors ${
-              !hasUrl ? 'pointer-events-none opacity-60' : ''
-            }`}
-          >
-            <p className="text-sm font-medium line-clamp-2">{ev.title || 'Untitled event'}</p>
-            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-              <Badge variant="outline" className="text-xs capitalize">
-                {ev.category}
-              </Badge>
-              <span className="text-xs text-muted-foreground">
-                {ev.event_date ? format(new Date(ev.event_date), 'MMM d, yyyy') : 'Date unknown'}
-              </span>
-              {hasUrl && (
-                <span className="text-xs text-primary inline-flex items-center gap-1">
-                  Source <ExternalLink className="h-3 w-3" />
-                </span>
-              )}
-            </div>
-          </a>
-        );
-      })}
+    <div className="space-y-4">
+      {sortedDimensions.map(([category, catEvents]) => (
+        <div key={category} className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs capitalize font-medium">
+              {CATEGORY_DIMENSIONS[category]?.label || category}
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              ({catEvents.length} signal{catEvents.length !== 1 ? 's' : ''})
+            </span>
+          </div>
+          {catEvents.slice(0, 2).map((ev) => {
+            const hasUrl = !!ev.source_url;
+            return (
+              <a 
+                key={ev.event_id} 
+                href={ev.source_url || '#'} 
+                target={hasUrl ? "_blank" : undefined}
+                rel="noopener noreferrer"
+                className={`block p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors ml-2 border-l-2 border-muted ${
+                  !hasUrl ? 'pointer-events-none opacity-60' : ''
+                }`}
+              >
+                <p className="text-sm font-medium line-clamp-2">{ev.title || 'Untitled event'}</p>
+                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                  <span className="text-xs text-muted-foreground">
+                    {ev.event_date ? format(new Date(ev.event_date), 'MMM d, yyyy') : 'Date unknown'}
+                  </span>
+                  {hasUrl && (
+                    <span className="text-xs text-primary inline-flex items-center gap-1">
+                      Source <ExternalLink className="h-3 w-3" />
+                    </span>
+                  )}
+                </div>
+              </a>
+            );
+          })}
+          {catEvents.length > 2 && (
+            <p className="text-xs text-muted-foreground ml-4">
+              + {catEvents.length - 2} more in this dimension
+            </p>
+          )}
+        </div>
+      ))}
 
       {(countData || 0) > 5 && (
         <Button 
@@ -235,6 +285,63 @@ function RecentSignals({ brandId }: { brandId: string }) {
         </Button>
       )}
     </div>
+  );
+}
+
+// What's blocking the score - explicit blockers panel
+function BlockersPanel({ progress }: { progress: ProfileStateData['progress'] }) {
+  const blockers: { label: string; met: boolean }[] = [];
+  
+  // Check dimension coverage (need 3+ dimensions)
+  const dimensionsMet = progress.dimensions_covered >= 3;
+  blockers.push({
+    label: dimensionsMet 
+      ? '3+ evidence dimensions verified' 
+      : `${3 - progress.dimensions_covered} more evidence dimension${3 - progress.dimensions_covered !== 1 ? 's' : ''} needed`,
+    met: dimensionsMet,
+  });
+  
+  // Check for corroboration (simplified: need 5+ events)
+  const corroborationMet = progress.total_events >= 5;
+  blockers.push({
+    label: corroborationMet 
+      ? 'Multiple independent sources confirmed' 
+      : 'Corroboration from multiple sources needed',
+    met: corroborationMet,
+  });
+  
+  // Check for identity verification
+  const identityMet = progress.has_description && progress.has_wikidata;
+  blockers.push({
+    label: identityMet 
+      ? 'Company identity verified' 
+      : 'Identity verification pending',
+    met: identityMet,
+  });
+
+  const allMet = blockers.every(b => b.met);
+  
+  if (allMet) return null;
+
+  return (
+    <Card className="border-muted bg-muted/20">
+      <CardContent className="pt-4 pb-4">
+        <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+          <Clock className="h-4 w-4 text-muted-foreground" />
+          What's still needed to publish a score
+        </h4>
+        <div className="space-y-2">
+          {blockers.filter(b => !b.met).map((blocker, idx) => (
+            <div key={idx} className="flex items-center gap-2 text-sm">
+              <div className="w-5 h-5 rounded-full border-2 border-dashed border-amber-400 flex items-center justify-center">
+                <span className="text-xs text-amber-600">⏳</span>
+              </div>
+              <span className="text-muted-foreground">{blocker.label}</span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -304,10 +411,10 @@ export function BuildingProfile({ brand, stateData }: BuildingProfileProps) {
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-amber-900 dark:text-amber-100">
-                Profile in progress
+                Profile in progress — rating withheld
               </h3>
               <p className="text-sm text-amber-700 dark:text-amber-300 mt-0.5">
-                We've found sources for this brand, but we're still verifying enough independent evidence to publish a rating.
+                We've found sources for this brand, but our system requires confirmation across multiple independent domains before publishing a rating.
               </p>
               <div className="flex items-center gap-2 mt-2 text-xs text-amber-600 dark:text-amber-400">
                 <span>{stateData.dimensions_with_evidence} of 4 dimensions verified</span>
@@ -381,18 +488,31 @@ export function BuildingProfile({ brand, stateData }: BuildingProfileProps) {
         </Card>
       )}
 
-      {/* Verification Progress */}
+      {/* Verification Progress - Reframed language */}
       <Card className="border-dashed">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center justify-between text-base font-medium">
-            <span>What we're tracking</span>
-            <span className="text-sm font-normal text-muted-foreground">
-              {progressPercent}% complete
-            </span>
+            <span>Evidence verification</span>
+            <Badge variant="secondary" className="text-xs font-normal">
+              {progressPercent >= 80 
+                ? 'High confidence' 
+                : progressPercent >= 50 
+                ? 'Building confidence' 
+                : 'Gathering evidence'}
+            </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Progress value={progressPercent} className="h-2" />
+          <div className="space-y-1.5">
+            <Progress value={progressPercent} className="h-2" />
+            <p className="text-xs text-muted-foreground">
+              {progressPercent >= 80 
+                ? 'Strong signal volume — awaiting final validation before publishing score'
+                : progressPercent >= 50
+                ? 'Making progress — need more independent sources to confirm patterns'
+                : 'Early stage — actively searching for evidence across multiple domains'}
+            </p>
+          </div>
           <DomainChecklist progress={progress} />
         </CardContent>
       </Card>
@@ -412,7 +532,10 @@ export function BuildingProfile({ brand, stateData }: BuildingProfileProps) {
         </CardContent>
       </Card>
 
-      {/* Follow CTA */}
+      {/* What's Blocking - Explicit blockers panel */}
+      <BlockersPanel progress={progress} />
+
+      {/* Follow CTA - Smarter language */}
       <Card className="bg-primary/5 border-primary/20">
         <CardContent className="pt-6">
           <div className="flex items-start gap-3">
@@ -420,13 +543,13 @@ export function BuildingProfile({ brand, stateData }: BuildingProfileProps) {
               <Bell className="h-5 w-5 text-primary" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold">Get notified when scoring is ready</h3>
+              <h3 className="font-semibold">Notify me when the score is published</h3>
               <p className="text-sm text-muted-foreground mt-0.5">
-                We'll alert you when we have enough verified evidence to publish an alignment score.
+                Our system requires confirmation across multiple domains before publishing a rating. We'll alert you when this brand meets our verification threshold.
               </p>
               <Button size="sm" className="mt-3">
                 <Bell className="h-4 w-4 mr-1.5" />
-                Follow this brand
+                Get notified
               </Button>
             </div>
           </div>
