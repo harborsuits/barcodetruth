@@ -88,7 +88,11 @@ export function PowerProfitCard({ brandId }: PowerProfitCardProps) {
   }
 
   // Determine what to show based on data
-  const hasHolders = Boolean(data.top_holders && data.top_holders.length > 0);
+  // Filter holders to only show those with real percentages (non-null, > 0)
+  const realHolders = (data.top_holders || []).filter(h => 
+    h.percent_owned != null && h.percent_owned > 0
+  );
+  const hasHolders = realHolders.length > 0;
   const hasLeadership = Boolean(data.leadership && data.leadership.length > 0);
   const confidenceLevel = data.ownership_confidence || 'none';
   
@@ -123,9 +127,9 @@ export function PowerProfitCard({ brandId }: PowerProfitCardProps) {
           hasHolders={hasHolders}
         />
 
-        {/* Top Holders Section */}
+        {/* Top Holders Section - only show holders with real percentages */}
         {hasHolders && (
-          <TopHoldersSection holders={data.top_holders} />
+          <TopHoldersSection holders={realHolders} />
         )}
 
         {/* No holders message for public companies */}
