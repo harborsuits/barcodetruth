@@ -16,6 +16,7 @@ import { format } from "date-fns";
 import { useState } from "react";
 import { SuggestEvidenceDialog } from "@/components/SuggestEvidenceDialog";
 import { ReportIssueDialog } from "@/components/ReportIssueDialog";
+import { IdentityFixCard } from "@/components/brand/IdentityFixCard";
 import type { ProfileStateData, MismatchDetail } from "@/hooks/useProfileState";
 import { useBrandLogo } from "@/hooks/useBrandLogo";
 
@@ -225,21 +226,24 @@ export function NeedsReviewProfile({ brand, stateData }: NeedsReviewProfileProps
         </CardContent>
       </Card>
 
-      {/* Help Fix This */}
-      <Card className="bg-primary/5 border-primary/20">
+      {/* Interactive Identity Fix */}
+      <IdentityFixCard brandId={brand.id} brandName={brand.name} />
+
+      {/* Manual Help Options */}
+      <Card className="bg-muted/30">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-medium flex items-center gap-2">
             <MessageSquarePlus className="h-4 w-4" />
-            Help us fix this
+            Still not right?
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">
-            Know something about {brand.name}? Your corrections help us build accurate profiles.
+            If auto-fix didn't work, you can report the issue manually.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button 
-              variant="default" 
+              variant="outline" 
               size="sm"
               onClick={() => setReportOpen(true)}
             >
@@ -247,7 +251,7 @@ export function NeedsReviewProfile({ brand, stateData }: NeedsReviewProfileProps
               Report mismatch
             </Button>
             <Button 
-              variant="outline" 
+              variant="ghost" 
               size="sm"
               onClick={() => setSuggestOpen(true)}
             >
