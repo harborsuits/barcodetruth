@@ -3,10 +3,12 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertTriangle, TrendingUp, TrendingDown, HelpCircle, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { usePersonalizedBrandScore, useDefaultBrandScore } from "@/hooks/usePersonalizedBrandScore";
+import { useTopScoringEvents } from "@/hooks/useTopScoringEvents";
+import { generateScoreNarrative, type ScoreNarrative } from "@/lib/scoreNarrative";
 import {
   type ScoringResult,
   type CategoryContribution,
@@ -188,6 +190,38 @@ function DealBreakerBanner({ result }: { result: ScoringResult }) {
   );
 }
 
+function NarrativeSection({ narrative }: { narrative: ScoreNarrative | null }) {
+  if (!narrative) return null;
+  
+  return (
+    <div className="mt-3 pt-3 border-t border-border/50">
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        {narrative.text}
+      </p>
+      
+      {narrative.citedEvents.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {narrative.citedEvents.map((event, i) => (
+            <a
+              key={i}
+              href={event.sourceUrl || '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                event.impact === 'negative'
+                  ? 'bg-danger/10 border-danger/20 text-danger hover:bg-danger/20'
+                  : 'bg-success/10 border-success/20 text-success hover:bg-success/20'
+              }`}
+            >
+              {event.shortSummary}
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidence }: PersonalizedScoreDisplayProps) {
   // Get current user
   const { data: session } = useQuery({
@@ -203,6 +237,9 @@ export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidenc
   // Fetch personalized score if logged in, otherwise default
   const { data: personalizedResult, isLoading: personalizedLoading } = usePersonalizedBrandScore(brandId, userId);
   const { data: defaultResult, isLoading: defaultLoading } = useDefaultBrandScore(brandId);
+  
+  // Fetch top scoring events for narrative generation
+  const { data: topEvents } = useTopScoringEvents(brandId, 5);
   
   // FALLBACK: Fetch brand_scores with pillar breakdown as backup
   const { data: fallbackScore, isLoading: fallbackLoading } = useQuery({
@@ -233,6 +270,25 @@ export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidenc
   
   // Get freshness timestamp
   const lastUpdated = fallbackScore?.recomputed_at || fallbackScore?.last_updated;
+  
+  // Generate score narrative when we have events
+  const narrative = useMemo(() => {
+    if (!topEvents || topEvents.length === 0) return null;
+    
+    const dimensionScores = {
+      labor: fallbackScore?.score_labor ?? 50,
+      environment: fallbackScore?.score_environment ?? 50,
+      politics: fallbackScore?.score_politics ?? 50,
+      social: fallbackScore?.score_social ?? 50,
+    };
+    
+    return generateScoreNarrative({
+      brandName,
+      score: displayScore ?? 50,
+      dimensionScores,
+      topEvents,
+    });
+  }, [topEvents, fallbackScore, brandName, displayScore]);
 
   // Identity confidence gate
   if (identityConfidence === 'low') {
@@ -332,6 +388,9 @@ export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidenc
               )}
             </div>
           </div>
+          
+          {/* Score narrative - explains why this score */}
+          <NarrativeSection narrative={narrative} />
           
           {!userId && (
             <p className="text-xs text-muted-foreground text-center pt-2 border-t">
@@ -438,6 +497,9 @@ export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidenc
             </div>
           </div>
         </div>
+        
+        {/* Score narrative - explains why this score */}
+        <NarrativeSection narrative={narrative} />
         
         <WhyFlaggedSection result={result} />
         
