@@ -6599,6 +6599,40 @@ export type Database = {
         }
         Relationships: []
       }
+      brand_events_with_inheritance: {
+        Row: {
+          brand_id: string | null
+          category: Database["public"]["Enums"]["event_category"] | null
+          category_code: string | null
+          category_impacts: Json | null
+          created_at: string | null
+          credibility: number | null
+          description: string | null
+          event_date: string | null
+          event_id: string | null
+          impact_environment: number | null
+          impact_labor: number | null
+          impact_politics: number | null
+          impact_social: number | null
+          inherited_from_parent: boolean | null
+          is_test: boolean | null
+          occurred_at: string | null
+          orientation: Database["public"]["Enums"]["event_orientation"] | null
+          parent_brand_id: string | null
+          parent_brand_name: string | null
+          relevance_score_norm: number | null
+          relevance_score_raw: number | null
+          resolved: boolean | null
+          scope_multiplier: number | null
+          severity: string | null
+          source_url: string | null
+          title: string | null
+          updated_at: string | null
+          verification: Database["public"]["Enums"]["verification_level"] | null
+          verified: boolean | null
+        }
+        Relationships: []
+      }
       brand_evidence_independent: {
         Row: {
           archive_url: string | null
