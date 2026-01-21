@@ -20,6 +20,7 @@ import { useProfileState } from '@/hooks/useProfileState';
 import { BuildingProfile } from '@/components/brand/BuildingProfile';
 import { NeedsReviewProfile } from '@/components/brand/NeedsReviewProfile';
 import { PowerProfitCard } from '@/components/brand/PowerProfitCard';
+import { deduplicateEvents } from '@/lib/deduplicateEvents';
 
 // V1 Consumer Contract - with 3 explicit states:
 // State A: Assessable (full profile) - identity verified + 3+ dimensions with evidence
@@ -197,10 +198,12 @@ function EvidenceList({ brandId }: { brandId: string }) {
         .eq('brand_id', brandId)
         .eq('is_irrelevant', false)
         .order('event_date', { ascending: false })
-        .limit(5); // Increased from 3 to 5
+        .limit(20); // Fetch more to allow for deduplication
       
       if (error) return [];
-      return data || [];
+      
+      // Deduplicate similar titles to avoid showing same story multiple times
+      return deduplicateEvents(data || []);
     },
     enabled: !!brandId,
   });
@@ -241,9 +244,12 @@ function EvidenceList({ brandId }: { brandId: string }) {
     );
   }
   
+  // Only display first 5 deduplicated events
+  const displayedEvidence = evidence.slice(0, 5);
+  
   return (
     <div className="space-y-2">
-      {evidence.map((ev) => {
+      {displayedEvidence.map((ev) => {
         const hasUrl = !!ev.source_url;
         const content = (
           <>

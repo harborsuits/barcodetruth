@@ -27,6 +27,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrandLogo } from "@/hooks/useBrandLogo";
 import { PowerProfitCard } from "@/components/brand/PowerProfitCard";
+import { deduplicateEvents, type EventWithSources } from "@/lib/deduplicateEvents";
 
 interface BrandData {
   id: string;
@@ -168,10 +169,12 @@ function RecentSignals({ brandId }: { brandId: string }) {
         .eq('brand_id', brandId)
         .eq('is_irrelevant', false)
         .order('event_date', { ascending: false })
-        .limit(15); // Get more to show grouped
+        .limit(30); // Get more to allow for deduplication
       
       if (error) return [];
-      return data || [];
+      
+      // Deduplicate similar titles to avoid showing same story multiple times
+      return deduplicateEvents(data || []);
     },
     enabled: !!brandId,
   });
@@ -215,15 +218,15 @@ function RecentSignals({ brandId }: { brandId: string }) {
   }
 
   // Group events by category/dimension
-  const grouped = events.reduce((acc, ev) => {
-    const cat = ev.category || 'other';
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(ev);
-    return acc;
-  }, {} as Record<string, GroupedSignal[]>);
+  const grouped: Record<string, GroupedSignal[]> = {};
+  for (const ev of events) {
+    const cat = (ev as any).category || 'other';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(ev as unknown as GroupedSignal);
+  }
 
   // Sort dimensions by predefined order
-  const sortedDimensions = Object.entries(grouped)
+  const sortedDimensions = (Object.entries(grouped) as [string, GroupedSignal[]][])
     .sort(([a], [b]) => {
       const orderA = CATEGORY_DIMENSIONS[a]?.order ?? 99;
       const orderB = CATEGORY_DIMENSIONS[b]?.order ?? 99;
