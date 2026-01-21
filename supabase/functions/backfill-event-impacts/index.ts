@@ -153,31 +153,44 @@ function classifyEvent(event: EventRow) {
     "sustainability milestone", "eco-friendly", "zero waste"
   ];
   
-  // EXPANDED NEGATIVE SIGNALS (19 → 70 keywords)
+  // EXPANDED NEGATIVE SIGNALS (70 → 120+ keywords)
   const negativeSignals = [
     // Legal/Compliance (high confidence)
     "lawsuit", "sued", "suing", "violation", "violated", "violating",
     "penalty", "penalties", "fine", "fined", "fining", "settlement",
     "litigation", "convicted", "guilty", "plea deal", "indicted", "indictment",
-    "class action", "punitive damages", "legal action",
+    "class action", "punitive damages", "legal action", "consent decree",
     // Scandals/Misconduct
     "scandal", "fraud", "fraudulent", "misconduct", "corrupt", "corruption",
     "bribery", "investigation", "investigating", "probe", "alleged", "accused",
-    "charged", "charges",
+    "charged", "charges", "coverup", "cover-up", "whistleblower",
     // Safety/Health
     "recall", "recalled", "recalling", "contamination", "contaminated",
     "injury", "injuries", "injured", "death", "deaths", "fatality", "fatalities",
     "hazard", "hazardous", "unsafe", "warning letter", "outbreak", "withdrawn",
+    "poisoning", "illness", "sickened", "hospitalized", "toxic",
     // Labor Issues
     "layoff", "layoffs", "laid off", "job cuts", "workforce reduction",
     "downsizing", "walkout", "union dispute", "unfair labor", "wage theft",
     "discrimination", "harassment", "wrongful termination", "fired", "terminated",
+    "sweatshop", "child labor", "forced labor", "exploitation", "wage violation",
+    // Regulatory Citations (INDUSTRY-SPECIFIC)
+    "osha citation", "osha fine", "osha violation", "workplace safety violation",
+    "epa violation", "epa fine", "epa penalty", "environmental violation",
+    "fda warning", "fda citation", "warning letter", "consent order",
+    "ftc complaint", "doj investigation", "sec investigation", "regulatory action",
     // Business Failure
     "bankruptcy", "chapter 11", "receivership", "restructuring",
     "closure", "closes", "closing", "closed", "shutting down", "ceased operations",
     // Public Backlash
     "boycott", "backlash", "outrage", "protest", "protests", "condemned",
-    "criticism", "criticized"
+    "criticism", "criticized", "controversy", "controversial",
+    // Financial Misconduct
+    "price fixing", "antitrust", "monopoly", "cartel", "bid rigging",
+    "securities fraud", "insider trading", "tax evasion", "money laundering",
+    // Privacy/Data
+    "data breach", "hack", "hacked", "leaked", "exposed", "privacy violation",
+    "security incident", "ransomware", "cyberattack"
   ];
   
   const textLower = text.toLowerCase();
@@ -229,10 +242,10 @@ function classifyEvent(event: EventRow) {
     impactMagnitude = Math.round(SEVERITY_IMPACTS[severity].negative * 0.3);
   } else {
     // NO SIGNALS MATCHED - but event is categorized (not noise)
-    // Give very small impact to register brand activity
+    // Give meaningful impact to register brand activity (INCREASED from 0.1x to 0.25x)
     orientation = 'mixed';
-    const baseImpact = SEVERITY_IMPACTS[severity].negative * 0.1;
-    impactMagnitude = Math.round(baseImpact) || -1; // Minimum -1 to avoid rounding to 0
+    const baseImpact = SEVERITY_IMPACTS[severity].negative * 0.25;
+    impactMagnitude = Math.round(baseImpact) || -2; // Minimum -2 to ensure scoring impact
   }
 
   // Build category impacts with whole numbers
