@@ -11,12 +11,12 @@ const corsHeaders = {
 const BATCH_SIZE = 100;
 const LOOKBACK_DAYS = 365; // Extended to 365 days for full backfill
 
-// FIXED: Impact magnitudes now use whole numbers that don't round to zero
+// FIXED: Impact magnitudes respect db constraint be_impact_bounds (-5 to +5)
 const SEVERITY_IMPACTS = {
-  minor: { negative: -2, positive: 1 },
-  moderate: { negative: -5, positive: 2 },
-  severe: { negative: -10, positive: 3 },
-  critical: { negative: -15, positive: 4 },
+  minor: { negative: -1, positive: 1 },
+  moderate: { negative: -3, positive: 2 },
+  severe: { negative: -5, positive: 3 },
+  critical: { negative: -5, positive: 4 }, // Capped at -5 due to constraint
 };
 
 // Scoring helpers
@@ -135,18 +135,74 @@ function classifyEvent(event: EventRow) {
   const simpleCategory = simpleCategoryMap[finalCategoryCode] || "social";
 
   // Orientation detection
-  const positiveSignals = ["award", "certification", "honored", "recognized", "praised", "improved", "success", "breakthrough", "innovation", "achievement"];
-  const negativeSignals = ["lawsuit", "violation", "penalty", "fine", "recall", "scandal", "accused", "alleged", "investigation", "charged", "contamination", "injury", "death", "fraud", "failure", "misconduct", "layoff", "strike", "boycott"];
+  // EXPANDED POSITIVE SIGNALS (10 → 50 keywords)
+  const positiveSignals = [
+    // Recognition
+    "award", "awarded", "awards", "certification", "certified", "honored",
+    "recognized", "recognition", "praised", "commended", "accolade",
+    // Innovation/Progress
+    "breakthrough", "innovation", "innovative", "pioneering",
+    "first-of-its-kind", "industry-first", "launched successfully",
+    "achievement", "achievements", "milestone",
+    // Growth/Success
+    "record profit", "beat expectations", "exceeded targets",
+    "surpassed", "outperformed", "exceeds expectations",
+    // Sustainability Achievements
+    "carbon neutral", "net zero achieved", "renewable energy commitment",
+    "sustainability award", "green certification", "b corp certified",
+    "sustainability milestone", "eco-friendly", "zero waste"
+  ];
+  
+  // EXPANDED NEGATIVE SIGNALS (19 → 70 keywords)
+  const negativeSignals = [
+    // Legal/Compliance (high confidence)
+    "lawsuit", "sued", "suing", "violation", "violated", "violating",
+    "penalty", "penalties", "fine", "fined", "fining", "settlement",
+    "litigation", "convicted", "guilty", "plea deal", "indicted", "indictment",
+    "class action", "punitive damages", "legal action",
+    // Scandals/Misconduct
+    "scandal", "fraud", "fraudulent", "misconduct", "corrupt", "corruption",
+    "bribery", "investigation", "investigating", "probe", "alleged", "accused",
+    "charged", "charges",
+    // Safety/Health
+    "recall", "recalled", "recalling", "contamination", "contaminated",
+    "injury", "injuries", "injured", "death", "deaths", "fatality", "fatalities",
+    "hazard", "hazardous", "unsafe", "warning letter", "outbreak", "withdrawn",
+    // Labor Issues
+    "layoff", "layoffs", "laid off", "job cuts", "workforce reduction",
+    "downsizing", "walkout", "union dispute", "unfair labor", "wage theft",
+    "discrimination", "harassment", "wrongful termination", "fired", "terminated",
+    // Business Failure
+    "bankruptcy", "chapter 11", "receivership", "restructuring",
+    "closure", "closes", "closing", "closed", "shutting down", "ceased operations",
+    // Public Backlash
+    "boycott", "backlash", "outrage", "protest", "protests", "condemned",
+    "criticism", "criticized"
+  ];
   
   const textLower = text.toLowerCase();
-  const hasPositive = positiveSignals.some(sig => textLower.includes(sig));
-  const hasNegative = negativeSignals.some(sig => textLower.includes(sig));
+  let hasPositive = positiveSignals.some(sig => textLower.includes(sig));
+  let hasNegative = negativeSignals.some(sig => textLower.includes(sig));
+
+  // Domain-based orientation hints
+  const regulatoryDomains = ["epa.gov", "osha.gov", "nlrb.gov", "dol.gov", "ftc.gov", "sec.gov", "fda.gov"];
+  const investigativeDomains = ["propublica.org", "icij.org"];
+  const isRegulatoryDomain = regulatoryDomains.some(d => domain.includes(d));
+  const isInvestigativeDomain = investigativeDomains.some(d => domain.includes(d));
+
+  // Regulatory/investigative sources without positive signals = likely negative
+  if ((isRegulatoryDomain || isInvestigativeDomain) && !hasPositive) {
+    // Check it's NOT an award/recognition page
+    if (!textLower.includes('award') && !textLower.includes('recognition') && !textLower.includes('approved')) {
+      hasNegative = true; // Force negative orientation
+    }
+  }
 
   // Severity detection
   const severitySignals = {
     critical: ["death", "deaths", "fatal", "explosion", "criminal charges", "indictment", "fraud", "mass layoff"],
     severe: ["recall", "contamination", "injury", "injuries", "lawsuit", "investigation", "scandal", "charged"],
-    moderate: ["fine", "penalty", "violation", "complaint", "dispute", "backlash", "strike", "layoff"],
+    moderate: ["fine", "penalty", "violation", "complaint", "dispute", "backlash", "layoff"],
     minor: ["settlement", "resolved", "clarification", "minor", "warning"]
   };
   
@@ -171,6 +227,12 @@ function classifyEvent(event: EventRow) {
   } else if (hasNegative && hasPositive) {
     orientation = 'mixed';
     impactMagnitude = Math.round(SEVERITY_IMPACTS[severity].negative * 0.3);
+  } else {
+    // NO SIGNALS MATCHED - but event is categorized (not noise)
+    // Give very small impact to register brand activity
+    orientation = 'mixed';
+    const baseImpact = SEVERITY_IMPACTS[severity].negative * 0.1;
+    impactMagnitude = Math.round(baseImpact) || -1; // Minimum -1 to avoid rounding to 0
   }
 
   // Build category impacts with whole numbers
