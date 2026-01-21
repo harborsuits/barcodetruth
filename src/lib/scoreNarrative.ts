@@ -120,6 +120,111 @@ export function summarizeEventTitle(title: string, brandName: string): string {
 }
 
 /**
+ * Deduplicate and collapse event summaries with counts
+ * e.g., ["lawsuit filed", "lawsuit filed", "plant closure"] → ["lawsuits ×2", "plant closure"]
+ */
+function collapseSummaries(summaries: string[]): string[] {
+  const counts = new Map<string, number>();
+  
+  for (const s of summaries) {
+    const normalized = s.toLowerCase().trim();
+    counts.set(normalized, (counts.get(normalized) || 0) + 1);
+  }
+  
+  return Array.from(counts.entries()).map(([summary, count]) => {
+    if (count === 1) {
+      return capitalize(summary);
+    }
+    // Pluralize common terms
+    let plural = summary;
+    if (summary.endsWith(' filed')) {
+      // "lawsuit filed" → "lawsuits"
+      plural = summary.replace(/(\w+)\s+filed$/, '$1s');
+    } else if (summary.includes('lawsuit')) {
+      plural = 'lawsuits';
+    } else if (summary.includes('settlement')) {
+      plural = 'settlements';
+    } else if (summary.includes('closure')) {
+      plural = 'closures';
+    } else if (summary.includes('violation')) {
+      plural = 'violations';
+    } else if (summary.includes('recall')) {
+      plural = 'recalls';
+    } else {
+      plural = summary;
+    }
+    return `${capitalize(plural)} ×${count}`;
+  });
+}
+
+/**
+ * Format event chips for display - collapse duplicates with counts
+ */
+function buildCitedEvents(
+  events: NarrativeInput['topEvents'],
+  brandName: string,
+  impact: 'positive' | 'negative'
+): ScoreNarrative['citedEvents'] {
+  // Group by summary
+  const grouped = new Map<string, { count: number; events: typeof events }>();
+  
+  for (const e of events) {
+    const summary = summarizeEventTitle(e.title, brandName);
+    const existing = grouped.get(summary);
+    if (existing) {
+      existing.count++;
+      existing.events.push(e);
+    } else {
+      grouped.set(summary, { count: 1, events: [e] });
+    }
+  }
+  
+  return Array.from(grouped.entries()).map(([summary, { count, events: groupEvents }]) => {
+    let displaySummary = summary;
+    if (count > 1) {
+      // Pluralize and add count
+      if (summary.includes('lawsuit') || summary.endsWith(' filed')) {
+        displaySummary = `lawsuits ×${count}`;
+      } else if (summary.includes('settlement')) {
+        displaySummary = `settlements ×${count}`;
+      } else if (summary.includes('closure')) {
+        displaySummary = `closures ×${count}`;
+      } else {
+        displaySummary = `${summary} ×${count}`;
+      }
+    }
+    
+    return {
+      title: groupEvents[0].title,
+      shortSummary: displaySummary,
+      impact,
+      sourceUrl: groupEvents[0].source_url,
+    };
+  });
+}
+
+/**
+ * Get dimension-specific concern description
+ */
+function getDimensionConcernLabel(dim: DimensionKey): string {
+  const labels: Record<DimensionKey, string> = {
+    labor: 'worker-related',
+    environment: 'environmental',
+    politics: 'political-influence',
+    social: 'social-impact',
+  };
+  return labels[dim] || 'concerning';
+}
+
+/**
+ * Check if events are recent (within 30 days)
+ */
+function hasRecentEvents(events: NarrativeInput['topEvents']): boolean {
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  return events.some(e => new Date(e.event_date).getTime() > thirtyDaysAgo);
+}
+
+/**
  * Generate a layman's rhetoric explanation for why the score is what it is
  */
 export function generateScoreNarrative(input: NarrativeInput): ScoreNarrative | null {
@@ -140,66 +245,50 @@ export function generateScoreNarrative(input: NarrativeInput): ScoreNarrative | 
   // Find the weakest dimension
   const dimensions = Object.entries(dimensionScores) as [DimensionKey, number][];
   const [weakestDim] = dimensions.sort(([, a], [, b]) => a - b)[0];
+  const dimLabel = getDimensionConcernLabel(weakestDim);
   
-  // Build cited events list
-  const citedEvents: ScoreNarrative['citedEvents'] = [];
+  // Check recency for temporal grounding
+  const isRecent = hasRecentEvents(negativeEvents.length > 0 ? negativeEvents : positiveEvents);
+  const timePhrase = isRecent ? 'recent' : '';
   
   // Generate narrative based on score range
   let text: string;
+  let citedEvents: ScoreNarrative['citedEvents'] = [];
   
   if (score < 30) {
-    // Very low score - emphasize concerns
-    const eventSummaries = negativeEvents.slice(0, 3).map(e => {
-      const summary = summarizeEventTitle(e.title, brandName);
-      citedEvents.push({
-        title: e.title,
-        shortSummary: summary,
-        impact: 'negative',
-        sourceUrl: e.source_url,
-      });
-      return summary;
-    });
+    // Very low score - emphasize concerns with dimension specificity
+    const eventsToUse = negativeEvents.slice(0, 3);
+    const summaries = eventsToUse.map(e => summarizeEventTitle(e.title, brandName));
+    const collapsedSummaries = collapseSummaries(summaries);
+    citedEvents = buildCitedEvents(eventsToUse, brandName, 'negative');
     
-    if (eventSummaries.length === 0) {
-      text = `${brandName}'s low rating reflects concerning patterns. We're gathering more details.`;
-    } else if (eventSummaries.length === 1) {
-      text = `${brandName}'s low rating is primarily driven by ${eventSummaries[0]}. No significant positive signals were found in the last 90 days.`;
+    if (collapsedSummaries.length === 0) {
+      text = `${brandName}'s low rating reflects ${dimLabel} concerns. We're gathering more details.`;
     } else {
-      const firstEvent = eventSummaries[0];
-      const otherEvents = eventSummaries.slice(1).join(' and ');
-      text = `${brandName}'s low rating is driven by ${firstEvent}. ${capitalize(otherEvents)} also contributed to concerns.`;
+      const eventList = collapsedSummaries.join(' and ').toLowerCase();
+      text = `${brandName} shows concerning ${dimLabel} patterns, driven by ${timePhrase ? 'recent ' : ''}${eventList}.`;
       if (positiveEvents.length === 0) {
-        text += ` No positive signals found recently.`;
+        text += ` No significant positive signals were identified in recent coverage.`;
       }
     }
   } else if (score < 50) {
-    // Low score
-    const eventSummaries = negativeEvents.slice(0, 2).map(e => {
-      const summary = summarizeEventTitle(e.title, brandName);
-      citedEvents.push({
-        title: e.title,
-        shortSummary: summary,
-        impact: 'negative',
-        sourceUrl: e.source_url,
-      });
-      return summary;
-    });
+    // Low score - tie to weakest dimension
+    const eventsToUse = negativeEvents.slice(0, 2);
+    const summaries = eventsToUse.map(e => summarizeEventTitle(e.title, brandName));
+    const collapsedSummaries = collapseSummaries(summaries);
+    citedEvents = buildCitedEvents(eventsToUse, brandName, 'negative');
     
-    if (eventSummaries.length === 0) {
+    if (collapsedSummaries.length === 0) {
       text = `${brandName} shows concerning patterns in ${DIMENSION_LABELS[weakestDim]}.`;
     } else {
-      text = `${brandName} shows concerning patterns including ${eventSummaries.join(' and ')}.`;
+      const eventList = collapsedSummaries.join(' and ').toLowerCase();
+      text = `${brandName} shows ${dimLabel} concerns, including ${timePhrase ? 'recent ' : ''}${eventList}.`;
     }
     
     if (positiveEvents.length > 0) {
-      const positiveSummary = summarizeEventTitle(positiveEvents[0].title, brandName);
-      citedEvents.push({
-        title: positiveEvents[0].title,
-        shortSummary: positiveSummary,
-        impact: 'positive',
-        sourceUrl: positiveEvents[0].source_url,
-      });
-      text += ` Some positive factors (${positiveSummary}) provide partial offset.`;
+      const positiveCited = buildCitedEvents(positiveEvents.slice(0, 1), brandName, 'positive');
+      citedEvents = [...citedEvents, ...positiveCited];
+      text += ` Some positive factors provide partial offset.`;
     }
   } else if (score < 70) {
     // Medium/mixed score
@@ -210,58 +299,35 @@ export function generateScoreNarrative(input: NarrativeInput): ScoreNarrative | 
       const concernSummary = summarizeEventTitle(topConcern.title, brandName);
       const positiveSummary = summarizeEventTitle(topPositive.title, brandName);
       
-      citedEvents.push({
-        title: topConcern.title,
-        shortSummary: concernSummary,
-        impact: 'negative',
-        sourceUrl: topConcern.source_url,
-      });
-      citedEvents.push({
-        title: topPositive.title,
-        shortSummary: positiveSummary,
-        impact: 'positive',
-        sourceUrl: topPositive.source_url,
-      });
+      citedEvents = [
+        ...buildCitedEvents([topConcern], brandName, 'negative'),
+        ...buildCitedEvents([topPositive], brandName, 'positive'),
+      ];
       
-      text = `${brandName} shows mixed signals. Recent concerns (${concernSummary}) are balanced by positive factors (${positiveSummary}).`;
+      text = `${brandName} shows mixed signals. ${isRecent ? 'Recent' : 'Some'} concerns (${concernSummary.toLowerCase()}) are balanced by positive factors (${positiveSummary.toLowerCase()}).`;
     } else if (topConcern) {
       const concernSummary = summarizeEventTitle(topConcern.title, brandName);
-      citedEvents.push({
-        title: topConcern.title,
-        shortSummary: concernSummary,
-        impact: 'negative',
-        sourceUrl: topConcern.source_url,
-      });
-      text = `${brandName} shows a moderate record. Some concerns around ${concernSummary} temper the score.`;
+      citedEvents = buildCitedEvents([topConcern], brandName, 'negative');
+      text = `${brandName} shows a moderate record. ${isRecent ? 'Recent' : 'Some'} ${concernSummary.toLowerCase()} tempers the score.`;
     } else {
-      text = `${brandName} shows a moderate track record with no major recent concerns.`;
+      text = `${brandName} shows a moderate track record with no major ${timePhrase} concerns.`;
     }
   } else {
     // High score (70+)
     if (positiveEvents.length > 0) {
-      const positiveSummaries = positiveEvents.slice(0, 2).map(e => {
-        const summary = summarizeEventTitle(e.title, brandName);
-        citedEvents.push({
-          title: e.title,
-          shortSummary: summary,
-          impact: 'positive',
-          sourceUrl: e.source_url,
-        });
-        return summary;
-      });
+      const eventsToUse = positiveEvents.slice(0, 2);
+      const summaries = eventsToUse.map(e => summarizeEventTitle(e.title, brandName));
+      const collapsedSummaries = collapseSummaries(summaries);
+      citedEvents = buildCitedEvents(eventsToUse, brandName, 'positive');
       
-      text = `${brandName} scores well overall. Positive coverage includes ${positiveSummaries.join(' and ')}.`;
+      const eventList = collapsedSummaries.join(' and ').toLowerCase();
+      text = `${brandName} scores well overall. ${isRecent ? 'Recent p' : 'P'}ositive coverage includes ${eventList}.`;
     } else if (negativeEvents.length === 0) {
       text = `${brandName} scores well with no major concerns found in recent coverage.`;
     } else {
       const minorConcern = summarizeEventTitle(negativeEvents[0].title, brandName);
-      citedEvents.push({
-        title: negativeEvents[0].title,
-        shortSummary: minorConcern,
-        impact: 'negative',
-        sourceUrl: negativeEvents[0].source_url,
-      });
-      text = `${brandName} scores well overall. Minor concerns (${minorConcern}) have limited impact.`;
+      citedEvents = buildCitedEvents([negativeEvents[0]], brandName, 'negative');
+      text = `${brandName} scores well overall. Minor concerns (${minorConcern.toLowerCase()}) have limited impact.`;
     }
   }
   
