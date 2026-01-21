@@ -47,6 +47,11 @@ export interface BrandEvent {
   company_response?: { date?: string; url?: string; summary?: string };
   resolved?: boolean;
   raw_data?: Record<string, any>;
+  // Inheritance fields
+  inherited_from_parent?: boolean;
+  parent_brand_name?: string;
+  parent_brand_id?: string;
+  scope_multiplier?: number;
 }
 
 const categoryConfig: Record<CategoryKey, { icon: any; label: string; color: string; dotColor: string }> = {
@@ -452,6 +457,12 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                 <severityConfig.icon className="h-3 w-3" />
                 {severityConfig.label}
               </span>
+            )}
+            
+            {!compact && event.inherited_from_parent && event.parent_brand_name && (
+              <Badge variant="outline" className="text-xs bg-purple-600/10 text-purple-700 border-purple-600/20">
+                From {event.parent_brand_name}
+              </Badge>
             )}
             
             {!compact && isNew && (
