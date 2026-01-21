@@ -1,0 +1,33 @@
+
+-- Fix remaining SECURITY DEFINER views (batch 2)
+ALTER VIEW brand_alias_suggestions SET (security_invoker = true);
+ALTER VIEW brand_evidence_independent SET (security_invoker = true);
+ALTER VIEW brand_evidence_view SET (security_invoker = true);
+ALTER VIEW brand_evidence_view_base SET (security_invoker = true);
+ALTER VIEW brand_latest_evidence SET (security_invoker = true);
+ALTER VIEW brand_latest_verified_event SET (security_invoker = true);
+ALTER VIEW brand_monitoring_status SET (security_invoker = true);
+ALTER VIEW brand_profile_coverage SET (security_invoker = true);
+ALTER VIEW brand_trending SET (security_invoker = true);
+ALTER VIEW company_feed_grouped SET (security_invoker = true);
+ALTER VIEW company_profile_feed SET (security_invoker = true);
+ALTER VIEW digest_events_last_24h SET (security_invoker = true);
+ALTER VIEW enrichment_queue_summary SET (security_invoker = true);
+ALTER VIEW ingestion_metrics_daily SET (security_invoker = true);
+ALTER VIEW ops_health_24h SET (security_invoker = true);
+ALTER VIEW product_alternatives SET (security_invoker = true);
+ALTER VIEW product_brand_profile SET (security_invoker = true);
+ALTER VIEW product_claims_moderator SET (security_invoker = true);
+ALTER VIEW product_claims_moderator_base SET (security_invoker = true);
+ALTER VIEW top_unknown_products SET (security_invoker = true);
+ALTER VIEW v_brand_completeness SET (security_invoker = true);
+ALTER VIEW v_brand_confidence_pivot SET (security_invoker = true);
+ALTER VIEW v_brand_dimension_evidence SET (security_invoker = true);
+ALTER VIEW v_brand_parent SET (security_invoker = true);
+ALTER VIEW v_brand_quick_take SET (security_invoker = true);
+ALTER VIEW v_category_groups SET (security_invoker = true);
+ALTER VIEW v_category_map SET (security_invoker = true);
+ALTER VIEW v_coalescing_effectiveness SET (security_invoker = true);
+ALTER VIEW v_notification_metrics_hourly SET (security_invoker = true);
+ALTER VIEW v_notification_usage_today SET (security_invoker = true);
+ALTER VIEW v_rate_limit_pressure SET (security_invoker = true);
