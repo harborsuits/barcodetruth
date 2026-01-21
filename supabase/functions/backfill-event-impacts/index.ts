@@ -9,7 +9,15 @@ const corsHeaders = {
 
 // Constants
 const BATCH_SIZE = 100;
-const LOOKBACK_DAYS = 90;
+const LOOKBACK_DAYS = 365; // Extended to 365 days for full backfill
+
+// FIXED: Impact magnitudes now use whole numbers that don't round to zero
+const SEVERITY_IMPACTS = {
+  minor: { negative: -2, positive: 1 },
+  moderate: { negative: -5, positive: 2 },
+  severe: { negative: -10, positive: 3 },
+  critical: { negative: -15, positive: 4 },
+};
 
 // Scoring helpers
 const PHRASE_SCORE = 5;
@@ -47,7 +55,7 @@ function rank(scores: Record<string, number>) {
   const arr = Object.entries(scores)
     .filter(([, v]) => v > 0)
     .sort((a, b) => b[1] - a[1]);
-  const primary = arr[0]?.[0] ?? "noise";
+  const primary = arr[0]?.[0] ?? "social"; // Default to social, not noise
   const primaryScore = arr[0]?.[1] ?? 0;
   const maxScore = Math.max(primaryScore, 10);
   const confidence = Math.max(0.35, Math.min(0.98, primaryScore / (maxScore + 4)));
@@ -76,7 +84,7 @@ const simpleCategoryMap: Record<string, string> = {
   "ESG.ENVIRONMENT": "environment",
   "POLICY.POLITICAL": "politics",
   "LEGAL.LAWSUIT": "social",
-  "LEGAL.INVESTIGATION": "social",
+  "LEGAL.INVESTIGATION": "politics",
   "FIN.EARNINGS": "social",
   "SOCIAL.CAMPAIGN": "social",
   "REGULATORY.COMPLIANCE": "environment",
@@ -99,7 +107,7 @@ function classifyEvent(event: EventRow) {
   const scores = tokenScore(text);
   let { primary, secondary, confidence } = rank(scores);
 
-  // Domain hints
+  // Domain hints - official sources override
   if (["fda.gov","foodsafety.gov","cpsc.gov"].some(d => domain.includes(d))) {
     primary = "product_safety";
     confidence = Math.max(confidence, 0.85);
@@ -113,38 +121,40 @@ function classifyEvent(event: EventRow) {
     confidence = Math.max(confidence, 0.85);
   }
 
-  const financeNoiseDomains = ["fool.com","seekingalpha.com","benzinga.com","marketwatch.com"];
-  const isFinanceNoise = financeNoiseDomains.some(d => domain.includes(d));
-  const hasStockTipPhrases = /reasons to buy|stock to watch|price target|upgrade|downgrade|analyst rating/i.test(text);
+  // FIXED: Much more restrictive noise classification
+  const financeNoiseDomains = ["fool.com","seekingalpha.com","benzinga.com","marketwatch.com","zacks.com","tipranks.com"];
+  const isFinanceNoiseDomain = financeNoiseDomains.some(d => domain.includes(d));
+  const hasStockTipPhrases = /reasons to buy|stock to watch|price target|upgrade|downgrade|analyst rating|quarterly results|revenue guidance/i.test(text);
   
-  if ((isFinanceNoise || hasStockTipPhrases) && primary === "financial") {
+  // Only noise if BOTH conditions met
+  if (primary === "financial" && isFinanceNoiseDomain && hasStockTipPhrases) {
     primary = "noise";
   }
 
-  const finalCategoryCode = categoryCodeMap[primary] || "NOISE.GENERAL";
+  const finalCategoryCode = categoryCodeMap[primary] || "SOCIAL.CAMPAIGN";
   const simpleCategory = simpleCategoryMap[finalCategoryCode] || "social";
 
   // Orientation detection
-  const positiveSignals = ["award", "certification", "honored", "recognized", "praised", "improved", "success", "breakthrough"];
-  const negativeSignals = ["lawsuit", "violation", "penalty", "fine", "recall", "scandal", "accused", "alleged", "investigation", "charged", "contamination"];
+  const positiveSignals = ["award", "certification", "honored", "recognized", "praised", "improved", "success", "breakthrough", "innovation", "achievement"];
+  const negativeSignals = ["lawsuit", "violation", "penalty", "fine", "recall", "scandal", "accused", "alleged", "investigation", "charged", "contamination", "injury", "death", "fraud", "failure", "misconduct", "layoff", "strike", "boycott"];
   
   const textLower = text.toLowerCase();
   const hasPositive = positiveSignals.some(sig => textLower.includes(sig));
   const hasNegative = negativeSignals.some(sig => textLower.includes(sig));
 
-  // Severity detection - DB constraint requires 'minor'/'moderate'/'severe'
+  // Severity detection
   const severitySignals = {
-    severe: ["death", "explosion", "fatal", "criminal charges", "indictment", "recall", "contamination"],
-    moderate: ["lawsuit", "fine", "penalty", "violation", "investigation", "complaint", "dispute", "backlash"],
-    minor: ["settlement", "resolved", "minor"]
+    critical: ["death", "deaths", "fatal", "explosion", "criminal charges", "indictment", "fraud", "mass layoff"],
+    severe: ["recall", "contamination", "injury", "injuries", "lawsuit", "investigation", "scandal", "charged"],
+    moderate: ["fine", "penalty", "violation", "complaint", "dispute", "backlash", "strike", "layoff"],
+    minor: ["settlement", "resolved", "clarification", "minor", "warning"]
   };
   
-  let severity: 'minor' | 'moderate' | 'severe' = 'moderate';
-  if (severitySignals.severe.some(s => textLower.includes(s))) severity = 'severe';
+  type SeverityLevel = 'minor' | 'moderate' | 'severe' | 'critical';
+  let severity: SeverityLevel = 'moderate';
+  if (severitySignals.critical.some(s => textLower.includes(s))) severity = 'critical';
+  else if (severitySignals.severe.some(s => textLower.includes(s))) severity = 'severe';
   else if (severitySignals.minor.some(s => textLower.includes(s))) severity = 'minor';
-  
-  const severityMap: Record<string, number> = { minor: 0.3, moderate: 0.5, severe: 1.0 };
-  const severityNumeric = severityMap[severity];
 
   let orientation: 'positive' | 'negative' | 'mixed' = 'mixed';
   let impactMagnitude = 0;
@@ -154,14 +164,16 @@ function classifyEvent(event: EventRow) {
     impactMagnitude = 0;
   } else if (hasNegative && !hasPositive) {
     orientation = 'negative';
-    impactMagnitude = -0.5 * severityNumeric;
+    impactMagnitude = SEVERITY_IMPACTS[severity].negative;
   } else if (hasPositive && !hasNegative) {
     orientation = 'positive';
-    impactMagnitude = 0.3 * severityNumeric;
-  } else {
-    impactMagnitude = -0.1 * severityNumeric;
+    impactMagnitude = SEVERITY_IMPACTS[severity].positive;
+  } else if (hasNegative && hasPositive) {
+    orientation = 'mixed';
+    impactMagnitude = Math.round(SEVERITY_IMPACTS[severity].negative * 0.3);
   }
 
+  // Build category impacts with whole numbers
   const categoryImpacts: Record<string, number> = {
     labor: simpleCategory === "labor" ? impactMagnitude : 0,
     environment: simpleCategory === "environment" ? impactMagnitude : 0,
@@ -169,20 +181,24 @@ function classifyEvent(event: EventRow) {
     social: simpleCategory === "social" ? impactMagnitude : 0,
   };
 
-  // Secondary impacts
+  // Secondary impacts at 40% weight
   for (const sec of secondary) {
-    const secSimple = simpleCategoryMap[categoryCodeMap[sec] || ""] || null;
+    const secCode = categoryCodeMap[sec];
+    const secSimple = secCode ? simpleCategoryMap[secCode] : null;
     if (secSimple && secSimple !== simpleCategory && categoryImpacts[secSimple] !== undefined) {
-      categoryImpacts[secSimple] = impactMagnitude * 0.3;
+      categoryImpacts[secSimple] = Math.round(impactMagnitude * 0.4);
     }
   }
 
   // Credibility
-  const highCredDomains = ["reuters.com", "apnews.com", "bbc.com", "npr.org", "nytimes.com"];
+  const highCredDomains = ["reuters.com", "apnews.com", "bbc.com", "npr.org", "nytimes.com", "wsj.com"];
   const officialDomains = [".gov"];
   let credibility = 0.6;
   if (officialDomains.some(d => domain.includes(d))) credibility = 1.0;
   else if (highCredDomains.some(d => domain.includes(d))) credibility = 0.9;
+
+  // Map to DB severity enum
+  const dbSeverity: 'minor' | 'moderate' | 'severe' = severity === 'critical' ? 'severe' : severity;
 
   return {
     category: simpleCategory,
@@ -191,15 +207,15 @@ function classifyEvent(event: EventRow) {
     secondary_categories: secondary,
     orientation,
     is_irrelevant: primary === "noise",
-    noise_reason: primary === "noise" ? "Stock tips/market chatter" : null,
-    severity,
+    noise_reason: primary === "noise" ? "Pure financial/stock analysis" : null,
+    severity: dbSeverity,
     credibility,
     verification_factor: 0.5,
     category_impacts: categoryImpacts,
-    impact_labor: Math.round((categoryImpacts.labor || 0) * 10),
-    impact_environment: Math.round((categoryImpacts.environment || 0) * 10),
-    impact_politics: Math.round((categoryImpacts.politics || 0) * 10),
-    impact_social: Math.round((categoryImpacts.social || 0) * 10),
+    impact_labor: categoryImpacts.labor || 0,
+    impact_environment: categoryImpacts.environment || 0,
+    impact_politics: categoryImpacts.politics || 0,
+    impact_social: categoryImpacts.social || 0,
   };
 }
 
@@ -214,20 +230,25 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { batchSize = BATCH_SIZE, dryRun = false } = await req.json().catch(() => ({}));
+    const { batchSize = BATCH_SIZE, dryRun = false, forceAll = false } = await req.json().catch(() => ({}));
 
-    console.log(`[backfill-event-impacts] Starting backfill (batch=${batchSize}, dryRun=${dryRun})`);
+    console.log(`[backfill-event-impacts] Starting backfill (batch=${batchSize}, dryRun=${dryRun}, forceAll=${forceAll})`);
 
-    // Find events with empty category_impacts in the last 90 days
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - LOOKBACK_DAYS);
 
-    const { data: events, error: fetchError } = await supabase
+    // Build query - either all events or just those without impacts
+    let query = supabase
       .from("brand_events")
       .select("event_id, brand_id, title, description, article_text, source_url")
-      .gte("created_at", cutoffDate.toISOString())
-      .or("category_impacts.is.null,category_impacts.eq.{}")
-      .limit(batchSize);
+      .gte("created_at", cutoffDate.toISOString());
+    
+    if (!forceAll) {
+      // Only events with empty/null category_impacts
+      query = query.or("category_impacts.is.null,category_impacts.eq.{}");
+    }
+    
+    const { data: events, error: fetchError } = await query.limit(batchSize);
 
     if (fetchError) {
       console.error("[backfill-event-impacts] Fetch error:", fetchError);
@@ -248,12 +269,43 @@ Deno.serve(async (req) => {
 
     let updated = 0;
     let failed = 0;
-    const stats = { noise: 0, labor: 0, environment: 0, politics: 0, social: 0 };
+    const stats = { 
+      noise: 0, 
+      labor: 0, 
+      environment: 0, 
+      politics: 0, 
+      social: 0,
+      positive: 0,
+      negative: 0,
+      mixed: 0,
+      impactDistribution: { zero: 0, minor: 0, moderate: 0, severe: 0 }
+    };
 
     for (const event of events) {
       try {
         const classification = classifyEvent(event as EventRow);
-        stats[classification.category as keyof typeof stats]++;
+        
+        // Track category stats
+        if (classification.is_irrelevant) {
+          stats.noise++;
+        } else {
+          stats[classification.category as keyof typeof stats]++;
+        }
+        
+        // Track orientation stats
+        stats[classification.orientation]++;
+        
+        // Track impact distribution
+        const maxImpact = Math.abs(Math.min(
+          classification.impact_labor,
+          classification.impact_environment,
+          classification.impact_politics,
+          classification.impact_social
+        ));
+        if (maxImpact === 0) stats.impactDistribution.zero++;
+        else if (maxImpact <= 2) stats.impactDistribution.minor++;
+        else if (maxImpact <= 5) stats.impactDistribution.moderate++;
+        else stats.impactDistribution.severe++;
 
         if (!dryRun) {
           const { error: updateError } = await supabase
@@ -276,7 +328,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[backfill-event-impacts] Complete: updated=${updated}, failed=${failed}, stats=${JSON.stringify(stats)}`);
+    const noisePercentage = events.length > 0 ? ((stats.noise / events.length) * 100).toFixed(1) : "0";
+    console.log(`[backfill-event-impacts] Complete: updated=${updated}, failed=${failed}`);
+    console.log(`[backfill-event-impacts] Categories: labor=${stats.labor}, env=${stats.environment}, politics=${stats.politics}, social=${stats.social}, noise=${stats.noise} (${noisePercentage}%)`);
+    console.log(`[backfill-event-impacts] Orientations: positive=${stats.positive}, negative=${stats.negative}, mixed=${stats.mixed}`);
+    console.log(`[backfill-event-impacts] Impact distribution: ${JSON.stringify(stats.impactDistribution)}`);
 
     return new Response(JSON.stringify({
       success: true,
@@ -284,7 +340,20 @@ Deno.serve(async (req) => {
       updated,
       failed,
       dryRun,
-      categoryStats: stats
+      noisePercentage: parseFloat(noisePercentage),
+      categoryStats: {
+        labor: stats.labor,
+        environment: stats.environment,
+        politics: stats.politics,
+        social: stats.social,
+        noise: stats.noise
+      },
+      orientationStats: {
+        positive: stats.positive,
+        negative: stats.negative,
+        mixed: stats.mixed
+      },
+      impactDistribution: stats.impactDistribution
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error) {
