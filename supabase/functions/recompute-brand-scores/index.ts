@@ -1,7 +1,9 @@
 // TICKET D: Nightly brand score recomputation
 // Calculates brand scores from last 365 days of events with recency & verification weights
 // FIXED: Now reads all 4 category impacts and computes per-dimension scores
+// ADDED: Title-similarity deduplication to prevent multiple articles about same event counting multiple times
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { compareTwoStrings } from 'https://esm.sh/string-similarity@4.0.4';
 import { corsHeaders } from '../_shared/cors.ts';
 
 const RECENCY_WEIGHTS = {
@@ -92,6 +94,81 @@ function getVerificationWeight(verification: string): number {
   return VERIFICATION_WEIGHTS[verification as keyof typeof VERIFICATION_WEIGHTS] || VERIFICATION_WEIGHTS.unverified;
 }
 
+/**
+ * Deduplicates events by title similarity (>75% match) within same brand and 7-day window.
+ * Multiple articles about the same story are collapsed into one canonical event with boosted credibility.
+ * 
+ * Example: 11 articles about "Tyson plant closure" become 1 event with credibility 1.5x
+ */
+function deduplicateForScoring(events: BrandEvent[]): BrandEvent[] {
+  // Group by brand_id first
+  const byBrand = new Map<string, BrandEvent[]>();
+  for (const event of events) {
+    if (!byBrand.has(event.brand_id)) {
+      byBrand.set(event.brand_id, []);
+    }
+    byBrand.get(event.brand_id)!.push(event);
+  }
+  
+  const result: BrandEvent[] = [];
+  let totalDuplicates = 0;
+  
+  for (const [brandId, brandEvents] of byBrand) {
+    const processed = new Set<string>();
+    
+    // Sort by date to keep earliest as canonical
+    const sorted = [...brandEvents].sort((a, b) => 
+      new Date(a.event_date).getTime() - new Date(b.event_date).getTime()
+    );
+    
+    for (const event of sorted) {
+      if (processed.has(event.event_id)) continue;
+      
+      const eventDate = new Date(event.event_date).getTime();
+      const sevenDays = 7 * 24 * 60 * 60 * 1000;
+      
+      // Find similar events within 7 days
+      const duplicates = sorted.filter(other => {
+        if (other.event_id === event.event_id) return false;
+        if (processed.has(other.event_id)) return false;
+        
+        // Must be same category
+        if (other.category !== event.category) return false;
+        
+        // Must be within 7 days
+        const otherDate = new Date(other.event_date).getTime();
+        if (Math.abs(eventDate - otherDate) > sevenDays) return false;
+        
+        // Title must be >75% similar
+        const eventTitle = (event.title || '').toLowerCase();
+        const otherTitle = (other.title || '').toLowerCase();
+        if (!eventTitle || !otherTitle) return false;
+        
+        const similarity = compareTwoStrings(eventTitle, otherTitle);
+        return similarity > 0.75;
+      });
+      
+      // Mark all as processed
+      duplicates.forEach(d => processed.add(d.event_id));
+      processed.add(event.event_id);
+      totalDuplicates += duplicates.length;
+      
+      // Create canonical event with credibility boost
+      // More sources = higher credibility, capped at 1.5x
+      const credibilityBoost = Math.min(1.0 + (duplicates.length * 0.1), 1.5);
+      const canonical: BrandEvent = {
+        ...event,
+        credibility: (event.credibility ?? 0.6) * credibilityBoost,
+      };
+      
+      result.push(canonical);
+    }
+  }
+  
+  console.log(`[Dedup] Merged ${totalDuplicates} duplicate events across ${byBrand.size} brands`);
+  return result;
+}
+
 // Normalize dimension sums to 0-100 scores
 // Base of 50, adjusted by weighted impact sums
 // Each impact point shifts score by 5 points (so ±10 impact = ±50 score shift)
@@ -151,8 +228,12 @@ Deno.serve(async (req: Request) => {
 
     console.log(`Processing ${events.length} events...`);
 
+    // DEDUP: Collapse multiple articles about the same story into one canonical event
+    const dedupedEvents = deduplicateForScoring(events as BrandEvent[]);
+    console.log(`After dedup: ${dedupedEvents.length} unique events (${events.length - dedupedEvents.length} duplicates merged)`);
+
     // Fetch best source per event (prefer official, then earliest)
-    const eventIds = events.map((e: BrandEvent) => e.event_id);
+    const eventIds = dedupedEvents.map((e: BrandEvent) => e.event_id);
     const { data: sources, error: sourcesError } = await supabase
       .from('event_sources')
       .select('event_id, canonical_url, source_name, registrable_domain, verification, source_date')
@@ -182,7 +263,7 @@ Deno.serve(async (req: Request) => {
     let eventsWithImpacts = 0;
     let eventsWithoutImpacts = 0;
 
-    for (const event of events as BrandEvent[]) {
+    for (const event of dedupedEvents) {
       const eventDate = new Date(event.event_date);
       const recencyWeight = getRecencyWeight(eventDate, now);
       const verificationWeight = getVerificationWeight(event.verification);

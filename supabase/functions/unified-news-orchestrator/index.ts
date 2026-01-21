@@ -1,5 +1,7 @@
 // Unified real ingestion: GDELT + Guardian + NewsAPI + NYT + GNews -> brand_events + event_sources (dedup by URL hash)
+// ADDED: Title-similarity deduplication to prevent duplicate events from multiple sources
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { compareTwoStrings } from "https://esm.sh/string-similarity@4.0.4";
 import { RELEVANCE_MIN_ACCEPTED, RELEVANCE_MAX_SCORE } from "../_shared/scoringConstants.ts";
 import { enabledSources, getApiKey, SourceId } from "../_shared/sourceRegistry.ts";
 import { fetchBudgeted } from "../_shared/fetchBudgeted.ts";
@@ -65,6 +67,48 @@ const QUERY_TERMS = [
 
 // Financial noise patterns to explicitly filter out
 const FINANCIAL_NOISE_PATTERNS = /\b(shares?|stock|holdings?|portfolio|analyst|rating|price target|buys?|sells?|equity|dividend|EPS|earnings per share|institutional|investment|investor|fund|capital|acquisition target|market cap|valuation)\b/i;
+
+/**
+ * Finds an existing event with >75% title similarity within 7 days.
+ * Prevents multiple articles about the same story from creating duplicate events.
+ * 
+ * @returns The existing similar event, or null if no match found
+ */
+async function findSimilarEvent(
+  supabase: any,
+  brandId: string,
+  title: string,
+  category: string,
+  eventDate: string
+): Promise<{ event_id: string; title: string | null; credibility: number | null } | null> {
+  const eventTime = new Date(eventDate).getTime();
+  const sevenDays = 7 * 24 * 60 * 60 * 1000;
+  const sevenDaysAgo = new Date(eventTime - sevenDays).toISOString();
+  const sevenDaysAfter = new Date(eventTime + sevenDays).toISOString();
+  
+  const { data: existing } = await supabase
+    .from('brand_events')
+    .select('event_id, title, credibility')
+    .eq('brand_id', brandId)
+    .eq('category', category)
+    .gte('event_date', sevenDaysAgo)
+    .lte('event_date', sevenDaysAfter)
+    .limit(50);
+  
+  if (!existing || existing.length === 0) return null;
+  
+  const titleLower = title.toLowerCase();
+  
+  for (const ev of existing) {
+    if (!ev.title) continue;
+    const similarity = compareTwoStrings(titleLower, ev.title.toLowerCase());
+    if (similarity > 0.75) {
+      return ev;
+    }
+  }
+  
+  return null;
+}
 
 function canonicalize(url: string): string {
   try {
@@ -861,6 +905,39 @@ Deno.serve(async (req) => {
         }
         
         console.log(`[Orchestrator] Classified "${title.slice(0, 50)}..." as ${categoryResult.category_code} -> mapped to ${mainCategory}`);
+        
+        // DEDUP CHECK: Look for similar existing events before creating new one
+        // This prevents multiple articles about the same story from becoming separate events
+        const similarEvent = await findSimilarEvent(supabase, b.id, title, mainCategory, occurred);
+        
+        if (similarEvent) {
+          // Add this URL as a source to the existing event instead of creating duplicate
+          console.log(`[Orchestrator] DEDUP: "${title.slice(0, 50)}..." matches existing "${similarEvent.title?.slice(0, 50)}..."`);
+          
+          // Add as secondary source
+          await supabase.from("event_sources").upsert({
+            canonical_url: urlCanon,
+            canonical_url_hash: urlHash,
+            source_name: article.source_name,
+            registrable_domain: new URL(urlCanon).hostname,
+            title: title,
+            source_date: occurred,
+            is_primary: false, // Not the canonical source
+            event_id: similarEvent.event_id
+          }, { onConflict: 'canonical_url_hash' });
+          
+          // Boost verification of canonical event (more sources = more credible)
+          const newCredibility = Math.min((similarEvent.credibility || 0.6) + 0.1, 1.5);
+          await supabase.from("brand_events")
+            .update({ 
+              verification: 'corroborated',
+              credibility: newCredibility
+            })
+            .eq('event_id', similarEvent.event_id);
+          
+          totalSkipped++;
+          continue; // Skip creating new event
+        }
         
         // Calculate impact and confidence
         const baseImpact = orientationImpact(title);
