@@ -174,30 +174,33 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 3) Normalize and prepare rows
+    // 3) Normalize and prepare rows for company_shareholders table
+    // Map FMP 13F data to company_shareholders schema
     const rows = holders.map((h) => ({
       company_id: companyId,
-      cik: h.cik ?? null,
       holder_name: h.investorName || h.investorname || h.name || 'Unknown',
-      shares: h.shares ?? null,
-      position_value: h.value ?? null,
-      percent_outstanding: h.weight ?? null,
-      reported_at: h.dateReported || h.filingDate || null,
-      source: 'fmp_13f',
+      holder_type: 'institutional',  // 13F filers are institutional holders
+      pct: h.weight ?? null,         // percent_outstanding → pct
+      is_asset_manager: true,        // Most 13F filers are asset managers
+      source: 'sec_13f',
+      source_name: 'SEC Form 13F',
+      as_of: h.dateReported || h.filingDate || null,
     }));
 
-    // 4) Delete old rows for this company, then insert fresh
+    // 4) Delete old 13F-sourced rows for this company, then insert fresh
+    // Only remove rows from this source to preserve data from other sources
     const { error: deleteErr } = await supabase
-      .from('company_institutional_holders')
+      .from('company_shareholders')
       .delete()
-      .eq('company_id', companyId);
+      .eq('company_id', companyId)
+      .eq('source', 'sec_13f');
 
     if (deleteErr) {
       console.error('[sync-13f] Error deleting old holders:', deleteErr);
     }
 
     const { error: insertErr } = await supabase
-      .from('company_institutional_holders')
+      .from('company_shareholders')
       .insert(rows);
 
     if (insertErr) {
@@ -216,7 +219,7 @@ Deno.serve(async (req) => {
         count: rows.length,
         company_id: companyId,
         company_name: companyName,
-        sample: rows.slice(0, 3).map(r => ({ name: r.holder_name, shares: r.shares }))
+        sample: rows.slice(0, 3).map(r => ({ name: r.holder_name, pct: r.pct }))
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
