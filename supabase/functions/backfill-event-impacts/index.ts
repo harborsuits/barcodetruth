@@ -151,11 +151,22 @@ function classifyEvent(event: EventRow) {
     "carbon neutral", "net zero achieved", "renewable energy commitment",
     "sustainability award", "green certification", "b corp certified",
     "sustainability milestone", "eco-friendly", "zero waste",
-    // Marketing/Viral Success (NEW)
+    // Marketing/Viral Success
     "viral", "trending", "featured", "celebrates", "launches", "unveils",
     "introduces", "expands", "collaboration", "campaign", "official commercial",
     "brand ambassador", "sponsorship", "popularity", "fan favorite", "beloved",
-    "tiktok", "social media hit", "goes viral", "record sales"
+    "tiktok", "social media hit", "goes viral", "record sales",
+    // Business expansion & investment (NEW)
+    "announces plans", "manufacturing site", "new facility", "new plant",
+    "building", "construction", "headquarters", "opens new", "expansion plan",
+    "job creation", "jobs created", "hiring", "new jobs", "create jobs",
+    "investment", "investing", "invests", "committed to invest",
+    // Innovation & R&D
+    "cell therapy", "breakthrough therapy", "fda approval", "patent granted",
+    "clinical trial success", "research center", "r&d facility", "approved by fda",
+    // Community & social good
+    "free fruit", "discount program", "community program", "charitable",
+    "donation", "donates", "donated", "giving back", "supports community"
   ];
   
   // EXPANDED NEGATIVE SIGNALS (70 → 120+ keywords)

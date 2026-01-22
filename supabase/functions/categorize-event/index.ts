@@ -172,7 +172,18 @@ Deno.serve(async (req) => {
       "viral", "trending", "featured", "celebrates", "launches", "unveils",
       "introduces", "expands", "collaboration", "campaign", "official commercial",
       "brand ambassador", "sponsorship", "popularity", "fan favorite", "beloved",
-      "tiktok", "social media hit", "goes viral", "record sales"
+      "tiktok", "social media hit", "goes viral", "record sales",
+      // Business expansion & investment (NEW)
+      "announces plans", "manufacturing site", "new facility", "new plant",
+      "building", "construction", "headquarters", "opens new", "expansion plan",
+      "job creation", "jobs created", "hiring", "new jobs", "create jobs",
+      "investment", "investing", "invests", "committed to invest",
+      // Innovation & R&D
+      "cell therapy", "breakthrough therapy", "fda approval", "patent granted",
+      "clinical trial success", "research center", "r&d facility", "approved by fda",
+      // Community & social good
+      "free fruit", "discount program", "community program", "charitable",
+      "donation", "donates", "donated", "giving back", "supports community"
     ];
     const negativeSignals = ["lawsuit", "violation", "penalty", "fine", "recall", "scandal", "accused", "alleged", "investigation", "charged", "contamination", "injury", "death", "fraud", "failure", "misconduct", "negligence", "terminated", "layoff", "strike", "protest", "boycott", "complaint"];
     
