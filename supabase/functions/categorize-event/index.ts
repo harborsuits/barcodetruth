@@ -162,7 +162,18 @@ Deno.serve(async (req) => {
       });
 
     // Detect orientation: positive, negative, or mixed
-    const positiveSignals = ["award", "certification", "honored", "recognized", "praised", "improved", "success", "breakthrough", "innovation", "leadership", "chooses", "selects", "partners", "exceeds", "achievement", "milestone"];
+    const positiveSignals = [
+      // Recognition & achievement
+      "award", "certification", "honored", "recognized", "praised", "success", 
+      "breakthrough", "innovation", "leadership", "achievement", "milestone",
+      // Business wins
+      "chooses", "selects", "partners", "exceeds", "improved",
+      // Marketing/viral success
+      "viral", "trending", "featured", "celebrates", "launches", "unveils",
+      "introduces", "expands", "collaboration", "campaign", "official commercial",
+      "brand ambassador", "sponsorship", "popularity", "fan favorite", "beloved",
+      "tiktok", "social media hit", "goes viral", "record sales"
+    ];
     const negativeSignals = ["lawsuit", "violation", "penalty", "fine", "recall", "scandal", "accused", "alleged", "investigation", "charged", "contamination", "injury", "death", "fraud", "failure", "misconduct", "negligence", "terminated", "layoff", "strike", "protest", "boycott", "complaint"];
     
     const textLower = text.toLowerCase();
@@ -205,9 +216,9 @@ Deno.serve(async (req) => {
       orientation = 'mixed';
       impactMagnitude = Math.round(SEVERITY_IMPACTS[severity].negative * 0.3);
     } else {
-      // No clear signals - neutral impact
+      // No clear signals - truly neutral, don't assume negative
       orientation = 'mixed';
-      impactMagnitude = 0;
+      impactMagnitude = 0; // Neutral until proven otherwise
     }
     
     // Build category_impacts JSONB - THE CANONICAL SCORING FIELD
