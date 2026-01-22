@@ -269,8 +269,9 @@ Deno.serve(async (req) => {
       impact_social: categoryImpacts.social || 0,
     };
 
-    // Persist to brand_events
-    const { error: updateError } = await supabase
+    // Persist to brand_events - UPDATE BY event_id ONLY (unique PK)
+    // This prevents silent failures when brand_id is wrong/missing
+    const { data: updated, error: updateError } = await supabase
       .from("brand_events")
       .update({
         category: simpleCategory,
@@ -286,18 +287,44 @@ Deno.serve(async (req) => {
         category_impacts: categoryImpacts,
         ...impactScores,
       })
-      .eq("event_id", event_id)
-      .eq("brand_id", brand_id);
+      .eq("event_id", event_id)  // event_id is unique PK - no need for brand_id
+      .select('event_id, brand_id')
+      .single();
 
     if (updateError) {
       console.error("[categorize-event] Update error:", updateError);
-      throw updateError;
+      return new Response(
+        JSON.stringify({ 
+          ok: false, 
+          error: updateError.message, 
+          updated_rows: 0,
+          event_id 
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    console.log(`[categorize-event] ${event_id}: ${finalCategoryCode} | ${orientation} | severity=${severity} | impacts=${JSON.stringify(categoryImpacts)} | confidence=${confidence.toFixed(2)}`);
+    // Check if update affected a row
+    if (!updated) {
+      console.error(`[categorize-event] NO ROWS UPDATED for event_id=${event_id}`);
+      return new Response(
+        JSON.stringify({ 
+          ok: false, 
+          error: `Event ${event_id} not found`, 
+          updated_rows: 0 
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`[categorize-event] ${event_id} (brand=${updated.brand_id}): ${finalCategoryCode} | ${orientation} | severity=${severity} | impacts=${JSON.stringify(categoryImpacts)} | confidence=${confidence.toFixed(2)}`);
 
     return new Response(
       JSON.stringify({ 
+        ok: true,
+        updated_rows: 1,
+        event_id: updated.event_id,
+        brand_id: updated.brand_id,
         primary: finalCategoryCode, 
         secondary, 
         confidence,

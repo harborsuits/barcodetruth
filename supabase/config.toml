@@ -209,3 +209,7 @@ verify_jwt = false
 
 [functions.refresh-coverage-cache]
 verify_jwt = false
+
+# Batch recategorization (admin)
+[functions.batch-recategorize]
+verify_jwt = true

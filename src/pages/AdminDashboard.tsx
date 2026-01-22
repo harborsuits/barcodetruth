@@ -40,6 +40,11 @@ interface DashboardMetrics {
   brands_building: number;
   brands_ready: number;
   brands_failed: number;
+  // Event quality metrics
+  positive_events: number;
+  negative_events: number;
+  mixed_zero_events: number;
+  mixed_negative_events: number;
 }
 
 export default function AdminDashboard() {
@@ -68,7 +73,11 @@ export default function AdminDashboard() {
         brandsStub,
         brandsBuilding,
         brandsReady,
-        brandsFailed
+        brandsFailed,
+        positiveEvents,
+        negativeEvents,
+        mixedZeroEvents,
+        mixedNegativeEvents
       ] = await Promise.all([
         supabase.from('brand_events').select('event_id', { count: 'exact', head: true }).gte('created_at', yesterday.toISOString()),
         supabase.from('brand_events').select('event_id', { count: 'exact', head: true }).gte('created_at', weekAgo.toISOString()),
@@ -83,7 +92,19 @@ export default function AdminDashboard() {
         supabase.from('brands').select('id', { count: 'exact', head: true }).eq('status', 'stub'),
         supabase.from('brands').select('id', { count: 'exact', head: true }).eq('status', 'building'),
         supabase.from('brands').select('id', { count: 'exact', head: true }).eq('status', 'ready'),
-        supabase.from('brands').select('id', { count: 'exact', head: true }).eq('status', 'failed')
+        supabase.from('brands').select('id', { count: 'exact', head: true }).eq('status', 'failed'),
+        // Event quality metrics
+        supabase.from('brand_events').select('event_id', { count: 'exact', head: true }).eq('orientation', 'positive'),
+        supabase.from('brand_events').select('event_id', { count: 'exact', head: true }).eq('orientation', 'negative'),
+        supabase.from('brand_events').select('event_id', { count: 'exact', head: true })
+          .eq('orientation', 'mixed')
+          .eq('impact_labor', 0)
+          .eq('impact_environment', 0)
+          .eq('impact_politics', 0)
+          .eq('impact_social', 0),
+        supabase.from('brand_events').select('event_id', { count: 'exact', head: true })
+          .eq('orientation', 'mixed')
+          .or('impact_labor.lt.0,impact_environment.lt.0,impact_politics.lt.0,impact_social.lt.0')
       ]);
 
       return {
@@ -101,6 +122,10 @@ export default function AdminDashboard() {
         brands_building: brandsBuilding.count || 0,
         brands_ready: brandsReady.count || 0,
         brands_failed: brandsFailed.count || 0,
+        positive_events: positiveEvents.count || 0,
+        negative_events: negativeEvents.count || 0,
+        mixed_zero_events: mixedZeroEvents.count || 0,
+        mixed_negative_events: mixedNegativeEvents.count || 0,
       } as DashboardMetrics;
     },
     refetchInterval: 30000, // Refresh every 30s
@@ -496,6 +521,69 @@ export default function AdminDashboard() {
                   Run Stub Builder Now
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Event Quality Panel */}
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Event Quality</h2>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="text-center p-3 bg-green-500/10 rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">{metrics?.positive_events || 0}</div>
+                  <div className="text-sm text-muted-foreground">Positive</div>
+                </div>
+                <div className="text-center p-3 bg-red-500/10 rounded-lg">
+                  <div className="text-2xl font-bold text-red-600">{metrics?.negative_events || 0}</div>
+                  <div className="text-sm text-muted-foreground">Negative</div>
+                </div>
+                <div className="text-center p-3 bg-yellow-500/10 rounded-lg">
+                  <div className="text-2xl font-bold text-yellow-600">{metrics?.mixed_zero_events || 0}</div>
+                  <div className="text-sm text-muted-foreground">Mixed (Neutral)</div>
+                </div>
+                <div className="text-center p-3 bg-orange-500/10 rounded-lg">
+                  <div className="text-2xl font-bold text-orange-600">{metrics?.mixed_negative_events || 0}</div>
+                  <div className="text-sm text-muted-foreground">Mixed (Bad Legacy)</div>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Mixed (Neutral) events are candidates for recategorization with updated keyword signals. 
+                Mixed (Bad Legacy) should be 0 after migration.
+              </p>
+              <Button
+                className="w-full"
+                variant="outline"
+                onClick={async () => {
+                  if (!confirm(`🔄 RECATEGORIZE ${metrics?.mixed_zero_events || 0} MIXED EVENTS\n\nThis will:\n• Apply updated positive signal keywords\n• Change qualifying events to positive/negative\n• Auto-recompute affected brand scores\n\nContinue?`)) {
+                    return;
+                  }
+                  
+                  toast({
+                    title: "🔄 Starting batch recategorization...",
+                    description: "Processing mixed events with updated signals...",
+                  });
+                  
+                  try {
+                    const { data, error } = await supabase.functions.invoke('batch-recategorize', {
+                      body: { limit: 500, onlyMixedZero: true, triggerRecompute: true }
+                    });
+                    
+                    if (error) throw error;
+                    
+                    toast({
+                      title: "✅ Recategorization Complete!",
+                      description: `Processed: ${data?.total_processed || 0} | ➕ Positive: ${data?.changed_to_positive || 0} | ➖ Negative: ${data?.changed_to_negative || 0} | 📊 Brands updated: ${data?.brands_affected || 0}`,
+                    });
+                  } catch (e: any) {
+                    toast({ title: "Error", description: e.message, variant: "destructive" });
+                  }
+                }}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Recategorize {metrics?.mixed_zero_events || 0} Mixed Events
+              </Button>
             </CardContent>
           </Card>
         </div>
