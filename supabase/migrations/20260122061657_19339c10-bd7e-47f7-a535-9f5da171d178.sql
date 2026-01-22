@@ -1,0 +1,145 @@
+-- Update get_power_profit to fetch leadership/shareholders from parent company for subsidiaries
+CREATE OR REPLACE FUNCTION get_power_profit(p_brand_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_brand RECORD;
+  v_company RECORD;
+  v_parent_company RECORD;
+  v_result JSONB;
+  v_holders JSONB;
+  v_leadership JSONB;
+  v_parent JSONB;
+  v_target_company_id UUID;
+BEGIN
+  -- Get brand data
+  SELECT id, name, company_type, ownership_confidence, ticker, wikidata_qid
+  INTO v_brand
+  FROM brands
+  WHERE id = p_brand_id;
+
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+
+  -- Get matching company if exists
+  SELECT c.id, c.name, c.ticker, c.exchange, c.is_public, c.country
+  INTO v_company
+  FROM companies c
+  WHERE c.wikidata_qid = v_brand.wikidata_qid
+  LIMIT 1;
+
+  -- Check for parent company relationship
+  SELECT pc.id, pc.name, pc.ticker, pc.exchange, pc.is_public, pc.country,
+         co.relationship, co.confidence
+  INTO v_parent_company
+  FROM company_ownership co
+  JOIN companies pc ON pc.id = co.parent_company_id
+  WHERE co.child_brand_id = p_brand_id
+    AND co.relationship IN ('parent', 'subsidiary', 'parent_organization')
+    AND co.confidence >= 0.7
+  ORDER BY co.confidence DESC
+  LIMIT 1;
+
+  -- Use parent company for holders/leadership if brand is a subsidiary
+  IF v_parent_company.id IS NOT NULL THEN
+    v_target_company_id := v_parent_company.id;
+  ELSE
+    v_target_company_id := v_company.id;
+  END IF;
+
+  -- Get top holders
+  SELECT COALESCE(
+    jsonb_agg(
+      jsonb_build_object(
+        'name', holder_name,
+        'type', holder_type,
+        'percent_owned', pct,
+        'is_asset_manager', COALESCE(is_asset_manager, false),
+        'source', COALESCE(source_name, source),
+        'as_of', as_of
+      )
+    ),
+    '[]'::jsonb
+  ) INTO v_holders
+  FROM (
+    SELECT holder_name, holder_type, pct, is_asset_manager, source_name, source, as_of
+    FROM company_shareholders cs
+    WHERE cs.company_id = v_target_company_id
+      AND cs.pct IS NOT NULL
+    ORDER BY cs.pct DESC NULLS LAST
+    LIMIT 10
+  ) ordered_holders;
+
+  -- Get leadership
+  SELECT COALESCE(
+    jsonb_agg(
+      jsonb_build_object(
+        'name', person_name,
+        'role', role,
+        'title', role,
+        'image_url', image_url,
+        'wikidata_qid', person_qid
+      )
+    ),
+    '[]'::jsonb
+  ) INTO v_leadership
+  FROM (
+    SELECT person_name, role, image_url, person_qid
+    FROM company_people cp
+    WHERE cp.company_id = v_target_company_id
+      AND cp.role IN (
+        'ceo', 'chief_executive_officer',
+        'chair', 'chairperson',
+        'founder',
+        'board', 'board_member'
+      )
+    ORDER BY CASE cp.role 
+      WHEN 'ceo' THEN 1 
+      WHEN 'chief_executive_officer' THEN 1
+      WHEN 'chair' THEN 2 
+      WHEN 'chairperson' THEN 2
+      WHEN 'founder' THEN 3 
+      ELSE 4 
+    END
+    LIMIT 5
+  ) ordered_people;
+
+  -- Build parent object
+  IF v_parent_company.id IS NOT NULL THEN
+    v_parent := jsonb_build_object(
+      'id', v_parent_company.id::text,
+      'name', v_parent_company.name,
+      'ticker', v_parent_company.ticker,
+      'exchange', v_parent_company.exchange,
+      'is_public', COALESCE(v_parent_company.is_public, false),
+      'relationship', v_parent_company.relationship,
+      'confidence', v_parent_company.confidence
+    );
+  ELSE
+    v_parent := NULL;
+  END IF;
+
+  -- Build result
+  v_result := jsonb_build_object(
+    'brand_id', v_brand.id,
+    'brand_name', v_brand.name,
+    'company_type', COALESCE(v_brand.company_type, 'unknown'),
+    'ownership_confidence', COALESCE(v_brand.ownership_confidence, 'none'),
+    'ticker', COALESCE(v_brand.ticker, v_company.ticker, v_parent_company.ticker),
+    'exchange', COALESCE(v_company.exchange, v_parent_company.exchange),
+    'is_public', COALESCE(v_company.is_public, v_parent_company.is_public, false),
+    'company_name', COALESCE(v_company.name, v_parent_company.name),
+    'company_country', COALESCE(v_company.country, v_parent_company.country),
+    'top_holders', COALESCE(v_holders, '[]'::jsonb),
+    'leadership', COALESCE(v_leadership, '[]'::jsonb),
+    'has_parent', v_parent IS NOT NULL,
+    'parent_company', v_parent
+  );
+
+  RETURN v_result;
+END;
+$$;
