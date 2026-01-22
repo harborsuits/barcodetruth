@@ -58,6 +58,11 @@ interface DimensionAccumulator {
   environment_count: number;
   politics_count: number;
   social_count: number;
+  // Worst single-event impact per dimension (for severity spike guard)
+  labor_worst: number;
+  environment_worst: number;
+  politics_worst: number;
+  social_worst: number;
 }
 
 interface BrandScore {
@@ -175,14 +180,31 @@ function deduplicateForScoring(events: BrandEvent[]): BrandEvent[] {
 // - Severity matters more than volume
 // - Extreme scores are earned slowly
 // - Brands with more coverage aren't unfairly penalized
-function computeDimensionScore(sum: number, eventCount: number): number {
+function computeDimensionScore(sum: number, eventCount: number, worstImpact: number): number {
   // Reduced scale factor (was 5, now 2.5) for more believable score distribution
   const SCALE = 2.5;
   
   // Normalize by sqrt(eventCount) to reduce impact of high-volume coverage
   // sqrt(1)=1, sqrt(4)=2, sqrt(9)=3, sqrt(25)=5
   const normalizationFactor = eventCount > 0 ? Math.sqrt(eventCount) : 1;
-  const normalizedSum = sum / normalizationFactor;
+  let normalizedSum = sum / normalizationFactor;
+  
+  // SEVERITY SPIKE GUARD: Don't let normalization dilute truly severe single events
+  // Ensure normalizedSum retains at least 60% of the worst event's influence
+  const MIN_INFLUENCE_RATIO = 0.6;
+  if (worstImpact < 0) {
+    // For negative impacts (bad events), don't let normalizedSum rise above threshold
+    const worstInfluence = worstImpact * MIN_INFLUENCE_RATIO;
+    if (normalizedSum > worstInfluence) {
+      normalizedSum = worstInfluence;
+    }
+  } else if (worstImpact > 0) {
+    // For positive impacts (good events), don't let normalizedSum fall below threshold
+    const worstInfluence = worstImpact * MIN_INFLUENCE_RATIO;
+    if (normalizedSum < worstInfluence) {
+      normalizedSum = worstInfluence;
+    }
+  }
   
   const score = 50 + (normalizedSum * SCALE);
   
@@ -327,6 +349,10 @@ Deno.serve(async (req: Request) => {
             environment_count: 0,
             politics_count: 0,
             social_count: 0,
+            labor_worst: 0,
+            environment_worst: 0,
+            politics_worst: 0,
+            social_worst: 0,
           },
           event_count: 0,
           recent_events: 0,
@@ -343,10 +369,39 @@ Deno.serve(async (req: Request) => {
       brandScore.dimensions.social_sum += socialContrib;
       
       // Track event counts per dimension (for events that actually affect that dimension)
-      if (impacts.labor) brandScore.dimensions.labor_count++;
-      if (impacts.environment) brandScore.dimensions.environment_count++;
-      if (impacts.politics) brandScore.dimensions.politics_count++;
-      if (impacts.social) brandScore.dimensions.social_count++;
+      // Also track worst single-event impact per dimension for severity spike guard
+      if (impacts.labor) {
+        brandScore.dimensions.labor_count++;
+        if (laborContrib < brandScore.dimensions.labor_worst) {
+          brandScore.dimensions.labor_worst = laborContrib;
+        } else if (laborContrib > 0 && laborContrib > brandScore.dimensions.labor_worst) {
+          brandScore.dimensions.labor_worst = laborContrib;
+        }
+      }
+      if (impacts.environment) {
+        brandScore.dimensions.environment_count++;
+        if (envContrib < brandScore.dimensions.environment_worst) {
+          brandScore.dimensions.environment_worst = envContrib;
+        } else if (envContrib > 0 && envContrib > brandScore.dimensions.environment_worst) {
+          brandScore.dimensions.environment_worst = envContrib;
+        }
+      }
+      if (impacts.politics) {
+        brandScore.dimensions.politics_count++;
+        if (politicsContrib < brandScore.dimensions.politics_worst) {
+          brandScore.dimensions.politics_worst = politicsContrib;
+        } else if (politicsContrib > 0 && politicsContrib > brandScore.dimensions.politics_worst) {
+          brandScore.dimensions.politics_worst = politicsContrib;
+        }
+      }
+      if (impacts.social) {
+        brandScore.dimensions.social_count++;
+        if (socialContrib < brandScore.dimensions.social_worst) {
+          brandScore.dimensions.social_worst = socialContrib;
+        } else if (socialContrib > 0 && socialContrib > brandScore.dimensions.social_worst) {
+          brandScore.dimensions.social_worst = socialContrib;
+        }
+      }
       
       brandScore.event_count += 1;
       
@@ -384,11 +439,11 @@ Deno.serve(async (req: Request) => {
     // Upsert scores into brand_scores table
     let updatedCount = 0;
     for (const [brandId, brandData] of brandScoresMap) {
-      // Compute per-dimension scores (0-100) with normalization by event count
-      const rawScoreLabor = computeDimensionScore(brandData.dimensions.labor_sum, brandData.dimensions.labor_count);
-      const rawScoreEnv = computeDimensionScore(brandData.dimensions.environment_sum, brandData.dimensions.environment_count);
-      const rawScorePolitics = computeDimensionScore(brandData.dimensions.politics_sum, brandData.dimensions.politics_count);
-      const rawScoreSocial = computeDimensionScore(brandData.dimensions.social_sum, brandData.dimensions.social_count);
+      // Compute per-dimension scores (0-100) with normalization by event count + severity spike guard
+      const rawScoreLabor = computeDimensionScore(brandData.dimensions.labor_sum, brandData.dimensions.labor_count, brandData.dimensions.labor_worst);
+      const rawScoreEnv = computeDimensionScore(brandData.dimensions.environment_sum, brandData.dimensions.environment_count, brandData.dimensions.environment_worst);
+      const rawScorePolitics = computeDimensionScore(brandData.dimensions.politics_sum, brandData.dimensions.politics_count, brandData.dimensions.politics_worst);
+      const rawScoreSocial = computeDimensionScore(brandData.dimensions.social_sum, brandData.dimensions.social_count, brandData.dimensions.social_worst);
       
       // Apply soft floor guards to prevent single-event extremes
       const scoreLabor = applyScoreFloor(rawScoreLabor, brandData.dimensions.labor_count);

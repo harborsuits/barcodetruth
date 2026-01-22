@@ -1,10 +1,14 @@
-import { Building2, Users, TrendingUp, HelpCircle } from "lucide-react";
+import { Building2, Users, TrendingUp, HelpCircle, RefreshCw, Info } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { toast } from "sonner";
+import { useState } from "react";
 
 interface PowerProfitData {
   brand_id: string;
@@ -55,7 +59,11 @@ const ROLE_LABELS: Record<string, string> = {
   board: "Board Member",
 };
 
-export function PowerProfitCard({ brandId }: PowerProfitCardProps) {
+export function PowerProfitCard({ brandId, brandName }: PowerProfitCardProps) {
+  const isAdmin = useIsAdmin();
+  const queryClient = useQueryClient();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
   const { data, isLoading, error } = useQuery({
     queryKey: ['power-profit', brandId],
     queryFn: async () => {
@@ -68,6 +76,37 @@ export function PowerProfitCard({ brandId }: PowerProfitCardProps) {
     enabled: !!brandId,
     staleTime: 1000 * 60 * 10, // 10 minutes
   });
+  
+  const handleRefresh = async () => {
+    if (!data?.ticker) {
+      toast.error("No ticker available for shareholder sync");
+      return;
+    }
+    
+    setIsRefreshing(true);
+    try {
+      // Sync 13F data for this ticker
+      const { error: syncError } = await supabase.functions.invoke('sync-13f', {
+        body: { ticker: data.ticker }
+      });
+      
+      if (syncError) throw syncError;
+      
+      // Re-enrich from Wikidata for leadership
+      await supabase.functions.invoke('enrich-brand-wiki', {
+        body: { brand_id: brandId, mode: 'full' }
+      });
+      
+      // Invalidate and refetch
+      await queryClient.invalidateQueries({ queryKey: ['power-profit', brandId] });
+      toast.success("Ownership data refreshed");
+    } catch (err) {
+      console.error('Refresh failed:', err);
+      toast.error("Failed to refresh ownership data");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -113,10 +152,24 @@ export function PowerProfitCard({ brandId }: PowerProfitCardProps) {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-primary" />
-          Power & Profit
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-primary" />
+            Power & Profit
+          </CardTitle>
+          {isAdmin && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="h-7 px-2"
+            >
+              <RefreshCw className={`h-3 w-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Refreshing...' : 'Refresh'}
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Ownership Summary */}
@@ -129,7 +182,7 @@ export function PowerProfitCard({ brandId }: PowerProfitCardProps) {
 
         {/* Top Holders Section - only show holders with real percentages */}
         {hasHolders && (
-          <TopHoldersSection holders={realHolders} />
+          <TopHoldersSection holders={realHolders} isPublic={isPublic} />
         )}
 
         {/* No holders message for public companies */}
@@ -142,8 +195,9 @@ export function PowerProfitCard({ brandId }: PowerProfitCardProps) {
           <LeadershipSection leadership={data.leadership} />
         )}
 
-        {/* Source/Confidence Footer */}
+        {/* Source/Confidence Footer + Data Disclosure */}
         <ConfidenceFooter confidence={confidenceLevel} />
+        <DataDisclosure isPublic={isPublic} exchange={data.exchange} />
       </CardContent>
     </Card>
   );
@@ -251,18 +305,23 @@ function OwnershipSummary({
 }
 
 function TopHoldersSection({ 
-  holders 
+  holders,
+  isPublic
 }: { 
   holders: PowerProfitData['top_holders'];
+  isPublic: boolean;
 }) {
   const topFive = holders.slice(0, 5);
   const totalPercent = topFive.reduce((sum, h) => sum + (h.percent_owned || 0), 0);
+  
+  // Determine if these are 13F institutional holders
+  const is13FData = holders.some(h => h.source === 'sec_13f');
 
   return (
     <div className="space-y-2">
       <h4 className="text-sm font-medium flex items-center gap-2">
         <Users className="h-4 w-4 text-muted-foreground" />
-        Top Shareholders
+        {is13FData ? 'Institutional Holders (13F)' : 'Top Shareholders'}
         {totalPercent > 0 && (
           <span className="text-xs text-muted-foreground font-normal">
             ({totalPercent.toFixed(1)}% combined)
@@ -349,6 +408,24 @@ function ConfidenceFooter({ confidence }: { confidence: string }) {
       <HelpCircle className="h-3 w-3" />
       {labels[confidence] || labels.none}
     </p>
+  );
+}
+
+function DataDisclosure({ isPublic, exchange }: { isPublic: boolean; exchange: string | null }) {
+  const isUS = !exchange || exchange === 'NYSE' || exchange === 'NASDAQ';
+  
+  return (
+    <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/30 rounded p-2">
+      <Info className="h-3 w-3 mt-0.5 shrink-0" />
+      <p>
+        {isPublic 
+          ? isUS
+            ? "Ownership data from SEC filings (Form 13F). Shows institutional holders with $100M+ in assets."
+            : "Ownership data from public disclosures. For non-US companies, institutional holdings may be partial."
+          : "Ownership details are limited for private companies."
+        }
+      </p>
+    </div>
   );
 }
 
