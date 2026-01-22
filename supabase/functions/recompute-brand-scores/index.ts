@@ -170,13 +170,36 @@ function deduplicateForScoring(events: BrandEvent[]): BrandEvent[] {
 }
 
 // Normalize dimension sums to 0-100 scores
-// Base of 50, adjusted by weighted impact sums
-// Each impact point shifts score by 5 points (so ±10 impact = ±50 score shift)
-function computeDimensionScore(sum: number): number {
-  // Scale factor: how much each weighted impact point affects the score
-  const SCALE = 5;
-  const score = 50 + (sum * SCALE);
+// Uses hybrid normalization: sqrt(eventCount) + reduced SCALE to prevent 0/100 slamming
+// This ensures:
+// - Severity matters more than volume
+// - Extreme scores are earned slowly
+// - Brands with more coverage aren't unfairly penalized
+function computeDimensionScore(sum: number, eventCount: number): number {
+  // Reduced scale factor (was 5, now 2.5) for more believable score distribution
+  const SCALE = 2.5;
+  
+  // Normalize by sqrt(eventCount) to reduce impact of high-volume coverage
+  // sqrt(1)=1, sqrt(4)=2, sqrt(9)=3, sqrt(25)=5
+  const normalizationFactor = eventCount > 0 ? Math.sqrt(eventCount) : 1;
+  const normalizedSum = sum / normalizationFactor;
+  
+  const score = 50 + (normalizedSum * SCALE);
+  
+  // Clamp to 0-100 range
   return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+// Soft floor guard: prevents single events from producing extreme scores
+// A brand needs multiple distinct problems to truly hit 0
+function applyScoreFloor(score: number, eventCount: number): number {
+  if (score === 0 && eventCount < 3) {
+    return 10; // Minimum "very concerning" rather than "absolute worst"
+  }
+  if (score === 100 && eventCount < 3) {
+    return 90; // Maximum "excellent" rather than "perfect"
+  }
+  return score;
 }
 
 Deno.serve(async (req: Request) => {
@@ -361,11 +384,17 @@ Deno.serve(async (req: Request) => {
     // Upsert scores into brand_scores table
     let updatedCount = 0;
     for (const [brandId, brandData] of brandScoresMap) {
-      // Compute per-dimension scores (0-100)
-      const scoreLabor = computeDimensionScore(brandData.dimensions.labor_sum);
-      const scoreEnv = computeDimensionScore(brandData.dimensions.environment_sum);
-      const scorePolitics = computeDimensionScore(brandData.dimensions.politics_sum);
-      const scoreSocial = computeDimensionScore(brandData.dimensions.social_sum);
+      // Compute per-dimension scores (0-100) with normalization by event count
+      const rawScoreLabor = computeDimensionScore(brandData.dimensions.labor_sum, brandData.dimensions.labor_count);
+      const rawScoreEnv = computeDimensionScore(brandData.dimensions.environment_sum, brandData.dimensions.environment_count);
+      const rawScorePolitics = computeDimensionScore(brandData.dimensions.politics_sum, brandData.dimensions.politics_count);
+      const rawScoreSocial = computeDimensionScore(brandData.dimensions.social_sum, brandData.dimensions.social_count);
+      
+      // Apply soft floor guards to prevent single-event extremes
+      const scoreLabor = applyScoreFloor(rawScoreLabor, brandData.dimensions.labor_count);
+      const scoreEnv = applyScoreFloor(rawScoreEnv, brandData.dimensions.environment_count);
+      const scorePolitics = applyScoreFloor(rawScorePolitics, brandData.dimensions.politics_count);
+      const scoreSocial = applyScoreFloor(rawScoreSocial, brandData.dimensions.social_count);
       
       // Overall score is weighted average of dimensions with data
       // Weight dimensions by how many events affected them
