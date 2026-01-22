@@ -150,7 +150,12 @@ function classifyEvent(event: EventRow) {
     // Sustainability Achievements
     "carbon neutral", "net zero achieved", "renewable energy commitment",
     "sustainability award", "green certification", "b corp certified",
-    "sustainability milestone", "eco-friendly", "zero waste"
+    "sustainability milestone", "eco-friendly", "zero waste",
+    // Marketing/Viral Success (NEW)
+    "viral", "trending", "featured", "celebrates", "launches", "unveils",
+    "introduces", "expands", "collaboration", "campaign", "official commercial",
+    "brand ambassador", "sponsorship", "popularity", "fan favorite", "beloved",
+    "tiktok", "social media hit", "goes viral", "record sales"
   ];
   
   // EXPANDED NEGATIVE SIGNALS (70 → 120+ keywords)
@@ -241,11 +246,9 @@ function classifyEvent(event: EventRow) {
     orientation = 'mixed';
     impactMagnitude = Math.round(SEVERITY_IMPACTS[severity].negative * 0.3);
   } else {
-    // NO SIGNALS MATCHED - but event is categorized (not noise)
-    // Give meaningful impact to register brand activity (INCREASED from 0.1x to 0.25x)
+    // NO SIGNALS MATCHED - truly neutral, don't assume negative
     orientation = 'mixed';
-    const baseImpact = SEVERITY_IMPACTS[severity].negative * 0.25;
-    impactMagnitude = Math.round(baseImpact) || -2; // Minimum -2 to ensure scoring impact
+    impactMagnitude = 0; // Neutral until proven otherwise
   }
 
   // Build category impacts with whole numbers
