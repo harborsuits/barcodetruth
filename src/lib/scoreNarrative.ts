@@ -160,10 +160,22 @@ function collapseSummaries(summaries: string[]): string[] {
 /**
  * Format event chips for display - collapse duplicates with counts
  */
+/**
+ * Derive impact label from event's effective_impact value
+ */
+function deriveImpact(event: NarrativeInput['topEvents'][0]): 'positive' | 'negative' | 'neutral' {
+  if (event.effective_impact > 0) return 'positive';
+  if (event.effective_impact < 0) return 'negative';
+  return 'neutral';
+}
+
+/**
+ * Format event chips for display - collapse duplicates with counts
+ * Impact is now derived from each event's actual effective_impact
+ */
 function buildCitedEvents(
   events: NarrativeInput['topEvents'],
-  brandName: string,
-  impact: 'positive' | 'negative'
+  brandName: string
 ): ScoreNarrative['citedEvents'] {
   // Group by summary
   const grouped = new Map<string, { count: number; events: typeof events }>();
@@ -194,10 +206,14 @@ function buildCitedEvents(
       }
     }
     
+    // Derive impact from the first event's actual effective_impact
+    const derivedImpact = deriveImpact(groupEvents[0]);
+    
     return {
       title: groupEvents[0].title,
       shortSummary: displaySummary,
-      impact,
+      // Use actual impact; fallback to 'negative' for neutral to preserve existing behavior
+      impact: derivedImpact === 'neutral' ? 'negative' : derivedImpact,
       sourceUrl: groupEvents[0].source_url,
     };
   });
@@ -260,7 +276,7 @@ export function generateScoreNarrative(input: NarrativeInput): ScoreNarrative | 
     const eventsToUse = negativeEvents.slice(0, 3);
     const summaries = eventsToUse.map(e => summarizeEventTitle(e.title, brandName));
     const collapsedSummaries = collapseSummaries(summaries);
-    citedEvents = buildCitedEvents(eventsToUse, brandName, 'negative');
+    citedEvents = buildCitedEvents(eventsToUse, brandName);
     
     if (collapsedSummaries.length === 0) {
       text = `${brandName}'s low rating reflects ${dimLabel} concerns. We're gathering more details.`;
@@ -276,7 +292,7 @@ export function generateScoreNarrative(input: NarrativeInput): ScoreNarrative | 
     const eventsToUse = negativeEvents.slice(0, 2);
     const summaries = eventsToUse.map(e => summarizeEventTitle(e.title, brandName));
     const collapsedSummaries = collapseSummaries(summaries);
-    citedEvents = buildCitedEvents(eventsToUse, brandName, 'negative');
+    citedEvents = buildCitedEvents(eventsToUse, brandName);
     
     if (collapsedSummaries.length === 0) {
       text = `${brandName} shows concerning patterns in ${DIMENSION_LABELS[weakestDim]}.`;
@@ -286,7 +302,7 @@ export function generateScoreNarrative(input: NarrativeInput): ScoreNarrative | 
     }
     
     if (positiveEvents.length > 0) {
-      const positiveCited = buildCitedEvents(positiveEvents.slice(0, 1), brandName, 'positive');
+      const positiveCited = buildCitedEvents(positiveEvents.slice(0, 1), brandName);
       citedEvents = [...citedEvents, ...positiveCited];
       text += ` Some positive factors provide partial offset.`;
     }
@@ -300,14 +316,14 @@ export function generateScoreNarrative(input: NarrativeInput): ScoreNarrative | 
       const positiveSummary = summarizeEventTitle(topPositive.title, brandName);
       
       citedEvents = [
-        ...buildCitedEvents([topConcern], brandName, 'negative'),
-        ...buildCitedEvents([topPositive], brandName, 'positive'),
+        ...buildCitedEvents([topConcern], brandName),
+        ...buildCitedEvents([topPositive], brandName),
       ];
       
       text = `${brandName} shows mixed signals. ${isRecent ? 'Recent' : 'Some'} concerns (${concernSummary.toLowerCase()}) are balanced by positive factors (${positiveSummary.toLowerCase()}).`;
     } else if (topConcern) {
       const concernSummary = summarizeEventTitle(topConcern.title, brandName);
-      citedEvents = buildCitedEvents([topConcern], brandName, 'negative');
+      citedEvents = buildCitedEvents([topConcern], brandName);
       text = `${brandName} shows a moderate record. ${isRecent ? 'Recent' : 'Some'} ${concernSummary.toLowerCase()} tempers the score.`;
     } else {
       text = `${brandName} shows a moderate track record with no major ${timePhrase} concerns.`;
@@ -318,7 +334,7 @@ export function generateScoreNarrative(input: NarrativeInput): ScoreNarrative | 
       const eventsToUse = positiveEvents.slice(0, 2);
       const summaries = eventsToUse.map(e => summarizeEventTitle(e.title, brandName));
       const collapsedSummaries = collapseSummaries(summaries);
-      citedEvents = buildCitedEvents(eventsToUse, brandName, 'positive');
+      citedEvents = buildCitedEvents(eventsToUse, brandName);
       
       const eventList = collapsedSummaries.join(' and ').toLowerCase();
       text = `${brandName} scores well overall. ${isRecent ? 'Recent p' : 'P'}ositive coverage includes ${eventList}.`;
@@ -326,7 +342,7 @@ export function generateScoreNarrative(input: NarrativeInput): ScoreNarrative | 
       text = `${brandName} scores well with no major concerns found in recent coverage.`;
     } else {
       const minorConcern = summarizeEventTitle(negativeEvents[0].title, brandName);
-      citedEvents = buildCitedEvents([negativeEvents[0]], brandName, 'negative');
+      citedEvents = buildCitedEvents([negativeEvents[0]], brandName);
       text = `${brandName} scores well overall. Minor concerns (${minorConcern.toLowerCase()}) have limited impact.`;
     }
   }
