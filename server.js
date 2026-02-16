@@ -11,8 +11,8 @@ const PORT = process.env.PORT || 3000;
 // Serve static files from dist folder
 app.use(express.static(join(__dirname, 'dist')));
 
-// SPA fallback - send index.html for all routes
-app.get('*', (req, res) => {
+// SPA fallback - use middleware instead of wildcard route
+app.use((req, res) => {
   res.sendFile(join(__dirname, 'dist', 'index.html'));
 });
 
