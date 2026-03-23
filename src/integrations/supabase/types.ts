@@ -4708,6 +4708,148 @@ export type Database = {
         }
         Relationships: []
       }
+      fuzzy_alias_review: {
+        Row: {
+          created_at: string
+          external_name: string
+          id: string
+          matched_brand_id: string
+          matched_brand_name: string | null
+          reviewed_at: string | null
+          similarity_score: number | null
+          source: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          external_name: string
+          id?: string
+          matched_brand_id: string
+          matched_brand_name?: string | null
+          reviewed_at?: string | null
+          similarity_score?: number | null
+          source?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          external_name?: string
+          id?: string
+          matched_brand_id?: string
+          matched_brand_name?: string | null
+          reviewed_at?: string | null
+          similarity_score?: number | null
+          source?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fuzzy_alias_review_matched_brand_id_fkey"
+            columns: ["matched_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_alias_suggestions"
+            referencedColumns: ["suggested_brand_id"]
+          },
+          {
+            foreignKeyName: "fuzzy_alias_review_matched_brand_id_fkey"
+            columns: ["matched_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "fuzzy_alias_review_matched_brand_id_fkey"
+            columns: ["matched_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_monitoring_status"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "fuzzy_alias_review_matched_brand_id_fkey"
+            columns: ["matched_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_profile_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "fuzzy_alias_review_matched_brand_id_fkey"
+            columns: ["matched_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_standings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuzzy_alias_review_matched_brand_id_fkey"
+            columns: ["matched_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_trending"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "fuzzy_alias_review_matched_brand_id_fkey"
+            columns: ["matched_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuzzy_alias_review_matched_brand_id_fkey"
+            columns: ["matched_brand_id"]
+            isOneToOne: false
+            referencedRelation: "digest_events_last_24h"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "fuzzy_alias_review_matched_brand_id_fkey"
+            columns: ["matched_brand_id"]
+            isOneToOne: false
+            referencedRelation: "product_alternatives"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "fuzzy_alias_review_matched_brand_id_fkey"
+            columns: ["matched_brand_id"]
+            isOneToOne: false
+            referencedRelation: "product_brand_profile"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "fuzzy_alias_review_matched_brand_id_fkey"
+            columns: ["matched_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "fuzzy_alias_review_matched_brand_id_fkey"
+            columns: ["matched_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "fuzzy_alias_review_matched_brand_id_fkey"
+            columns: ["matched_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brand_completeness"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuzzy_alias_review_matched_brand_id_fkey"
+            columns: ["matched_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brand_confidence_pivot"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "fuzzy_alias_review_matched_brand_id_fkey"
+            columns: ["matched_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gs1_prefix_registry: {
         Row: {
           company_name: string
