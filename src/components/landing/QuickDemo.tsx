@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { ArrowRight, ScanLine } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -48,58 +47,55 @@ export function QuickDemo({ className }: { className?: string }) {
 
   return (
     <section className={cn("w-full", className)}>
-      <Card className="overflow-hidden border-border/50 bg-card/50 backdrop-blur">
+      <div className="bg-card border border-border/10 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-border/50">
+        <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-border/10">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <ScanLine className="h-4 w-4 text-primary" />
-              <span className="text-sm font-semibold text-foreground">Quick demo</span>
+              <ScanLine className="h-4 w-4 text-accent" />
+              <span className="font-display font-semibold text-sm text-foreground">Quick Demo</span>
             </div>
-            <p className="text-xs text-muted-foreground">
-              This is the exact "scan → reveal" moment, without needing a camera.
+            <p className="label-forensic">
+              Simulated scan → reveal sequence
             </p>
           </div>
           <Button
             size="sm"
-            variant="outline"
-            className="shrink-0"
+            className="bg-elevated-2 hover:bg-elevated-3 text-primary font-mono text-[10px] uppercase tracking-wider border border-border/20 h-8"
             onClick={() => navigate("/scan")}
           >
-            <ScanLine className="mr-2 h-4 w-4" />
-            Scan your own
+            <ScanLine className="mr-1.5 h-3 w-3" />
+            Scan Your Own
           </Button>
         </div>
 
         {/* Content */}
-        <div className="grid md:grid-cols-[280px,1fr] divide-y md:divide-y-0 md:divide-x divide-border/50">
+        <div className="grid md:grid-cols-[280px,1fr]">
           {/* Product selector */}
-          <div className="p-4 space-y-3">
-            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Pick an example
-            </h3>
+          <div className="p-4 space-y-3 bg-background/50 border-r border-border/10 md:border-b-0 border-b">
+            <h3 className="label-forensic">Select Subject</h3>
             <div className="space-y-2">
               {items.map((it, idx) => (
                 <button
                   key={idx}
                   onClick={() => setActive(idx)}
                   className={cn(
-                    "w-full text-left rounded-lg border px-3 py-2 transition",
+                    "w-full text-left px-3 py-2.5 transition-all border",
                     idx === active
-                      ? "border-primary/40 bg-primary/5"
-                      : "border-border hover:bg-muted/50"
+                      ? "border-accent/30 bg-elevated-2"
+                      : "border-border/10 bg-card hover:bg-elevated-2/50"
                   )}
                 >
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-foreground">{it.product}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="font-mono text-[10px] text-muted-foreground tracking-wide">
                         {it.barcode} • {it.brand}
                       </p>
                     </div>
                     <ArrowRight className={cn(
-                      "h-4 w-4 transition-opacity",
-                      idx === active ? "opacity-100 text-primary" : "opacity-0"
+                      "h-3.5 w-3.5 transition-opacity text-accent",
+                      idx === active ? "opacity-100" : "opacity-0"
                     )} />
                   </div>
                 </button>
@@ -112,34 +108,34 @@ export function QuickDemo({ className }: { className?: string }) {
             {/* Scan result header */}
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Scan result</p>
-                <p className="text-lg font-semibold text-foreground">{current.product}</p>
-                <p className="text-xs text-muted-foreground">
-                  Barcode: {current.barcode}
+                <p className="label-forensic">Scan Result</p>
+                <p className="text-lg font-display font-bold text-foreground mt-1">{current.product}</p>
+                <p className="font-mono text-[10px] text-muted-foreground tracking-wide mt-0.5">
+                  UPC: {current.barcode}
                 </p>
               </div>
               <Button
                 size="sm"
                 variant="ghost"
-                className="text-xs"
+                className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground hover:text-accent"
                 onClick={() => navigate(`/unknown/${current.barcode}`)}
               >
-                Try unknown flow
+                Try Unknown Flow
               </Button>
             </div>
 
             {/* Ownership chain */}
             <div className="space-y-2">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Ownership chain</p>
-              <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+              <p className="label-forensic">Ownership Chain</p>
+              <div className="p-3 bg-background/50 border border-border/10">
                 <div className="flex flex-wrap items-center gap-2">
                   {current.ownerChain.map((node, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      <span className="px-2.5 py-1 rounded-md bg-card border border-border text-sm font-medium text-foreground">
+                      <span className="px-2.5 py-1 bg-elevated-2 border border-border/20 text-sm font-medium text-foreground font-mono">
                         {node}
                       </span>
                       {i !== current.ownerChain.length - 1 && (
-                        <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                        <ArrowRight className="h-3 w-3 text-accent/50" />
                       )}
                     </div>
                   ))}
@@ -151,7 +147,7 @@ export function QuickDemo({ className }: { className?: string }) {
             </div>
           </div>
         </div>
-      </Card>
+      </div>
     </section>
   );
 }

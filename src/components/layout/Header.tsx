@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
-import { Settings, ArrowLeft, LogOut } from "lucide-react";
+import { Settings, ArrowLeft, LogOut, ScanLine } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import logo from "@/assets/logo.png";
 
 interface HeaderProps {
   showBack?: boolean;
@@ -32,7 +31,7 @@ export function Header({ showBack = false, showSettings = true }: HeaderProps) {
     try {
       await supabase.auth.signOut();
       localStorage.clear();
-      toast({ title: "Logged out", description: "You've been successfully logged out" });
+      toast({ title: "Logged out", description: "Session terminated" });
       navigate('/auth');
     } catch (error) {
       toast({ title: "Error", description: "Failed to log out", variant: "destructive" });
@@ -41,40 +40,66 @@ export function Header({ showBack = false, showSettings = true }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur">
-      <div className="mx-auto max-w-6xl px-4 py-4">
-        <div className="flex items-center justify-center relative">
-          {showBack && (
-            <button 
-              onClick={() => navigate(-1)}
-              className="absolute left-0"
-              aria-label="Go back"
-            >
-              <ArrowLeft className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
-            </button>
-          )}
-          {showSettings && !showBack && (
-            <button 
-              onClick={() => navigate("/settings")}
-              className="absolute left-0"
-              aria-label="Settings"
-            >
-              <Settings className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
-            </button>
-          )}
-          <button onClick={() => navigate("/")} className="hover:opacity-80 transition-opacity" aria-label="Go home">
-            <img src={logo} alt="Barcode Truth logo" className="h-16 w-auto" />
+    <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border/10">
+      <div className="mx-auto max-w-6xl px-4 py-3">
+        <div className="flex items-center justify-between">
+          {/* Left */}
+          <div className="flex items-center gap-3">
+            {showBack ? (
+              <button 
+                onClick={() => navigate(-1)}
+                aria-label="Go back"
+                className="p-1.5 hover:bg-elevated-2 transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4 text-muted-foreground" />
+              </button>
+            ) : showSettings ? (
+              <button 
+                onClick={() => navigate("/settings")}
+                aria-label="Settings"
+                className="p-1.5 hover:bg-elevated-2 transition-colors"
+              >
+                <Settings className="h-4 w-4 text-muted-foreground" />
+              </button>
+            ) : null}
+          </div>
+
+          {/* Center — Logo */}
+          <button 
+            onClick={() => navigate("/")} 
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            aria-label="Go home"
+          >
+            <ScanLine className="h-5 w-5 text-accent" />
+            <span className="font-display font-bold text-sm tracking-widest uppercase text-foreground">
+              Barcode Truth
+            </span>
           </button>
-          {isAuthenticated && (
-            <button 
-              onClick={handleLogout}
-              disabled={loggingOut}
-              className="absolute right-0"
-              aria-label="Log out"
-            >
-              <LogOut className={`h-5 w-5 text-muted-foreground hover:text-foreground transition-colors ${loggingOut ? 'opacity-50' : ''}`} />
-            </button>
-          )}
+
+          {/* Right */}
+          <div className="flex items-center gap-2">
+            {isAuthenticated && (
+              <button 
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="p-1.5 hover:bg-elevated-2 transition-colors"
+                aria-label="Log out"
+              >
+                <LogOut className={`h-4 w-4 text-muted-foreground ${loggingOut ? 'opacity-50' : ''}`} />
+              </button>
+            )}
+            {!isAuthenticated && (
+              <button
+                onClick={() => navigate("/auth")}
+                className="p-1.5 hover:bg-elevated-2 transition-colors"
+                aria-label="Sign in"
+              >
+                <div className="h-6 w-6 rounded-full bg-elevated-2 border border-border/20 flex items-center justify-center">
+                  <span className="text-xs text-muted-foreground font-mono">?</span>
+                </div>
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </header>

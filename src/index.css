@@ -1,157 +1,97 @@
+@import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+
 @import "./styles/tokens.css";
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* ═══════════════════════════════════════════════════════
+   BARCODE TRUTH — "The Forensic Dossier" Design System
+   Dark navy palette · Sharp corners · Tonal layering
+   ═══════════════════════════════════════════════════════ */
 
 @layer base {
   :root {
-    /* Core brand - Teal-blue primary (trust/calm) + Warm orange accent (engagement) */
-    --primary: 190 60% 45%;
-    --primary-foreground: 0 0% 100%;
-    --accent: 25 100% 63%;
-    --accent-foreground: 0 0% 10%;
+    /* ── Surface Architecture (Dark Navy Layers) ── */
+    --background: 214 100% 9%;          /* #00132e — base canvas */
+    --foreground: 210 40% 90%;          /* #d4dfe9 — primary text */
 
-    /* Neutrals - Soft backgrounds to reduce eye fatigue */
-    --background: 0 0% 98%;
-    --foreground: 0 0% 12%;
+    --card: 214 85% 12%;               /* #041b3a — content wells */
+    --card-foreground: 210 40% 90%;
 
-    /* Card surfaces - Clean with subtle depth */
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 12%;
-    --elev-1: 0 0% 100%;
-    --elev-2: 0 0% 99%;
-    --elev-3: 0 0% 98%;
+    --popover: 214 70% 15%;            /* #0d2647 — floating panels */
+    --popover-foreground: 210 40% 90%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 12%;
+    /* Elevation layers — tonal, no shadows */
+    --elev-1: 214 85% 12%;             /* same as card */
+    --elev-2: 214 65% 17%;             /* #152a49 — active evidence */
+    --elev-3: 214 50% 25%;             /* #26395a — bright surface */
 
-    /* Secondary - Soft cool grey for subtle elements */
-    --secondary: 200 15% 95%;
-    --secondary-foreground: 0 0% 12%;
+    /* ── Primary — Truth Blue ── */
+    --primary: 212 100% 80%;           /* #98cbff — headline accent */
+    --primary-foreground: 214 100% 9%;
 
-    /* Muted - Mid-grey for supporting content */
-    --muted: 0 0% 94%;
-    --muted-foreground: 0 0% 45%;
+    /* ── Secondary — Teal for verification ── */
+    --secondary: 185 100% 23%;         /* #006876 — data labels */
+    --secondary-foreground: 0 0% 100%;
 
-    /* Destructive */
-    --destructive: 0 75% 50%;
-    --destructive-foreground: 0 0% 100%;
+    /* ── Accent — Cyan flash for CTAs ── */
+    --accent: 200 100% 50%;            /* #00a3ff — primary-container */
+    --accent-foreground: 214 100% 9%;
 
-    /* Borders & inputs - Subtle cool grey */
-    --border: 0 0% 86%;
-    --input: 0 0% 86%;
-    --ring: 190 60% 45%;
+    /* ── Muted — suppressed data ── */
+    --muted: 214 40% 18%;
+    --muted-foreground: 210 20% 55%;
 
-    --radius: 0.75rem;
+    /* ── Destructive ── */
+    --destructive: 10 90% 72%;         /* #ffb4ab */
+    --destructive-foreground: 214 100% 9%;
 
-    /* Category colors - Harmonized with base palette */
-    --labor: 221 70% 50%;
+    /* ── Borders — Ghost borders only ── */
+    --border: 214 30% 25%;
+    --input: 214 40% 15%;
+    --ring: 200 100% 50%;
+
+    /* ── Radius — Sharp corners for forensic precision ── */
+    --radius: 0.125rem;
+
+    /* ── Category Axes ── */
+    --labor: 221 80% 65%;
     --labor-foreground: 0 0% 100%;
-    --labor-light: 221 70% 96%;
-    
-    --environment: 150 60% 40%;
+    --labor-light: 221 80% 15%;
+
+    --environment: 160 70% 45%;
     --environment-foreground: 0 0% 100%;
-    --environment-light: 150 60% 96%;
-    
-    --politics: 279 55% 45%;
+    --environment-light: 160 70% 12%;
+
+    --politics: 279 60% 60%;
     --politics-foreground: 0 0% 100%;
-    --politics-light: 279 55% 96%;
-    
-    --social: 200 30% 45%;
+    --politics-light: 279 60% 15%;
+
+    --social: 200 40% 55%;
     --social-foreground: 0 0% 100%;
-    --social-light: 200 30% 96%;
-    
-    --cultural-values: 330 55% 45%;
+    --social-light: 200 40% 15%;
+
+    --cultural-values: 330 55% 55%;
     --cultural-values-foreground: 0 0% 100%;
-    --cultural-values-light: 330 55% 96%;
+    --cultural-values-light: 330 55% 15%;
 
-    /* Status colors - Research-backed (green=positive, orange=caution, red=negative) */
-    --success: 142 70% 38%;
+    /* ── Status ── */
+    --success: 150 70% 45%;
     --success-foreground: 0 0% 100%;
-    --success-light: 142 70% 96%;
-    
-    --warning: 40 100% 45%;
-    --warning-foreground: 0 0% 10%;
-    --warning-light: 40 100% 96%;
-    
-    --danger: 0 75% 50%;
-    --danger-foreground: 0 0% 100%;
-    --danger-light: 0 75% 96%;
+    --success-light: 150 70% 12%;
 
-    /* Animations - Snappy, under 150ms for retention */
+    --warning: 42 100% 55%;            /* #ffba20 */
+    --warning-foreground: 214 100% 9%;
+    --warning-light: 42 100% 12%;
+
+    --danger: 10 90% 72%;
+    --danger-foreground: 214 100% 9%;
+    --danger-light: 10 90% 15%;
+
+    /* ── Motion ── */
     --transition-smooth: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .dark {
-    /* Dark mode - Softer contrast for reduced eye strain */
-    --background: 0 0% 8%;
-    --foreground: 0 0% 95%;
-
-    /* Cards - Elevated surfaces with subtle depth */
-    --card: 0 0% 10%;
-    --card-foreground: 0 0% 95%;
-    --elev-1: 0 0% 10%;
-    --elev-2: 0 0% 12%;
-    --elev-3: 0 0% 14%;
-
-    --popover: 0 0% 10%;
-    --popover-foreground: 0 0% 95%;
-
-    /* Primary - Brightened teal for dark mode visibility */
-    --primary: 190 65% 55%;
-    --primary-foreground: 0 0% 8%;
-
-    /* Secondary - Darker cool grey */
-    --secondary: 200 10% 20%;
-    --secondary-foreground: 0 0% 95%;
-
-    /* Muted - Mid-tone grey for dark mode */
-    --muted: 0 0% 14%;
-    --muted-foreground: 0 0% 65%;
-
-    /* Accent - Warm orange maintains energy in dark mode */
-    --accent: 25 100% 66%;
-    --accent-foreground: 0 0% 8%;
-
-    /* Destructive */
-    --destructive: 0 75% 55%;
-    --destructive-foreground: 0 0% 95%;
-
-    /* Borders - Subtle in dark mode */
-    --border: 0 0% 22%;
-    --input: 0 0% 22%;
-    --ring: 190 65% 55%;
-
-    /* Category colors - Adjusted for dark mode contrast */
-    --labor: 221 65% 60%;
-    --labor-light: 221 65% 20%;
-    
-    --environment: 150 55% 50%;
-    --environment-light: 150 55% 20%;
-    
-    --politics: 279 50% 55%;
-    --politics-light: 279 50% 20%;
-    
-    --social: 200 25% 55%;
-    --social-light: 200 25% 20%;
-    
-    --cultural-values: 330 50% 55%;
-    --cultural-values-light: 330 50% 20%;
-
-    /* Status colors for dark mode */
-    --success: 142 65% 48%;
-    --success-light: 142 65% 20%;
-    
-    --warning: 40 95% 55%;
-    --warning-light: 40 95% 20%;
-    
-    --danger: 0 75% 58%;
-    --danger-light: 0 75% 20%;
   }
 }
 
@@ -161,25 +101,36 @@ All colors MUST be HSL.
   }
 
   html, body {
-    background: var(--bg);
-    color: var(--text);
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   body {
     @apply text-foreground;
   }
 
-  /* Accessibility - Enhanced focus rings */
-  *:focus-visible {
-    @apply outline-none;
-    box-shadow: var(--ring);
+  /* Headlines use Public Sans */
+  h1, h2, h3, h4 {
+    font-family: 'Public Sans', system-ui, sans-serif;
+    letter-spacing: -0.02em;
   }
 
-  /* Reduced motion for accessibility */
+  /* Monospace data labels */
+  code, .font-mono, .data-label {
+    font-family: 'Space Grotesk', monospace;
+  }
+
+  /* Focus rings — cyan glow */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-accent/40 ring-offset-1 ring-offset-background;
+  }
+
+  /* Reduced motion */
   @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
+    *, *::before, *::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
@@ -206,24 +157,74 @@ All colors MUST be HSL.
   }
 
   .border-subtle {
-    border-color: hsl(var(--border));
+    border-color: hsl(var(--border) / 0.15);
+  }
+
+  /* Glassmorphism for floating panels */
+  .glass {
+    background: hsl(var(--elev-2) / 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  /* Forensic gradient for CTAs */
+  .gradient-forensic {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+  }
+
+  /* Ghost border — 15% opacity suggestion */
+  .border-ghost {
+    border-color: hsl(var(--border) / 0.15);
+  }
+
+  /* Ambient shadow — only for truly floating elements */
+  .shadow-ambient {
+    box-shadow: 0 20px 40px hsl(214 100% 5% / 0.4);
+  }
+
+  /* Data density text */
+  .text-data {
+    font-family: 'Space Grotesk', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* Evidence label styling */
+  .label-forensic {
+    font-family: 'Space Grotesk', monospace;
+    font-size: 0.6875rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
   }
 
   /* Component-specific utilities */
   .btn-base {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+    border-radius: 0;
+    font-family: 'Space Grotesk', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 
   .btn-cta {
-    @apply btn-base bg-accent text-accent-foreground hover:brightness-105 active:brightness-95;
+    @apply btn-base text-accent-foreground;
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
   }
 
   .badge-base {
-    @apply inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium;
+    @apply inline-flex items-center gap-1 px-2 py-1 text-xs font-medium;
+    border-radius: 0;
   }
 
-  /* Smooth transitions with retention-optimized timing */
   .transition-retention {
     transition: var(--transition-smooth);
+  }
+
+  /* Forensic grid overlay */
+  .forensic-grid {
+    background-image: radial-gradient(circle, hsl(var(--foreground) / 0.03) 1px, transparent 1px);
+    background-size: 24px 24px;
   }
 }
