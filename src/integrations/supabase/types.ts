@@ -3511,6 +3511,66 @@ export type Database = {
         }
         Relationships: []
       }
+      company_identifier_conflicts: {
+        Row: {
+          attempted_company_id: string | null
+          confidence_score: number | null
+          created_at: string | null
+          existing_company_id: string | null
+          existing_company_name: string | null
+          id: string
+          identifier_type: string
+          identifier_value: string
+          incoming_company_name: string | null
+          resolved: boolean | null
+          resolved_at: string | null
+          resolved_by: string | null
+        }
+        Insert: {
+          attempted_company_id?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          existing_company_id?: string | null
+          existing_company_name?: string | null
+          id?: string
+          identifier_type: string
+          identifier_value: string
+          incoming_company_name?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Update: {
+          attempted_company_id?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          existing_company_id?: string | null
+          existing_company_name?: string | null
+          id?: string
+          identifier_type?: string
+          identifier_value?: string
+          incoming_company_name?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_identifier_conflicts_existing_company_id_fkey"
+            columns: ["existing_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_identifier_conflicts_existing_company_id_fkey"
+            columns: ["existing_company_id"]
+            isOneToOne: false
+            referencedRelation: "v_company_identity_completeness"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_institutional_holders: {
         Row: {
           cik: string | null
@@ -10222,27 +10282,43 @@ export type Database = {
         }
         Returns: undefined
       }
-      upsert_company_spine: {
-        Args: {
-          p_country?: string
-          p_description?: string
-          p_domain?: string
-          p_exchange?: string
-          p_founded_year?: number
-          p_is_public?: boolean
-          p_jurisdiction?: string
-          p_legal_name?: string
-          p_lei?: string
-          p_logo_url?: string
-          p_name: string
-          p_opencorporates_id?: string
-          p_sec_cik?: string
-          p_source?: string
-          p_ticker?: string
-          p_wikidata_qid?: string
-        }
-        Returns: string
-      }
+      upsert_company_spine:
+        | {
+            Args: {
+              p_country?: string
+              p_description?: string
+              p_domain?: string
+              p_exchange?: string
+              p_founded_year?: number
+              p_is_public?: boolean
+              p_jurisdiction?: string
+              p_legal_name?: string
+              p_lei?: string
+              p_logo_url?: string
+              p_name: string
+              p_opencorporates_id?: string
+              p_sec_cik?: string
+              p_source?: string
+              p_ticker?: string
+              p_wikidata_qid?: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_exchange?: string
+              p_jurisdiction?: string
+              p_legal_name?: string
+              p_lei?: string
+              p_name: string
+              p_opencorporates_id?: string
+              p_sec_cik?: string
+              p_ticker?: string
+              p_website_domain?: string
+              p_wikidata_qid?: string
+            }
+            Returns: string
+          }
       verification_rank: { Args: { v: string }; Returns: number }
     }
     Enums: {
