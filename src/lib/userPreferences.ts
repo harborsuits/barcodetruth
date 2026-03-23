@@ -80,6 +80,16 @@ export async function updateUserValues(values: {
       throw profileError;
     }
     
+    // Sync to localStorage so valueFit.ts picks up new weights immediately
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('userValues', JSON.stringify({
+        labor: values.value_labor,
+        environment: values.value_environment,
+        politics: values.value_politics,
+        social: values.value_social,
+      }));
+    }
+    
     console.log('Values saved successfully:', data);
     return true;
   } catch (err) {
