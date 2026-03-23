@@ -100,6 +100,26 @@ export function CompletenessMetrics() {
     },
     {
       icon: HelpCircle,
+      label: "Missing Category",
+      value: String(metrics.brands_missing_category),
+      detail: "brands without category_slug",
+      progress: metrics.total_brands > 0
+        ? Math.round(((metrics.total_brands - metrics.brands_missing_category) / metrics.total_brands) * 100)
+        : 0,
+      color: "text-orange-500",
+    },
+    {
+      icon: HelpCircle,
+      label: "Missing Attributes",
+      value: String(metrics.brands_missing_attributes),
+      detail: "brands without any attributes",
+      progress: metrics.total_brands > 0
+        ? Math.round(((metrics.total_brands - metrics.brands_missing_attributes) / metrics.total_brands) * 100)
+        : 0,
+      color: "text-orange-500",
+    },
+    {
+      icon: HelpCircle,
       label: "Unknown Barcodes Pending",
       value: String(metrics.unknown_barcodes_pending),
       detail: "awaiting enrichment",
