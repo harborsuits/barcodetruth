@@ -35,6 +35,8 @@ interface BrandEvent {
   category_impacts: CategoryImpacts | null;
   category: string;
   credibility: number | null;
+  source_tier: SourceTier | null;
+  score_eligible: boolean | null;
   // Inheritance fields for parent-child brand relationships
   inherited_from_parent?: boolean;
   parent_brand_name?: string | null;
