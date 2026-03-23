@@ -1,6 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CATEGORY_KEYWORDS, NEGATIVE_GUARDS } from "../_shared/keywords.ts";
+import { classifySourceTier, isScoreEligible } from "../_shared/sourceTiers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
