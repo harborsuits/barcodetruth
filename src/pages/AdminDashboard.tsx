@@ -478,6 +478,9 @@ export default function AdminDashboard() {
           )}
         </div>
 
+        {/* Data Completeness Metrics */}
+        <CompletenessMetrics />
+
         {/* Brand Build Health */}
         <div>
           <h2 className="text-xl font-semibold mb-4">Brand Build Health</h2>
