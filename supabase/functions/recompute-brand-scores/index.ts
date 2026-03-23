@@ -446,7 +446,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    console.log(`Events with impacts: ${eventsWithImpacts}, without: ${eventsWithoutImpacts}`);
+    console.log(`Events with impacts: ${eventsWithImpacts}, without: ${eventsWithoutImpacts}, tier3 skipped: ${eventsSkippedTier3}`);
     console.log(`Computed dimension sums for ${brandScoresMap.size} brands`);
 
     // Upsert scores into brand_scores table
