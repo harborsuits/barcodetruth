@@ -137,9 +137,15 @@ export function AlternativesSection({ brandId, brandName }: AlternativesSectionP
     <Card>
       <CardContent className="pt-6">
         <h2 className="text-lg font-semibold mb-1">Better Alternatives</h2>
-        <p className="text-xs text-muted-foreground mb-4">
+        <p className="text-xs text-muted-foreground mb-3">
           Brands in the same category — different ownership, stronger scores
         </p>
+        <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 mb-4 space-y-0.5">
+          <p className="font-medium text-foreground/70">Why these alternatives?</p>
+          <p>✓ Different parent company than the scanned brand</p>
+          <p>✓ Ranked by ethics score + ownership independence</p>
+          <p>✓ Independent, local & co-op brands ranked higher</p>
+        </div>
 
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
