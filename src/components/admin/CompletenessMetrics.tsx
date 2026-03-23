@@ -14,6 +14,8 @@ interface Metrics {
   scan_resolved: number;
   unknown_barcodes_pending: number;
   brands_with_attributes: number;
+  brands_missing_category: number;
+  brands_missing_attributes: number;
 }
 
 export function CompletenessMetrics() {
