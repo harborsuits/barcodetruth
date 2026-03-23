@@ -40,6 +40,8 @@ export const Settings = () => {
   const [politicalAlignment, setPoliticalAlignment] = useState<string | null>(null);
   const [excludeSameParent, setExcludeSameParent] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [region, setRegion] = useState("");
+  const [zipCode, setZipCode] = useState("");
 
   useEffect(() => {
     // Check authentication status
