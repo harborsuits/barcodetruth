@@ -318,14 +318,14 @@ Deno.serve(async (req: Request) => {
       const verificationWeight = getVerificationWeight(event.verification);
       const credibilityWeight = event.credibility ?? 0.6;
       
-      // P1/P3: Apply source tier weight - Tier 3 events get near-zero score contribution
-      const tierWeight = TIER_SCORE_WEIGHTS[(event.source_tier as SourceTier) ?? 'tier_3'];
-      
-      // P1: Skip events that aren't score-eligible (they still show in feed)
-      if (event.score_eligible === false && tierWeight <= 0.1) {
+      // P1/P3: Hard gate — non-eligible events NEVER affect scores
+      if (!event.score_eligible) {
         eventsSkippedTier3++;
-        continue; // Don't count toward scoring at all
+        continue;
       }
+      
+      // Apply tier weight for eligible events (Tier 1 = 1.0, Tier 2 = 0.6)
+      const tierWeight = TIER_SCORE_WEIGHTS[(event.source_tier as SourceTier) ?? 'tier_3'];
       
       // Read category_impacts - THE KEY FIX
       const impacts: CategoryImpacts = event.category_impacts || {};
