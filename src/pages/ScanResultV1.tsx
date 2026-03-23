@@ -496,6 +496,11 @@ export default function ScanResultV1() {
           </CardContent>
         </Card>
 
+        {/* Alternatives Section */}
+        {brandIsReady && brandInfo?.id && (
+          <AlternativesSection brandId={brandInfo.id} brandName={brandInfo.name || "this brand"} />
+        )}
+
         {/* Action buttons */}
         <div className="space-y-2">
           {brandIsReady && brandInfo?.slug && (
