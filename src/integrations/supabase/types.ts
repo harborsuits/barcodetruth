@@ -3405,12 +3405,21 @@ export type Database = {
           description_lang: string | null
           description_source: string | null
           exchange: string | null
+          founded_year: number | null
           id: string
+          identifiers_updated_at: string | null
+          identity_sources: string[] | null
           is_public: boolean | null
+          jurisdiction: string | null
+          legal_name: string | null
+          lei: string | null
           logo_source: string | null
           logo_url: string | null
           name: string
+          official_website: string | null
+          opencorporates_id: string | null
           ownership_structure: Json | null
+          sec_cik: string | null
           ticker: string | null
           updated_at: string | null
           wikidata_qid: string | null
@@ -3423,12 +3432,21 @@ export type Database = {
           description_lang?: string | null
           description_source?: string | null
           exchange?: string | null
+          founded_year?: number | null
           id?: string
+          identifiers_updated_at?: string | null
+          identity_sources?: string[] | null
           is_public?: boolean | null
+          jurisdiction?: string | null
+          legal_name?: string | null
+          lei?: string | null
           logo_source?: string | null
           logo_url?: string | null
           name: string
+          official_website?: string | null
+          opencorporates_id?: string | null
           ownership_structure?: Json | null
+          sec_cik?: string | null
           ticker?: string | null
           updated_at?: string | null
           wikidata_qid?: string | null
@@ -3441,12 +3459,21 @@ export type Database = {
           description_lang?: string | null
           description_source?: string | null
           exchange?: string | null
+          founded_year?: number | null
           id?: string
+          identifiers_updated_at?: string | null
+          identity_sources?: string[] | null
           is_public?: boolean | null
+          jurisdiction?: string | null
+          legal_name?: string | null
+          lei?: string | null
           logo_source?: string | null
           logo_url?: string | null
           name?: string
+          official_website?: string | null
+          opencorporates_id?: string | null
           ownership_structure?: Json | null
+          sec_cik?: string | null
           ticker?: string | null
           updated_at?: string | null
           wikidata_qid?: string | null
@@ -3521,6 +3548,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_institutional_holders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_company_identity_completeness"
             referencedColumns: ["id"]
           },
         ]
@@ -3688,7 +3722,28 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "company_ownership_child_company_id_fkey"
+            columns: ["child_company_id"]
+            isOneToOne: true
+            referencedRelation: "v_company_identity_completeness"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "company_ownership_parent_company_id_fkey"
+            columns: ["parent_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_ownership_parent_company_id_fkey"
+            columns: ["parent_company_id"]
+            isOneToOne: false
+            referencedRelation: "v_company_identity_completeness"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_co_parent_company"
             columns: ["parent_company_id"]
             isOneToOne: false
             referencedRelation: "companies"
@@ -3698,7 +3753,7 @@ export type Database = {
             foreignKeyName: "fk_co_parent_company"
             columns: ["parent_company_id"]
             isOneToOne: false
-            referencedRelation: "companies"
+            referencedRelation: "v_company_identity_completeness"
             referencedColumns: ["id"]
           },
         ]
@@ -3752,6 +3807,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_ownership_details_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_company_identity_completeness"
             referencedColumns: ["id"]
           },
         ]
@@ -3811,6 +3873,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_people_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_company_identity_completeness"
             referencedColumns: ["id"]
           },
         ]
@@ -3962,6 +4031,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_valuation_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_company_identity_completeness"
             referencedColumns: ["id"]
           },
         ]
@@ -9077,10 +9153,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "company_ownership_parent_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_company_identity_completeness"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fk_co_parent_company"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_co_parent_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_company_identity_completeness"
             referencedColumns: ["id"]
           },
         ]
@@ -9383,6 +9473,54 @@ export type Database = {
           coalesced_pct: number | null
           hour: string | null
           non_coalesced: number | null
+        }
+        Relationships: []
+      }
+      v_company_identity_completeness: {
+        Row: {
+          has_legal_name: boolean | null
+          has_lei: boolean | null
+          has_opencorporates: boolean | null
+          has_sec_cik: boolean | null
+          has_ticker: boolean | null
+          has_website: boolean | null
+          has_wikidata: boolean | null
+          id: string | null
+          identifier_count: number | null
+          identifiers_updated_at: string | null
+          identity_sources: string[] | null
+          is_public: boolean | null
+          name: string | null
+        }
+        Insert: {
+          has_legal_name?: never
+          has_lei?: never
+          has_opencorporates?: never
+          has_sec_cik?: never
+          has_ticker?: never
+          has_website?: never
+          has_wikidata?: never
+          id?: string | null
+          identifier_count?: never
+          identifiers_updated_at?: string | null
+          identity_sources?: string[] | null
+          is_public?: boolean | null
+          name?: string | null
+        }
+        Update: {
+          has_legal_name?: never
+          has_lei?: never
+          has_opencorporates?: never
+          has_sec_cik?: never
+          has_ticker?: never
+          has_website?: never
+          has_wikidata?: never
+          id?: string | null
+          identifier_count?: never
+          identifiers_updated_at?: string | null
+          identity_sources?: string[] | null
+          is_public?: boolean | null
+          name?: string | null
         }
         Relationships: []
       }
@@ -9832,6 +9970,18 @@ export type Database = {
       refresh_community_outlook: { Args: never; Returns: undefined }
       refresh_coverage_materialized_view: { Args: never; Returns: undefined }
       reset_stale_building_brands: { Args: never; Returns: number }
+      resolve_company_by_identifier: {
+        Args: {
+          p_domain?: string
+          p_legal_name?: string
+          p_lei?: string
+          p_opencorporates_id?: string
+          p_sec_cik?: string
+          p_ticker?: string
+          p_wikidata_qid?: string
+        }
+        Returns: string
+      }
       resolve_company_for_brand: {
         Args: { p_brand_id: string }
         Returns: string
@@ -9955,6 +10105,27 @@ export type Database = {
           p_stage: string
         }
         Returns: undefined
+      }
+      upsert_company_spine: {
+        Args: {
+          p_country?: string
+          p_description?: string
+          p_domain?: string
+          p_exchange?: string
+          p_founded_year?: number
+          p_is_public?: boolean
+          p_jurisdiction?: string
+          p_legal_name?: string
+          p_lei?: string
+          p_logo_url?: string
+          p_name: string
+          p_opencorporates_id?: string
+          p_sec_cik?: string
+          p_source?: string
+          p_ticker?: string
+          p_wikidata_qid?: string
+        }
+        Returns: string
       }
       verification_rank: { Args: { v: string }; Returns: number }
     }

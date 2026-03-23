@@ -88,6 +88,7 @@ const KNOWN_ASSET_MANAGERS = new Set([
   "Q2037125",  // State Street Corporation (alt QID)
   "Q7603552",  // State Street Global Advisors
   "Q1411799",  // Fidelity
+  "Q1411292",  // Fidelity Investments (alt QID)
   "Q1585024",  // Capital Group
   "Q2003795",  // T. Rowe Price
   "Q727725",   // Berkshire Hathaway
@@ -98,10 +99,27 @@ const KNOWN_ASSET_MANAGERS = new Set([
   "Q524656",   // Charles Schwab
   "Q495123",   // Wellington Management
   "Q908461",   // Northern Trust
+  "Q22687",    // bank (generic)
 ]);
+
+// Also block by name pattern for entities not in the hardcoded list
+const INVESTOR_NAME_PATTERNS = [
+  /\bvanguard\b/i, /\bblackrock\b/i, /\bstate street\b/i, /\bfidelity\b/i,
+  /\bcapital group\b/i, /\bwellington\b/i, /\bnorthern trust\b/i,
+  /\bt\.\s?rowe\s?price\b/i, /\bjpmorgan\b/i, /\bgoldman sachs\b/i,
+  /\bmorgan stanley\b/i, /\bcharles schwab\b/i, /\bcitigroup\b/i,
+  /\binvesco\b/i, /\bpimco\b/i, /\bubs\b/i, /\bcredit suisse\b/i,
+  /\bdeutsche bank\b/i, /\bbarclays\b/i, /\bhsbc\b/i,
+  /\basset management\b/i, /\binvestment\s+(management|group|fund)\b/i,
+];
 
 function isCorporateEntity(entity: any, qid: string): boolean {
   if (KNOWN_ASSET_MANAGERS.has(qid)) return false;
+  
+  // Name-based check
+  const name = entity?.labels?.en?.value ?? "";
+  if (INVESTOR_NAME_PATTERNS.some(p => p.test(name))) return false;
+  
   const instanceOf = claimIds(entity, "P31");
   if (instanceOf.some(t => INVESTOR_TYPES.has(t))) return false;
   if (instanceOf.some(t => CORPORATE_TYPES.has(t))) return true;
@@ -293,29 +311,23 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Step 4: Upsert ultimate parent as a company
+        // Step 4: Upsert ultimate parent via company spine RPC
         let parentCompanyId: string | null = null;
 
         if (ultimateParent) {
-          const { data: companyRow } = await supabase
-            .from("companies")
-            .upsert(
-              {
-                wikidata_qid: ultimateParent.qid,
-                name: ultimateParent.name,
-                description: ultimateParent.description,
-                ticker: ultimateParent.ticker,
-                exchange: ultimateParent.exchange_qid ? EXCHANGE_MAP[ultimateParent.exchange_qid] ?? null : null,
-                is_public: ultimateParent.is_public,
-                logo_url: ultimateParent.logo_url,
-              },
-              { onConflict: "wikidata_qid", ignoreDuplicates: false }
-            )
-            .select("id")
-            .maybeSingle();
+          const { data: spineId } = await supabase.rpc("upsert_company_spine", {
+            p_name: ultimateParent.name,
+            p_wikidata_qid: ultimateParent.qid,
+            p_ticker: ultimateParent.ticker,
+            p_exchange: ultimateParent.exchange_qid ? EXCHANGE_MAP[ultimateParent.exchange_qid] ?? null : null,
+            p_is_public: ultimateParent.is_public,
+            p_logo_url: ultimateParent.logo_url,
+            p_description: ultimateParent.description,
+            p_source: "wikidata",
+          });
 
-          parentCompanyId = companyRow?.id ?? null;
-          log(`Upserted parent company: ${ultimateParent.name} (${parentCompanyId})`);
+          parentCompanyId = spineId as string | null;
+          log(`Upserted parent company via spine: ${ultimateParent.name} (${parentCompanyId})`);
         }
 
         // Step 5: Link brand to parent
