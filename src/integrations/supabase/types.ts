@@ -3399,6 +3399,7 @@ export type Database = {
       }
       companies: {
         Row: {
+          company_type: Database["public"]["Enums"]["company_type"] | null
           country: string | null
           created_at: string | null
           description: string | null
@@ -3428,6 +3429,7 @@ export type Database = {
           wikipedia_title: string | null
         }
         Insert: {
+          company_type?: Database["public"]["Enums"]["company_type"] | null
           country?: string | null
           created_at?: string | null
           description?: string | null
@@ -3457,6 +3459,7 @@ export type Database = {
           wikipedia_title?: string | null
         }
         Update: {
+          company_type?: Database["public"]["Enums"]["company_type"] | null
           country?: string | null
           created_at?: string | null
           description?: string | null
@@ -10256,6 +10259,23 @@ export type Database = {
         Args: { p_brand_id: string; p_max_items?: number }
         Returns: Json
       }
+      get_smart_alternatives: {
+        Args: { p_brand_id: string; p_limit?: number }
+        Returns: {
+          alt_group: string
+          brand_id: string
+          brand_name: string
+          company_type: string
+          logo_url: string
+          parent_company: string
+          reason: string
+          score: number
+          score_environment: number
+          score_labor: number
+          score_politics: number
+          score_social: number
+        }[]
+      }
       get_source_credibility: {
         Args: { source_name_param: string }
         Returns: number
@@ -10524,6 +10544,14 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user" | "moderator"
+      company_type:
+        | "conglomerate"
+        | "public"
+        | "private"
+        | "independent"
+        | "local"
+        | "cooperative"
+        | "nonprofit"
       company_type_enum:
         | "public"
         | "private"
@@ -10686,6 +10714,15 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user", "moderator"],
+      company_type: [
+        "conglomerate",
+        "public",
+        "private",
+        "independent",
+        "local",
+        "cooperative",
+        "nonprofit",
+      ],
       company_type_enum: [
         "public",
         "private",
