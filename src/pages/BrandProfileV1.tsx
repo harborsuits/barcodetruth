@@ -697,6 +697,11 @@ export default function BrandProfileV1() {
           />
         )}
 
+        {/* Alternatives Section */}
+        {resolvedBrandId && (
+          <AlternativesSection brandId={resolvedBrandId} brandName={brand.name} />
+        )}
+
         {/* Trust Pledge - How We Stay Neutral */}
         <TrustPledge />
 
