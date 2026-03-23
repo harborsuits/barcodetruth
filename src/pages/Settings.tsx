@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Users, Leaf, Megaphone, Heart, Info, Bell, Crown, LogOut } from "lucide-react";
@@ -40,6 +41,8 @@ export const Settings = () => {
   const [politicalAlignment, setPoliticalAlignment] = useState<string | null>(null);
   const [excludeSameParent, setExcludeSameParent] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [region, setRegion] = useState("");
+  const [zipCode, setZipCode] = useState("");
 
   useEffect(() => {
     // Check authentication status
@@ -102,6 +105,8 @@ export const Settings = () => {
           if (typeof data.exclude_same_parent === 'boolean') {
             setExcludeSameParent(data.exclude_same_parent);
           }
+          if (data.region) setRegion(data.region);
+          if (data.zip_code) setZipCode(data.zip_code);
         }
       }
     };
@@ -122,8 +127,10 @@ export const Settings = () => {
           political_alignment: politicalAlignment,
           digest_time: digestTime,
           exclude_same_parent: excludeSameParent,
+          region: region || null,
+          zip_code: zipCode || null,
           updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
+        } as any, { onConflict: 'user_id' });
 
       if (error) {
         console.error('Failed to save other settings:', error);
@@ -369,7 +376,7 @@ export const Settings = () => {
           <CardHeader>
             <CardTitle>Alternatives</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <Label htmlFor="exclude-parent">Hide Same-Parent Alternatives</Label>
@@ -382,6 +389,35 @@ export const Settings = () => {
                 checked={excludeSameParent}
                 onCheckedChange={setExcludeSameParent}
               />
+            </div>
+
+            <div className="border-t pt-4 space-y-4">
+              <div>
+                <Label className="text-sm font-medium">Location (optional)</Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Helps prioritize local alternatives near you
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="region" className="text-xs">Region / State</Label>
+                  <Input
+                    id="region"
+                    placeholder="e.g. California"
+                    value={region}
+                    onChange={(e) => setRegion(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="zip-code" className="text-xs">Zip Code</Label>
+                  <Input
+                    id="zip-code"
+                    placeholder="e.g. 90210"
+                    value={zipCode}
+                    onChange={(e) => setZipCode(e.target.value)}
+                  />
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
