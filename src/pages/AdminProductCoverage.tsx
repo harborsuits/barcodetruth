@@ -11,10 +11,10 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Loader2, ArrowLeft, Package, Database, BarChart3,
-  ScanLine, HelpCircle, Upload, RefreshCw, Play
+  ScanLine, HelpCircle, Upload, RefreshCw, Play, Zap
 } from "lucide-react";
 
-const CATEGORY_QUEUE = ["beverages", "snacks", "cereals", "dairy", "condiments", "frozen-foods", "sauces"];
+const CATEGORY_QUEUE = ["beverages", "snacks", "cereals", "dairy", "condiments", "frozen-foods", "sauces", "personal-care", "household", "baby-products", "cleaning"];
 
 interface CoverageMetrics {
   total_products: number;
@@ -30,6 +30,12 @@ interface CoverageMetrics {
   scan_resolution_rate: number;
 }
 
+interface PageResult {
+  page: number;
+  inserted: number;
+  duration_ms: number;
+}
+
 interface ImportResult {
   inserted: number;
   skipped_duplicate: number;
@@ -40,6 +46,9 @@ interface ImportResult {
   duration_ms: number;
   unmapped_brands_sample?: string[];
   page: number;
+  max_pages: number;
+  pages_processed: number;
+  page_results?: PageResult[];
 }
 
 export default function AdminProductCoverage() {
@@ -49,6 +58,7 @@ export default function AdminProductCoverage() {
   const [category, setCategory] = useState("beverages");
   const [country, setCountry] = useState("united-states");
   const [page, setPage] = useState(1);
+  const [maxPages, setMaxPages] = useState(10);
   const [lastResult, setLastResult] = useState<ImportResult | null>(null);
   const [importLog, setImportLog] = useState<{ category: string; result: ImportResult }[]>([]);
 
@@ -62,21 +72,22 @@ export default function AdminProductCoverage() {
     staleTime: 1000 * 30,
   });
 
-  const runBulkImport = async (cat?: string) => {
+  const runBulkImport = async (cat?: string, pages?: number) => {
     const importCategory = cat || category;
+    const importPages = pages || maxPages;
     setImporting(true);
     try {
       const { data, error } = await supabase.functions.invoke("bulk-import-off", {
-        body: { category: importCategory, country, page: cat ? 1 : page, page_size: 100 },
+        body: { category: importCategory, country, page: cat ? 1 : page, page_size: 200, max_pages: importPages },
       });
       if (error) throw error;
       const result = data as ImportResult;
       setLastResult(result);
       setImportLog(prev => [...prev, { category: importCategory, result }]);
-      if (!cat) setPage(p => p + 1);
+      if (!cat) setPage(p => p + importPages);
       toast({
         title: `Import: ${importCategory}`,
-        description: `+${result.inserted} products, ${result.brands_mapped} mapped, ${result.brands_created} new brands`,
+        description: `+${result.inserted} products across ${result.pages_processed} pages, ${result.brands_mapped} mapped, ${result.brands_created} new brands (${Math.round(result.duration_ms / 1000)}s)`,
       });
       refetch();
     } catch (e: any) {
@@ -161,11 +172,11 @@ export default function AdminProductCoverage() {
         </Card>
       )}
 
-      {/* Quick Category Import */}
+      {/* Quick Category Import - Auto Paginating */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Play className="h-5 w-5" />Quick Category Import</CardTitle>
-          <CardDescription>One-click import page 1 of each high-value category</CardDescription>
+          <CardTitle className="flex items-center gap-2"><Zap className="h-5 w-5" />Bulk Category Import</CardTitle>
+          <CardDescription>Auto-paginating: imports 10 pages × 200 products = ~2,000 per category</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
@@ -175,7 +186,7 @@ export default function AdminProductCoverage() {
                 variant="outline"
                 size="sm"
                 disabled={importing}
-                onClick={() => runBulkImport(cat)}
+                onClick={() => runBulkImport(cat, 10)}
               >
                 {importing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
                 {cat}
@@ -189,25 +200,33 @@ export default function AdminProductCoverage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5" />Manual Import</CardTitle>
-          <CardDescription>Import products by category and country. Each run imports up to 100 products.</CardDescription>
+          <CardDescription>Fine-grained control: set category, start page, and number of pages.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <div><Label>Category</Label><Input value={category} onChange={e => setCategory(e.target.value)} placeholder="beverages" /></div>
             <div><Label>Country</Label><Input value={country} onChange={e => setCountry(e.target.value)} placeholder="united-states" /></div>
-            <div><Label>Page</Label><Input type="number" value={page} onChange={e => setPage(Number(e.target.value))} min={1} /></div>
+            <div><Label>Start Page</Label><Input type="number" value={page} onChange={e => setPage(Number(e.target.value))} min={1} /></div>
+            <div><Label>Pages</Label><Input type="number" value={maxPages} onChange={e => setMaxPages(Math.min(Number(e.target.value), 20))} min={1} max={20} /></div>
           </div>
           <div className="flex gap-2">
             <Button onClick={() => runBulkImport()} disabled={importing}>
               {importing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
-              Import Page {page}
+              Import {maxPages} Pages from Page {page}
             </Button>
             <Button variant="outline" onClick={() => refetch()}><RefreshCw className="h-4 w-4 mr-2" />Refresh</Button>
           </div>
           {lastResult && (
             <div className="text-xs bg-muted p-3 rounded space-y-1">
-              <div>Inserted: {lastResult.inserted} • Dupes: {lastResult.skipped_duplicate} • Brands mapped: {lastResult.brands_mapped} • Created: {lastResult.brands_created}</div>
-              <div>OFF total: {lastResult.total_off_products?.toLocaleString()} • Pages: {lastResult.total_pages} • Duration: {lastResult.duration_ms}ms</div>
+              <div className="font-medium">Inserted: {lastResult.inserted} • Dupes: {lastResult.skipped_duplicate} • Brands mapped: {lastResult.brands_mapped} • Created: {lastResult.brands_created}</div>
+              <div>Pages processed: {lastResult.pages_processed} • OFF total: {lastResult.total_off_products?.toLocaleString()} • Available pages: {lastResult.total_pages} • Duration: {Math.round(lastResult.duration_ms / 1000)}s</div>
+              {lastResult.page_results && lastResult.page_results.length > 0 && (
+                <div className="pt-1 border-t mt-1">
+                  {lastResult.page_results.map(pr => (
+                    <span key={pr.page} className="inline-block mr-2">p{pr.page}: +{pr.inserted} ({pr.duration_ms}ms)</span>
+                  ))}
+                </div>
+              )}
               {lastResult.unmapped_brands_sample && lastResult.unmapped_brands_sample.length > 0 && (
                 <div>Unmapped samples: {lastResult.unmapped_brands_sample.join(", ")}</div>
               )}
@@ -225,7 +244,7 @@ export default function AdminProductCoverage() {
               {importLog.map((entry, i) => (
                 <div key={i} className="flex items-center justify-between text-sm border-b pb-1">
                   <Badge variant="outline">{entry.category}</Badge>
-                  <span>+{entry.result.inserted} products • {entry.result.brands_mapped} mapped • {entry.result.brands_created} new • {entry.result.duration_ms}ms</span>
+                  <span>+{entry.result.inserted} products • {entry.result.pages_processed} pages • {entry.result.brands_mapped} mapped • {entry.result.brands_created} new • {Math.round(entry.result.duration_ms / 1000)}s</span>
                 </div>
               ))}
             </div>
