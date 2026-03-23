@@ -557,6 +557,20 @@ const App = () => {
             }
           />
           <Route
+            path="/admin/ownership-audit"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading ownership audit…" />}>
+                      <AdminOwnershipAudit />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/bootstrap-admin"
             element={
               <Suspense fallback={<RouteFallback label="Loading…" />}>
