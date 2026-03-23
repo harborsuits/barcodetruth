@@ -121,6 +121,11 @@ Deno.serve(async (req) => {
               .rpc('search_brands_fuzzy', { search_term: brandRaw, min_similarity: 0.6 })
               .limit(1);
 
+            const minSimilarity = brandRaw.length < 6 ? 0.75 : 0.6;
+            const { data: fuzzyMatch } = await supabase
+              .rpc('search_brands_fuzzy', { search_term: brandRaw, min_similarity: minSimilarity })
+              .limit(1);
+
             if (fuzzyMatch && fuzzyMatch.length > 0) {
               brandId = fuzzyMatch[0].id;
               brandsMapped++;
@@ -128,6 +133,14 @@ Deno.serve(async (req) => {
               await supabase.from('brand_aliases').insert({
                 external_name: brandDisplay || brandRaw,
                 canonical_brand_id: brandId,
+                source: 'openfoodfacts_fuzzy',
+              }).maybeSingle();
+              // Log to review queue for admin oversight
+              await supabase.from('fuzzy_alias_review').insert({
+                external_name: brandDisplay || brandRaw,
+                matched_brand_id: brandId,
+                matched_brand_name: fuzzyMatch[0].name ?? null,
+                similarity_score: fuzzyMatch[0].similarity ?? null,
                 source: 'openfoodfacts_fuzzy',
               }).maybeSingle();
             } else if (brandRaw.length > 2 && !/^\d+$/.test(brandRaw)) {
