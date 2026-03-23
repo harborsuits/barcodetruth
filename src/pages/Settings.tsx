@@ -142,10 +142,24 @@ export const Settings = () => {
         return;
       }
     }
+
+    // Sync region/zip to localStorage for alternatives ranking
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('userLocation', JSON.stringify({
+        region: region || null,
+        zip_code: zipCode || null,
+      }));
+    }
+
+    // Invalidate alternatives + personalized caches
+    queryClient.invalidateQueries({ queryKey: ['brand-alternatives'] });
+    queryClient.invalidateQueries({ queryKey: ['personalized-brand-score'] });
+    queryClient.invalidateQueries({ queryKey: ['alignment-score'] });
+    queryClient.invalidateQueries({ queryKey: ['user-preferences'] });
     
     toast({
       title: "Settings saved",
-      description: "Your notification and filter preferences have been updated",
+      description: "Your preferences and location have been updated",
     });
     
     navigate(-1);
