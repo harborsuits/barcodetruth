@@ -310,12 +310,22 @@ Deno.serve(async (req: Request) => {
     const brandScoresMap = new Map<string, BrandScore>();
     let eventsWithImpacts = 0;
     let eventsWithoutImpacts = 0;
+    let eventsSkippedTier3 = 0;
 
     for (const event of dedupedEvents) {
       const eventDate = new Date(event.event_date);
       const recencyWeight = getRecencyWeight(eventDate, now);
       const verificationWeight = getVerificationWeight(event.verification);
       const credibilityWeight = event.credibility ?? 0.6;
+      
+      // P1/P3: Apply source tier weight - Tier 3 events get near-zero score contribution
+      const tierWeight = TIER_SCORE_WEIGHTS[(event.source_tier as SourceTier) ?? 'tier_3'];
+      
+      // P1: Skip events that aren't score-eligible (they still show in feed)
+      if (event.score_eligible === false && tierWeight <= 0.1) {
+        eventsSkippedTier3++;
+        continue; // Don't count toward scoring at all
+      }
       
       // Read category_impacts - THE KEY FIX
       const impacts: CategoryImpacts = event.category_impacts || {};
@@ -328,8 +338,8 @@ Deno.serve(async (req: Request) => {
         eventsWithoutImpacts++;
       }
       
-      // Combined weight for this event
-      const combinedWeight = recencyWeight * verificationWeight * credibilityWeight;
+      // Combined weight includes tier weight for source credibility gating
+      const combinedWeight = recencyWeight * verificationWeight * credibilityWeight * tierWeight;
       
       // Get scope multiplier (1.0 for direct events, 0.7 for inherited from parent)
       const scopeMultiplier = (event as BrandEvent).scope_multiplier ?? 1.0;
