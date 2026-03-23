@@ -23,6 +23,7 @@ export const Settings = () => {
   const navigate = useNavigate();
   const { subscribed, subscription_end, loading, startCheckout, manageSubscription } = useSubscription();
   const isAdmin = useIsAdmin();
+  const queryClient = useQueryClient();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [values, setValues] = useState({
