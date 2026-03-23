@@ -3568,48 +3568,69 @@ export type Database = {
           child_company_id: string | null
           confidence: number | null
           created_at: string | null
+          effective_from: string | null
+          effective_to: string | null
           id: string
+          is_current: boolean | null
           is_validated: boolean | null
           last_verified: string | null
           last_verified_at: string | null
           parent_company_id: string | null
           parent_name: string
           relationship: string | null
+          relationship_role:
+            | Database["public"]["Enums"]["ownership_role"]
+            | null
           relationship_type: string | null
           source: string
           source_ref: string | null
+          source_url: string | null
         }
         Insert: {
           child_brand_id?: string | null
           child_company_id?: string | null
           confidence?: number | null
           created_at?: string | null
+          effective_from?: string | null
+          effective_to?: string | null
           id?: string
+          is_current?: boolean | null
           is_validated?: boolean | null
           last_verified?: string | null
           last_verified_at?: string | null
           parent_company_id?: string | null
           parent_name: string
           relationship?: string | null
+          relationship_role?:
+            | Database["public"]["Enums"]["ownership_role"]
+            | null
           relationship_type?: string | null
           source: string
           source_ref?: string | null
+          source_url?: string | null
         }
         Update: {
           child_brand_id?: string | null
           child_company_id?: string | null
           confidence?: number | null
           created_at?: string | null
+          effective_from?: string | null
+          effective_to?: string | null
           id?: string
+          is_current?: boolean | null
           is_validated?: boolean | null
           last_verified?: string | null
           last_verified_at?: string | null
           parent_company_id?: string | null
           parent_name?: string
           relationship?: string | null
+          relationship_role?:
+            | Database["public"]["Enums"]["ownership_role"]
+            | null
           relationship_type?: string | null
           source?: string
           source_ref?: string | null
+          source_url?: string | null
         }
         Relationships: [
           {
@@ -9785,6 +9806,20 @@ export type Database = {
           verification: Database["public"]["Enums"]["verification_level"]
         }[]
       }
+      get_brand_investors: {
+        Args: { p_brand_id: string }
+        Returns: {
+          confidence: number
+          effective_from: string
+          effective_to: string
+          investor_company_id: string
+          investor_name: string
+          is_current: boolean
+          relationship_role: string
+          source: string
+          source_url: string
+        }[]
+      }
       get_brand_ownership: { Args: { p_brand_id: string }; Returns: Json }
       get_brand_profile_state: { Args: { p_brand_id: string }; Returns: Json }
       get_brand_profile_tier: { Args: { p_brand_id: string }; Returns: Json }
@@ -9852,6 +9887,17 @@ export type Database = {
           brand_id: string
           brand_name: string
           company_size: string
+        }[]
+      }
+      get_operating_parent: {
+        Args: { p_brand_id: string }
+        Returns: {
+          confidence: number
+          parent_company_id: string
+          parent_name: string
+          relationship_role: string
+          source: string
+          source_url: string
         }[]
       }
       get_ownership_graph: { Args: { p_brand_id: string }; Returns: Json }
@@ -10153,6 +10199,15 @@ export type Database = {
         | "division_of"
         | "subsidiary_of"
         | "acquired_by"
+      ownership_role:
+        | "ultimate_operating_parent"
+        | "legal_parent"
+        | "brand_owner"
+        | "subsidiary_of"
+        | "major_shareholder"
+        | "private_equity_sponsor"
+        | "historical_parent"
+        | "investor"
       people_role: "chief_executive_officer" | "founder" | "chairperson"
       submission_status: "pending" | "verified" | "rejected"
       verification_level: "unverified" | "corroborated" | "official"
@@ -10308,6 +10363,16 @@ export const Constants = {
         "division_of",
         "subsidiary_of",
         "acquired_by",
+      ],
+      ownership_role: [
+        "ultimate_operating_parent",
+        "legal_parent",
+        "brand_owner",
+        "subsidiary_of",
+        "major_shareholder",
+        "private_equity_sponsor",
+        "historical_parent",
+        "investor",
       ],
       people_role: ["chief_executive_officer", "founder", "chairperson"],
       submission_status: ["pending", "verified", "rejected"],
