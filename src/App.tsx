@@ -587,6 +587,20 @@ const App = () => {
             }
           />
           <Route
+            path="/admin/fuzzy-review"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading fuzzy review…" />}>
+                      <AdminFuzzyReview />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/bootstrap-admin"
             element={
               <Suspense fallback={<RouteFallback label="Loading…" />}>
