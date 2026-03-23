@@ -56,6 +56,7 @@ const AdminBulkEnrichFortune500 = lazyNamed(() => import("./pages/AdminBulkEnric
 const AdminSeeding = lazyNamed(() => import("./pages/AdminSeeding"), "default");
 const AdminUsers = lazyNamed(() => import("./pages/AdminUsers"), "default");
 const AdminTest = lazyNamed(() => import("./pages/AdminTest"), "default");
+const AdminBrandManager = lazyNamed(() => import("./pages/AdminBrandManager"), "default");
 const Feed = lazyNamed(() => import("./pages/Feed"), "default");
 const BootstrapAdmin = lazyNamed(() => import("./pages/BootstrapAdmin"), "default");
 const Privacy = lazyNamed(() => import("./pages/Privacy"), "default");
