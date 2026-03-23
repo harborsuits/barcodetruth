@@ -139,22 +139,33 @@ export default function ScanResultV1() {
     queryKey: ['brand-info-v1', product?.brand_id],
     enabled: !!product?.brand_id,
     refetchInterval: (query) => {
-      const status = query.state.data?.status;
+      const status = (query.state.data as any)?.status;
       if (status === 'stub' || status === 'building') {
-        return 5000; // Poll every 5s while building
+        return 5000;
       }
       return false;
     },
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('brands')
+        .from('brands' as any)
         .select('id, name, slug, status, logo_url, description, enrichment_stage, enrichment_stage_updated_at, enrichment_started_at, parent_company_id')
         .eq('id', product!.brand_id)
         .limit(1)
         .maybeSingle();
       
       if (error) throw error;
-      return data;
+      return data as unknown as {
+        id: string;
+        name: string;
+        slug: string | null;
+        status: string | null;
+        logo_url: string | null;
+        description: string | null;
+        enrichment_stage: string | null;
+        enrichment_stage_updated_at: string | null;
+        enrichment_started_at: string | null;
+        parent_company_id: string | null;
+      } | null;
     },
   });
 
