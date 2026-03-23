@@ -5,6 +5,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { compareTwoStrings } from 'https://esm.sh/string-similarity@4.0.4';
 import { corsHeaders } from '../_shared/cors.ts';
+import { TIER_SCORE_WEIGHTS, type SourceTier } from '../_shared/sourceTiers.ts';
 
 const RECENCY_WEIGHTS = {
   '0-30': 1.0,
@@ -34,6 +35,8 @@ interface BrandEvent {
   category_impacts: CategoryImpacts | null;
   category: string;
   credibility: number | null;
+  source_tier: SourceTier | null;
+  score_eligible: boolean | null;
   // Inheritance fields for parent-child brand relationships
   inherited_from_parent?: boolean;
   parent_brand_name?: string | null;
@@ -254,7 +257,7 @@ Deno.serve(async (req: Request) => {
     // Uses brand_events_with_inheritance to include parent company events for subsidiaries
     const { data: events, error: eventsError } = await supabase
       .from('brand_events_with_inheritance')
-      .select('event_id, brand_id, title, event_date, verification, category_impacts, category, credibility, inherited_from_parent, parent_brand_name, scope_multiplier')
+      .select('event_id, brand_id, title, event_date, verification, category_impacts, category, credibility, source_tier, score_eligible, inherited_from_parent, parent_brand_name, scope_multiplier')
       .gte('event_date', oneYearAgo.toISOString())
       .order('event_date', { ascending: false });
 
@@ -307,12 +310,22 @@ Deno.serve(async (req: Request) => {
     const brandScoresMap = new Map<string, BrandScore>();
     let eventsWithImpacts = 0;
     let eventsWithoutImpacts = 0;
+    let eventsSkippedTier3 = 0;
 
     for (const event of dedupedEvents) {
       const eventDate = new Date(event.event_date);
       const recencyWeight = getRecencyWeight(eventDate, now);
       const verificationWeight = getVerificationWeight(event.verification);
       const credibilityWeight = event.credibility ?? 0.6;
+      
+      // P1/P3: Apply source tier weight - Tier 3 events get near-zero score contribution
+      const tierWeight = TIER_SCORE_WEIGHTS[(event.source_tier as SourceTier) ?? 'tier_3'];
+      
+      // P1: Skip events that aren't score-eligible (they still show in feed)
+      if (event.score_eligible === false && tierWeight <= 0.1) {
+        eventsSkippedTier3++;
+        continue; // Don't count toward scoring at all
+      }
       
       // Read category_impacts - THE KEY FIX
       const impacts: CategoryImpacts = event.category_impacts || {};
@@ -325,8 +338,8 @@ Deno.serve(async (req: Request) => {
         eventsWithoutImpacts++;
       }
       
-      // Combined weight for this event
-      const combinedWeight = recencyWeight * verificationWeight * credibilityWeight;
+      // Combined weight includes tier weight for source credibility gating
+      const combinedWeight = recencyWeight * verificationWeight * credibilityWeight * tierWeight;
       
       // Get scope multiplier (1.0 for direct events, 0.7 for inherited from parent)
       const scopeMultiplier = (event as BrandEvent).scope_multiplier ?? 1.0;
@@ -433,7 +446,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    console.log(`Events with impacts: ${eventsWithImpacts}, without: ${eventsWithoutImpacts}`);
+    console.log(`Events with impacts: ${eventsWithImpacts}, without: ${eventsWithoutImpacts}, tier3 skipped: ${eventsSkippedTier3}`);
     console.log(`Computed dimension sums for ${brandScoresMap.size} brands`);
 
     // Upsert scores into brand_scores table

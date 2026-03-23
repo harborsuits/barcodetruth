@@ -47,6 +47,8 @@ export interface BrandEvent {
   company_response?: { date?: string; url?: string; summary?: string };
   resolved?: boolean;
   raw_data?: Record<string, any>;
+  source_tier?: 'tier_1' | 'tier_2' | 'tier_3';
+  score_eligible?: boolean;
   // Inheritance fields
   inherited_from_parent?: boolean;
   parent_brand_name?: string;
@@ -271,6 +273,14 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
   const attributionLine = lineFromEvent(event);
   const showUnverifiedWarning = event.verification === "unverified" && !showFullDetails;
   
+  // Source tier badge
+  const tierBadge = useMemo(() => {
+    const tier = event.source_tier;
+    if (tier === 'tier_1') return { label: 'Score-driving', className: 'bg-primary/20 text-primary border border-primary/30' };
+    if (tier === 'tier_2') return { label: 'Corroborating', className: 'bg-accent/20 text-accent-foreground border border-accent/30' };
+    return { label: 'Context', className: 'bg-muted text-muted-foreground border border-border' };
+  }, [event.source_tier]);
+  
   // Compute severity using centralized config
   const severityResult = useMemo(() => 
     computeSeverity({
@@ -444,6 +454,16 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
               >
                 {SourceLogo && <SourceLogo className="h-3 w-3 opacity-60" />}
                 {verificationBadge.label}
+              </span>
+            )}
+
+            {/* Source tier badge */}
+            {!compact && tierBadge && (
+              <span 
+                className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-md ${tierBadge.className}`}
+                title={event.score_eligible ? 'This event contributes to scores' : 'Feed context only — does not affect scores'}
+              >
+                {tierBadge.label}
               </span>
             )}
             

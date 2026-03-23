@@ -1,6 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CATEGORY_KEYWORDS, NEGATIVE_GUARDS } from "../_shared/keywords.ts";
+import { classifySourceTier, isScoreEligible } from "../_shared/sourceTiers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -250,12 +251,20 @@ Deno.serve(async (req) => {
       }
     }
     
-    // Determine credibility based on domain
-    const highCredDomains = ["reuters.com", "apnews.com", "bbc.com", "npr.org", "nytimes.com", "washingtonpost.com", "wsj.com", "ft.com"];
-    const officialDomains = [".gov", "sec.gov", "epa.gov", "fda.gov", "osha.gov", "nlrb.gov", "ftc.gov", "doj.gov"];
+    // Determine source tier and credibility based on domain
+    const sourceTier = classifySourceTier(domain);
     let credibility = 0.6;
-    if (officialDomains.some(d => domain.includes(d))) credibility = 1.0;
-    else if (highCredDomains.some(d => domain.includes(d))) credibility = 0.9;
+    if (sourceTier === 'tier_1') credibility = 1.0;
+    else if (sourceTier === 'tier_2') credibility = 0.9;
+    
+    // Determine score eligibility using shared gate logic
+    const scoreEligible = isScoreEligible({
+      category: simpleCategory,
+      is_irrelevant: primary === "noise",
+      source_tier: sourceTier,
+      category_confidence: confidence,
+      category_impacts: categoryImpacts,
+    });
     
     // Map to database severity enum
     const dbSeverity: 'minor' | 'moderate' | 'severe' = severity === 'critical' ? 'severe' : severity;
@@ -285,6 +294,8 @@ Deno.serve(async (req) => {
         credibility,
         verification_factor: 0.5,
         category_impacts: categoryImpacts,
+        source_tier: sourceTier,
+        score_eligible: scoreEligible,
         ...impactScores,
       })
       .eq("event_id", event_id)  // event_id is unique PK - no need for brand_id

@@ -1553,9 +1553,11 @@ export type Database = {
           relevance_score_norm: number | null
           relevance_score_raw: number
           resolved: boolean | null
+          score_eligible: boolean | null
           secondary_categories: string[] | null
           secondary_category: string | null
           severity: string | null
+          source_tier: string | null
           source_url: string | null
           source_url_sha256: string | null
           title: string | null
@@ -1601,9 +1603,11 @@ export type Database = {
           relevance_score_norm?: number | null
           relevance_score_raw?: number
           resolved?: boolean | null
+          score_eligible?: boolean | null
           secondary_categories?: string[] | null
           secondary_category?: string | null
           severity?: string | null
+          source_tier?: string | null
           source_url?: string | null
           source_url_sha256?: string | null
           title?: string | null
@@ -1651,9 +1655,11 @@ export type Database = {
           relevance_score_norm?: number | null
           relevance_score_raw?: number
           resolved?: boolean | null
+          score_eligible?: boolean | null
           secondary_categories?: string[] | null
           secondary_category?: string | null
           severity?: string | null
+          source_tier?: string | null
           source_url?: string | null
           source_url_sha256?: string | null
           title?: string | null
@@ -9560,6 +9566,16 @@ export type Database = {
           score_politics: number
           score_social: number
         }[]
+      }
+      compute_score_eligibility: {
+        Args: {
+          p_category: string
+          p_category_confidence: number
+          p_category_impacts: Json
+          p_is_irrelevant: boolean
+          p_source_tier: string
+        }
+        Returns: boolean
       }
       current_window_start: { Args: { p_kind: string }; Returns: string }
       ensure_default_scores: { Args: { _brand_id: string }; Returns: undefined }
