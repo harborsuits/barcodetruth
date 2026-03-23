@@ -257,7 +257,7 @@ Deno.serve(async (req: Request) => {
     // Uses brand_events_with_inheritance to include parent company events for subsidiaries
     const { data: events, error: eventsError } = await supabase
       .from('brand_events_with_inheritance')
-      .select('event_id, brand_id, title, event_date, verification, category_impacts, category, credibility, inherited_from_parent, parent_brand_name, scope_multiplier')
+      .select('event_id, brand_id, title, event_date, verification, category_impacts, category, credibility, source_tier, score_eligible, inherited_from_parent, parent_brand_name, scope_multiplier')
       .gte('event_date', oneYearAgo.toISOString())
       .order('event_date', { ascending: false });
 
