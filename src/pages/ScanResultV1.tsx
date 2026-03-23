@@ -498,6 +498,20 @@ export default function ScanResultV1() {
           </CardContent>
         </Card>
 
+        {/* Parent Company */}
+        {brandIsReady && brandInfo?.parent_company_id && (
+          <ParentCompanyBanner parentCompanyId={brandInfo.parent_company_id} />
+        )}
+
+        {/* Sister Brands */}
+        {brandIsReady && brandInfo?.id && brandInfo?.parent_company_id && (
+          <Card>
+            <CardContent className="pt-6">
+              <SisterBrandsCard brandId={brandInfo.id} parentCompanyId={brandInfo.parent_company_id} />
+            </CardContent>
+          </Card>
+        )}
+
         {/* Alternatives Section */}
         {brandIsReady && brandInfo?.id && (
           <AlternativesSection brandId={brandInfo.id} brandName={brandInfo.name || "this brand"} />
