@@ -456,6 +456,16 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
                 {verificationBadge.label}
               </span>
             )}
+
+            {/* Source tier badge */}
+            {!compact && tierBadge && (
+              <span 
+                className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-md ${tierBadge.className}`}
+                title={event.score_eligible ? 'This event contributes to scores' : 'Feed context only — does not affect scores'}
+              >
+                {tierBadge.label}
+              </span>
+            )}
             
             {!compact && (
               <span
