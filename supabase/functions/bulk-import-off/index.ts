@@ -18,8 +18,22 @@ function normalizeBrandName(raw: string): string {
   return raw
     .split(',')[0]
     .trim()
-    .replace(/\s+/g, ' ')
+    .normalize('NFC')            // Normalize unicode (é vs e+combining)
     .replace(/[™®©]/g, '')
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .replace(/\b(inc|llc|ltd|co|corp|company|usa|us|uk|gmbh|sa|sas|ag)\b\.?/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function displayBrandName(raw: string): string {
+  return raw
+    .split(',')[0]
+    .trim()
+    .normalize('NFC')
+    .replace(/[™®©]/g, '')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
