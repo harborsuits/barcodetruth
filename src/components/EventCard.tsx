@@ -273,6 +273,14 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
   const attributionLine = lineFromEvent(event);
   const showUnverifiedWarning = event.verification === "unverified" && !showFullDetails;
   
+  // Source tier badge
+  const tierBadge = useMemo(() => {
+    const tier = event.source_tier;
+    if (tier === 'tier_1') return { label: 'Score-driving', className: 'bg-primary/20 text-primary border border-primary/30' };
+    if (tier === 'tier_2') return { label: 'Corroborating', className: 'bg-accent/20 text-accent-foreground border border-accent/30' };
+    return { label: 'Context', className: 'bg-muted text-muted-foreground border border-border' };
+  }, [event.source_tier]);
+  
   // Compute severity using centralized config
   const severityResult = useMemo(() => 
     computeSeverity({
