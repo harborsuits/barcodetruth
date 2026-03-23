@@ -689,6 +689,13 @@ export const Settings = () => {
                 >
                   Fortune 500 Enrich
                 </Button>
+                <Button 
+                  onClick={() => navigate('/admin/brand-manager')}
+                  variant="outline"
+                  size="sm"
+                >
+                  Brand Manager
+                </Button>
               </div>
             </CardContent>
           </Card>
