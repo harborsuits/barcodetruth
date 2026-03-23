@@ -84,11 +84,20 @@ const INVESTOR_TYPES = new Set([
 const KNOWN_ASSET_MANAGERS = new Set([
   "Q849363",   // Vanguard Group
   "Q219635",   // BlackRock
-  "Q1350802",  // State Street
+  "Q1350802",  // State Street Corporation
+  "Q2037125",  // State Street Corporation (alt QID)
+  "Q7603552",  // State Street Global Advisors
   "Q1411799",  // Fidelity
   "Q1585024",  // Capital Group
   "Q2003795",  // T. Rowe Price
-  "Q727725",   // Berkshire Hathaway — treat as investor in chain context
+  "Q727725",   // Berkshire Hathaway
+  "Q192314",   // JPMorgan Chase
+  "Q219508",   // Citigroup
+  "Q466187",   // Goldman Sachs
+  "Q217583",   // Morgan Stanley
+  "Q524656",   // Charles Schwab
+  "Q495123",   // Wellington Management
+  "Q908461",   // Northern Trust
 ]);
 
 function isCorporateEntity(entity: any, qid: string): boolean {
