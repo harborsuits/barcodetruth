@@ -16,14 +16,15 @@ export function SisterBrandsCard({ brandId, parentCompanyId }: SisterBrandsCardP
     enabled: !!parentCompanyId,
     staleTime: 1000 * 60 * 10,
     queryFn: async () => {
-      const { data, error } = await (supabase
-        .from("brands")
+      const query = supabase
+        .from("brands" as any)
         .select("id, name, slug, logo_url")
         .eq("parent_company_id", parentCompanyId!)
         .neq("id", brandId)
-        .limit(12) as any);
+        .limit(12);
+      const { data, error } = await query;
       if (error) throw error;
-      return data as { id: string; name: string; slug: string | null; logo_url: string | null }[];
+      return (data || []) as { id: string; name: string; slug: string | null; logo_url: string | null }[];
     },
   });
 
