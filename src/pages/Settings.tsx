@@ -375,7 +375,7 @@ export const Settings = () => {
           <CardHeader>
             <CardTitle>Alternatives</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <Label htmlFor="exclude-parent">Hide Same-Parent Alternatives</Label>
@@ -388,6 +388,35 @@ export const Settings = () => {
                 checked={excludeSameParent}
                 onCheckedChange={setExcludeSameParent}
               />
+            </div>
+
+            <div className="border-t pt-4 space-y-4">
+              <div>
+                <Label className="text-sm font-medium">Location (optional)</Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Helps prioritize local alternatives near you
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="region" className="text-xs">Region / State</Label>
+                  <Input
+                    id="region"
+                    placeholder="e.g. California"
+                    value={region}
+                    onChange={(e) => setRegion(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="zip-code" className="text-xs">Zip Code</Label>
+                  <Input
+                    id="zip-code"
+                    placeholder="e.g. 90210"
+                    value={zipCode}
+                    onChange={(e) => setZipCode(e.target.value)}
+                  />
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
