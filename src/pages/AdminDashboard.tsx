@@ -288,6 +288,16 @@ export default function AdminDashboard() {
       metrics: "Data import"
     },
     {
+      title: "Brand Manager",
+      description: "Assign categories and attributes to brands for alternatives",
+      icon: Package,
+      route: "/admin/brand-manager",
+      color: "text-teal-600 dark:text-teal-400",
+      bgColor: "bg-teal-600/10",
+      priority: "high",
+      metrics: "Categories & tags"
+    },
+    {
       title: "Manual Triggers",
       description: "Run enrichment and scoring jobs on demand",
       icon: Zap,
