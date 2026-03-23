@@ -11,6 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { AlternativesSection } from "@/components/brand/AlternativesSection";
 import { EnrichmentStageProgress } from "@/components/brand/EnrichmentStageProgress";
+import { ParentCompanyBanner } from "@/components/brand/ParentCompanyBanner";
+import { SisterBrandsCard } from "@/components/brand/SisterBrandsCard";
 
 // V1 Consumer Contract:
 // - Product name (from barcode lookup) or "Unknown product"
