@@ -8,7 +8,6 @@ const corsHeaders = {
 const log = (...args: any[]) => console.log("[seed-corporate-structure]", ...args);
 const warn = (...args: any[]) => console.warn("[seed-corporate-structure]", ...args);
 
-// Retry helper
 async function fetchRetry(url: string, retries = 3): Promise<Response> {
   for (let i = 0; i < retries; i++) {
     try {
@@ -26,7 +25,6 @@ async function fetchRetry(url: string, retries = 3): Promise<Response> {
   throw new Error("fetch failed");
 }
 
-// Wikidata helpers
 async function getEntity(qid: string) {
   const res = await fetchRetry(`https://www.wikidata.org/wiki/Special:EntityData/${qid}.json`);
   if (!res.ok) throw new Error(`Entity fetch ${res.status} for ${qid}`);
@@ -36,8 +34,8 @@ async function getEntity(qid: string) {
   return { qid: key ?? qid, entity: entities[key] };
 }
 
-const label = (e: any, l = "en") => e?.labels?.[l]?.value ?? null;
-const desc = (e: any, l = "en") => e?.descriptions?.[l]?.value ?? null;
+const labelOf = (e: any, l = "en") => e?.labels?.[l]?.value ?? null;
+const descOf = (e: any, l = "en") => e?.descriptions?.[l]?.value ?? null;
 
 function claimIds(entity: any, prop: string): string[] {
   return (entity?.claims?.[prop] ?? [])
@@ -51,12 +49,56 @@ function claimStrings(entity: any, prop: string): string[] {
     .filter((v: any) => typeof v === "string");
 }
 
-// Wikidata properties
-// P749 = parent organization, P127 = owned by
-// P355 = has subsidiary, P1830 = owner of
-// P169 = CEO, P488 = chair, P112 = founder
-// P414 = stock exchange, P249 = ticker symbol
-// P856 = official website, P17 = country
+// Entity types that are CORPORATE (safe to follow as parents)
+const CORPORATE_TYPES = new Set([
+  "Q4830453",  // business
+  "Q783794",   // company
+  "Q431289",   // brand
+  "Q891723",   // public company
+  "Q167037",   // corporation
+  "Q155076",   // subsidiary
+  "Q1539532",  // conglomerate
+  "Q507619",   // retailer
+  "Q46970",    // airline
+  "Q1058914",  // software company
+  "Q166280",   // multinational corporation
+  "Q6881511",  // enterprise
+  "Q43229",    // organization
+]);
+
+// Entity types that are INVESTORS (stop walking the chain)
+const INVESTOR_TYPES = new Set([
+  "Q327333",   // government agency
+  "Q726827",   // investment management company
+  "Q180917",   // investment company
+  "Q161726",   // mutual fund
+  "Q3196867",  // investment fund
+  "Q1433714",  // hedge fund
+  "Q1144593",  // index fund
+  "Q2624782",  // private equity firm
+  "Q1377987",  // holding company — ambiguous but often an investor
+  "Q22687",    // bank
+]);
+
+// Known asset managers by QID (hardcoded safety net)
+const KNOWN_ASSET_MANAGERS = new Set([
+  "Q849363",   // Vanguard Group
+  "Q219635",   // BlackRock
+  "Q1350802",  // State Street
+  "Q1411799",  // Fidelity
+  "Q1585024",  // Capital Group
+  "Q2003795",  // T. Rowe Price
+  "Q727725",   // Berkshire Hathaway — treat as investor in chain context
+]);
+
+function isCorporateEntity(entity: any, qid: string): boolean {
+  if (KNOWN_ASSET_MANAGERS.has(qid)) return false;
+  const instanceOf = claimIds(entity, "P31");
+  if (instanceOf.some(t => INVESTOR_TYPES.has(t))) return false;
+  if (instanceOf.some(t => CORPORATE_TYPES.has(t))) return true;
+  // If no type info, assume NOT corporate (conservative)
+  return false;
+}
 
 interface DiscoveredEntity {
   qid: string;
@@ -64,30 +106,26 @@ interface DiscoveredEntity {
   description: string | null;
   ticker: string | null;
   exchange_qid: string | null;
-  country_qid: string | null;
   is_public: boolean;
   logo_url: string | null;
-  website: string | null;
   parent_qids: string[];
   subsidiary_qids: string[];
+  is_corporate: boolean;
 }
 
 async function discoverEntity(qid: string): Promise<DiscoveredEntity | null> {
   try {
     const { qid: resolvedQid, entity } = await getEntity(qid);
     if (!entity) return null;
-
-    const name = label(entity);
+    const name = labelOf(entity);
     if (!name) return null;
 
     const tickerArr = claimStrings(entity, "P249");
     const exchangeArr = claimIds(entity, "P414");
-    const countryArr = claimIds(entity, "P17");
-    const websites = claimStrings(entity, "P856");
-    const parentQids = [...claimIds(entity, "P749"), ...claimIds(entity, "P127")];
-    const subsidiaryQids = [...claimIds(entity, "P355"), ...claimIds(entity, "P1830")];
+    // P749 = parent organization (structural), P127 = owned by (can include investors)
+    const parentQids = [...new Set([...claimIds(entity, "P749"), ...claimIds(entity, "P127")])];
+    const subsidiaryQids = [...new Set([...claimIds(entity, "P355"), ...claimIds(entity, "P1830")])];
 
-    // Logo from P154 (logo image)
     const logoClaim = entity?.claims?.P154?.[0]?.mainsnak?.datavalue?.value;
     const logo_url = logoClaim
       ? `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(logoClaim)}`
@@ -96,15 +134,14 @@ async function discoverEntity(qid: string): Promise<DiscoveredEntity | null> {
     return {
       qid: resolvedQid,
       name,
-      description: desc(entity),
+      description: descOf(entity),
       ticker: tickerArr[0] ?? null,
       exchange_qid: exchangeArr[0] ?? null,
-      country_qid: countryArr[0] ?? null,
       is_public: tickerArr.length > 0 || exchangeArr.length > 0,
       logo_url,
-      website: websites[0] ?? null,
-      parent_qids: [...new Set(parentQids)],
-      subsidiary_qids: [...new Set(subsidiaryQids)],
+      parent_qids: parentQids,
+      subsidiary_qids: subsidiaryQids,
+      is_corporate: isCorporateEntity(entity, resolvedQid),
     };
   } catch (e) {
     warn("Failed to discover entity", qid, (e as Error).message);
@@ -112,17 +149,9 @@ async function discoverEntity(qid: string): Promise<DiscoveredEntity | null> {
   }
 }
 
-// Resolve exchange QID to human-readable name
 const EXCHANGE_MAP: Record<string, string> = {
-  Q13677: "NYSE",
-  Q82059: "NASDAQ",
-  Q171240: "LSE",
-  Q217475: "Euronext",
-  Q808936: "TSX",
-  Q549981: "ASX",
-  Q217230: "SIX",
-  Q485718: "HKEX",
-  Q1055279: "TSE",
+  Q13677: "NYSE", Q82059: "NASDAQ", Q171240: "LSE", Q217475: "Euronext",
+  Q808936: "TSX", Q549981: "ASX", Q217230: "SIX", Q485718: "HKEX",
 };
 
 Deno.serve(async (req) => {
@@ -139,14 +168,11 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { brand_id, limit = 10, dry_run = false } = body;
 
-    // Mode 1: Single brand — build full corporate tree
-    // Mode 2: Batch — process N brands that have QIDs but no company_ownership rows
     const brandIds: string[] = [];
 
     if (brand_id) {
       brandIds.push(brand_id);
     } else {
-      // Find brands with QIDs but missing corporate structure
       const { data: brands } = await supabase
         .from("brands")
         .select("id, name, wikidata_qid")
@@ -161,7 +187,6 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Filter to brands without company_ownership rows
       for (const b of brands) {
         const { count } = await supabase
           .from("company_ownership")
@@ -172,7 +197,6 @@ Deno.serve(async (req) => {
     }
 
     log(`Processing ${brandIds.length} brands (dry_run=${dry_run})`);
-
     const results: any[] = [];
 
     for (const bid of brandIds) {
@@ -197,30 +221,41 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Step 2: Walk UP the ownership chain to find ultimate parent
+        // Step 2: Walk UP the ownership chain — ONLY follow corporate entities
         const chain: DiscoveredEntity[] = [brandEntity];
         const visited = new Set<string>([brandEntity.qid]);
         let current = brandEntity;
         let ultimateParent: DiscoveredEntity | null = null;
 
         while (current.parent_qids.length > 0) {
-          const nextQid = current.parent_qids[0]; // Follow first parent
-          if (visited.has(nextQid)) break; // Prevent loops
-          visited.add(nextQid);
+          let foundCorporateParent = false;
 
-          const parent = await discoverEntity(nextQid);
-          if (!parent) break;
+          for (const nextQid of current.parent_qids) {
+            if (visited.has(nextQid)) continue;
+            visited.add(nextQid);
 
-          chain.push(parent);
-          ultimateParent = parent;
-          current = parent;
+            const parent = await discoverEntity(nextQid);
+            if (!parent) continue;
 
-          // Safety: max 5 levels deep
+            // KEY GUARDRAIL: Stop at investors/asset managers
+            if (!parent.is_corporate) {
+              log(`Stopped chain at ${parent.name} (${parent.qid}) — not corporate entity`);
+              continue;
+            }
+
+            chain.push(parent);
+            ultimateParent = parent;
+            current = parent;
+            foundCorporateParent = true;
+            break; // Follow first valid corporate parent
+          }
+
+          if (!foundCorporateParent) break;
           if (chain.length > 5) break;
-          await new Promise(r => setTimeout(r, 300)); // Rate limit
+          await new Promise(r => setTimeout(r, 300));
         }
 
-        // Step 3: Get subsidiaries of the ultimate parent (sister brands)
+        // Step 3: Get subsidiaries of ultimate parent (sister brands)
         const topEntity = ultimateParent ?? brandEntity;
         const sisterBrands: DiscoveredEntity[] = [];
 
@@ -238,18 +273,17 @@ Deno.serve(async (req) => {
             brand_id: bid,
             name: brand.name,
             status: "dry_run",
-            chain: chain.map(e => ({ qid: e.qid, name: e.name })),
+            chain: chain.map(e => ({ qid: e.qid, name: e.name, is_corporate: e.is_corporate })),
             ultimate_parent: ultimateParent ? { qid: ultimateParent.qid, name: ultimateParent.name } : null,
             sister_brands: sisterBrands.map(e => ({ qid: e.qid, name: e.name })),
           });
           continue;
         }
 
-        // Step 4: Persist — upsert companies for each entity in the chain
+        // Step 4: Upsert ultimate parent as a company
         let parentCompanyId: string | null = null;
 
         if (ultimateParent) {
-          // Upsert ultimate parent as a company
           const { data: companyRow } = await supabase
             .from("companies")
             .upsert(
@@ -271,7 +305,7 @@ Deno.serve(async (req) => {
           log(`Upserted parent company: ${ultimateParent.name} (${parentCompanyId})`);
         }
 
-        // Step 5: Create company_ownership link
+        // Step 5: Link brand to parent
         if (parentCompanyId) {
           await supabase.from("company_ownership").upsert(
             {
@@ -289,12 +323,17 @@ Deno.serve(async (req) => {
             { onConflict: "child_brand_id,parent_company_id" }
           );
           log(`Linked ${brand.name} → ${ultimateParent!.name}`);
+
+          // Also update brand.parent_company field for quick display
+          await supabase
+            .from("brands")
+            .update({ parent_company: ultimateParent!.name })
+            .eq("id", bid);
         }
 
         // Step 6: Create/link sister brands
         let sistersLinked = 0;
         for (const sister of sisterBrands) {
-          // Check if brand already exists by wikidata_qid
           const { data: existingBrand } = await supabase
             .from("brands")
             .select("id")
@@ -304,7 +343,6 @@ Deno.serve(async (req) => {
           let sisterBrandId = existingBrand?.id;
 
           if (!sisterBrandId) {
-            // Create a stub brand for the sister
             const { data: newBrand } = await supabase
               .from("brands")
               .insert({
@@ -312,7 +350,7 @@ Deno.serve(async (req) => {
                 wikidata_qid: sister.qid,
                 description: sister.description,
                 status: "stub",
-                parent_company: ultimateParent?.name ?? null,
+                parent_company: ultimateParent?.name ?? topEntity.name,
               })
               .select("id")
               .maybeSingle();
@@ -321,7 +359,6 @@ Deno.serve(async (req) => {
             if (sisterBrandId) log(`Created stub brand: ${sister.name}`);
           }
 
-          // Link sister to parent company
           if (sisterBrandId && parentCompanyId) {
             await supabase.from("company_ownership").upsert(
               {
@@ -352,7 +389,6 @@ Deno.serve(async (req) => {
           chain_depth: chain.length,
         });
 
-        // Rate limit between brands
         await new Promise(r => setTimeout(r, 500));
       } catch (e) {
         warn("Error processing brand", bid, (e as Error).message);
