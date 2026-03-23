@@ -93,6 +93,12 @@ export async function lookupScanAndLog(
     }
 
     if (!finalProduct) {
+      // Log unknown barcode for enrichment queue
+      try {
+        await supabase.rpc('log_unknown_barcode' as any, { p_barcode: rawGtin });
+      } catch (e) {
+        console.warn('Failed to log unknown barcode:', e);
+      }
       return { 
         notFound: true,
         message: "We're gathering evidence for this product's brand. We'll update you when it's ready."
