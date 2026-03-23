@@ -294,6 +294,8 @@ Deno.serve(async (req) => {
         credibility,
         verification_factor: 0.5,
         category_impacts: categoryImpacts,
+        source_tier: sourceTier,
+        score_eligible: scoreEligible,
         ...impactScores,
       })
       .eq("event_id", event_id)  // event_id is unique PK - no need for brand_id
