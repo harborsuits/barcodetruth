@@ -126,8 +126,10 @@ export const Settings = () => {
           political_alignment: politicalAlignment,
           digest_time: digestTime,
           exclude_same_parent: excludeSameParent,
+          region: region || null,
+          zip_code: zipCode || null,
           updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
+        } as any, { onConflict: 'user_id' });
 
       if (error) {
         console.error('Failed to save other settings:', error);
