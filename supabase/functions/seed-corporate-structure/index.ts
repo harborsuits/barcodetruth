@@ -293,29 +293,23 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Step 4: Upsert ultimate parent as a company
+        // Step 4: Upsert ultimate parent via company spine RPC
         let parentCompanyId: string | null = null;
 
         if (ultimateParent) {
-          const { data: companyRow } = await supabase
-            .from("companies")
-            .upsert(
-              {
-                wikidata_qid: ultimateParent.qid,
-                name: ultimateParent.name,
-                description: ultimateParent.description,
-                ticker: ultimateParent.ticker,
-                exchange: ultimateParent.exchange_qid ? EXCHANGE_MAP[ultimateParent.exchange_qid] ?? null : null,
-                is_public: ultimateParent.is_public,
-                logo_url: ultimateParent.logo_url,
-              },
-              { onConflict: "wikidata_qid", ignoreDuplicates: false }
-            )
-            .select("id")
-            .maybeSingle();
+          const { data: spineId } = await supabase.rpc("upsert_company_spine", {
+            p_name: ultimateParent.name,
+            p_wikidata_qid: ultimateParent.qid,
+            p_ticker: ultimateParent.ticker,
+            p_exchange: ultimateParent.exchange_qid ? EXCHANGE_MAP[ultimateParent.exchange_qid] ?? null : null,
+            p_is_public: ultimateParent.is_public,
+            p_logo_url: ultimateParent.logo_url,
+            p_description: ultimateParent.description,
+            p_source: "wikidata",
+          });
 
-          parentCompanyId = companyRow?.id ?? null;
-          log(`Upserted parent company: ${ultimateParent.name} (${parentCompanyId})`);
+          parentCompanyId = spineId as string | null;
+          log(`Upserted parent company via spine: ${ultimateParent.name} (${parentCompanyId})`);
         }
 
         // Step 5: Link brand to parent
