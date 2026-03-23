@@ -9564,6 +9564,16 @@ export type Database = {
         }
         Relationships: []
       }
+      v_ownership_conflicts: {
+        Row: {
+          brand_name: string | null
+          child_brand_id: string | null
+          confidence: number | null
+          conflict_type: string | null
+          detail: string | null
+        }
+        Relationships: []
+      }
       v_ownership_trail: {
         Row: {
           confidence: number | null
