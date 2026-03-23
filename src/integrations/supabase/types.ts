@@ -3422,6 +3422,7 @@ export type Database = {
           sec_cik: string | null
           ticker: string | null
           updated_at: string | null
+          website_domain: string | null
           wikidata_qid: string | null
           wikipedia_title: string | null
         }
@@ -3449,6 +3450,7 @@ export type Database = {
           sec_cik?: string | null
           ticker?: string | null
           updated_at?: string | null
+          website_domain?: string | null
           wikidata_qid?: string | null
           wikipedia_title?: string | null
         }
@@ -3476,6 +3478,7 @@ export type Database = {
           sec_cik?: string | null
           ticker?: string | null
           updated_at?: string | null
+          website_domain?: string | null
           wikidata_qid?: string | null
           wikipedia_title?: string | null
         }
