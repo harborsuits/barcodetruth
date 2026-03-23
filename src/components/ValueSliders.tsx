@@ -72,8 +72,10 @@ export function ValueSliders({ initialValues, onSave, isSaving }: ValueSlidersPr
     value_political_alignment: initialValues?.value_political_alignment ?? 50,
   });
 
+  // Only sync from props on initial load, not on every re-render
+  const [hasInitialized, setHasInitialized] = useState(false);
   useEffect(() => {
-    if (initialValues) {
+    if (initialValues && !hasInitialized) {
       setValues({
         value_labor: initialValues.value_labor ?? 50,
         value_environment: initialValues.value_environment ?? 50,
@@ -82,8 +84,9 @@ export function ValueSliders({ initialValues, onSave, isSaving }: ValueSlidersPr
         value_political_intensity: initialValues.value_political_intensity ?? 50,
         value_political_alignment: initialValues.value_political_alignment ?? 50,
       });
+      setHasInitialized(true);
     }
-  }, [initialValues]);
+  }, [initialValues, hasInitialized]);
 
   const handleSliderChange = (key: string, value: number[]) => {
     setValues(prev => ({ ...prev, [key]: value[0] }));
