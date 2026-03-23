@@ -299,6 +299,14 @@ export const Settings = () => {
                 const success = await updateUserValues(newValues);
                 
                 if (success) {
+                  // Invalidate all personalized score caches so brand profiles re-fetch
+                  queryClient.invalidateQueries({ queryKey: ['personalized-brand-score'] });
+                  queryClient.invalidateQueries({ queryKey: ['personalized-score'] });
+                  queryClient.invalidateQueries({ queryKey: ['alignment-score'] });
+                  queryClient.invalidateQueries({ queryKey: ['default-brand-score'] });
+                  queryClient.invalidateQueries({ queryKey: ['user-preferences'] });
+                  queryClient.invalidateQueries({ queryKey: ['client-alignment'] });
+                  
                   toast({
                     title: "Values saved",
                     description: "Your personalized scores have been recalculated",
