@@ -6411,6 +6411,60 @@ export type Database = {
         }
         Relationships: []
       }
+      unknown_barcodes: {
+        Row: {
+          barcode: string
+          first_seen_at: string
+          id: string
+          last_seen_at: string
+          metadata: Json | null
+          normalized_barcode: string
+          resolved_product_id: string | null
+          scan_count: number
+          status: string
+          user_agent: string | null
+        }
+        Insert: {
+          barcode: string
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          metadata?: Json | null
+          normalized_barcode?: string
+          resolved_product_id?: string | null
+          scan_count?: number
+          status?: string
+          user_agent?: string | null
+        }
+        Update: {
+          barcode?: string
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          metadata?: Json | null
+          normalized_barcode?: string
+          resolved_product_id?: string | null
+          scan_count?: number
+          status?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "unknown_barcodes_resolved_product_id_fkey"
+            columns: ["resolved_product_id"]
+            isOneToOne: false
+            referencedRelation: "product_brand_profile"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "unknown_barcodes_resolved_product_id_fkey"
+            columns: ["resolved_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       unknown_products: {
         Row: {
           barcode: string
@@ -10054,6 +10108,7 @@ export type Database = {
           website: string
         }[]
       }
+      get_product_coverage_metrics: { Args: never; Returns: Json }
       get_scans_used_month: { Args: { p_user: string }; Returns: number }
       get_shareholder_breakdown: {
         Args: { p_brand_id: string; p_max_items?: number }
@@ -10110,6 +10165,10 @@ export type Database = {
           p_record_id?: string
           p_table_name: string
         }
+        Returns: undefined
+      }
+      log_unknown_barcode: {
+        Args: { p_barcode: string; p_user_agent?: string }
         Returns: undefined
       }
       merge_staged_products_batch: {
