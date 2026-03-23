@@ -209,9 +209,9 @@ Deno.serve(async (req) => {
     let resolvedTicker = ticker || "";
 
     if (!resolvedCik) {
-      const searchTerm = ticker || company_name;
-      log("Searching SEC for:", searchTerm);
-      const results = await searchCompany(searchTerm);
+      const searchTerm = company_name || ticker;
+      log("Searching SEC for:", searchTerm, "ticker hint:", ticker);
+      const results = await searchCompany(searchTerm, ticker || undefined);
 
       if (results.length === 0) {
         log("No SEC results for:", searchTerm);
