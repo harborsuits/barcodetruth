@@ -1000,6 +1000,14 @@ export default function AdminDashboard() {
               <Activity className="mr-2 h-4 w-4" />
               Category Tester
             </Button>
+            <Button 
+              variant="outline"
+              onClick={() => navigate("/admin/product-coverage")}
+              className="w-full"
+            >
+              <Package className="mr-2 h-4 w-4" />
+              Product Coverage
+            </Button>
           </CardContent>
         </Card>
       </main>
