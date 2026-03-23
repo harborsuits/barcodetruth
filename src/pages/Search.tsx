@@ -1,13 +1,21 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search as SearchIcon, Package } from "lucide-react";
+import { Search as SearchIcon, Package, Building2, Tag } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyStateExplainer } from "@/components/EmptyStateExplainer";
 import { searchCatalog, type ProductSearchResult, type BrandSearchResult } from "@/lib/searchCatalog";
+import { supabase } from "@/integrations/supabase/client";
 import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
+
+interface CompanySearchResult {
+  id: string;
+  name: string;
+  country: string | null;
+  brand_count: number;
+}
 
 export default function Search() {
   const navigate = useNavigate();
@@ -15,15 +23,16 @@ export default function Search() {
   const [query, setQuery] = useState("");
   const [products, setProducts] = useState<ProductSearchResult[]>([]);
   const [brands, setBrands] = useState<BrandSearchResult[]>([]);
+  const [companies, setCompanies] = useState<CompanySearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [activeTab, setActiveTab] = useState<"products" | "brands">("products");
+  const [activeTab, setActiveTab] = useState<"products" | "brands" | "companies">("products");
   const inputRef = useRef<HTMLInputElement>(null);
   const debouncedQuery = useDebounce(query, 300);
 
   // URL sync on mount
   useEffect(() => {
     const q = searchParams.get('q') || '';
-    const tab = searchParams.get('tab') as "products" | "brands" | null;
+    const tab = searchParams.get('tab') as "products" | "brands" | "companies" | null;
     if (q) setQuery(q);
     if (tab) setActiveTab(tab);
   }, []);
@@ -41,15 +50,22 @@ export default function Search() {
     if (!debouncedQuery.trim()) {
       setProducts([]);
       setBrands([]);
+      setCompanies([]);
       setIsSearching(false);
       return;
     }
 
     setIsSearching(true);
-    searchCatalog(debouncedQuery)
-      .then(response => {
-        setProducts(response.products);
-        setBrands(response.brands);
+    
+    // Run catalog search and company search in parallel
+    Promise.all([
+      searchCatalog(debouncedQuery),
+      searchCompanies(debouncedQuery),
+    ])
+      .then(([catalogResults, companyResults]) => {
+        setProducts(catalogResults.products);
+        setBrands(catalogResults.brands);
+        setCompanies(companyResults);
       })
       .catch(error => {
         console.error("Search error:", error);
@@ -60,7 +76,7 @@ export default function Search() {
       });
   }, [debouncedQuery]);
 
-  // XSS protection: escape HTML entities before highlighting
+  // XSS protection
   const escapeHtml = (text: string) =>
     text.replace(/[&<>"']/g, (m) =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m] || m)
@@ -74,7 +90,7 @@ export default function Search() {
     return escapedName.replace(regex, '<mark class="bg-primary/20">$1</mark>');
   };
 
-  const totalResults = products.length + brands.length;
+  const totalResults = products.length + brands.length + companies.length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -84,7 +100,7 @@ export default function Search() {
           <Input
             ref={inputRef}
             type="search"
-            placeholder="Search products and brands..."
+            placeholder="Search products, brands, and companies..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="pl-9 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
@@ -107,7 +123,7 @@ export default function Search() {
         {!isSearching && !query && (
           <div className="text-center py-8 space-y-2">
             <p className="text-muted-foreground">
-              Start typing to search for products and brands
+              Start typing to search for products, brands, and companies
             </p>
             <p className="text-xs text-muted-foreground/70">
               Not all products are indexed yet — we're growing daily
@@ -116,13 +132,19 @@ export default function Search() {
         )}
 
         {!isSearching && totalResults > 0 && (
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "products" | "brands")}>
-            <TabsList className="grid w-full grid-cols-2 mb-4">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+            <TabsList className="grid w-full grid-cols-3 mb-4">
               <TabsTrigger value="products">
+                <Package className="h-3.5 w-3.5 mr-1" />
                 Products ({products.length})
               </TabsTrigger>
               <TabsTrigger value="brands">
+                <Tag className="h-3.5 w-3.5 mr-1" />
                 Brands ({brands.length})
+              </TabsTrigger>
+              <TabsTrigger value="companies">
+                <Building2 className="h-3.5 w-3.5 mr-1" />
+                Companies ({companies.length})
               </TabsTrigger>
             </TabsList>
 
@@ -136,15 +158,7 @@ export default function Search() {
                   <Card 
                     key={product.id} 
                     className="cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => {
-                      navigate(`/scan?upc=${product.barcode}`);
-                      // Prefetch scan function to reduce cold-start latency
-                      fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scan-product`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
-                        body: JSON.stringify({ upc: '00000000' })
-                      }).catch(() => {});
-                    }}
+                    onClick={() => navigate(`/scan-result/${product.barcode}`)}
                     role="button"
                     aria-label={`View ${product.name}`}
                   >
@@ -187,15 +201,63 @@ export default function Search() {
                     aria-label={`View ${brand.name} brand profile`}
                   >
                     <CardContent className="pt-4 pb-3">
-                      <div 
-                        className="font-medium" 
-                        dangerouslySetInnerHTML={{ __html: highlightMatch(brand.name, query) }}
-                      />
-                      {brand.parent_company && (
-                        <div className="text-sm text-muted-foreground mt-1">
-                          Parent: {brand.parent_company}
+                      <div className="flex items-start gap-3">
+                        <Tag className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div 
+                            className="font-medium" 
+                            dangerouslySetInnerHTML={{ __html: highlightMatch(brand.name, query) }}
+                          />
+                          {brand.parent_company && (
+                            <div className="text-sm text-muted-foreground mt-1">
+                              Parent: {brand.parent_company}
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </TabsContent>
+
+            <TabsContent value="companies" className="space-y-2 max-h-[70vh] overflow-y-auto">
+              {companies.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No companies found
+                </div>
+              ) : (
+                companies.map((company) => (
+                  <Card 
+                    key={company.id} 
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => {
+                      // Navigate to first brand of this company for now
+                      navigate(`/search?q=${encodeURIComponent(company.name)}&tab=brands`);
+                    }}
+                    role="button"
+                    aria-label={`View ${company.name}`}
+                  >
+                    <CardContent className="pt-4 pb-3">
+                      <div className="flex items-start gap-3">
+                        <Building2 className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div 
+                            className="font-medium" 
+                            dangerouslySetInnerHTML={{ __html: highlightMatch(company.name, query) }}
+                          />
+                          <div className="flex items-center gap-2 mt-1">
+                            {company.country && (
+                              <span className="text-sm text-muted-foreground">{company.country}</span>
+                            )}
+                            {company.brand_count > 0 && (
+                              <span className="text-xs text-muted-foreground">
+                                {company.brand_count} brand{company.brand_count !== 1 ? 's' : ''}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 ))
@@ -206,4 +268,22 @@ export default function Search() {
       </main>
     </div>
   );
+}
+
+async function searchCompanies(q: string): Promise<CompanySearchResult[]> {
+  if (!q.trim()) return [];
+  try {
+    const { data, error } = await supabase
+      .from("companies" as any)
+      .select("id, name, country")
+      .ilike("name", `%${q}%`)
+      .limit(10);
+    if (error) throw error;
+    return ((data || []) as unknown as { id: string; name: string; country: string | null }[]).map(c => ({
+      ...c,
+      brand_count: 0, // Could be enriched later with a count query
+    }));
+  } catch {
+    return [];
+  }
 }
