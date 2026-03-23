@@ -104,6 +104,8 @@ export const Settings = () => {
           if (typeof data.exclude_same_parent === 'boolean') {
             setExcludeSameParent(data.exclude_same_parent);
           }
+          if (data.region) setRegion(data.region);
+          if (data.zip_code) setZipCode(data.zip_code);
         }
       }
     };
