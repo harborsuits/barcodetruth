@@ -57,6 +57,7 @@ const AdminSeeding = lazyNamed(() => import("./pages/AdminSeeding"), "default");
 const AdminUsers = lazyNamed(() => import("./pages/AdminUsers"), "default");
 const AdminTest = lazyNamed(() => import("./pages/AdminTest"), "default");
 const AdminBrandManager = lazyNamed(() => import("./pages/AdminBrandManager"), "default");
+const AdminOwnershipAudit = lazyNamed(() => import("./pages/AdminOwnershipAudit"), "default");
 const Feed = lazyNamed(() => import("./pages/Feed"), "default");
 const BootstrapAdmin = lazyNamed(() => import("./pages/BootstrapAdmin"), "default");
 const Privacy = lazyNamed(() => import("./pages/Privacy"), "default");
@@ -549,6 +550,20 @@ const App = () => {
                   <RouteErrorBoundary>
                     <Suspense fallback={<RouteFallback label="Loading brand manager…" />}>
                       <AdminBrandManager />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/ownership-audit"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading ownership audit…" />}>
+                      <AdminOwnershipAudit />
                     </Suspense>
                   </RouteErrorBoundary>
                 </AdminRoute>
