@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { AlternativesSection } from "@/components/brand/AlternativesSection";
 import { EnrichmentStageProgress } from "@/components/brand/EnrichmentStageProgress";
 
 // V1 Consumer Contract:
@@ -272,9 +273,9 @@ export default function ScanResultV1() {
           <Card className="border-primary/20 bg-primary/5">
             <CardContent className="pt-6 space-y-4 text-center">
               <Package className="h-12 w-12 mx-auto text-primary" />
-              <h2 className="text-lg font-semibold">We don't recognize this barcode yet</h2>
+              <h2 className="text-lg font-semibold">Product under investigation</h2>
               <p className="text-sm text-muted-foreground">
-                Help us identify barcode <span className="font-mono">{barcode}</span> — it'll work instantly for everyone next time.
+                We don't recognize barcode <span className="font-mono">{barcode}</span> yet — help us identify it and it'll work instantly for everyone.
               </p>
               <div className="space-y-2 pt-2">
                 <Button className="w-full" onClick={() => navigate(`/unknown/${barcode}`)}>
@@ -494,6 +495,11 @@ export default function ScanResultV1() {
             )}
           </CardContent>
         </Card>
+
+        {/* Alternatives Section */}
+        {brandIsReady && brandInfo?.id && (
+          <AlternativesSection brandId={brandInfo.id} brandName={brandInfo.name || "this brand"} />
+        )}
 
         {/* Action buttons */}
         <div className="space-y-2">

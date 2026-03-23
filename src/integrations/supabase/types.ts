@@ -398,6 +398,250 @@ export type Database = {
           },
         ]
       }
+      brand_alternatives: {
+        Row: {
+          alternative_brand_id: string
+          alternative_type: string
+          brand_id: string
+          created_at: string
+          id: string
+          reason: string
+          score: number | null
+          updated_at: string
+        }
+        Insert: {
+          alternative_brand_id: string
+          alternative_type?: string
+          brand_id: string
+          created_at?: string
+          id?: string
+          reason?: string
+          score?: number | null
+          updated_at?: string
+        }
+        Update: {
+          alternative_brand_id?: string
+          alternative_type?: string
+          brand_id?: string
+          created_at?: string
+          id?: string
+          reason?: string
+          score?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_alternatives_alternative_brand_id_fkey"
+            columns: ["alternative_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_alias_suggestions"
+            referencedColumns: ["suggested_brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_alternative_brand_id_fkey"
+            columns: ["alternative_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_alternative_brand_id_fkey"
+            columns: ["alternative_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_monitoring_status"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_alternative_brand_id_fkey"
+            columns: ["alternative_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_profile_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_alternative_brand_id_fkey"
+            columns: ["alternative_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_standings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_alternative_brand_id_fkey"
+            columns: ["alternative_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_trending"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_alternative_brand_id_fkey"
+            columns: ["alternative_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_alternative_brand_id_fkey"
+            columns: ["alternative_brand_id"]
+            isOneToOne: false
+            referencedRelation: "digest_events_last_24h"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_alternative_brand_id_fkey"
+            columns: ["alternative_brand_id"]
+            isOneToOne: false
+            referencedRelation: "product_alternatives"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_alternative_brand_id_fkey"
+            columns: ["alternative_brand_id"]
+            isOneToOne: false
+            referencedRelation: "product_brand_profile"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_alternative_brand_id_fkey"
+            columns: ["alternative_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_alternative_brand_id_fkey"
+            columns: ["alternative_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_alternative_brand_id_fkey"
+            columns: ["alternative_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brand_completeness"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_alternative_brand_id_fkey"
+            columns: ["alternative_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brand_confidence_pivot"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_alternative_brand_id_fkey"
+            columns: ["alternative_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_alias_suggestions"
+            referencedColumns: ["suggested_brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_monitoring_status"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_profile_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_standings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_trending"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "digest_events_last_24h"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "product_alternatives"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "product_brand_profile"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brand_completeness"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brand_confidence_pivot"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_alternatives_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brand_api_usage: {
         Row: {
           brand_id: string
@@ -523,6 +767,139 @@ export type Database = {
             foreignKeyName: "brand_api_usage_brand_id_fkey"
             columns: ["brand_id"]
             isOneToOne: true
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brand_attributes: {
+        Row: {
+          attribute_type: string
+          brand_id: string
+          confidence: number | null
+          id: string
+          last_updated: string
+          source: string | null
+        }
+        Insert: {
+          attribute_type: string
+          brand_id: string
+          confidence?: number | null
+          id?: string
+          last_updated?: string
+          source?: string | null
+        }
+        Update: {
+          attribute_type?: string
+          brand_id?: string
+          confidence?: number | null
+          id?: string
+          last_updated?: string
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_attributes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_alias_suggestions"
+            referencedColumns: ["suggested_brand_id"]
+          },
+          {
+            foreignKeyName: "brand_attributes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_attributes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_monitoring_status"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_attributes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_profile_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_attributes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_standings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_attributes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_trending"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_attributes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_attributes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "digest_events_last_24h"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_attributes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "product_alternatives"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_attributes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "product_brand_profile"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_attributes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_attributes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_attributes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brand_completeness"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_attributes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brand_confidence_pivot"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_attributes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
             referencedRelation: "v_brands_needing_logos"
             referencedColumns: ["id"]
           },
@@ -702,6 +1079,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      brand_categories: {
+        Row: {
+          created_at: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          name: string
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          name?: string
+          slug?: string
+        }
+        Relationships: []
       }
       brand_daily_digest: {
         Row: {
@@ -2461,6 +2856,7 @@ export type Database = {
           baseline_vector: Json | null
           built_at: string | null
           canonical_domain: string | null
+          category_slug: string | null
           company_size: string | null
           company_type: Database["public"]["Enums"]["company_type_enum"] | null
           confidence_notes: string | null
@@ -2510,6 +2906,7 @@ export type Database = {
           baseline_vector?: Json | null
           built_at?: string | null
           canonical_domain?: string | null
+          category_slug?: string | null
           company_size?: string | null
           company_type?: Database["public"]["Enums"]["company_type_enum"] | null
           confidence_notes?: string | null
@@ -2559,6 +2956,7 @@ export type Database = {
           baseline_vector?: Json | null
           built_at?: string | null
           canonical_domain?: string | null
+          category_slug?: string | null
           company_size?: string | null
           company_type?: Database["public"]["Enums"]["company_type_enum"] | null
           confidence_notes?: string | null
@@ -2603,7 +3001,15 @@ export type Database = {
           website?: string | null
           wikidata_qid?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "brands_category_slug_fkey"
+            columns: ["category_slug"]
+            isOneToOne: false
+            referencedRelation: "brand_categories"
+            referencedColumns: ["slug"]
+          },
+        ]
       }
       classification_audit: {
         Row: {
@@ -5884,6 +6290,7 @@ export type Database = {
           muted_categories: string[]
           notification_mode: string | null
           political_alignment: string | null
+          region: string | null
           updated_at: string
           user_id: string
           value_environment: number | null
@@ -5893,6 +6300,7 @@ export type Database = {
           value_politics: number | null
           value_social: number | null
           value_weights: Json | null
+          zip_code: string | null
         }
         Insert: {
           created_at?: string
@@ -5902,6 +6310,7 @@ export type Database = {
           muted_categories?: string[]
           notification_mode?: string | null
           political_alignment?: string | null
+          region?: string | null
           updated_at?: string
           user_id: string
           value_environment?: number | null
@@ -5911,6 +6320,7 @@ export type Database = {
           value_politics?: number | null
           value_social?: number | null
           value_weights?: Json | null
+          zip_code?: string | null
         }
         Update: {
           created_at?: string
@@ -5920,6 +6330,7 @@ export type Database = {
           muted_categories?: string[]
           notification_mode?: string | null
           political_alignment?: string | null
+          region?: string | null
           updated_at?: string
           user_id?: string
           value_environment?: number | null
@@ -5929,6 +6340,7 @@ export type Database = {
           value_politics?: number | null
           value_social?: number | null
           value_weights?: Json | null
+          zip_code?: string | null
         }
         Relationships: []
       }
@@ -9170,7 +9582,24 @@ export type Database = {
           product_count: number
         }[]
       }
+      get_brand_alternatives: {
+        Args: { p_brand_id: string; p_type?: string }
+        Returns: {
+          alternative_brand_id: string
+          attributes: string[]
+          brand_name: string
+          logo_url: string
+          parent_company: string
+          reason: string
+          score: number
+          score_environment: number
+          score_labor: number
+          score_politics: number
+          score_social: number
+        }[]
+      }
       get_brand_company_info: { Args: { p_brand_id: string }; Returns: Json }
+      get_brand_completeness_metrics: { Args: never; Returns: Json }
       get_brand_data_confidence: {
         Args: { p_brand_id: string }
         Returns: {

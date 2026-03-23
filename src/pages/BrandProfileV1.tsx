@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AlternativesSection } from '@/components/brand/AlternativesSection';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -694,6 +695,11 @@ export default function BrandProfileV1() {
             brandName={brand.name}
             identityConfidence={brand.identity_confidence}
           />
+        )}
+
+        {/* Alternatives Section */}
+        {resolvedBrandId && (
+          <AlternativesSection brandId={resolvedBrandId} brandName={brand.name} />
         )}
 
         {/* Trust Pledge - How We Stay Neutral */}
