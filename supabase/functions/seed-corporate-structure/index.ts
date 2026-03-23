@@ -131,8 +131,12 @@ async function discoverEntity(qid: string): Promise<DiscoveredEntity | null> {
 
     const tickerArr = claimStrings(entity, "P249");
     const exchangeArr = claimIds(entity, "P414");
-    // P749 = parent organization (structural), P127 = owned by (can include investors)
-    const parentQids = [...new Set([...claimIds(entity, "P749"), ...claimIds(entity, "P127")])];
+    // P749 = parent organization (structural) — PREFERRED
+    // P127 = owned by — often includes institutional investors, use only as fallback
+    const p749 = claimIds(entity, "P749");
+    const p127 = claimIds(entity, "P127");
+    // Prefer P749; only use P127 if P749 is empty
+    const parentQids = [...new Set(p749.length > 0 ? p749 : p127)];
     const subsidiaryQids = [...new Set([...claimIds(entity, "P355"), ...claimIds(entity, "P1830")])];
 
     const logoClaim = entity?.claims?.P154?.[0]?.mainsnak?.datavalue?.value;
