@@ -5,6 +5,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { compareTwoStrings } from 'https://esm.sh/string-similarity@4.0.4';
 import { corsHeaders } from '../_shared/cors.ts';
+import { TIER_SCORE_WEIGHTS, type SourceTier } from '../_shared/sourceTiers.ts';
 
 const RECENCY_WEIGHTS = {
   '0-30': 1.0,
