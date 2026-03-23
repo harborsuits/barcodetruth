@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Users, Leaf, Megaphone, Heart, Info, Bell, Crown, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +23,7 @@ export const Settings = () => {
   const navigate = useNavigate();
   const { subscribed, subscription_end, loading, startCheckout, manageSubscription } = useSubscription();
   const isAdmin = useIsAdmin();
+  const queryClient = useQueryClient();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [values, setValues] = useState({
@@ -297,6 +299,14 @@ export const Settings = () => {
                 const success = await updateUserValues(newValues);
                 
                 if (success) {
+                  // Invalidate all personalized score caches so brand profiles re-fetch
+                  queryClient.invalidateQueries({ queryKey: ['personalized-brand-score'] });
+                  queryClient.invalidateQueries({ queryKey: ['personalized-score'] });
+                  queryClient.invalidateQueries({ queryKey: ['alignment-score'] });
+                  queryClient.invalidateQueries({ queryKey: ['default-brand-score'] });
+                  queryClient.invalidateQueries({ queryKey: ['user-preferences'] });
+                  queryClient.invalidateQueries({ queryKey: ['client-alignment'] });
+                  
                   toast({
                     title: "Values saved",
                     description: "Your personalized scores have been recalculated",
