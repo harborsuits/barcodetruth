@@ -1008,6 +1008,14 @@ export default function AdminDashboard() {
               <Package className="mr-2 h-4 w-4" />
               Product Coverage
             </Button>
+            <Button 
+              variant="outline"
+              onClick={() => navigate("/admin/fuzzy-review")}
+              className="w-full"
+            >
+              <Shield className="mr-2 h-4 w-4" />
+              Fuzzy Alias Review
+            </Button>
           </CardContent>
         </Card>
       </main>

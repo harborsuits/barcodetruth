@@ -117,10 +117,6 @@ Deno.serve(async (req) => {
             brandsMapped++;
           } else {
             // 3. Fuzzy match via pg_trgm
-            const { data: fuzzyMatch } = await supabase
-              .rpc('search_brands_fuzzy', { search_term: brandRaw, min_similarity: 0.6 })
-              .limit(1);
-
             const minSimilarity = brandRaw.length < 6 ? 0.75 : 0.6;
             const { data: fuzzyMatch } = await supabase
               .rpc('search_brands_fuzzy', { search_term: brandRaw, min_similarity: minSimilarity })
