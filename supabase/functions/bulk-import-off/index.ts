@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
     console.log(`[bulk-import-off] Fetching page ${page}, category=${category}, country=${country}`);
 
     const offRes = await fetch(url, {
-      headers: { 'User-Agent': 'BarcodeTrauth/1.0 (contact@barcodetruth.app)' },
+      headers: { 'User-Agent': 'BarcodeTruth/1.0 (contact@barcodetruth.app)' },
     });
 
     if (!offRes.ok) {
