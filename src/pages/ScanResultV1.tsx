@@ -11,6 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { AlternativesSection } from "@/components/brand/AlternativesSection";
 import { EnrichmentStageProgress } from "@/components/brand/EnrichmentStageProgress";
+import { ParentCompanyBanner } from "@/components/brand/ParentCompanyBanner";
+import { SisterBrandsCard } from "@/components/brand/SisterBrandsCard";
 
 // V1 Consumer Contract:
 // - Product name (from barcode lookup) or "Unknown product"
@@ -137,22 +139,33 @@ export default function ScanResultV1() {
     queryKey: ['brand-info-v1', product?.brand_id],
     enabled: !!product?.brand_id,
     refetchInterval: (query) => {
-      const status = query.state.data?.status;
+      const status = (query.state.data as any)?.status;
       if (status === 'stub' || status === 'building') {
-        return 5000; // Poll every 5s while building
+        return 5000;
       }
       return false;
     },
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('brands')
-        .select('id, name, slug, status, logo_url, description, enrichment_stage, enrichment_stage_updated_at, enrichment_started_at')
+        .from('brands' as any)
+        .select('id, name, slug, status, logo_url, description, enrichment_stage, enrichment_stage_updated_at, enrichment_started_at, parent_company_id')
         .eq('id', product!.brand_id)
         .limit(1)
         .maybeSingle();
       
       if (error) throw error;
-      return data;
+      return data as unknown as {
+        id: string;
+        name: string;
+        slug: string | null;
+        status: string | null;
+        logo_url: string | null;
+        description: string | null;
+        enrichment_stage: string | null;
+        enrichment_stage_updated_at: string | null;
+        enrichment_started_at: string | null;
+        parent_company_id: string | null;
+      } | null;
     },
   });
 
@@ -495,6 +508,20 @@ export default function ScanResultV1() {
             )}
           </CardContent>
         </Card>
+
+        {/* Parent Company */}
+        {brandIsReady && brandInfo?.parent_company_id && (
+          <ParentCompanyBanner parentCompanyId={brandInfo.parent_company_id} />
+        )}
+
+        {/* Sister Brands */}
+        {brandIsReady && brandInfo?.id && brandInfo?.parent_company_id && (
+          <Card>
+            <CardContent className="pt-6">
+              <SisterBrandsCard brandId={brandInfo.id} parentCompanyId={brandInfo.parent_company_id} />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Alternatives Section */}
         {brandIsReady && brandInfo?.id && (
