@@ -167,6 +167,9 @@ verify_jwt = false
 [functions.fetch-sec-edgar]
 verify_jwt = false
 
+[functions.resolve-company-sec]
+verify_jwt = false
+
 [functions.fetch-google-news-rss]
 verify_jwt = false
 
