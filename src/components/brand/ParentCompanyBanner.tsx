@@ -13,12 +13,12 @@ export function ParentCompanyBanner({ parentCompanyId }: ParentCompanyBannerProp
     staleTime: 1000 * 60 * 10,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("companies")
+        .from("companies" as any)
         .select("id, name, country, wikidata_qid")
         .eq("id", parentCompanyId!)
         .maybeSingle();
       if (error) throw error;
-      return data;
+      return data as unknown as { id: string; name: string; country: string | null; wikidata_qid: string | null } | null;
     },
   });
 
