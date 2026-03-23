@@ -47,6 +47,8 @@ export interface BrandEvent {
   company_response?: { date?: string; url?: string; summary?: string };
   resolved?: boolean;
   raw_data?: Record<string, any>;
+  source_tier?: 'tier_1' | 'tier_2' | 'tier_3';
+  score_eligible?: boolean;
   // Inheritance fields
   inherited_from_parent?: boolean;
   parent_brand_name?: string;
