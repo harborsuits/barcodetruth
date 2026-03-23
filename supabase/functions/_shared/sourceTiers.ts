@@ -106,7 +106,7 @@ export function isScoreEligible(event: {
   if (!event.source_tier || event.source_tier === 'tier_3') return false;
 
   // Gate 4: Category confidence must be above threshold
-  if ((event.category_confidence ?? 0) < 0.4) return false;
+  if ((event.category_confidence ?? 0) < 0.5) return false;
 
   // Gate 5: Must have nonzero impact in at least one dimension
   const impacts = event.category_impacts || {};

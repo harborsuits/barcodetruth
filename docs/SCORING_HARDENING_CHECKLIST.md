@@ -24,6 +24,8 @@
 ✅ **`compute_score_eligibility()` DB function**  
 - Reusable SQL function for triggers and backfills
 
+✅ **Confidence threshold raised to 0.5** (from initial 0.4)
+
 🔲 **Staleness gate**: Events older than 2 years should not affect scores unless tagged as historically significant
 
 🔲 **Ambiguity gate**: Mixed-orientation events with low confidence should be feed-only
