@@ -18,8 +18,22 @@ function normalizeBrandName(raw: string): string {
   return raw
     .split(',')[0]
     .trim()
-    .replace(/\s+/g, ' ')
+    .normalize('NFC')            // Normalize unicode (é vs e+combining)
     .replace(/[™®©]/g, '')
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .replace(/\b(inc|llc|ltd|co|corp|company|usa|us|uk|gmbh|sa|sas|ag)\b\.?/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function displayBrandName(raw: string): string {
+  return raw
+    .split(',')[0]
+    .trim()
+    .normalize('NFC')
+    .replace(/[™®©]/g, '')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -53,7 +67,7 @@ Deno.serve(async (req) => {
     console.log(`[bulk-import-off] Fetching page ${page}, category=${category}, country=${country}`);
 
     const offRes = await fetch(url, {
-      headers: { 'User-Agent': 'BarcodeTrauth/1.0 (contact@barcodetruth.app)' },
+      headers: { 'User-Agent': 'BarcodeTruth/1.0 (contact@barcodetruth.app)' },
     });
 
     if (!offRes.ok) {
@@ -76,36 +90,51 @@ Deno.serve(async (req) => {
       if (!p.product_name && !p.brands) { skippedNoBarcode++; continue; }
 
       const brandRaw = p.brands ? normalizeBrandName(p.brands) : null;
+      const brandDisplay = p.brands ? displayBrandName(p.brands) : null;
       let brandId: string | null = null;
 
       if (brandRaw && brandRaw.length > 1) {
-        // Try exact match first
-        const { data: existingBrand } = await supabase
-          .from('brands')
-          .select('id')
-          .ilike('name', brandRaw)
+        // 1. Alias match (normalized)
+        const { data: alias } = await supabase
+          .from('brand_aliases')
+          .select('canonical_brand_id')
+          .or(`external_name.ilike.${brandRaw},external_name.ilike.${brandDisplay}`)
           .maybeSingle();
 
-        if (existingBrand) {
-          brandId = existingBrand.id;
+        if (alias) {
+          brandId = alias.canonical_brand_id;
           brandsMapped++;
         } else {
-          // Try alias match
-          const { data: alias } = await supabase
-            .from('brand_aliases')
-            .select('canonical_brand_id')
-            .ilike('external_name', brandRaw)
+          // 2. Normalized name match
+          const { data: existingBrand } = await supabase
+            .from('brands')
+            .select('id')
+            .ilike('name', brandRaw)
             .maybeSingle();
 
-          if (alias) {
-            brandId = alias.canonical_brand_id;
+          if (existingBrand) {
+            brandId = existingBrand.id;
             brandsMapped++;
           } else {
-            // Create brand only if name looks real (>2 chars, not all digits)
-            if (brandRaw.length > 2 && !/^\d+$/.test(brandRaw)) {
+            // 3. Fuzzy match via pg_trgm
+            const { data: fuzzyMatch } = await supabase
+              .rpc('search_brands_fuzzy', { search_term: brandRaw, min_similarity: 0.6 })
+              .limit(1);
+
+            if (fuzzyMatch && fuzzyMatch.length > 0) {
+              brandId = fuzzyMatch[0].id;
+              brandsMapped++;
+              // Auto-create alias for future lookups
+              await supabase.from('brand_aliases').insert({
+                external_name: brandDisplay || brandRaw,
+                canonical_brand_id: brandId,
+                source: 'openfoodfacts_fuzzy',
+              }).maybeSingle();
+            } else if (brandRaw.length > 2 && !/^\d+$/.test(brandRaw)) {
+              // 4. Create new brand
               const { data: newBrand } = await supabase
                 .from('brands')
-                .insert({ name: brandRaw })
+                .insert({ name: brandDisplay || brandRaw })
                 .select('id')
                 .single();
               if (newBrand) {
