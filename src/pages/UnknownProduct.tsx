@@ -115,19 +115,22 @@ export default function UnknownProduct() {
                 <Check className="h-8 w-8 text-primary" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-xl font-semibold">Thanks for contributing!</h2>
+                <h2 className="text-xl font-semibold">Product Under Investigation</h2>
                 <p className="text-sm text-muted-foreground">
-                  We're building this brand's profile now.
+                  This product has been queued for enrichment. We're verifying the brand, gathering evidence, and building a full profile.
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  You'll get an alert when it's ready.
+                  You'll be notified when it's ready.
                 </p>
               </div>
               <div className="flex items-center justify-center gap-2 text-sm text-primary">
                 <Trophy className="h-4 w-4" />
-                <span>Early contributor</span>
+                <span>Early contributor — thanks!</span>
               </div>
-              <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
+              <div className="flex items-center justify-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Enrichment in progress…</span>
+              </div>
             </CardContent>
           </Card>
         </main>
