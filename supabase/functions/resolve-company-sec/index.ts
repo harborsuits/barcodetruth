@@ -15,35 +15,9 @@ const SEC_UA =
 
 // ── SEC EDGAR full-text company search ──────────────────────────
 async function searchCompany(
-  query: string
+  query: string,
+  tickerHint?: string
 ): Promise<{ cik: string; name: string; ticker?: string }[]> {
-  // Use the EDGAR full-text search API
-  const url = `https://efts.sec.gov/LATEST/search-index?q=%22${encodeURIComponent(
-    query
-  )}%22&dateRange=custom&startdt=2020-01-01&forms=10-K&hits.hits.total.value=5`;
-
-  // Fallback: use the company search endpoint
-  const companyUrl = `https://efts.sec.gov/LATEST/search-index?q=%22${encodeURIComponent(
-    query
-  )}%22&forms=10-K`;
-
-  // Primary approach: use company tickers JSON
-  const tickerUrl = `https://www.sec.gov/cgi-bin/browse-edgar?company=${encodeURIComponent(
-    query
-  )}&CIK=&type=10-K&dateb=&owner=include&count=10&search_text=&action=getcompany&output=atom`;
-
-  // Use the EDGAR company search API (most reliable)
-  const searchUrl = `https://efts.sec.gov/LATEST/search-index?q=%22${encodeURIComponent(
-    query
-  )}%22&forms=10-K`;
-
-  // Best approach: company_search endpoint
-  const bestUrl = `https://efts.sec.gov/LATEST/search-index?q=%22${encodeURIComponent(query)}%22`;
-
-  // Actually use the correct endpoint
-  const edgarSearchUrl = `https://efts.sec.gov/LATEST/search-index?q=%22${encodeURIComponent(query)}%22&dateRange=custom&startdt=2023-01-01&forms=10-K`;
-
-  // Use the simple company tickers file (most reliable for CIK lookup)
   try {
     const res = await fetch("https://www.sec.gov/files/company_tickers.json", {
       headers: { "User-Agent": SEC_UA, Accept: "application/json" },
@@ -53,25 +27,56 @@ async function searchCompany(
       return [];
     }
     const data = await res.json();
-    const normalizedQuery = query.toLowerCase().replace(/[^a-z0-9 ]/g, "");
-    const results: { cik: string; name: string; ticker?: string }[] = [];
+
+    // If ticker provided, match exactly first
+    if (tickerHint) {
+      const upperTicker = tickerHint.toUpperCase();
+      for (const key of Object.keys(data)) {
+        const entry = data[key];
+        if ((entry.ticker || "").toUpperCase() === upperTicker) {
+          return [{
+            cik: String(entry.cik_str).padStart(10, "0"),
+            name: entry.title,
+            ticker: entry.ticker,
+          }];
+        }
+      }
+    }
+
+    // Name matching with scoring
+    const normalizedQuery = query.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+    const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 1);
+    const scored: { cik: string; name: string; ticker?: string; score: number }[] = [];
 
     for (const key of Object.keys(data)) {
       const entry = data[key];
-      const companyName = (entry.title || "").toLowerCase().replace(/[^a-z0-9 ]/g, "");
-      if (
-        companyName.includes(normalizedQuery) ||
-        normalizedQuery.includes(companyName)
-      ) {
-        results.push({
+      const companyName = (entry.title || "").toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+
+      let score = 0;
+      if (companyName === normalizedQuery) {
+        score = 200; // Exact match
+      } else if (companyName.startsWith(normalizedQuery) || normalizedQuery.startsWith(companyName)) {
+        score = 100; // Prefix match
+      } else {
+        // Word overlap scoring
+        const nameWords = companyName.split(/\s+/);
+        const overlap = queryWords.filter(w => nameWords.includes(w)).length;
+        if (overlap >= 2) score = overlap * 20;
+        else if (overlap === 1 && queryWords.length === 1 && nameWords[0] === queryWords[0]) score = 50;
+      }
+
+      if (score > 0) {
+        scored.push({
           cik: String(entry.cik_str).padStart(10, "0"),
           name: entry.title,
           ticker: entry.ticker,
+          score,
         });
       }
-      if (results.length >= 5) break;
     }
-    return results;
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, 5).map(({ cik, name, ticker: t }) => ({ cik, name, ticker: t }));
   } catch (err) {
     log("company_tickers search error:", err);
     return [];
