@@ -3411,6 +3411,7 @@ export type Database = {
           identity_sources: string[] | null
           is_public: boolean | null
           jurisdiction: string | null
+          last_sec_refresh: string | null
           legal_name: string | null
           lei: string | null
           logo_source: string | null
@@ -3439,6 +3440,7 @@ export type Database = {
           identity_sources?: string[] | null
           is_public?: boolean | null
           jurisdiction?: string | null
+          last_sec_refresh?: string | null
           legal_name?: string | null
           lei?: string | null
           logo_source?: string | null
@@ -3467,6 +3469,7 @@ export type Database = {
           identity_sources?: string[] | null
           is_public?: boolean | null
           jurisdiction?: string | null
+          last_sec_refresh?: string | null
           legal_name?: string | null
           lei?: string | null
           logo_source?: string | null
@@ -3555,6 +3558,63 @@ export type Database = {
           },
           {
             foreignKeyName: "company_institutional_holders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_company_identity_completeness"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_key_people: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          effective_from: string | null
+          effective_to: string | null
+          id: string
+          is_current: boolean | null
+          name: string
+          source: string | null
+          source_url: string | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          effective_from?: string | null
+          effective_to?: string | null
+          id?: string
+          is_current?: boolean | null
+          name: string
+          source?: string | null
+          source_url?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          effective_from?: string | null
+          effective_to?: string | null
+          id?: string
+          is_current?: boolean | null
+          name?: string
+          source?: string | null
+          source_url?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_key_people_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_key_people_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "v_company_identity_completeness"
