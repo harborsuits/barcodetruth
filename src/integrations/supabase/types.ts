@@ -9481,49 +9481,46 @@ export type Database = {
       }
       v_company_identity_completeness: {
         Row: {
-          has_legal_name: boolean | null
-          has_lei: boolean | null
-          has_opencorporates: boolean | null
-          has_sec_cik: boolean | null
-          has_ticker: boolean | null
-          has_website: boolean | null
-          has_wikidata: boolean | null
           id: string | null
           identifier_count: number | null
+          identifier_coverage_pct: number | null
           identifiers_updated_at: string | null
           identity_sources: string[] | null
-          is_public: boolean | null
+          lei: string | null
           name: string | null
+          opencorporates_id: string | null
+          sec_cik: string | null
+          ticker: string | null
+          website_domain: string | null
+          wikidata_qid: string | null
         }
         Insert: {
-          has_legal_name?: never
-          has_lei?: never
-          has_opencorporates?: never
-          has_sec_cik?: never
-          has_ticker?: never
-          has_website?: never
-          has_wikidata?: never
           id?: string | null
           identifier_count?: never
+          identifier_coverage_pct?: never
           identifiers_updated_at?: string | null
           identity_sources?: string[] | null
-          is_public?: boolean | null
+          lei?: string | null
           name?: string | null
+          opencorporates_id?: string | null
+          sec_cik?: string | null
+          ticker?: string | null
+          website_domain?: string | null
+          wikidata_qid?: string | null
         }
         Update: {
-          has_legal_name?: never
-          has_lei?: never
-          has_opencorporates?: never
-          has_sec_cik?: never
-          has_ticker?: never
-          has_website?: never
-          has_wikidata?: never
           id?: string | null
           identifier_count?: never
+          identifier_coverage_pct?: never
           identifiers_updated_at?: string | null
           identity_sources?: string[] | null
-          is_public?: boolean | null
+          lei?: string | null
           name?: string | null
+          opencorporates_id?: string | null
+          sec_cik?: string | null
+          ticker?: string | null
+          website_domain?: string | null
+          wikidata_qid?: string | null
         }
         Relationships: []
       }
