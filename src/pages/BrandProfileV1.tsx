@@ -810,29 +810,29 @@ function MetricDistribution({ brandId }: { brandId: string }) {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 gap-3">
+      <div className="space-y-3">
         {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20" />)}
       </div>
     );
   }
 
   const dimensions = [
-    { key: 'labor', label: 'Worker Rights', icon: '👷', cssVar: 'labor' },
-    { key: 'environment', label: 'Environment', icon: '🌍', cssVar: 'environment' },
-    { key: 'politics', label: 'Political', icon: '🏛️', cssVar: 'politics' },
-    { key: 'social', label: 'Social', icon: '🤝', cssVar: 'social' },
+    { key: 'labor', label: 'Worker Rights', icon: '👷', description: 'Systemic analysis of labor practices, workplace conditions, and employee treatment across supply chains.' },
+    { key: 'environment', label: 'Environment', icon: '🌍', description: 'Environmental impact assessment including emissions, waste, sustainability initiatives, and regulatory compliance.' },
+    { key: 'politics', label: 'Political', icon: '🏛️', description: 'Corporate political activity including lobbying expenditures, PAC contributions, and policy advocacy.' },
+    { key: 'social', label: 'Social', icon: '🤝', description: 'Social responsibility metrics covering diversity, community engagement, and inclusion practices.' },
   ] as const;
 
   const getSeverity = (score: number | null): { label: string; className: string } => {
-    if (score === null) return { label: 'Pending', className: 'text-muted-foreground' };
-    if (score >= 70) return { label: 'Good', className: 'text-success' };
-    if (score >= 50) return { label: 'Warning', className: 'text-warning' };
-    if (score >= 30) return { label: 'Low', className: 'text-destructive' };
-    return { label: 'Critical', className: 'text-destructive' };
+    if (score === null) return { label: 'Pending', className: 'text-muted-foreground bg-muted' };
+    if (score >= 70) return { label: 'Good', className: 'text-success bg-success/10' };
+    if (score >= 50) return { label: 'Warning', className: 'text-warning bg-warning/10' };
+    if (score >= 30) return { label: 'Low', className: 'text-destructive bg-destructive/10' };
+    return { label: 'Critical', className: 'text-destructive bg-destructive/10' };
   };
 
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="space-y-2">
       {dimensions.map(dim => {
         const value = scores?.[dim.key] ?? null;
         const severity = getSeverity(value);
@@ -841,20 +841,23 @@ function MetricDistribution({ brandId }: { brandId: string }) {
             key={dim.key} 
             className="bg-elevated-1 border border-border p-4 space-y-2"
           >
-            <div className="flex items-center gap-2">
-              <span className="text-lg">{dim.icon}</span>
-              <span className="label-forensic text-[10px]">{dim.label}</span>
-            </div>
-            <div className="flex items-baseline justify-between">
-              <span className="text-2xl font-bold font-mono" style={{ fontFamily: "'Space Grotesk', monospace" }}>
-                {value !== null ? Math.round(value) : '—'}
-              </span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">{dim.icon}</span>
+                <span className="font-mono text-xs uppercase tracking-widest text-foreground font-semibold">{dim.label}</span>
+              </div>
               <Badge 
-                variant="outline" 
-                className={`${severity.className} text-[10px] font-mono uppercase tracking-wider border-current/20`}
+                className={`${severity.className} text-[10px] font-mono uppercase tracking-wider border-0 px-2 py-0.5`}
               >
                 {severity.label}
               </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">{dim.description}</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xl font-bold font-mono" style={{ fontFamily: "'Space Grotesk', monospace" }}>
+                {value !== null ? Math.round(value) : '—'}
+              </span>
+              <span className="text-xs text-muted-foreground font-mono">/ 100</span>
             </div>
           </div>
         );
