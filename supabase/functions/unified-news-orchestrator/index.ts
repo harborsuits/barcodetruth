@@ -1,6 +1,6 @@
 // Unified real ingestion: GDELT + Guardian + NewsAPI + NYT + GNews -> brand_events + event_sources (dedup by URL hash)
 // ADDED: Title-similarity deduplication to prevent duplicate events from multiple sources
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { compareTwoStrings } from "https://esm.sh/string-similarity@4.0.4";
 import { RELEVANCE_MIN_ACCEPTED, RELEVANCE_MAX_SCORE } from "../_shared/scoringConstants.ts";
 import { enabledSources, getApiKey, SourceId } from "../_shared/sourceRegistry.ts";

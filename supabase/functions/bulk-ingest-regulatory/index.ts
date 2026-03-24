@@ -14,7 +14,7 @@
  *   search_terms: string[] (for discovery mode, e.g. ["food", "cosmetics"])
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { runAllAdapters, runDiscovery, type PipelineResult, type DiscoveryResult } from "../_shared/regulatoryPipeline.ts";
 import { getAdapters } from "../_shared/sourceAdapters.ts";
 
