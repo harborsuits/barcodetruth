@@ -27,7 +27,7 @@ export default function AdminCoverageMetrics() {
   const { data: metrics, isLoading, refetch } = useQuery({
     queryKey: ['coverage-metrics'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_coverage_metrics');
+      const { data, error } = await (supabase.rpc as any)('get_coverage_metrics');
       if (error) throw error;
       return data as unknown as CoverageMetrics;
     },
