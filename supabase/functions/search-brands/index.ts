@@ -101,7 +101,7 @@ serve(async (req) => {
       .limit(5);
 
     const aliasResults = (aliasMatches || [])
-      .filter(m => m.brands)
+      .filter(m => m.brands && (m.brands as any).status === 'active')
       .map(m => ({
         ...m.brands,
         confidence: 0.95,
