@@ -70,6 +70,14 @@ export function normalizeFirmName(name: string): string {
   let normalized = name
     .normalize('NFC')
     .toLowerCase()
+    // Transliterate common accented chars before stripping
+    .replace(/[éèêë]/g, 'e')
+    .replace(/[àáâãä]/g, 'a')
+    .replace(/[ìíîï]/g, 'i')
+    .replace(/[òóôõö]/g, 'o')
+    .replace(/[ùúûü]/g, 'u')
+    .replace(/[ñ]/g, 'n')
+    .replace(/[ç]/g, 'c')
     .trim();
 
   // Check full-string acronym match first
@@ -85,12 +93,18 @@ export function normalizeFirmName(name: string): string {
   const expanded = tokens.map(t => ACRONYM_MAP[t] || t);
   normalized = expanded.join(' ');
 
-  return normalized
+  // Strip suffixes first, then punctuation
+  normalized = normalized
     .replace(/[&]/g, ' and ')
     .replace(SUFFIX_REGEX, '')
     .replace(/[^a-z0-9\s]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+
+  // Deduplicate consecutive repeated words (e.g. "lg electronics electronics" → "lg electronics")
+  normalized = normalized.replace(/\b(\w+)(\s+\1)+\b/g, '$1');
+
+  return normalized;
 }
 
 /**
