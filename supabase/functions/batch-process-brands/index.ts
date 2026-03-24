@@ -162,11 +162,12 @@ Deno.serve(async (req) => {
           p_calls: 6
         });
 
-        // Update brand with last ingestion time
+        // Update brand with last ingestion time and coverage tracking
         await supabase
           .from("brands")
           .update({
             last_news_ingestion: new Date().toISOString(),
+            last_news_check_at: new Date().toISOString(),
             last_ingestion_status: 'success'
           })
           .eq("id", brand.id);
