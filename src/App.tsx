@@ -61,6 +61,7 @@ const AdminOwnershipAudit = lazyNamed(() => import("./pages/AdminOwnershipAudit"
 const AdminProductCoverage = lazyNamed(() => import("./pages/AdminProductCoverage"), "default");
 const AdminFuzzyReview = lazyNamed(() => import("./pages/AdminFuzzyReview"), "default");
 const Feed = lazyNamed(() => import("./pages/Feed"), "default");
+const AdminCoverageMetrics = lazyNamed(() => import("./pages/AdminCoverageMetrics"), "default");
 const BootstrapAdmin = lazyNamed(() => import("./pages/BootstrapAdmin"), "default");
 const Privacy = lazyNamed(() => import("./pages/Privacy"), "default");
 const Terms = lazyNamed(() => import("./pages/Terms"), "default");
