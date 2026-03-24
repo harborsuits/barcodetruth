@@ -22,6 +22,7 @@ import { BuildingProfile } from '@/components/brand/BuildingProfile';
 import { NeedsReviewProfile } from '@/components/brand/NeedsReviewProfile';
 import { PowerProfitCard } from '@/components/brand/PowerProfitCard';
 import { deduplicateEvents } from '@/lib/deduplicateEvents';
+import { BrandCoverageStatus } from '@/components/brand/BrandCoverageStatus';
 
 // V1 Consumer Contract - with 3 explicit states:
 // State A: Assessable (full profile) - identity verified + 3+ dimensions with evidence
