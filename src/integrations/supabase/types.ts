@@ -3433,9 +3433,11 @@ export type Database = {
           logo_source: string | null
           logo_url: string | null
           name: string
+          normalized_name: string | null
           official_website: string | null
           opencorporates_id: string | null
           ownership_structure: Json | null
+          parent_company_id: string | null
           sec_cik: string | null
           ticker: string | null
           updated_at: string | null
@@ -3463,9 +3465,11 @@ export type Database = {
           logo_source?: string | null
           logo_url?: string | null
           name: string
+          normalized_name?: string | null
           official_website?: string | null
           opencorporates_id?: string | null
           ownership_structure?: Json | null
+          parent_company_id?: string | null
           sec_cik?: string | null
           ticker?: string | null
           updated_at?: string | null
@@ -3493,9 +3497,11 @@ export type Database = {
           logo_source?: string | null
           logo_url?: string | null
           name?: string
+          normalized_name?: string | null
           official_website?: string | null
           opencorporates_id?: string | null
           ownership_structure?: Json | null
+          parent_company_id?: string | null
           sec_cik?: string | null
           ticker?: string | null
           updated_at?: string | null
@@ -3503,7 +3509,22 @@ export type Database = {
           wikidata_qid?: string | null
           wikipedia_title?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "companies_parent_company_id_fkey"
+            columns: ["parent_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "companies_parent_company_id_fkey"
+            columns: ["parent_company_id"]
+            isOneToOne: false
+            referencedRelation: "v_company_identity_completeness"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_groups_cache: {
         Row: {

@@ -328,6 +328,70 @@ Deno.serve(async (req) => {
 
           parentCompanyId = spineId as string | null;
           log(`Upserted parent company via spine: ${ultimateParent.name} (${parentCompanyId})`);
+
+          // Populate normalized_name on the company record
+          if (parentCompanyId) {
+            const normalizedName = ultimateParent.name
+              .toLowerCase()
+              .replace(/[éèêë]/g, 'e').replace(/[àáâãä]/g, 'a')
+              .replace(/[ìíîï]/g, 'i').replace(/[òóôõö]/g, 'o')
+              .replace(/[ùúûü]/g, 'u').replace(/[ñ]/g, 'n').replace(/[ç]/g, 'c')
+              .replace(/\b(inc|incorporated|corp|corporation|co|company|llc|llp|ltd|limited|plc|ag|sa|gmbh|nv|bv|se|spa|srl|pty|pvt|holdings|group|enterprises|industries|international|global|north america|usa|us|americas|of america|the)\b\.?/gi, '')
+              .replace(/[^a-z0-9\s]/g, '')
+              .replace(/\s+/g, ' ')
+              .trim();
+
+            await supabase.from("companies").update({
+              normalized_name: normalizedName,
+            }).eq("id", parentCompanyId);
+          }
+        }
+
+        // Step 4b: Upsert intermediate companies in the chain with parent_company_id
+        // chain = [brand, intermediate1, ..., ultimateParent]
+        // Walk backwards to set parent_company_id on each
+        const chainCompanyIds: string[] = [];
+        for (let i = chain.length - 1; i >= 0; i--) {
+          const entity = chain[i];
+          if (entity.qid === brandEntity.qid) continue; // skip the brand itself
+          
+          const { data: compId } = await supabase.rpc("upsert_company_spine", {
+            p_name: entity.name,
+            p_wikidata_qid: entity.qid,
+            p_ticker: entity.ticker,
+            p_exchange: entity.exchange_qid ? EXCHANGE_MAP[entity.exchange_qid] ?? null : null,
+            p_is_public: entity.is_public,
+            p_logo_url: entity.logo_url,
+            p_description: entity.description,
+            p_source: "wikidata",
+          });
+          
+          if (compId) {
+            // Set parent_company_id to the previously processed entity (one level up)
+            const parentId = chainCompanyIds.length > 0 ? chainCompanyIds[chainCompanyIds.length - 1] : null;
+            
+            const normalizedName = entity.name
+              .toLowerCase()
+              .replace(/[éèêë]/g, 'e').replace(/[àáâãä]/g, 'a')
+              .replace(/[ìíîï]/g, 'i').replace(/[òóôõö]/g, 'o')
+              .replace(/[ùúûü]/g, 'u').replace(/[ñ]/g, 'n').replace(/[ç]/g, 'c')
+              .replace(/\b(inc|incorporated|corp|corporation|co|company|llc|llp|ltd|limited|plc|ag|sa|gmbh|nv|bv|se|spa|srl|pty|pvt|holdings|group|enterprises|industries|international|global|north america|usa|us|americas|of america|the)\b\.?/gi, '')
+              .replace(/[^a-z0-9\s]/g, '')
+              .replace(/\s+/g, ' ')
+              .trim();
+
+            await supabase.from("companies").update({
+              normalized_name: normalizedName,
+              parent_company_id: parentId,
+            }).eq("id", compId);
+
+            chainCompanyIds.push(compId as string);
+          }
+        }
+        
+        // parentCompanyId is the ultimate parent (last in chainCompanyIds, or from Step 4)
+        if (!parentCompanyId && chainCompanyIds.length > 0) {
+          parentCompanyId = chainCompanyIds[0]; // first pushed = ultimate parent
         }
 
         // Step 5: Link brand to parent

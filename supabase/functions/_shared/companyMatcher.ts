@@ -162,6 +162,7 @@ interface BrandEntry {
   normalized: string;
   parentCompany: string | null;
   parentNormalized: string | null;
+  companyId: string | null;
 }
 
 interface AliasEntry {
@@ -170,12 +171,23 @@ interface AliasEntry {
   normalized: string;
 }
 
+interface CompanyEntry {
+  id: string;
+  name: string;
+  normalized: string;
+  parentCompanyId: string | null;
+  legalName: string | null;
+  legalNormalized: string | null;
+  brandIds: string[]; // brands linked to this company
+}
+
 let brandCache: BrandEntry[] = [];
 let aliasCache: AliasEntry[] = [];
+let companyCache: CompanyEntry[] = [];
 let cacheLoaded = false;
 
 /**
- * Load brand + alias data into memory for fast matching.
+ * Load brand + alias + company data into memory for fast matching.
  * Call once per edge function invocation.
  */
 export async function loadMatchCache(supabase: SupabaseClient): Promise<void> {
@@ -193,6 +205,7 @@ export async function loadMatchCache(supabase: SupabaseClient): Promise<void> {
     normalized: normalizeFirmName(b.name),
     parentCompany: b.parent_company,
     parentNormalized: b.parent_company ? normalizeFirmName(b.parent_company) : null,
+    companyId: null, // populated below via ownership
   }));
 
   // Load all aliases
@@ -207,8 +220,44 @@ export async function loadMatchCache(supabase: SupabaseClient): Promise<void> {
     normalized: normalizeFirmName(a.external_name),
   }));
 
+  // Load companies (the corporate entity graph)
+  const { data: companies } = await supabase
+    .from('companies')
+    .select('id, name, normalized_name, parent_company_id, legal_name')
+    .limit(5000);
+
+  // Load brand→company links via company_ownership
+  const { data: ownership } = await supabase
+    .from('company_ownership')
+    .select('child_brand_id, parent_company_id')
+    .not('child_brand_id', 'is', null)
+    .not('parent_company_id', 'is', null)
+    .limit(10000);
+
+  // Build company→brand mapping
+  const companyBrandMap = new Map<string, string[]>();
+  for (const o of (ownership || [])) {
+    if (!o.parent_company_id || !o.child_brand_id) continue;
+    const list = companyBrandMap.get(o.parent_company_id) || [];
+    list.push(o.child_brand_id);
+    companyBrandMap.set(o.parent_company_id, list);
+    // Also set companyId on brand
+    const brand = brandCache.find(b => b.id === o.child_brand_id);
+    if (brand) brand.companyId = o.parent_company_id;
+  }
+
+  companyCache = (companies || []).map(c => ({
+    id: c.id,
+    name: c.name,
+    normalized: c.normalized_name || normalizeFirmName(c.name),
+    parentCompanyId: c.parent_company_id,
+    legalName: c.legal_name,
+    legalNormalized: c.legal_name ? normalizeFirmName(c.legal_name) : null,
+    brandIds: companyBrandMap.get(c.id) || [],
+  }));
+
   cacheLoaded = true;
-  console.log(`[matcher] Cache loaded: ${brandCache.length} brands, ${aliasCache.length} aliases`);
+  console.log(`[matcher] Cache loaded: ${brandCache.length} brands, ${aliasCache.length} aliases, ${companyCache.length} companies`);
 }
 
 /**
@@ -244,7 +293,40 @@ export function matchFirmToBrand(firmName: string): BrandMatch | null {
     };
   }
 
-  // 3. Parent company match → return parent brand
+  // 3. Company entity match (corporate hierarchy resolution)
+  // Try: firm name → company → brands linked to that company
+  const companyMatch = companyCache.find(c => c.normalized === norm || c.legalNormalized === norm);
+  if (companyMatch && companyMatch.brandIds.length > 0) {
+    const primaryBrand = brandCache.find(b => b.id === companyMatch.brandIds[0]);
+    if (primaryBrand) {
+      return {
+        brandId: primaryBrand.id,
+        brandName: primaryBrand.name,
+        confidence: 'parent',
+        score: 0.95,
+        matchedVia: `company: ${companyMatch.name}`,
+      };
+    }
+  }
+
+  // 3b. Walk up the company hierarchy: firm → subsidiary company → parent company → brands
+  if (companyMatch && companyMatch.parentCompanyId) {
+    const parentCo = companyCache.find(c => c.id === companyMatch.parentCompanyId);
+    if (parentCo && parentCo.brandIds.length > 0) {
+      const primaryBrand = brandCache.find(b => b.id === parentCo.brandIds[0]);
+      if (primaryBrand) {
+        return {
+          brandId: primaryBrand.id,
+          brandName: primaryBrand.name,
+          confidence: 'parent',
+          score: 0.9,
+          matchedVia: `subsidiary ${companyMatch.name} → parent ${parentCo.name}`,
+        };
+      }
+    }
+  }
+
+  // 3c. Legacy: Parent company string match on brands
   const parentMatch = brandCache.find(b => b.parentNormalized === norm);
   if (parentMatch) {
     return {
@@ -256,10 +338,9 @@ export function matchFirmToBrand(firmName: string): BrandMatch | null {
     };
   }
 
-  // 3b. Check if firm name IS a parent company of multiple brands
+  // 3d. Check if firm name IS a parent company of multiple brands
   const childBrands = brandCache.filter(b => b.parentNormalized === norm);
   if (childBrands.length > 0) {
-    // Return the parent itself if it exists as a brand
     const parentBrand = brandCache.find(b => b.normalized === norm);
     if (parentBrand) {
       return {
