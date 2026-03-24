@@ -88,16 +88,23 @@ export function normalizeFirmName(name: string): string {
   const acronymResult2 = ACRONYM_MAP[basicClean];
   if (acronymResult2) return acronymResult2;
 
-  // Strip corporate suffixes BEFORE acronym expansion
+  // First pass: expand multi-char tokens that contain & (e.g. "p&g" → "procter and gamble")
+  // Must happen BEFORE & is replaced with "and"
+  const preTokens = basicClean.split(/\s+/);
+  const preExpanded = preTokens.map(t => ACRONYM_MAP[t] || t);
+  let working = preExpanded.join(' ');
+
+  // Strip corporate suffixes AFTER acronym expansion on &-containing tokens
+  // but BEFORE expanding remaining single-word acronyms
   // (so expanded names like "international business machines" don't get mangled)
-  let stripped = basicClean
+  let stripped = working
     .replace(/[&]/g, ' and ')
     .replace(SUFFIX_REGEX, '')
-    .replace(/[^a-z0-9\s&]/g, '')
+    .replace(/[^a-z0-9\s]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 
-  // Token-level acronym expansion on the suffix-stripped result
+  // Second pass: expand remaining acronyms (non-& ones like "ibm", "ge")
   const tokens = stripped.split(/\s+/);
   const expanded = tokens.map(t => ACRONYM_MAP[t] || t);
   normalized = expanded.join(' ');
