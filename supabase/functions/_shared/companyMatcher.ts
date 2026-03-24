@@ -72,21 +72,24 @@ export function normalizeFirmName(name: string): string {
     .toLowerCase()
     .trim();
 
-  // Check acronym map before stripping punctuation (preserves & in P&G etc.)
+  // Check full-string acronym match first
   const acronymResult = ACRONYM_MAP[normalized];
   if (acronymResult) return acronymResult;
 
-  // Also check after basic cleanup
   const basicClean = normalized.replace(/[''`]/g, '').replace(/\s+/g, ' ').trim();
   const acronymResult2 = ACRONYM_MAP[basicClean];
   if (acronymResult2) return acronymResult2;
 
+  // Token-level acronym expansion (e.g. "p&g manufacturing" → "procter and gamble manufacturing")
+  const tokens = basicClean.split(/\s+/);
+  const expanded = tokens.map(t => ACRONYM_MAP[t] || t);
+  normalized = expanded.join(' ');
+
   return normalized
-    .replace(/[''`]/g, '')        // smart quotes
-    .replace(/[&]/g, ' and ')     // & → and
-    .replace(SUFFIX_REGEX, '')    // strip corp suffixes
-    .replace(/[^a-z0-9\s]/g, '') // remove remaining punctuation
-    .replace(/\s+/g, ' ')        // collapse whitespace
+    .replace(/[&]/g, ' and ')
+    .replace(SUFFIX_REGEX, '')
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 

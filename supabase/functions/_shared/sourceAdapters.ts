@@ -315,7 +315,7 @@ export const rapexAdapter: SourceAdapter = {
     const records: RawRegRecord[] = [];
     try {
       // EU Safety Gate open data API
-      const url = `https://ec.europa.eu/safety-gate-alerts/screen/webReport/alertDetail/search?q=${encodeURIComponent(query)}&format=json&max=${maxResults}`;
+      const url = `https://api.safety-gate.ec.europa.eu/alerts?q=${encodeURIComponent(query)}&format=json&max=${maxResults}`;
       const resp = await fetch(url, {
         headers: { 'Accept': 'application/json' },
       });
