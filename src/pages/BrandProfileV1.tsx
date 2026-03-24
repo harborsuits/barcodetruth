@@ -193,24 +193,20 @@ function EvidenceList({ brandId }: { brandId: string }) {
   const { data: evidence, isLoading } = useQuery({
     queryKey: ['brand-evidence-v1', brandId],
     queryFn: async () => {
-      // Removed 30-day filter - show all relevant events
       const { data, error } = await supabase
         .from('brand_events')
         .select('event_id, title, event_date, category, source_url')
         .eq('brand_id', brandId)
         .eq('is_irrelevant', false)
         .order('event_date', { ascending: false })
-        .limit(20); // Fetch more to allow for deduplication
+        .limit(20);
       
       if (error) return [];
-      
-      // Deduplicate similar titles to avoid showing same story multiple times
       return deduplicateEvents(data || []);
     },
     enabled: !!brandId,
   });
   
-  // Get total count for "View all" link
   const { data: totalCount } = useQuery({
     queryKey: ['brand-evidence-count', brandId],
     queryFn: async () => {
@@ -244,34 +240,48 @@ function EvidenceList({ brandId }: { brandId: string }) {
   }
   
   const displayedEvidence = evidence.slice(0, 5);
+
+  // Extract domain from URL for source badge
+  const getSourceName = (url?: string) => {
+    if (!url) return null;
+    try {
+      const hostname = new URL(url).hostname.replace('www.', '');
+      const parts = hostname.split('.');
+      return parts[0].toUpperCase();
+    } catch {
+      return null;
+    }
+  };
   
   return (
     <div className="divide-y divide-border">
       {displayedEvidence.map((ev) => {
         const hasUrl = !!ev.source_url;
-        const categoryLabel = ev.category?.charAt(0).toUpperCase() + ev.category?.slice(1);
+        const sourceName = getSourceName(ev.source_url);
         
         const inner = (
-          <div className="p-4 space-y-1.5">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-[10px] font-mono uppercase tracking-wider">
-                {categoryLabel}
-              </Badge>
+          <div className="p-4 space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {sourceName && (
+                <Badge className="bg-primary/10 text-primary border-primary/20 text-[9px] font-mono uppercase tracking-wider px-2 py-0.5">
+                  {sourceName}
+                </Badge>
+              )}
+              <span className="text-[10px] text-muted-foreground font-mono">
+                {new Date(ev.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </span>
               {ev.duplicates && ev.duplicates.length > 0 && (
                 <span className="text-[10px] text-muted-foreground font-mono">
-                  {ev.duplicates.length + 1} outlets
+                  +{ev.duplicates.length} outlets
                 </span>
               )}
             </div>
             <p className="text-sm font-medium leading-snug">{ev.title}</p>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span>{new Date(ev.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-              {hasUrl && (
-                <span className="text-primary inline-flex items-center gap-0.5">
-                  Source <ExternalLink className="h-2.5 w-2.5" />
-                </span>
-              )}
-            </div>
+            {hasUrl && (
+              <span className="font-mono text-[10px] uppercase tracking-widest text-primary inline-flex items-center gap-1">
+                SOURCE_DATA <ExternalLink className="h-2.5 w-2.5" /> →
+              </span>
+            )}
           </div>
         );
 
@@ -300,10 +310,10 @@ function EvidenceList({ brandId }: { brandId: string }) {
         <div className="p-3">
           <Button 
             variant="ghost" 
-            className="w-full text-xs font-mono uppercase tracking-wider"
+            className="w-full font-mono text-[10px] uppercase tracking-widest"
             onClick={() => navigate(`/proof/${brandId}`)}
           >
-            View all {totalCount} evidence items →
+            LOAD FULL AUDIT TRAIL ({totalCount} items) →
           </Button>
         </div>
       )}
