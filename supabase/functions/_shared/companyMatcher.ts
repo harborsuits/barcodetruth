@@ -70,6 +70,14 @@ export function normalizeFirmName(name: string): string {
   let normalized = name
     .normalize('NFC')
     .toLowerCase()
+    // Transliterate common accented chars before stripping
+    .replace(/[éèêë]/g, 'e')
+    .replace(/[àáâãä]/g, 'a')
+    .replace(/[ìíîï]/g, 'i')
+    .replace(/[òóôõö]/g, 'o')
+    .replace(/[ùúûü]/g, 'u')
+    .replace(/[ñ]/g, 'n')
+    .replace(/[ç]/g, 'c')
     .trim();
 
   // Check full-string acronym match first
@@ -80,17 +88,34 @@ export function normalizeFirmName(name: string): string {
   const acronymResult2 = ACRONYM_MAP[basicClean];
   if (acronymResult2) return acronymResult2;
 
-  // Token-level acronym expansion (e.g. "p&g manufacturing" → "procter and gamble manufacturing")
-  const tokens = basicClean.split(/\s+/);
-  const expanded = tokens.map(t => ACRONYM_MAP[t] || t);
-  normalized = expanded.join(' ');
+  // First pass: expand ONLY &-containing acronyms (e.g. "p&g" → "procter and gamble")
+  // Must happen BEFORE & is replaced with "and"
+  const preTokens = basicClean.split(/\s+/);
+  const preExpanded = preTokens.map(t => (t.includes('&') && ACRONYM_MAP[t]) ? ACRONYM_MAP[t] : t);
+  let working = preExpanded.join(' ');
 
-  return normalized
+  // Strip corporate suffixes and & → "and"
+  let stripped = working
     .replace(/[&]/g, ' and ')
     .replace(SUFFIX_REGEX, '')
     .replace(/[^a-z0-9\s]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+
+  // Second pass: expand remaining acronyms (ibm, ge, hp, etc.)
+  // These expand AFTER suffix stripping so their expansions stay intact
+  const tokens = stripped.split(/\s+/);
+  const expanded = tokens.map(t => ACRONYM_MAP[t] || t);
+  normalized = expanded.join(' ');
+
+  // Final cleanup + deduplicate consecutive repeated words
+  normalized = normalized
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b(\w+)(\s+\1)+\b/g, '$1');
+
+  return normalized;
 }
 
 /**
