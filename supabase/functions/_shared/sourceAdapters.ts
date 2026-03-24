@@ -77,7 +77,7 @@ export const fdaAdapter: SourceAdapter = {
   },
 };
 
-// ── 2. OSHA Violations ─────────────────────────────────────────────────
+// ── 2. OSHA Violations (live query + historical bulk) ──────────────────
 
 export const oshaAdapter: SourceAdapter = {
   id: 'osha',
@@ -85,13 +85,12 @@ export const oshaAdapter: SourceAdapter = {
   async fetch(query: string, maxResults: number): Promise<RawRegRecord[]> {
     const records: RawRegRecord[] = [];
     try {
-      // OSHA enforcement API
+      // OSHA enforcement API — live query by establishment name
       const url = `https://enforcedata.dol.gov/api/enhanced_osha/inspection?company=${encodeURIComponent(query)}&per_page=${maxResults}`;
       const resp = await fetch(url, {
         headers: { 'Accept': 'application/json' },
       });
       if (!resp.ok) {
-        // Fallback: try the OSHA summary API
         console.warn(`[osha] Primary API returned ${resp.status}, trying summary endpoint`);
         return records;
       }
@@ -115,7 +114,7 @@ export const oshaAdapter: SourceAdapter = {
           description: `${insp.estab_name || query} — ${violType || 'Inspection'} in ${insp.site_city || ''}, ${insp.site_state || ''}. ${insp.hazard_desc || ''}`.trim(),
           firmName: insp.estab_name || query,
           date: sanitizeDate(insp.open_date || insp.close_date),
-          sourceUrl: 'https://www.osha.gov/pls/imis/establishment.html',
+          sourceUrl: `https://www.osha.gov/pls/imis/establishment.inspection_detail?id=${id}`,
           category: 'labor',
           impact,
           sourceName: 'OSHA',
@@ -126,6 +125,82 @@ export const oshaAdapter: SourceAdapter = {
       }
     } catch (err) {
       console.error('[osha] Fetch error:', err);
+    }
+    return records;
+  },
+};
+
+// ── 2b. OSHA Historical Bulk (paginated archive ingestion) ─────────────
+// This adapter is used by bulk-ingest-osha-historical for discovery mode.
+// It pulls pages of inspections without filtering by company name,
+// then relies on the company matcher to resolve establishment names.
+
+export const oshaHistoricalAdapter: SourceAdapter = {
+  id: 'osha-historical',
+  featureFlagKey: 'ingest_osha_historical_enabled',
+  async fetch(query: string, maxResults: number): Promise<RawRegRecord[]> {
+    const records: RawRegRecord[] = [];
+    try {
+      // query is used as a date-range or SIC filter in bulk mode
+      // Format: "page=0&start=2020-01-01&end=2025-12-31" or just a company name
+      const params = new URLSearchParams(query);
+      const page = params.get('page') || '0';
+      const startDate = params.get('start') || '2020-01-01';
+      const endDate = params.get('end') || new Date().toISOString().slice(0, 10);
+      const sicCode = params.get('sic') || '';
+
+      const apiParams = new URLSearchParams({
+        per_page: String(Math.min(maxResults, 250)),
+        page,
+        open_date_from: startDate,
+        open_date_to: endDate,
+      });
+      if (sicCode) apiParams.set('sic_code', sicCode);
+
+      const url = `https://enforcedata.dol.gov/api/enhanced_osha/inspection?${apiParams.toString()}`;
+      const resp = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (!resp.ok) return records;
+
+      const raw = await resp.json();
+      const inspections = Array.isArray(raw) ? raw : raw?.results || raw?.data || [];
+
+      for (const insp of inspections) {
+        const id = insp.activity_nr || insp.inspection_nr || '';
+        if (!id) continue;
+        const firmName = (insp.estab_name || '').toString().trim();
+        if (!firmName) continue;
+
+        const penalty = Number(insp.total_current_penalty || 0);
+        const serious = Number(insp.nr_serious || 0);
+        const willful = Number(insp.nr_willful || 0);
+        const repeat_ = Number(insp.nr_repeat || 0);
+        const violCount = serious + willful + repeat_;
+
+        let impact = -1;
+        if (willful >= 2 || penalty >= 100_000) impact = -5;
+        else if (repeat_ >= 1 || willful >= 1) impact = -4;
+        else if (serious >= 3 || penalty >= 25_000) impact = -3;
+        else if (serious >= 1) impact = -2;
+
+        const penaltyStr = penalty > 0 ? ` ($${Number(penalty).toLocaleString()})` : '';
+
+        records.push({
+          sourceId: String(id),
+          title: `OSHA Inspection: ${violCount} violation${violCount !== 1 ? 's' : ''} at ${firmName.substring(0, 80)}${penaltyStr}`,
+          description: `OSHA inspection of ${firmName} in ${insp.site_city || ''}, ${insp.site_state || ''}. ${violCount} violation(s)${serious > 0 ? `, ${serious} serious` : ''}${willful > 0 ? `, ${willful} willful` : ''}.`.trim(),
+          firmName,
+          date: sanitizeDate(insp.close_case_date || insp.open_date),
+          sourceUrl: `https://www.osha.gov/pls/imis/establishment.inspection_detail?id=${id}`,
+          category: 'labor',
+          impact,
+          sourceName: 'OSHA',
+          sourceDomain: 'osha.gov',
+          agencyFullName: 'Occupational Safety and Health Administration',
+          rawData: insp,
+        });
+      }
+    } catch (err) {
+      console.error('[osha-historical] Fetch error:', err);
     }
     return records;
   },
@@ -530,6 +605,7 @@ async function secEdgarCompanyFallback(query: string, maxResults: number): Promi
 export const ALL_ADAPTERS: SourceAdapter[] = [
   fdaAdapter,
   oshaAdapter,
+  oshaHistoricalAdapter,
   epaAdapter,
   cpscAdapter,
   ftcAdapter,
