@@ -10353,6 +10353,10 @@ export type Database = {
         Args: { p_brand_id: string; p_user_id?: string }
         Returns: Json
       }
+      personalized_brand_score_v3: {
+        Args: { p_brand_id: string; p_user_id?: string }
+        Returns: Json
+      }
       reclassify_all_events: {
         Args: never
         Returns: {
