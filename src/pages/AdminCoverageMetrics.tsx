@@ -116,6 +116,31 @@ export default function AdminCoverageMetrics() {
         </Card>
       </div>
 
+      {/* Coverage Trend Chart */}
+      {trendData && trendData.length > 0 && (
+        <Card className="p-6 mb-8">
+          <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
+            <TrendingDown className="h-5 w-5" /> Backlog Trend (Daily)
+          </h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Tracking whether the never_checked backlog is declining over time.
+          </p>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={trendData}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="date" className="text-xs" />
+              <YAxis className="text-xs" />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="never_checked_count" name="Never Checked" stroke="hsl(var(--destructive))" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="quiet_count" name="Quiet" stroke="hsl(var(--muted-foreground))" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="active_count" name="Active" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="brands_checked_24h" name="Checked (24h)" stroke="hsl(var(--accent-foreground))" strokeWidth={1} strokeDasharray="5 5" dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </Card>
+      )}
+
       {/* Status Breakdown */}
       <Card className="p-6 mb-8">
         <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
