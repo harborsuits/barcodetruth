@@ -38,7 +38,7 @@ export function HeroSection() {
           className="flex items-center justify-center gap-2"
         >
           <div className="h-1.5 w-1.5 bg-success animate-pulse-glow" />
-          <span className="text-data text-muted-foreground">System Ready</span>
+          <span className="text-data text-muted-foreground font-mono text-xs uppercase tracking-widest">SYSTEM_ACCESS: GRANTED</span>
         </motion.div>
 
         {/* Barcode accent */}
@@ -65,10 +65,10 @@ export function HeroSection() {
           className="space-y-2"
         >
           <h1 className="font-display font-bold text-3xl sm:text-5xl tracking-tight text-foreground">
-            Scan a barcode.
+            Forensic Audit:
           </h1>
           <p className="font-display font-bold text-3xl sm:text-5xl tracking-tight text-primary">
-            See who profits.
+            Global Brands
           </p>
         </motion.div>
 

@@ -193,24 +193,20 @@ function EvidenceList({ brandId }: { brandId: string }) {
   const { data: evidence, isLoading } = useQuery({
     queryKey: ['brand-evidence-v1', brandId],
     queryFn: async () => {
-      // Removed 30-day filter - show all relevant events
       const { data, error } = await supabase
         .from('brand_events')
         .select('event_id, title, event_date, category, source_url')
         .eq('brand_id', brandId)
         .eq('is_irrelevant', false)
         .order('event_date', { ascending: false })
-        .limit(20); // Fetch more to allow for deduplication
+        .limit(20);
       
       if (error) return [];
-      
-      // Deduplicate similar titles to avoid showing same story multiple times
       return deduplicateEvents(data || []);
     },
     enabled: !!brandId,
   });
   
-  // Get total count for "View all" link
   const { data: totalCount } = useQuery({
     queryKey: ['brand-evidence-count', brandId],
     queryFn: async () => {
@@ -244,34 +240,48 @@ function EvidenceList({ brandId }: { brandId: string }) {
   }
   
   const displayedEvidence = evidence.slice(0, 5);
+
+  // Extract domain from URL for source badge
+  const getSourceName = (url?: string) => {
+    if (!url) return null;
+    try {
+      const hostname = new URL(url).hostname.replace('www.', '');
+      const parts = hostname.split('.');
+      return parts[0].toUpperCase();
+    } catch {
+      return null;
+    }
+  };
   
   return (
     <div className="divide-y divide-border">
       {displayedEvidence.map((ev) => {
         const hasUrl = !!ev.source_url;
-        const categoryLabel = ev.category?.charAt(0).toUpperCase() + ev.category?.slice(1);
+        const sourceName = getSourceName(ev.source_url);
         
         const inner = (
-          <div className="p-4 space-y-1.5">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-[10px] font-mono uppercase tracking-wider">
-                {categoryLabel}
-              </Badge>
+          <div className="p-4 space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {sourceName && (
+                <Badge className="bg-primary/10 text-primary border-primary/20 text-[9px] font-mono uppercase tracking-wider px-2 py-0.5">
+                  {sourceName}
+                </Badge>
+              )}
+              <span className="text-[10px] text-muted-foreground font-mono">
+                {new Date(ev.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </span>
               {ev.duplicates && ev.duplicates.length > 0 && (
                 <span className="text-[10px] text-muted-foreground font-mono">
-                  {ev.duplicates.length + 1} outlets
+                  +{ev.duplicates.length} outlets
                 </span>
               )}
             </div>
             <p className="text-sm font-medium leading-snug">{ev.title}</p>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span>{new Date(ev.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-              {hasUrl && (
-                <span className="text-primary inline-flex items-center gap-0.5">
-                  Source <ExternalLink className="h-2.5 w-2.5" />
-                </span>
-              )}
-            </div>
+            {hasUrl && (
+              <span className="font-mono text-[10px] uppercase tracking-widest text-primary inline-flex items-center gap-1">
+                SOURCE_DATA <ExternalLink className="h-2.5 w-2.5" /> →
+              </span>
+            )}
           </div>
         );
 
@@ -300,10 +310,10 @@ function EvidenceList({ brandId }: { brandId: string }) {
         <div className="p-3">
           <Button 
             variant="ghost" 
-            className="w-full text-xs font-mono uppercase tracking-wider"
+            className="w-full font-mono text-[10px] uppercase tracking-widest"
             onClick={() => navigate(`/proof/${brandId}`)}
           >
-            View all {totalCount} evidence items →
+            LOAD FULL AUDIT TRAIL ({totalCount} items) →
           </Button>
         </div>
       )}
@@ -638,7 +648,10 @@ export default function BrandProfileV1() {
         {/* ═══ METRIC DISTRIBUTION ═══ */}
         {resolvedBrandId && (
           <div className="space-y-3">
-            <h2 className="label-forensic">Metric Distribution</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="label-forensic">FORENSIC METRIC DISTRIBUTION</h2>
+              <span className="font-mono text-[10px] text-muted-foreground">{new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+            </div>
             <MetricDistribution brandId={resolvedBrandId} />
           </div>
         )}
@@ -717,7 +730,7 @@ export default function BrandProfileV1() {
 
         {/* ═══ FORENSIC EVIDENCE ═══ */}
         <div className="space-y-3">
-          <h2 className="label-forensic">Forensic Evidence</h2>
+          <h2 className="label-forensic">FORENSIC EVIDENCE REPOSITORY</h2>
           
           {/* Coverage status */}
           <BrandCoverageStatus 
@@ -735,6 +748,13 @@ export default function BrandProfileV1() {
         {resolvedBrandId && (
           <div className="space-y-3">
             <h2 className="label-forensic">Ethical Alternatives</h2>
+            <Button 
+              variant="outline" 
+              className="w-full font-mono text-[10px] uppercase tracking-widest"
+              onClick={() => navigate(`/brand/${brand.slug || resolvedBrandId}#alternatives`)}
+            >
+              VIEW ALTERNATIVES →
+            </Button>
             <AlternativesSection brandId={resolvedBrandId} brandName={brand.name} />
           </div>
         )}
@@ -797,29 +817,29 @@ function MetricDistribution({ brandId }: { brandId: string }) {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 gap-3">
+      <div className="space-y-3">
         {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20" />)}
       </div>
     );
   }
 
   const dimensions = [
-    { key: 'labor', label: 'Worker Rights', icon: '👷', cssVar: 'labor' },
-    { key: 'environment', label: 'Environment', icon: '🌍', cssVar: 'environment' },
-    { key: 'politics', label: 'Political', icon: '🏛️', cssVar: 'politics' },
-    { key: 'social', label: 'Social', icon: '🤝', cssVar: 'social' },
+    { key: 'labor', label: 'Worker Rights', icon: '👷', description: 'Systemic analysis of labor practices, workplace conditions, and employee treatment across supply chains.' },
+    { key: 'environment', label: 'Environment', icon: '🌍', description: 'Environmental impact assessment including emissions, waste, sustainability initiatives, and regulatory compliance.' },
+    { key: 'politics', label: 'Political', icon: '🏛️', description: 'Corporate political activity including lobbying expenditures, PAC contributions, and policy advocacy.' },
+    { key: 'social', label: 'Social', icon: '🤝', description: 'Social responsibility metrics covering diversity, community engagement, and inclusion practices.' },
   ] as const;
 
   const getSeverity = (score: number | null): { label: string; className: string } => {
-    if (score === null) return { label: 'Pending', className: 'text-muted-foreground' };
-    if (score >= 70) return { label: 'Good', className: 'text-success' };
-    if (score >= 50) return { label: 'Warning', className: 'text-warning' };
-    if (score >= 30) return { label: 'Low', className: 'text-destructive' };
-    return { label: 'Critical', className: 'text-destructive' };
+    if (score === null) return { label: 'Pending', className: 'text-muted-foreground bg-muted' };
+    if (score >= 70) return { label: 'Good', className: 'text-success bg-success/10' };
+    if (score >= 50) return { label: 'Warning', className: 'text-warning bg-warning/10' };
+    if (score >= 30) return { label: 'Low', className: 'text-destructive bg-destructive/10' };
+    return { label: 'Critical', className: 'text-destructive bg-destructive/10' };
   };
 
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="space-y-2">
       {dimensions.map(dim => {
         const value = scores?.[dim.key] ?? null;
         const severity = getSeverity(value);
@@ -828,20 +848,23 @@ function MetricDistribution({ brandId }: { brandId: string }) {
             key={dim.key} 
             className="bg-elevated-1 border border-border p-4 space-y-2"
           >
-            <div className="flex items-center gap-2">
-              <span className="text-lg">{dim.icon}</span>
-              <span className="label-forensic text-[10px]">{dim.label}</span>
-            </div>
-            <div className="flex items-baseline justify-between">
-              <span className="text-2xl font-bold font-mono" style={{ fontFamily: "'Space Grotesk', monospace" }}>
-                {value !== null ? Math.round(value) : '—'}
-              </span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">{dim.icon}</span>
+                <span className="font-mono text-xs uppercase tracking-widest text-foreground font-semibold">{dim.label}</span>
+              </div>
               <Badge 
-                variant="outline" 
-                className={`${severity.className} text-[10px] font-mono uppercase tracking-wider border-current/20`}
+                className={`${severity.className} text-[10px] font-mono uppercase tracking-wider border-0 px-2 py-0.5`}
               >
                 {severity.label}
               </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">{dim.description}</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xl font-bold font-mono" style={{ fontFamily: "'Space Grotesk', monospace" }}>
+                {value !== null ? Math.round(value) : '—'}
+              </span>
+              <span className="text-xs text-muted-foreground font-mono">/ 100</span>
             </div>
           </div>
         );
