@@ -133,14 +133,16 @@ serve(async (req) => {
         })
         .limit(10);
 
-      fuzzyResults = (fuzzyMatches || []).map((b: any) => ({
-        id: b.id,
-        name: b.name,
-        parent_company: b.parent_company,
-        confidence: Math.min(0.8, b.similarity),
-        match_type: "fuzzy",
-        similarity: b.similarity
-      }));
+      fuzzyResults = (fuzzyMatches || [])
+        .filter((b: any) => b.status === 'active')
+        .map((b: any) => ({
+          id: b.id,
+          name: b.name,
+          parent_company: b.parent_company,
+          confidence: Math.min(0.8, b.similarity),
+          match_type: "fuzzy",
+          similarity: b.similarity
+        }));
     }
 
     // Combine and dedupe results
