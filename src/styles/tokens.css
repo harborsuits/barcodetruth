@@ -1,22 +1,22 @@
 :root {
-  /* surfaces — forensic dark navy */
-  --bg: #00132e;
-  --card: #041b3a;
+  /* surfaces — slate navy */
+  --bg: #141c22;
+  --card: #1b2530;
   --border: rgba(255, 255, 255, 0.08);
-  --muted: #5c6e87;
-  --text: #d4dfe9;
+  --muted: #5c6e7a;
+  --text: #cdd5da;
 
   /* status colors */
-  --success: #2dd4a0;
-  --warn: #ffba20;
-  --danger: #ffb4ab;
+  --success: #4db88a;
+  --warn: #d4930a;
+  --danger: #d44a3c;
 
   /* elevation & motion */
   --radius: 2px;
   --radius-xl: 0.25rem;
-  --shadow-sm: 0 1px 2px rgba(0, 14, 37, 0.3);
-  --shadow-md: 0 20px 40px rgba(0, 14, 37, 0.4);
-  --ring: 0 0 0 1.5px rgba(0, 163, 255, 0.3);
+  --shadow-sm: 0 1px 2px rgba(14, 20, 26, 0.3);
+  --shadow-md: 0 20px 40px rgba(14, 20, 26, 0.4);
+  --ring: 0 0 0 1.5px rgba(87, 127, 127, 0.3);
   --ease: cubic-bezier(.22,.61,.36,1);
   --dur: 150ms;
 }
