@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Camera, AlertCircle, WifiOff, X, Flashlight, FlashlightOff, Wrench, Upload } from "lucide-react";
+import { ScannerIdleAnimation } from "@/components/ScannerIdleAnimation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
