@@ -22,6 +22,13 @@ import {
 } from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
+import { 
+  calculateAlignment, 
+  type BrandDimensionScores, 
+  type AlignmentResult,
+  type UserPreferences,
+} from "@/lib/alignmentScore";
+import { useUserPreferences } from "@/hooks/useAlignmentScore";
 
 // Helper function to format time ago
 function formatTimeAgo(date: Date): string {
