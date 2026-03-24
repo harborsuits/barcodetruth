@@ -10145,6 +10145,33 @@ export type Database = {
         Args: { brand_name: string; brand_uuid: string }
         Returns: string
       }
+      get_activation_blockers: {
+        Args: never
+        Returns: {
+          avg_events: number
+          avg_proximity: number
+          brand_count: number
+          missing_description: number
+          missing_events: number
+          missing_logo: number
+          missing_parent: number
+          tier: string
+        }[]
+      }
+      get_activation_queue: {
+        Args: { batch_size?: number }
+        Returns: {
+          alias_count: number
+          brand_id: string
+          brand_name: string
+          event_count: number
+          has_description: boolean
+          has_logo: boolean
+          has_parent: boolean
+          proximity_score: number
+          tier: string
+        }[]
+      }
       get_better_alternatives: {
         Args: { p_limit?: number; p_raw_gtin: string }
         Returns: {
