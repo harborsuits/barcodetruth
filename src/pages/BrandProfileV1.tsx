@@ -520,11 +520,22 @@ export default function BrandProfileV1() {
     );
   }
 
-  // State A: Assessable (full profile) - continue to render full profile below
+  // State A: Assessable (full profile) - Forensic Editorial layout
+
+  const scoreValue = scoreData?.score ? Math.round(JSON.parse(JSON.stringify(scoreData.score))?.overall ?? scoreData.score ?? 0) : null;
+
+  const getAlignmentLabel = (s: number | null) => {
+    if (s === null) return { text: 'Pending', className: 'bg-muted text-muted-foreground' };
+    if (s >= 70) return { text: 'High Alignment', className: 'bg-success/20 text-success' };
+    if (s >= 40) return { text: 'Mixed Record', className: 'bg-warning/20 text-warning' };
+    return { text: 'Low Alignment', className: 'text-data' };
+  };
+
+  const alignment = getAlignmentLabel(scoreValue);
 
   return (
-    <div className="min-h-screen bg-background">
-      <main className="container max-w-2xl mx-auto px-4 py-6 space-y-4">
+    <div className="min-h-screen bg-background forensic-grid">
+      <main className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
         {/* Back button */}
         {cameFromBrand && (
           <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="-mt-2 mb-2">
@@ -532,165 +543,169 @@ export default function BrandProfileV1() {
           </Button>
         )}
 
-        {/* Pending/Building Profile Banner */}
-        {isPending && (
-          <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
-                  <Trophy className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-amber-900 dark:text-amber-100">
-                    Profile in progress
-                  </h3>
-                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-0.5">
-                    We're gathering evidence for this brand. Follow for updates.
-                  </p>
-                  {fromPendingSubmission && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                      Thanks for contributing — you're an early contributor!
-                    </p>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* ═══ REPORT HEADER ═══ */}
+        <div className="space-y-4">
+          {/* Brand identity row */}
+          <div className="flex items-start gap-4">
+            <BrandLogo 
+              logoUrl={brand.logo_url} 
+              website={brand.website}
+              brandName={brand.name}
+            />
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl font-bold tracking-tight">{brand.name}</h1>
+              {brand.website && (
+                <a 
+                  href={brand.website} 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="text-sm text-primary hover:underline inline-flex items-center gap-1 mt-0.5"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  {new URL(brand.website).hostname.replace('www.', '')}
+                </a>
+              )}
+              <p className="label-forensic mt-1">
+                Report #{brand.id.slice(0, 4).toUpperCase()}-{brand.id.slice(4, 5).toUpperCase()}
+              </p>
+            </div>
+          </div>
 
-        {/* Failed Status Banner - but still show all available content */}
-        {isFailed && (
-          <Card className="border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/20">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center flex-shrink-0">
-                  <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-orange-900 dark:text-orange-100">
-                    Verification pending — retrying automatically
-                  </h3>
-                  <p className="text-sm text-orange-700 dark:text-orange-300 mt-0.5">
-                    We're still verifying this brand's identity. Content below may be incomplete.
-                  </p>
-                  {brand.next_enrichment_at && (
-                    <div className="flex items-center gap-1 mt-1.5 text-xs text-orange-600 dark:text-orange-400">
-                      <Clock className="h-3 w-3" />
-                      <span>
-                        Next retry: {formatDistanceToNow(new Date(brand.next_enrichment_at), { addSuffix: true })}
-                      </span>
-                    </div>
-                  )}
-                </div>
+          {/* Score hero */}
+          <div className="bg-elevated-1 border border-border p-6 flex items-center justify-between">
+            <div>
+              <p className="label-forensic mb-1">Composite Score</p>
+              <div className="text-6xl font-extrabold tracking-tighter" style={{ fontFamily: "'Public Sans', sans-serif" }}>
+                {scoreValue !== null ? scoreValue : '—'}
               </div>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+            <div className="text-right space-y-2">
+              <Badge className={`${alignment.className} text-xs font-mono uppercase tracking-wider px-3 py-1`}>
+                {alignment.text}
+              </Badge>
+              {brand.identity_confidence && brand.identity_confidence !== 'low' && (
+                <p className="text-xs text-muted-foreground">
+                  Identity: {brand.identity_confidence}
+                </p>
+              )}
+            </div>
+          </div>
 
-        {/* Card 1: Header */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-4">
-              <BrandLogo 
-                logoUrl={brand.logo_url} 
-                website={brand.website}
-                brandName={brand.name}
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-2xl font-bold truncate">{brand.name}</h1>
-                  {brandStatus && brandStatus !== 'ready' && (
-                    <Badge variant="secondary" className="text-xs">
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      Building...
-                    </Badge>
-                  )}
-                </div>
-                {brand.website && (
-                  <a 
-                    href={brand.website} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="text-sm text-primary hover:underline inline-flex items-center gap-1 mt-1"
-                  >
-                    Visit website <ExternalLink className="h-3 w-3" />
-                  </a>
-                )}
-                {/* Only show description if identity_confidence is medium/high */}
-                {brand.description && brand.identity_confidence !== 'low' ? (
-                  <p className="text-sm text-muted-foreground mt-2 line-clamp-3">
-                    {brand.description}
+          {/* Enrichment progress */}
+          {enrichmentProgress.status === 'enriching' && (
+            <EnrichmentProgress 
+              status={enrichmentProgress.status}
+              message={enrichmentProgress.message}
+              step={enrichmentProgress.step}
+              totalSteps={enrichmentProgress.totalSteps}
+            />
+          )}
+
+          {/* Pending/Building Banner */}
+          {isPending && (
+            <div className="border border-warning/30 bg-warning/5 p-4 flex items-start gap-3">
+              <Trophy className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-warning">Profile in progress</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  We're gathering evidence for this brand. Follow for updates.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Failed Banner */}
+          {isFailed && (
+            <div className="border border-destructive/30 bg-destructive/5 p-4 flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-destructive">Verification pending — retrying automatically</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Content below may be incomplete.
+                </p>
+                {brand.next_enrichment_at && (
+                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    Next retry: {formatDistanceToNow(new Date(brand.next_enrichment_at), { addSuffix: true })}
                   </p>
-                ) : (
-                  <div className="mt-2 space-y-1">
-                    <p className="text-sm text-muted-foreground/60 italic">
-                      {brandStatus === 'stub' || brandStatus === 'building' 
-                        ? 'Building brand profile…'
-                        : brandStatus === 'failed'
-                        ? 'Build failed — retrying soon'
-                        : brand.identity_confidence === 'low' && brand.description
-                        ? 'Description pending verification'
-                        : 'No description yet'}
-                    </p>
-                    {/* Status explanation */}
-                    <p className="text-xs text-muted-foreground/50">
-                      {brandStatus === 'stub' || brandStatus === 'building' 
-                        ? 'Enrichment in progress'
-                        : brandStatus === 'failed'
-                        ? 'Enrichment will retry automatically'
-                        : brand.identity_confidence === 'low'
-                        ? 'Pending verification (to prevent incorrect matches)'
-                        : 'Coverage expanding soon'}
-                    </p>
-                    {/* Admin: show build error if failed */}
-                    {isAdmin && brandStatus === 'failed' && brand.last_build_error && (
-                      <p className="text-xs text-destructive mt-1">
-                        Error: {brand.last_build_error}
-                      </p>
-                    )}
-                  </div>
-                )}
-                
-                {/* Admin: Mark identity verified button */}
-                {isAdmin && brand.identity_confidence === 'low' && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-2"
-                    onClick={markIdentityVerified}
-                    disabled={verifying}
-                  >
-                    {verifying ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <ShieldCheck className="h-4 w-4 mr-2" />
-                    )}
-                    Mark Identity Verified
-                  </Button>
                 )}
               </div>
             </div>
-            
-            {/* Show enrichment progress if actively enriching */}
-            {enrichmentProgress.status === 'enriching' && (
-              <div className="mt-4">
-                <EnrichmentProgress 
-                  status={enrichmentProgress.status}
-                  message={enrichmentProgress.message}
-                  step={enrichmentProgress.step}
-                  totalSteps={enrichmentProgress.totalSteps}
-                />
+          )}
+        </div>
+
+        {/* ═══ METRIC DISTRIBUTION ═══ */}
+        {resolvedBrandId && (
+          <div className="space-y-3">
+            <h2 className="label-forensic">Metric Distribution</h2>
+            <MetricDistribution brandId={resolvedBrandId} />
+          </div>
+        )}
+
+        {/* ═══ BRAND OVERVIEW ═══ */}
+        <div className="bg-elevated-1 border border-border p-5 space-y-3">
+          <h2 className="label-forensic">Brand Overview</h2>
+          {brand.description && brand.identity_confidence !== 'low' ? (
+            <p className="text-sm text-foreground/80 leading-relaxed">
+              {brand.description}
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground italic">
+              {brandStatus === 'stub' || brandStatus === 'building' 
+                ? 'Building brand profile…'
+                : brand.identity_confidence === 'low'
+                ? 'Description pending verification'
+                : 'No description yet'}
+            </p>
+          )}
+          
+          {/* Key facts row */}
+          <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border">
+            {brand.parent_company && (
+              <div>
+                <p className="label-forensic text-[10px]">Parent Company</p>
+                <p className="text-sm font-medium text-foreground">{brand.parent_company}</p>
               </div>
             )}
-          </CardContent>
-        </Card>
+            {brand.website && (
+              <div>
+                <p className="label-forensic text-[10px]">Domain</p>
+                <p className="text-sm font-medium text-foreground">{new URL(brand.website).hostname.replace('www.', '')}</p>
+              </div>
+            )}
+            {brand.wikidata_qid && (
+              <div>
+                <p className="label-forensic text-[10px]">Wikidata</p>
+                <p className="text-sm font-medium text-foreground font-mono">{brand.wikidata_qid}</p>
+              </div>
+            )}
+          </div>
 
-        {/* Card 2: Power & Profit (Who owns this brand) */}
+          {/* Admin verify button */}
+          {isAdmin && brand.identity_confidence === 'low' && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2"
+              onClick={markIdentityVerified}
+              disabled={verifying}
+            >
+              {verifying ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <ShieldCheck className="h-4 w-4 mr-2" />
+              )}
+              Mark Identity Verified
+            </Button>
+          )}
+        </div>
+
+        {/* ═══ POWER METRICS ═══ */}
         {resolvedBrandId && (
           <PowerProfitCard brandId={resolvedBrandId} brandName={brand.name} />
         )}
 
-        {/* Card 3: Personalized Score */}
+        {/* ═══ PERSONALIZED SCORE ═══ */}
         {resolvedBrandId && (
           <PersonalizedScoreDisplay 
             brandId={resolvedBrandId} 
@@ -699,36 +714,137 @@ export default function BrandProfileV1() {
           />
         )}
 
-        {/* Alternatives Section */}
-        {resolvedBrandId && (
-          <AlternativesSection brandId={resolvedBrandId} brandName={brand.name} />
-        )}
-
-        {/* Trust Pledge - How We Stay Neutral */}
-        <TrustPledge />
-
-        {/* Coverage Status */}
-        {resolvedBrandId && (
+        {/* ═══ FORENSIC EVIDENCE ═══ */}
+        <div className="space-y-3">
+          <h2 className="label-forensic">Forensic Evidence</h2>
+          
+          {/* Coverage status */}
           <BrandCoverageStatus 
             status={brand.news_coverage_status}
             lastCheckedAt={brand.last_news_check_at}
             materialEventCount={brand.material_event_count_30d}
           />
+
+          <div className="bg-elevated-1 border border-border">
+            {resolvedBrandId && <EvidenceList brandId={resolvedBrandId} />}
+          </div>
+        </div>
+
+        {/* ═══ ETHICAL ALTERNATIVES ═══ */}
+        {resolvedBrandId && (
+          <div className="space-y-3">
+            <h2 className="label-forensic">Ethical Alternatives</h2>
+            <AlternativesSection brandId={resolvedBrandId} brandName={brand.name} />
+          </div>
         )}
 
-        {/* Card 4: Evidence */}
-        <Card>
-          <CardContent className="pt-6">
-            <h2 className="text-lg font-semibold mb-3">Show me proof</h2>
-            {resolvedBrandId && <EvidenceList brandId={resolvedBrandId} />}
-          </CardContent>
-        </Card>
+        {/* ═══ FOOTER LINKS ═══ */}
+        <div className="flex items-center justify-center gap-4 py-4 border-t border-border">
+          <button 
+            className="text-xs text-muted-foreground hover:text-primary transition-colors font-mono uppercase tracking-wider"
+            onClick={() => {/* scroll to score */}}
+          >
+            Why This Score
+          </button>
+          <span className="text-border">|</span>
+          <button 
+            className="text-xs text-muted-foreground hover:text-primary transition-colors font-mono uppercase tracking-wider"
+          >
+            How We Stay Neutral
+          </button>
+          <span className="text-border">|</span>
+          <button 
+            className="text-xs text-muted-foreground hover:text-primary transition-colors font-mono uppercase tracking-wider"
+            onClick={() => resolvedBrandId && navigate(`/proof/${resolvedBrandId}`)}
+          >
+            Show Me Proof
+          </button>
+        </div>
 
-        {/* Early beta banner */}
+        {/* Beta banner */}
         <p className="text-xs text-center text-muted-foreground px-4">
-          Early beta — coverage expands weekly. Parent companies and scores for major brands available today.
+          Early beta — coverage expands weekly.
         </p>
       </main>
+    </div>
+  );
+}
+
+/* ═══ METRIC DISTRIBUTION COMPONENT ═══ */
+function MetricDistribution({ brandId }: { brandId: string }) {
+  const { data: scores, isLoading } = useQuery({
+    queryKey: ['brand-dimension-scores', brandId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('brand_scores')
+        .select('score')
+        .eq('brand_id', brandId)
+        .order('last_updated', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error || !data) return null;
+      const s = typeof data.score === 'string' ? JSON.parse(data.score) : data.score;
+      return {
+        labor: s?.score_labor ?? null,
+        environment: s?.score_environment ?? null,
+        politics: s?.score_politics ?? null,
+        social: s?.score_social ?? null,
+      };
+    },
+    enabled: !!brandId,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-2 gap-3">
+        {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20" />)}
+      </div>
+    );
+  }
+
+  const dimensions = [
+    { key: 'labor', label: 'Worker Rights', icon: '👷', cssVar: 'labor' },
+    { key: 'environment', label: 'Environment', icon: '🌍', cssVar: 'environment' },
+    { key: 'politics', label: 'Political', icon: '🏛️', cssVar: 'politics' },
+    { key: 'social', label: 'Social', icon: '🤝', cssVar: 'social' },
+  ] as const;
+
+  const getSeverity = (score: number | null): { label: string; className: string } => {
+    if (score === null) return { label: 'Pending', className: 'text-muted-foreground' };
+    if (score >= 70) return { label: 'Good', className: 'text-success' };
+    if (score >= 50) return { label: 'Warning', className: 'text-warning' };
+    if (score >= 30) return { label: 'Low', className: 'text-destructive' };
+    return { label: 'Critical', className: 'text-destructive' };
+  };
+
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {dimensions.map(dim => {
+        const value = scores?.[dim.key] ?? null;
+        const severity = getSeverity(value);
+        return (
+          <div 
+            key={dim.key} 
+            className="bg-elevated-1 border border-border p-4 space-y-2"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{dim.icon}</span>
+              <span className="label-forensic text-[10px]">{dim.label}</span>
+            </div>
+            <div className="flex items-baseline justify-between">
+              <span className="text-2xl font-bold font-mono" style={{ fontFamily: "'Space Grotesk', monospace" }}>
+                {value !== null ? Math.round(value) : '—'}
+              </span>
+              <Badge 
+                variant="outline" 
+                className={`${severity.className} text-[10px] font-mono uppercase tracking-wider border-current/20`}
+              >
+                {severity.label}
+              </Badge>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
