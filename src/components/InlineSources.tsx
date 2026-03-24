@@ -220,24 +220,7 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                         </div>
                         
                         <div className="flex gap-1">
-                          {source.link_kind === 'article' && source.canonical_url && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              asChild
-                              className="h-7 text-xs px-2"
-                            >
-                              <a
-                                href={source.canonical_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <ExternalLink className="h-3 w-3 mr-1" />
-                                View Article
-                              </a>
-                            </Button>
-                          )}
-                          {source.link_kind === 'database' && linkUrl && (
+                          {linkUrl && source.link_kind !== 'homepage' ? (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -250,11 +233,10 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                                 rel="noopener noreferrer"
                               >
                                 <ExternalLink className="h-3 w-3 mr-1" />
-                                View Database
+                                {source.link_kind === 'database' ? 'View Record' : 'View Source'}
                               </a>
                             </Button>
-                          )}
-                          {source.link_kind === 'homepage' && (
+                          ) : source.link_kind === 'homepage' ? (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -263,7 +245,7 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                             >
                               Article pending
                             </Button>
-                          )}
+                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -371,7 +353,7 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
               )}
 
               <div className="pt-4 border-t flex gap-2">
-                {selectedSource?.url && selectedSource?.link_kind === 'article' && (
+                {selectedSource?.url && (
                   <Button variant="outline" size="sm" asChild className="flex-1">
                     <a
                       href={selectedSource.url}
@@ -380,33 +362,8 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                       className="flex items-center gap-2 justify-center"
                     >
                       <ExternalLink className="h-4 w-4" />
-                      View Article
-                    </a>
-                  </Button>
-                )}
-                {selectedSource?.url && selectedSource?.link_kind === 'database' && (
-                  <Button variant="outline" size="sm" asChild className="flex-1">
-                    <a
-                      href={selectedSource.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 justify-center"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      View Database
-                    </a>
-                  </Button>
-                )}
-                {selectedSource?.url && selectedSource?.link_kind === 'homepage' && (
-                  <Button variant="outline" size="sm" asChild className="flex-1">
-                    <a
-                      href={selectedSource.url}
-                      target="_blank"
-                      rel="noopener noreferrer nofollow"
-                      className="flex items-center gap-2 justify-center"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      View Outlet
+                      {selectedSource?.link_kind === 'database' ? 'View Record' : 
+                       selectedSource?.link_kind === 'homepage' ? 'View Outlet' : 'View Source'}
                     </a>
                   </Button>
                 )}
