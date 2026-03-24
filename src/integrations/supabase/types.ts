@@ -10215,6 +10215,22 @@ export type Database = {
       get_coverage_metrics: { Args: never; Returns: Json }
       get_enrichment_coverage: { Args: never; Returns: Json }
       get_enrichment_stats: { Args: never; Returns: Json }
+      get_fair_feed: {
+        Args: { p_limit?: number; p_max_per_brand?: number }
+        Returns: {
+          brand_id: string
+          brand_logo_url: string
+          brand_name: string
+          category: string
+          created_at: string
+          event_date: string
+          event_id: string
+          materiality_score: number
+          parent_company: string
+          source_url: string
+          title: string
+        }[]
+      }
       get_health_dashboard: { Args: never; Returns: Json }
       get_incomplete_brands: {
         Args: never
