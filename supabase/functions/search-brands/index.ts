@@ -108,10 +108,11 @@ serve(async (req) => {
         matched_alias: m.external_name
       }));
 
-    // Step 2: Exact/prefix match on brands
+    // Step 2: Exact/prefix match on brands (active only)
     const { data: exactMatches } = await supabase
       .from("brands")
       .select("id, name, parent_company")
+      .eq("status", "active")
       .or(`name.ilike.${escapedRaw},name.ilike.${escapedRaw}%`)
       .limit(10);
 
