@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Package, AlertCircle, ChevronRight, Loader2, Check, Save, ExternalLink } from "lucide-react";
+import { ArrowLeft, Package, AlertCircle, Loader2, Check, Save, ExternalLink } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,92 +11,113 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { AlternativesSection } from "@/components/brand/AlternativesSection";
 import { EnrichmentStageProgress } from "@/components/brand/EnrichmentStageProgress";
-import { ParentCompanyBanner } from "@/components/brand/ParentCompanyBanner";
-import { SisterBrandsCard } from "@/components/brand/SisterBrandsCard";
+import { TrustVerdict } from "@/components/scan/TrustVerdict";
+import { ScoreBreakdownCard } from "@/components/scan/ScoreBreakdownCard";
+import { OwnershipReveal } from "@/components/scan/OwnershipReveal";
+import { ShareCard, getGrade } from "@/components/scan/ShareCard";
+import { useBrandLogo } from "@/hooks/useBrandLogo";
 
-// V1 Consumer Contract:
-// - Product name (from barcode lookup) or "Unknown product"
-// - Brand name (linked brand) or "Brand unknown"
-// - Status: ready/building/unknown
-// - CTA: "View Brand Profile" or "Search Brands"
-// - NEW: Building state shows progress + optional correction form
-
-// Optional correction form for building brands
-function CorrectionForm({ 
-  brandName, 
-  onSubmit 
-}: { 
-  brandName: string; 
-  onSubmit: (data: { name?: string; website?: string }) => void;
-}) {
-  const [name, setName] = useState('');
-  const [website, setWebsite] = useState('');
+// ─── Correction form (unchanged) ───
+function CorrectionForm({ brandName, onSubmit }: { brandName: string; onSubmit: (data: { name?: string; website?: string }) => void }) {
+  const [name, setName] = useState("");
+  const [website, setWebsite] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() && !website.trim()) return;
-    
     setSubmitting(true);
-    await onSubmit({ 
-      name: name.trim() || undefined, 
-      website: website.trim() || undefined 
-    });
+    await onSubmit({ name: name.trim() || undefined, website: website.trim() || undefined });
     setSubmitting(false);
   };
-  
+
   return (
     <form onSubmit={handleSubmit} className="space-y-3 pt-3 border-t">
-      <p className="text-xs text-muted-foreground">
-        Help improve this brand's data (optional)
-      </p>
+      <p className="text-xs text-muted-foreground">Help improve this brand's data (optional)</p>
       <div className="space-y-2">
         <div>
           <Label htmlFor="brand-name" className="text-xs">Brand Name</Label>
-          <Input 
-            id="brand-name"
-            placeholder={brandName || "Correct brand name"}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="h-8 text-sm"
-          />
+          <Input id="brand-name" placeholder={brandName || "Correct brand name"} value={name} onChange={(e) => setName(e.target.value)} className="h-8 text-sm" />
         </div>
         <div>
           <Label htmlFor="brand-website" className="text-xs">Website</Label>
-          <Input 
-            id="brand-website"
-            placeholder="example.com"
-            value={website}
-            onChange={(e) => setWebsite(e.target.value)}
-            className="h-8 text-sm"
-          />
+          <Input id="brand-website" placeholder="example.com" value={website} onChange={(e) => setWebsite(e.target.value)} className="h-8 text-sm" />
         </div>
       </div>
-      <Button 
-        type="submit" 
-        variant="outline" 
-        size="sm" 
-        className="w-full"
-        disabled={submitting || (!name.trim() && !website.trim())}
-      >
-        {submitting ? (
-          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-        ) : (
-          <Check className="h-4 w-4 mr-2" />
-        )}
+      <Button type="submit" variant="outline" size="sm" className="w-full" disabled={submitting || (!name.trim() && !website.trim())}>
+        {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
         Submit Correction
       </Button>
     </form>
   );
 }
 
+// ─── Score reason generator ───
+function buildReasons(scores: any, evidenceCounts: Record<string, number>, parentName?: string | null, brandName?: string): string[] {
+  const reasons: string[] = [];
+  const s = scores || {};
+
+  if (s.score_labor != null && s.score_labor < 45) {
+    const c = evidenceCounts.labor || 0;
+    reasons.push(c > 0 ? `${c} labor/workplace safety issue${c !== 1 ? "s" : ""} on record` : "Below-average labor practices record");
+  }
+  if (s.score_environment != null && s.score_environment < 45) {
+    const c = evidenceCounts.environment || 0;
+    reasons.push(c > 0 ? `${c} environmental compliance issue${c !== 1 ? "s" : ""} flagged` : "Environmental record needs improvement");
+  }
+  if (s.score_politics != null && s.score_politics < 45) {
+    reasons.push("Significant political lobbying or donation exposure");
+  }
+  if (s.score_social != null && s.score_social < 45) {
+    reasons.push("Social responsibility concerns identified");
+  }
+  if (parentName && parentName !== brandName) {
+    reasons.push(`Owned by ${parentName} — a large parent company`);
+  }
+  if (reasons.length === 0 && s.overall != null) {
+    if (s.overall >= 65) reasons.push("No major issues found in checked sources");
+    else reasons.push("Mixed record across multiple categories");
+  }
+  return reasons.slice(0, 3);
+}
+
+function getLetterGrade(score: number | null): string {
+  if (score === null) return "—";
+  if (score >= 85) return "A";
+  if (score >= 75) return "B+";
+  if (score >= 65) return "B";
+  if (score >= 55) return "B-";
+  if (score >= 45) return "C";
+  if (score >= 35) return "C-";
+  if (score >= 25) return "D";
+  return "F";
+}
+
+function getDimensionSummary(key: string, score: number | null, count: number): string {
+  if (score === null) return "Not enough data yet";
+  if (key === "labor") {
+    if (score >= 65) return "No verified negative signal found in reviewed sources";
+    return count > 0 ? `${count} OSHA-linked incident${count !== 1 ? "s" : ""} and workplace safety concerns` : "Below-average labor practices";
+  }
+  if (key === "environment") {
+    if (score >= 65) return "No reportable issues found in reviewed sources";
+    return count > 0 ? `${count} EPA-linked compliance issue${count !== 1 ? "s" : ""}` : "Environmental record needs improvement";
+  }
+  if (key === "politics") {
+    if (score >= 65) return "Limited political spending detected";
+    return "Political lobbying and donation exposure identified";
+  }
+  if (score >= 65) return "No major concerns identified";
+  return "Social responsibility concerns found";
+}
+
+// ─── Main component ───
 export default function ScanResultV1() {
   const { barcode } = useParams<{ barcode: string }>();
   const navigate = useNavigate();
   const [showCorrection, setShowCorrection] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  // No barcode provided
   if (!barcode) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -104,55 +125,45 @@ export default function ScanResultV1() {
           <CardContent className="pt-6 space-y-4 text-center">
             <Package className="h-12 w-12 mx-auto text-muted-foreground" />
             <h2 className="text-lg font-semibold">No barcode provided</h2>
-            <p className="text-sm text-muted-foreground">
-              Please scan a product barcode to see results.
-            </p>
-            <Button onClick={() => navigate('/scan')} className="w-full">
-              Scan a Product
-            </Button>
+            <p className="text-sm text-muted-foreground">Please scan a product barcode to see results.</p>
+            <Button onClick={() => navigate("/scan")} className="w-full">Scan a Product</Button>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  // Query product by barcode
+  // ─── Queries ───
   const { data: product, isLoading: productLoading, error: productError } = useQuery({
-    queryKey: ['product-v1', barcode],
+    queryKey: ["product-v1", barcode],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('products')
-        .select('id, barcode, name, brand_id, category')
-        .eq('barcode', barcode)
-        .order('updated_at', { ascending: false })
+        .from("products")
+        .select("id, barcode, name, brand_id, category")
+        .eq("barcode", barcode)
+        .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      
       if (error) throw error;
       return data;
     },
     enabled: !!barcode,
   });
 
-  // Query brand info (with polling for building status and enrichment stage)
   const { data: brandInfo, refetch: refetchBrand } = useQuery({
-    queryKey: ['brand-info-v1', product?.brand_id],
+    queryKey: ["brand-info-v1", product?.brand_id],
     enabled: !!product?.brand_id,
     refetchInterval: (query) => {
       const status = (query.state.data as any)?.status;
-      if (status === 'stub' || status === 'building') {
-        return 5000;
-      }
-      return false;
+      return status === "stub" || status === "building" ? 5000 : false;
     },
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('brands' as any)
-        .select('id, name, slug, status, logo_url, description, enrichment_stage, enrichment_stage_updated_at, enrichment_started_at, parent_company_id')
-        .eq('id', product!.brand_id)
+        .from("brands" as any)
+        .select("id, name, slug, status, logo_url, description, enrichment_stage, enrichment_stage_updated_at, enrichment_started_at, parent_company_id, parent_company, website")
+        .eq("id", product!.brand_id)
         .limit(1)
         .maybeSingle();
-      
       if (error) throw error;
       return data as unknown as {
         id: string;
@@ -165,141 +176,142 @@ export default function ScanResultV1() {
         enrichment_stage_updated_at: string | null;
         enrichment_started_at: string | null;
         parent_company_id: string | null;
+        parent_company: string | null;
+        website: string | null;
       } | null;
     },
   });
 
-  // Determine states
-  const brandIsReady = brandInfo?.status === 'ready';
-  const brandIsBuilding = brandInfo?.status === 'stub' || brandInfo?.status === 'building';
-  const brandIsFailed = brandInfo?.status === 'failed';
+  // Score data
+  const { data: scoreData } = useQuery({
+    queryKey: ["scan-score", brandInfo?.id],
+    enabled: !!brandInfo?.id && brandInfo?.status === "ready",
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("brand_scores")
+        .select("score")
+        .eq("brand_id", brandInfo!.id)
+        .order("last_updated", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error || !data) return null;
+      return typeof data.score === "string" ? JSON.parse(data.score) : data.score;
+    },
+  });
+
+  // Evidence counts by category
+  const { data: evidenceCounts } = useQuery({
+    queryKey: ["scan-evidence-counts", brandInfo?.id],
+    enabled: !!brandInfo?.id && brandInfo?.status === "ready",
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("brand_events")
+        .select("category")
+        .eq("brand_id", brandInfo!.id)
+        .eq("is_irrelevant", false);
+      if (error || !data) return { labor: 0, environment: 0, politics: 0, social: 0, total: 0 };
+      const counts: Record<string, number> = { labor: 0, environment: 0, politics: 0, social: 0, total: data.length };
+      data.forEach((e: any) => {
+        if (e.category && counts[e.category] !== undefined) counts[e.category]++;
+      });
+      return counts;
+    },
+  });
+
+  // States
+  const brandIsReady = brandInfo?.status === "ready";
+  const brandIsBuilding = brandInfo?.status === "stub" || brandInfo?.status === "building";
+  const brandIsFailed = brandInfo?.status === "failed";
   const brandExists = Boolean(brandInfo?.id);
 
-  // Auto-navigate to brand page when ready
-  useEffect(() => {
-    if (brandIsReady && brandInfo?.slug) {
-      toast({
-        title: "Profile ready!",
-        description: `${brandInfo.name}'s profile is now available.`,
-      });
-      // Small delay to show the toast
-      const timer = setTimeout(() => {
-        navigate(`/brand/${brandInfo.slug}`);
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [brandIsReady, brandInfo?.slug, brandInfo?.name, navigate]);
+  const overallScore = scoreData?.overall ?? null;
+  const counts = evidenceCounts || { labor: 0, environment: 0, politics: 0, social: 0, total: 0 };
 
-  // Save scan to user_scans
+  const dimensions = [
+    { key: "labor", label: "Labor & Safety", score: scoreData?.score_labor ?? null, evidenceCount: counts.labor, summary: getDimensionSummary("labor", scoreData?.score_labor ?? null, counts.labor) },
+    { key: "environment", label: "Environment", score: scoreData?.score_environment ?? null, evidenceCount: counts.environment, summary: getDimensionSummary("environment", scoreData?.score_environment ?? null, counts.environment) },
+    { key: "politics", label: "Political Influence", score: scoreData?.score_politics ?? null, evidenceCount: counts.politics, summary: getDimensionSummary("politics", scoreData?.score_politics ?? null, counts.politics) },
+    { key: "social", label: "Social Impact", score: scoreData?.score_social ?? null, evidenceCount: counts.social, summary: getDimensionSummary("social", scoreData?.score_social ?? null, counts.social) },
+  ];
+
+  const reasons = buildReasons(scoreData, counts, brandInfo?.parent_company, brandInfo?.name);
+
+  const verdictLabel = overallScore === null ? "Unrated" : overallScore >= 65 ? "Trust" : overallScore >= 40 ? "Caution" : "Avoid";
+
+  // Logo
+  const displayLogo = useBrandLogo(brandInfo?.logo_url || null, brandInfo?.website || null);
+
+  // Save scan
   const handleSaveScan = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      toast({ title: "Sign in to save scans", variant: "default" });
-      return;
-    }
-    
+    if (!user) { toast({ title: "Sign in to save scans" }); return; }
     try {
-      await supabase.from('user_scans').upsert({
+      await supabase.from("user_scans").upsert({
         user_id: user.id,
         barcode,
         product_id: product?.id,
         brand_id: product?.brand_id,
         scanned_at: new Date().toISOString(),
-      }, { onConflict: 'user_id,barcode' });
-      
+      }, { onConflict: "user_id,barcode" });
       setSaved(true);
       toast({ title: "Scan saved!", description: "Added to your scan history." });
-    } catch (e) {
+    } catch {
       toast({ title: "Failed to save", variant: "destructive" });
     }
   };
 
-  // Submit correction
+  // Correction submit
   const handleCorrection = async (data: { name?: string; website?: string }) => {
     if (!brandInfo?.id) return;
-    
     try {
-      // Update brand with corrections (admin will review)
       const updates: Record<string, any> = {};
       if (data.name) updates.name = data.name;
       if (data.website) {
-        updates.website = data.website.startsWith('http') ? data.website : `https://${data.website}`;
-        updates.canonical_domain = data.website.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+        updates.website = data.website.startsWith("http") ? data.website : `https://${data.website}`;
+        updates.canonical_domain = data.website.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
       }
-      
       if (Object.keys(updates).length > 0) {
-        await supabase.from('brands').update(updates).eq('id', brandInfo.id);
+        await supabase.from("brands").update(updates).eq("id", brandInfo.id);
         toast({ title: "Thanks!", description: "Your correction has been submitted." });
         setShowCorrection(false);
         refetchBrand();
       }
-    } catch (e) {
+    } catch {
       toast({ title: "Failed to submit", variant: "destructive" });
     }
   };
 
-  // Loading state
+  // ─── Loading ───
   if (productLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <header className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b">
-          <div className="container max-w-md mx-auto px-4 py-4">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <h1 className="text-xl font-bold">Scan Result</h1>
-            </div>
-          </div>
-        </header>
-        <main className="container max-w-md mx-auto px-4 py-6">
-          <Card>
-            <CardContent className="pt-6 space-y-4">
-              <div className="text-center mb-4">
-                <p className="text-sm text-muted-foreground">Looking up barcode</p>
-                <p className="font-mono text-lg">{barcode}</p>
-              </div>
-              <Skeleton className="h-16 w-full" />
-              <Skeleton className="h-12 w-full" />
-            </CardContent>
-          </Card>
+        <ScanHeader onBack={() => navigate(-1)} />
+        <main className="container max-w-md mx-auto px-4 py-6 space-y-4">
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
         </main>
       </div>
     );
   }
 
-  // Product not found - redirect to unknown product submission page
+  // ─── Not found ───
   if (productError || !product) {
     return (
       <div className="min-h-screen bg-background">
-        <header className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b">
-          <div className="container max-w-md mx-auto px-4 py-4">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <h1 className="text-xl font-bold">Scan Result</h1>
-            </div>
-          </div>
-        </header>
+        <ScanHeader onBack={() => navigate(-1)} />
         <main className="container max-w-md mx-auto px-4 py-6">
           <Card className="border-primary/20 bg-primary/5">
             <CardContent className="pt-6 space-y-4 text-center">
               <Package className="h-12 w-12 mx-auto text-primary" />
               <h2 className="text-lg font-semibold">Product under investigation</h2>
               <p className="text-sm text-muted-foreground">
-                We don't recognize barcode <span className="font-mono">{barcode}</span> yet — help us identify it and it'll work instantly for everyone.
+                We don't recognize barcode <span className="font-mono">{barcode}</span> yet.
               </p>
               <div className="space-y-2 pt-2">
-                <Button className="w-full" onClick={() => navigate(`/unknown/${barcode}`)}>
-                  Add This Product
-                </Button>
-                <Button variant="outline" className="w-full" onClick={() => navigate('/search')}>
-                  Search Brands
-                </Button>
-                <Button variant="ghost" className="w-full" onClick={() => navigate('/scan')}>
-                  Scan Again
-                </Button>
+                <Button className="w-full" onClick={() => navigate(`/unknown/${barcode}`)}>Add This Product</Button>
+                <Button variant="outline" className="w-full" onClick={() => navigate("/search")}>Search Brands</Button>
+                <Button variant="ghost" className="w-full" onClick={() => navigate("/scan")}>Scan Again</Button>
               </div>
             </CardContent>
           </Card>
@@ -308,56 +320,32 @@ export default function ScanResultV1() {
     );
   }
 
-  // Brand is building - show dedicated building experience
+  // ─── Building state ───
   if (brandIsBuilding || brandIsFailed) {
     return (
       <div className="min-h-screen bg-background">
-        <header className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b">
-          <div className="container max-w-md mx-auto px-4 py-4">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <h1 className="text-xl font-bold">Building Profile</h1>
-            </div>
-          </div>
-        </header>
-
+        <ScanHeader onBack={() => navigate(-1)} />
         <main className="container max-w-md mx-auto px-4 py-6 space-y-4">
-          {/* Building State Card */}
-          <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+          <Card className="border-warning/30 bg-warning/5">
             <CardContent className="pt-6 space-y-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center flex-shrink-0">
-                  {brandIsFailed ? (
-                    <AlertCircle className="h-6 w-6 text-amber-600" />
-                  ) : (
-                    <Loader2 className="h-6 w-6 text-amber-600 animate-spin" />
-                  )}
+                <div className="w-12 h-12 bg-warning/20 flex items-center justify-center flex-shrink-0">
+                  {brandIsFailed ? <AlertCircle className="h-6 w-6 text-warning" /> : <Loader2 className="h-6 w-6 text-warning animate-spin" />}
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold">
-                    {brandIsFailed ? 'Profile needs review' : 'Building this profile'}
-                  </h2>
+                  <h2 className="text-lg font-semibold">{brandIsFailed ? "Profile needs review" : "Building this profile"}</h2>
                   <p className="text-sm text-muted-foreground">
-                    {brandIsFailed 
-                      ? 'We\'re verifying this brand\'s identity — usually takes a few minutes'
-                      : 'ETA ~30 seconds — this page will update automatically'
-                    }
+                    {brandIsFailed ? "Verifying identity — usually takes a few minutes" : "ETA ~30 seconds — this page updates automatically"}
                   </p>
                 </div>
               </div>
-
-              {/* Progress indicator with real stages */}
-              <EnrichmentStageProgress 
+              <EnrichmentStageProgress
                 stage={brandInfo?.enrichment_stage as any}
                 stageUpdatedAt={brandInfo?.enrichment_stage_updated_at}
                 startedAt={brandInfo?.enrichment_started_at}
-                status={brandInfo?.status || 'stub'}
+                status={brandInfo?.status || "stub"}
                 brandName={brandInfo?.name}
               />
-
-              {/* Product info */}
               <div className="pt-2 border-t space-y-2">
                 <div>
                   <p className="text-xs text-muted-foreground">Product</p>
@@ -365,200 +353,112 @@ export default function ScanResultV1() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Brand</p>
-                  <p className="font-medium">{brandInfo?.name || 'Unknown'}</p>
+                  <p className="font-medium">{brandInfo?.name || "Unknown"}</p>
                 </div>
               </div>
-
-              {/* Save scan button */}
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={handleSaveScan}
-                disabled={saved}
-              >
-                {saved ? (
-                  <>
-                    <Check className="h-4 w-4 mr-2" />
-                    Saved to Your Scans
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Save to My Scans
-                  </>
-                )}
+              <Button variant="outline" className="w-full" onClick={handleSaveScan} disabled={saved}>
+                {saved ? <><Check className="h-4 w-4 mr-2" />Saved</> : <><Save className="h-4 w-4 mr-2" />Save to My Scans</>}
               </Button>
-
-              {/* Correction form toggle */}
               {!showCorrection ? (
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  className="w-full text-muted-foreground"
-                  onClick={() => setShowCorrection(true)}
-                >
+                <Button variant="ghost" size="sm" className="w-full text-muted-foreground" onClick={() => setShowCorrection(true)}>
                   Help improve this brand's data
                 </Button>
               ) : (
-                <CorrectionForm 
-                  brandName={brandInfo?.name || ''} 
-                  onSubmit={handleCorrection}
-                />
+                <CorrectionForm brandName={brandInfo?.name || ""} onSubmit={handleCorrection} />
               )}
             </CardContent>
           </Card>
-
-          {/* Action buttons */}
           <div className="space-y-2">
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={() => brandInfo?.slug && navigate(`/brand/${brandInfo.slug}`)}
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              View Profile Anyway
+            <Button variant="outline" className="w-full" onClick={() => brandInfo?.slug && navigate(`/brand/${brandInfo.slug}`)}>
+              <ExternalLink className="h-4 w-4 mr-2" />View Profile Anyway
             </Button>
-            <Button 
-              variant="ghost" 
-              className="w-full" 
-              onClick={() => navigate('/search')}
-            >
-              Search Other Brands
-            </Button>
-            <Button 
-              variant="ghost" 
-              className="w-full" 
-              onClick={() => navigate('/scan')}
-            >
-              Scan Another Product
-            </Button>
+            <Button variant="ghost" className="w-full" onClick={() => navigate("/scan")}>Scan Another Product</Button>
           </div>
-
-          {/* Beta notice */}
-          <p className="text-xs text-center text-muted-foreground px-4">
-            Early beta — new brands are enriched within minutes of first scan.
-          </p>
         </main>
       </div>
     );
   }
 
-  // Product found, brand ready - show success result
+  // ═══════════════════════════════════════════════════
+  // READY STATE — The Yuka-inspired decision screen
+  // ═══════════════════════════════════════════════════
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b">
-        <div className="container max-w-md mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="text-xl font-bold">Scan Result</h1>
+    <div className="min-h-screen bg-background forensic-grid">
+      <ScanHeader onBack={() => navigate(-1)} />
+
+      <main className="container max-w-md mx-auto px-4 py-5 space-y-4">
+        {/* ─── Product + Brand identity ─── */}
+        <div className="flex items-center gap-3">
+          {displayLogo ? (
+            <img src={displayLogo} alt={brandInfo?.name || ""} className="w-14 h-14 border-2 border-border object-contain bg-muted flex-shrink-0 p-1.5" />
+          ) : (
+            <div className="w-14 h-14 border-2 border-border grid place-items-center text-xl font-bold bg-muted flex-shrink-0">
+              {brandInfo?.name?.[0]?.toUpperCase() ?? "?"}
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-muted-foreground truncate">{product.name}</p>
+            <h1 className="text-xl font-bold tracking-tight truncate">{brandInfo?.name || "Unknown Brand"}</h1>
           </div>
         </div>
-      </header>
 
-      <main className="container max-w-md mx-auto px-4 py-6 space-y-4">
-        {/* Product + Brand Card */}
-        <Card 
-          className={brandIsReady ? "cursor-pointer hover:bg-accent/5 transition-colors" : ""}
-          onClick={() => {
-            if (brandIsReady && brandInfo?.slug) {
-              navigate(`/brand/${brandInfo.slug}`);
-            }
-          }}
-        >
-          <CardContent className="pt-6 space-y-4">
-            {/* Product name */}
-            <div>
-              <p className="text-sm text-muted-foreground">Product</p>
-              <h2 className="text-lg font-semibold">{product.name}</h2>
-              <p className="text-xs text-muted-foreground mt-1">
-                This product's profile reflects the broader practices of its brand.
-              </p>
-            </div>
+        {/* ─── 1. INSTANT VERDICT ─── */}
+        <TrustVerdict score={overallScore} brandName={brandInfo?.name || ""} reasons={reasons} />
 
-            {/* Brand name + status */}
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Brand</p>
-                <p className="font-medium">
-                  {brandInfo?.name || 'Brand unknown'}
-                </p>
-              </div>
-              
-              {brandIsReady && (
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
-              )}
-            </div>
-
-            {!brandExists && product.brand_id && (
-              <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-                <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">
-                  Brand data not available
-                </span>
-              </div>
-            )}
-
-            {/* CTA */}
-            {brandIsReady && (
-              <p className="text-sm text-center text-primary">
-                Tap to view full brand profile →
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Parent Company */}
-        {brandIsReady && brandInfo?.parent_company_id && (
-          <ParentCompanyBanner parentCompanyId={brandInfo.parent_company_id} />
+        {/* ─── 4. OWNERSHIP REVEAL ─── */}
+        {brandInfo?.id && (
+          <OwnershipReveal brandId={brandInfo.id} brandName={brandInfo.name} parentCompany={brandInfo.parent_company} />
         )}
 
-        {/* Sister Brands */}
-        {brandIsReady && brandInfo?.id && brandInfo?.parent_company_id && (
-          <Card>
-            <CardContent className="pt-6">
-              <SisterBrandsCard brandId={brandInfo.id} parentCompanyId={brandInfo.parent_company_id} />
-            </CardContent>
-          </Card>
+        {/* ─── 2. SCORE BREAKDOWN ─── */}
+        {brandInfo?.id && (
+          <ScoreBreakdownCard brandId={brandInfo.id} dimensions={dimensions} />
         )}
 
-        {/* Alternatives Section */}
-        {brandIsReady && brandInfo?.id && (
+        {/* ─── 3. BETTER ALTERNATIVES ─── */}
+        {brandInfo?.id && (
           <AlternativesSection brandId={brandInfo.id} brandName={brandInfo.name || "this brand"} />
         )}
 
-        {/* Action buttons */}
+        {/* ─── 5. SHARE ─── */}
+        <ShareCard
+          brandName={brandInfo?.name || ""}
+          score={overallScore}
+          verdict={verdictLabel}
+          dimensions={dimensions.map((d) => ({ label: d.label, grade: getLetterGrade(d.score) }))}
+        />
+
+        {/* ─── Deep link to full profile ─── */}
         <div className="space-y-2">
-          {brandIsReady && brandInfo?.slug && (
-            <Button 
-              className="w-full" 
-              onClick={() => navigate(`/brand/${brandInfo.slug}`)}
-            >
-              View Brand Profile
+          {brandInfo?.slug && (
+            <Button variant="outline" className="w-full font-mono text-[10px] uppercase tracking-widest" onClick={() => navigate(`/brand/${brandInfo.slug}`)}>
+              View Full Brand Dossier →
             </Button>
           )}
-          <Button 
-            variant={brandIsReady ? "outline" : "default"} 
-            className="w-full" 
-            onClick={() => navigate('/search')}
-          >
-            Search Brands
-          </Button>
-          <Button 
-            variant="ghost" 
-            className="w-full" 
-            onClick={() => navigate('/scan')}
-          >
-            Scan Another Product
-          </Button>
+          <Button variant="ghost" className="w-full" onClick={() => navigate("/scan")}>Scan Another Product</Button>
         </div>
 
-        {/* Early beta notice */}
-        <p className="text-xs text-center text-muted-foreground px-4">
-          Early beta — not all products are in our database yet.
+        {/* Beta */}
+        <p className="text-xs text-center text-muted-foreground px-4 pb-4">
+          Scores based on verified government records (EPA, OSHA, FEC, FDA). Coverage expands weekly.
         </p>
       </main>
     </div>
+  );
+}
+
+// ─── Shared header ───
+function ScanHeader({ onBack }: { onBack: () => void }) {
+  return (
+    <header className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b border-border">
+      <div className="container max-w-md mx-auto px-4 py-3">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={onBack}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-lg font-bold">Scan Result</h1>
+        </div>
+      </div>
+    </header>
   );
 }
