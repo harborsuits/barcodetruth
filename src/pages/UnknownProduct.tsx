@@ -62,26 +62,46 @@ export default function UnknownProduct() {
     },
     onSuccess: (data) => {
       setSubmitted(true);
-      toast({
-        title: "Thanks for contributing!",
-        description: "We're building this brand's profile now.",
-      });
 
-      // Navigate to the pending brand page after a delay
-      setTimeout(() => {
-        if (data?.brand_slug) {
-          navigate(`/brand/${data.brand_slug}`, { state: { pending: true } });
-        } else if (data?.brand_id) {
-          navigate(`/brand/${data.brand_id}`, { state: { pending: true } });
-        } else {
-          navigate('/');
-        }
-      }, 2000);
+      if (data?.status === 'recognized' || data?.already_exists) {
+        toast({
+          title: "We already recognize this product",
+          description: "Redirecting to its profile…",
+        });
+        setTimeout(() => {
+          if (data?.brand_slug) {
+            navigate(`/brand/${data.brand_slug}`);
+          } else if (data?.brand_id) {
+            navigate(`/brand/${data.brand_id}`);
+          } else {
+            navigate('/');
+          }
+        }, 1500);
+      } else if (data?.status === 'under_investigation' || data?.already_queued) {
+        toast({
+          title: "Already under investigation",
+          description: `This product is queued for review — ${data.scan_count || 'multiple'} people are interested.`,
+        });
+      } else {
+        toast({
+          title: "Thanks for contributing!",
+          description: "We're building this brand's profile now.",
+        });
+        setTimeout(() => {
+          if (data?.brand_slug) {
+            navigate(`/brand/${data.brand_slug}`, { state: { pending: true } });
+          } else if (data?.brand_id) {
+            navigate(`/brand/${data.brand_id}`, { state: { pending: true } });
+          } else {
+            navigate('/');
+          }
+        }, 2000);
+      }
     },
     onError: (error: Error) => {
       toast({
-        title: "Submission failed",
-        description: error.message || "Please try again",
+        title: "Something went wrong",
+        description: "Please try again in a moment.",
         variant: "destructive",
       });
     },
