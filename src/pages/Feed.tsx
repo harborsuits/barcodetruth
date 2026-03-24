@@ -25,12 +25,12 @@ export default function Feed() {
   const { data: feedItems, isLoading } = useQuery({
     queryKey: ['fair-feed'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_fair_feed', {
+      const { data, error } = await (supabase.rpc as any)('get_fair_feed', {
         p_limit: 50,
         p_max_per_brand: 3,
       });
       if (error) throw error;
-      return (data || []) as FairFeedItem[];
+      return (data || []) as unknown as FairFeedItem[];
     },
   });
 

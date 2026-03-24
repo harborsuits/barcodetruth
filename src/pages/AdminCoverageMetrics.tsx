@@ -36,7 +36,7 @@ export default function AdminCoverageMetrics() {
   const handleRecompute = async () => {
     setRefreshing(true);
     try {
-      const { error } = await supabase.rpc('recompute_brand_coverage_status');
+      const { error } = await (supabase.rpc as any)('recompute_brand_coverage_status');
       if (error) throw error;
       await refetch();
       toast.success('Coverage status recomputed');
