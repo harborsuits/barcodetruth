@@ -357,8 +357,8 @@ export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidenc
     );
   }
 
-  // Show fallback score with pillar breakdown if vector-based scoring failed but brand_scores exists
-  if (!vectorScoreIsValid && isFallbackScore && displayScore !== null && displayScore !== undefined) {
+  // Show alignment-based score with pillar breakdown and preference explanation
+  if (hasAlignmentScore && alignmentResult && displayScore !== null && displayScore !== undefined) {
     const score = Math.round(displayScore);
     const pillars = [
       { key: 'labor', label: 'Labor', emoji: '👷', value: fallbackScore?.score_labor ?? 0 },
@@ -375,12 +375,29 @@ export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidenc
               <span>Alignment Score</span>
               <Tooltip>
                 <TooltipTrigger>
-                  <Badge variant="outline" className="text-xs">Baseline</Badge>
+                  <Badge variant={isPersonalized ? "secondary" : "outline"} className="text-xs">
+                    {isPersonalized ? 'Personalized' : 'Baseline'}
+                  </Badge>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs">
-                  <p>Aggregate score based on recent evidence. Sign in and set your values for a personalized score.</p>
+                  <p>{isPersonalized 
+                    ? 'Weighted by your value preferences with confidence-aware dampening' 
+                    : 'Aggregate score based on recent evidence. Sign in and set your values for a personalized score.'
+                  }</p>
                 </TooltipContent>
               </Tooltip>
+              {alignmentResult.confidence === 'low' && (
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Badge variant="outline" className="text-xs text-warning border-warning/30">
+                      Limited data
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p>{alignmentResult.confidenceReason}</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
             </CardTitle>
           </div>
         </CardHeader>
@@ -389,21 +406,25 @@ export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidenc
             <ScoreRing score={score} />
             <div className="flex-1 min-w-0">
               <p className="text-sm text-muted-foreground mb-3">
-                {score >= 70 && "Low risk — positive track record"}
-                {score >= 40 && score < 70 && "Mixed record — some concerns noted"}
-                {score < 40 && "High exposure — significant concerns"}
+                {alignmentResult.summary}
               </p>
               
-              {/* Pillar breakdown */}
+              {/* Pillar breakdown with confidence indicators */}
               <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                {pillars.map(p => (
-                  <div key={p.key} className="flex items-center gap-2 text-xs">
-                    <span>{p.emoji}</span>
-                    <span className="text-muted-foreground w-20 truncate">{p.label}</span>
-                    <Progress value={p.value} className="h-1.5 flex-1" />
-                    <span className="w-6 text-right font-medium">{p.value}</span>
-                  </div>
-                ))}
+                {pillars.map(p => {
+                  const driver = alignmentResult.drivers.find(d => d.dimension === p.key);
+                  const isLowConfidence = driver?.confidence === 'low';
+                  return (
+                    <div key={p.key} className="flex items-center gap-2 text-xs">
+                      <span>{p.emoji}</span>
+                      <span className={`w-20 truncate ${isLowConfidence ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>{p.label}</span>
+                      <Progress value={p.value} className={`h-1.5 flex-1 ${isLowConfidence ? 'opacity-50' : ''}`} />
+                      <span className={`w-6 text-right font-medium ${isLowConfidence ? 'text-muted-foreground/50' : ''}`}>
+                        {p.value}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
               
               {lastUpdated && (
@@ -413,6 +434,43 @@ export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidenc
               )}
             </div>
           </div>
+          
+          {/* Dealbreaker warning */}
+          {alignmentResult.dealbreaker.triggered && (
+            <div className="flex items-center gap-2 p-3 bg-danger/10 border border-danger/20 rounded-lg">
+              <AlertTriangle className="h-4 w-4 text-danger flex-shrink-0" />
+              <p className="text-sm text-danger">{alignmentResult.dealbreaker.message}</p>
+            </div>
+          )}
+          
+          {/* Why this personalized score? — v3 explanation */}
+          {alignmentResult.preferenceExplanation.length > 0 && (
+            <Collapsible>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="w-full justify-between text-muted-foreground">
+                  <span className="flex items-center gap-2">
+                    <Info className="h-4 w-4" />
+                    Why this {isPersonalized ? 'personalized ' : ''}score?
+                  </span>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2 space-y-1.5">
+                {alignmentResult.preferenceExplanation.map((line, i) => (
+                  <p key={i} className="text-xs text-muted-foreground flex items-start gap-2">
+                    <span className="text-primary mt-0.5">•</span>
+                    <span>{line}</span>
+                  </p>
+                ))}
+                {alignmentResult.drivers.filter(d => d.coverageNote).map((d, i) => (
+                  <p key={`cov-${i}`} className="text-xs text-warning/80 flex items-start gap-2">
+                    <AlertTriangle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                    <span>{d.coverageNote}</span>
+                  </p>
+                ))}
+              </CollapsibleContent>
+            </Collapsible>
+          )}
           
           {/* Score narrative - explains why this score */}
           <NarrativeSection narrative={narrative} />
@@ -425,7 +483,7 @@ export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidenc
               {' '}to see a score personalized to your values
             </p>
           )}
-          {userId && (
+          {userId && !userPrefs && (
             <p className="text-xs text-muted-foreground text-center pt-2 border-t">
               <a href="/settings" className="text-primary hover:underline">
                 Set your values
