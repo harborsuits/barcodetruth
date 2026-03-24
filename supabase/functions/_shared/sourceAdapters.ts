@@ -605,6 +605,7 @@ async function secEdgarCompanyFallback(query: string, maxResults: number): Promi
 export const ALL_ADAPTERS: SourceAdapter[] = [
   fdaAdapter,
   oshaAdapter,
+  oshaHistoricalAdapter,
   epaAdapter,
   cpscAdapter,
   ftcAdapter,
