@@ -33,7 +33,7 @@ export function Description({ description, wikiUrl }: { description?: string; wi
   if (looksLikeDisambiguation(description)) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <span className="text-amber-500">⚠</span>
+        <span className="text-destructive">⚠</span>
         <span>Description under review — awaiting verified summary.</span>
       </div>
     );
