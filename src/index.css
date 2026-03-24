@@ -13,82 +13,82 @@
 
 @layer base {
   :root {
-    /* ── Surface Architecture (Dark Navy Layers) ── */
-    --background: 214 100% 9%;          /* #00132e — base canvas */
-    --foreground: 210 40% 90%;          /* #d4dfe9 — primary text */
+    /* ── Surface Architecture (Slate Navy Layers) ── */
+    --background: 210 30% 10%;          /* #141c22 — base canvas */
+    --foreground: 200 15% 85%;          /* #cdd5da — primary text */
 
-    --card: 214 85% 12%;               /* #041b3a — content wells */
-    --card-foreground: 210 40% 90%;
+    --card: 210 25% 14%;               /* #1b2530 — content wells */
+    --card-foreground: 200 15% 85%;
 
-    --popover: 214 70% 15%;            /* #0d2647 — floating panels */
-    --popover-foreground: 210 40% 90%;
+    --popover: 210 22% 17%;            /* #232f3a — floating panels */
+    --popover-foreground: 200 15% 85%;
 
     /* Elevation layers — tonal, no shadows */
-    --elev-1: 214 85% 12%;             /* same as card */
-    --elev-2: 214 65% 17%;             /* #152a49 — active evidence */
-    --elev-3: 214 50% 25%;             /* #26395a — bright surface */
+    --elev-1: 210 25% 14%;             /* same as card */
+    --elev-2: 210 20% 20%;             /* #293542 — active surface */
+    --elev-3: 210 16% 28%;             /* #3a4755 — bright surface */
 
-    /* ── Primary — Truth Blue ── */
-    --primary: 212 100% 80%;           /* #98cbff — headline accent */
-    --primary-foreground: 214 100% 9%;
+    /* ── Primary — Slate Teal ── */
+    --primary: 180 25% 45%;            /* #577f7f — headline accent */
+    --primary-foreground: 210 30% 10%;
 
-    /* ── Secondary — Teal for verification ── */
-    --secondary: 185 100% 23%;         /* #006876 — data labels */
+    /* ── Secondary — Deep Forest ── */
+    --secondary: 170 30% 22%;          /* #274a44 — data labels */
     --secondary-foreground: 0 0% 100%;
 
-    /* ── Accent — Cyan flash for CTAs ── */
-    --accent: 200 100% 50%;            /* #00a3ff — primary-container */
-    --accent-foreground: 214 100% 9%;
+    /* ── Accent — Warm Coral ── */
+    --accent: 4 70% 55%;               /* #d44a3c — CTA highlight */
+    --accent-foreground: 0 0% 100%;
 
     /* ── Muted — suppressed data ── */
-    --muted: 214 40% 18%;
-    --muted-foreground: 210 20% 55%;
+    --muted: 210 15% 20%;
+    --muted-foreground: 200 10% 50%;
 
     /* ── Destructive ── */
-    --destructive: 10 90% 72%;         /* #ffb4ab */
-    --destructive-foreground: 214 100% 9%;
+    --destructive: 4 70% 55%;          /* matches accent/coral */
+    --destructive-foreground: 0 0% 100%;
 
     /* ── Borders — Ghost borders only ── */
-    --border: 214 30% 25%;
-    --input: 214 40% 15%;
-    --ring: 200 100% 50%;
+    --border: 210 15% 25%;
+    --input: 210 20% 17%;
+    --ring: 180 25% 45%;
 
     /* ── Radius — Sharp corners for forensic precision ── */
     --radius: 0.125rem;
 
     /* ── Category Axes ── */
-    --labor: 221 80% 65%;
+    --labor: 210 35% 55%;
     --labor-foreground: 0 0% 100%;
-    --labor-light: 221 80% 15%;
+    --labor-light: 210 35% 15%;
 
-    --environment: 160 70% 45%;
+    --environment: 160 40% 40%;
     --environment-foreground: 0 0% 100%;
-    --environment-light: 160 70% 12%;
+    --environment-light: 160 40% 12%;
 
-    --politics: 279 60% 60%;
+    --politics: 270 30% 50%;
     --politics-foreground: 0 0% 100%;
-    --politics-light: 279 60% 15%;
+    --politics-light: 270 30% 15%;
 
-    --social: 200 40% 55%;
+    --social: 195 25% 50%;
     --social-foreground: 0 0% 100%;
-    --social-light: 200 40% 15%;
+    --social-light: 195 25% 15%;
 
-    --cultural-values: 330 55% 55%;
+    --cultural-values: 330 30% 48%;
     --cultural-values-foreground: 0 0% 100%;
-    --cultural-values-light: 330 55% 15%;
+    --cultural-values-light: 330 30% 15%;
 
     /* ── Status ── */
-    --success: 150 70% 45%;
+    --success: 160 50% 42%;
     --success-foreground: 0 0% 100%;
-    --success-light: 150 70% 12%;
+    --success-light: 160 50% 12%;
 
-    --warning: 42 100% 55%;            /* #ffba20 */
-    --warning-foreground: 214 100% 9%;
-    --warning-light: 42 100% 12%;
+    --warning: 38 80% 50%;
+    --warning-foreground: 210 30% 10%;
+    --warning-light: 38 80% 12%;
 
-    --danger: 10 90% 72%;
-    --danger-foreground: 214 100% 9%;
-    --danger-light: 10 90% 15%;
+    --danger: 4 70% 55%;
+    --danger-foreground: 0 0% 100%;
+    --danger-light: 4 70% 15%;
 
     /* ── Motion ── */
     --transition-smooth: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
