@@ -20,6 +20,34 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // ── Corporate suffixes to strip ────────────────────────────────────────
 
+// ── Acronym expansion map ──────────────────────────────────────────────
+
+const ACRONYM_MAP: Record<string, string> = {
+  'p&g': 'procter and gamble',
+  'p & g': 'procter and gamble',
+  'pg': 'procter and gamble',
+  'j&j': 'johnson and johnson',
+  'j & j': 'johnson and johnson',
+  'jnj': 'johnson and johnson',
+  'khc': 'kraft heinz',
+  'gm': 'general motors',
+  'ge': 'general electric',
+  'ibm': 'international business machines',
+  'hp': 'hewlett packard',
+  'hpe': 'hewlett packard enterprise',
+  'jbs': 'jbs',
+  'lg': 'lg electronics',
+  'bp': 'bp',
+  'vw': 'volkswagen',
+  'bmw': 'bayerische motoren werke',
+  'lvmh': 'lvmh moet hennessy louis vuitton',
+  'ab inbev': 'anheuser busch inbev',
+  'abi': 'anheuser busch inbev',
+  '3m': 'minnesota mining and manufacturing',
+  'at&t': 'american telephone and telegraph',
+  'at & t': 'american telephone and telegraph',
+};
+
 const CORP_SUFFIXES = [
   'inc', 'incorporated', 'corp', 'corporation', 'co', 'company',
   'llc', 'llp', 'ltd', 'limited', 'plc', 'ag', 'sa', 'gmbh',
@@ -36,12 +64,24 @@ const SUFFIX_REGEX = new RegExp(
 
 /**
  * Normalize a company/firm name for matching.
- * Strips corporate suffixes, punctuation, extra whitespace.
+ * Expands acronyms, strips corporate suffixes, punctuation, extra whitespace.
  */
 export function normalizeFirmName(name: string): string {
-  return name
+  let normalized = name
     .normalize('NFC')
     .toLowerCase()
+    .trim();
+
+  // Check acronym map before stripping punctuation (preserves & in P&G etc.)
+  const acronymResult = ACRONYM_MAP[normalized];
+  if (acronymResult) return acronymResult;
+
+  // Also check after basic cleanup
+  const basicClean = normalized.replace(/[''`]/g, '').replace(/\s+/g, ' ').trim();
+  const acronymResult2 = ACRONYM_MAP[basicClean];
+  if (acronymResult2) return acronymResult2;
+
+  return normalized
     .replace(/[''`]/g, '')        // smart quotes
     .replace(/[&]/g, ' and ')     // & → and
     .replace(SUFFIX_REGEX, '')    // strip corp suffixes
