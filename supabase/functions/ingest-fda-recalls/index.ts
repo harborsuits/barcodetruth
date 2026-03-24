@@ -183,7 +183,6 @@ Deno.serve(async (req) => {
                 title,
                 description,
                 source_url: uniqueUrl,
-                occurred_at: occurredAt,
                 relevance_score_raw: RELEVANCE_MAX_SCORE,
                 is_irrelevant: false,
                 event_date: occurredAt,
