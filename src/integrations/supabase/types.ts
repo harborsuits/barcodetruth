@@ -10195,6 +10195,20 @@ export type Database = {
           wikidata_qid: string
         }[]
       }
+      get_clustered_brand_events: {
+        Args: { p_brand_id: string; p_limit?: number }
+        Returns: {
+          ai_summary: string
+          category: string
+          cluster_size: number
+          event_id: string
+          occurred_at: string
+          severity: string
+          source_url: string
+          title: string
+          verification: string
+        }[]
+      }
       get_corroboration_clusters: {
         Args: {
           min_credibility?: number
