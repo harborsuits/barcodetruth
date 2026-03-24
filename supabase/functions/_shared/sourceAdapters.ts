@@ -306,6 +306,102 @@ export const usdaAdapter: SourceAdapter = {
   },
 };
 
+// ── 7. EU Safety Gate (RAPEX) ──────────────────────────────────────────
+
+export const rapexAdapter: SourceAdapter = {
+  id: 'rapex',
+  featureFlagKey: 'ingest_rapex_enabled',
+  async fetch(query: string, maxResults: number): Promise<RawRegRecord[]> {
+    const records: RawRegRecord[] = [];
+    try {
+      // EU Safety Gate open data API
+      const url = `https://ec.europa.eu/safety-gate-alerts/screen/webReport/alertDetail/search?q=${encodeURIComponent(query)}&format=json&max=${maxResults}`;
+      const resp = await fetch(url, {
+        headers: { 'Accept': 'application/json' },
+      });
+
+      if (!resp.ok) {
+        // Fallback: try the OECD Global Recalls portal
+        console.warn(`[rapex] EU Safety Gate returned ${resp.status}, trying OECD fallback`);
+        return await rapexOecdFallback(query, maxResults);
+      }
+
+      const data = await resp.json();
+      const alerts = data?.alerts || data?.results || (Array.isArray(data) ? data : []);
+
+      for (const alert of alerts.slice(0, maxResults)) {
+        const alertId = alert.alertNumber || alert.reference || alert.id || String(Math.random());
+        const riskLevel = (alert.riskLevel || alert.risk_level || '').toLowerCase();
+
+        let impact = -3;
+        if (riskLevel.includes('serious')) impact = -5;
+        else if (riskLevel.includes('high')) impact = -4;
+        else if (riskLevel.includes('low')) impact = -1;
+
+        const productName = alert.productName || alert.product || alert.title || '';
+        const hazardType = alert.hazardType || alert.type_of_risk || alert.riskType || '';
+        const notifyingCountry = alert.notifyingCountry || alert.country || '';
+        const companyName = alert.companyName || alert.brand || alert.manufacturer || query;
+
+        records.push({
+          sourceId: `rapex-${alertId}`,
+          title: `EU Safety Gate: ${productName.substring(0, 200)}`,
+          description: `${hazardType} risk. ${alert.measures || alert.actionTaken || 'Recall/withdrawal'}. Notified by: ${notifyingCountry}`,
+          firmName: companyName,
+          date: sanitizeDate(alert.date || alert.notificationDate || alert.publicationDate),
+          sourceUrl: alert.url || `https://ec.europa.eu/safety-gate-alerts/screen/webReport/alertDetail/${alertId}`,
+          category: hazardType.toLowerCase().includes('chemical') ? 'environment' : 'social',
+          impact,
+          sourceName: 'EU Safety Gate',
+          sourceDomain: 'ec.europa.eu',
+          agencyFullName: 'European Commission Safety Gate (RAPEX)',
+          rawData: alert,
+        });
+      }
+    } catch (err) {
+      console.error('[rapex] Fetch error:', err);
+    }
+    return records;
+  },
+};
+
+/** OECD GlobalRecalls fallback for RAPEX data */
+async function rapexOecdFallback(query: string, maxResults: number): Promise<RawRegRecord[]> {
+  const records: RawRegRecord[] = [];
+  try {
+    const url = `https://globalrecalls.oecd.org/api/recalls?search=${encodeURIComponent(query)}&country=EU&format=json&limit=${maxResults}`;
+    const resp = await fetch(url, {
+      headers: { 'Accept': 'application/json' },
+    });
+    if (!resp.ok) return records;
+
+    const data = await resp.json();
+    const recalls = data?.recalls || data?.results || (Array.isArray(data) ? data : []);
+
+    for (const r of recalls.slice(0, maxResults)) {
+      const recallId = r.id || r.recall_id || String(Math.random());
+
+      records.push({
+        sourceId: `rapex-oecd-${recallId}`,
+        title: `EU Recall: ${(r.title || r.product || 'Consumer product recall').substring(0, 200)}`,
+        description: `${r.hazard || r.risk || 'Safety concern'}. ${r.measure || ''}`,
+        firmName: r.manufacturer || r.brand || query,
+        date: sanitizeDate(r.date || r.notification_date),
+        sourceUrl: r.url || 'https://globalrecalls.oecd.org/',
+        category: 'social',
+        impact: -3,
+        sourceName: 'OECD GlobalRecalls (EU)',
+        sourceDomain: 'globalrecalls.oecd.org',
+        agencyFullName: 'OECD Global Recalls Portal — EU',
+        rawData: r,
+      });
+    }
+  } catch (err) {
+    console.error('[rapex-oecd] Fallback error:', err);
+  }
+  return records;
+}
+
 // ── Registry ───────────────────────────────────────────────────────────
 
 /** All available adapters in priority order */
@@ -316,6 +412,7 @@ export const ALL_ADAPTERS: SourceAdapter[] = [
   cpscAdapter,
   ftcAdapter,
   usdaAdapter,
+  rapexAdapter,
 ];
 
 /** Get adapters by ID */
