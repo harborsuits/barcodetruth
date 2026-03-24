@@ -4204,6 +4204,60 @@ export type Database = {
           },
         ]
       }
+      coverage_daily_snapshots: {
+        Row: {
+          active_count: number
+          brand_linked_pct: number
+          brands_checked_24h: number
+          brands_checked_30d: number
+          brands_checked_7d: number
+          company_linked_pct: number
+          created_at: string
+          hot_count: number
+          id: string
+          never_checked_count: number
+          quiet_count: number
+          snapshot_date: string
+          stale_count: number
+          total_active_brands: number
+          total_products: number
+        }
+        Insert: {
+          active_count?: number
+          brand_linked_pct?: number
+          brands_checked_24h?: number
+          brands_checked_30d?: number
+          brands_checked_7d?: number
+          company_linked_pct?: number
+          created_at?: string
+          hot_count?: number
+          id?: string
+          never_checked_count?: number
+          quiet_count?: number
+          snapshot_date?: string
+          stale_count?: number
+          total_active_brands?: number
+          total_products?: number
+        }
+        Update: {
+          active_count?: number
+          brand_linked_pct?: number
+          brands_checked_24h?: number
+          brands_checked_30d?: number
+          brands_checked_7d?: number
+          company_linked_pct?: number
+          created_at?: string
+          hot_count?: number
+          id?: string
+          never_checked_count?: number
+          quiet_count?: number
+          snapshot_date?: string
+          stale_count?: number
+          total_active_brands?: number
+          total_products?: number
+        }
+        Relationships: []
+      }
       cron_runs: {
         Row: {
           fn: string
@@ -10414,6 +10468,7 @@ export type Database = {
         }[]
       }
       recompute_brand_coverage_status: { Args: never; Returns: undefined }
+      record_coverage_snapshot: { Args: never; Returns: undefined }
       refresh_brand_coverage: { Args: never; Returns: undefined }
       refresh_community_outlook: { Args: never; Returns: undefined }
       refresh_coverage_materialized_view: { Args: never; Returns: undefined }

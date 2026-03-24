@@ -4,9 +4,10 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, BarChart3, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
+import { RefreshCw, BarChart3, AlertTriangle, CheckCircle2, Clock, TrendingDown } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface CoverageMetrics {
   total_active_brands: number;
@@ -30,6 +31,23 @@ export default function AdminCoverageMetrics() {
       const { data, error } = await (supabase.rpc as any)('get_coverage_metrics');
       if (error) throw error;
       return data as unknown as CoverageMetrics;
+    },
+  });
+
+  // Fetch daily trend snapshots
+  const { data: trendData } = useQuery({
+    queryKey: ['coverage-trend'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('coverage_daily_snapshots' as any)
+        .select('snapshot_date, never_checked_count, quiet_count, stale_count, active_count, hot_count, total_products, brand_linked_pct, brands_checked_24h')
+        .order('snapshot_date', { ascending: true })
+        .limit(90);
+      if (error) throw error;
+      return (data || []).map((d: any) => ({
+        ...d,
+        date: new Date(d.snapshot_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      }));
     },
   });
 
@@ -97,6 +115,31 @@ export default function AdminCoverageMetrics() {
           <p className="text-3xl font-bold text-orange-600">{metrics.never_checked}</p>
         </Card>
       </div>
+
+      {/* Coverage Trend Chart */}
+      {trendData && trendData.length > 0 && (
+        <Card className="p-6 mb-8">
+          <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
+            <TrendingDown className="h-5 w-5" /> Backlog Trend (Daily)
+          </h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Tracking whether the never_checked backlog is declining over time.
+          </p>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={trendData}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="date" className="text-xs" />
+              <YAxis className="text-xs" />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="never_checked_count" name="Never Checked" stroke="hsl(var(--destructive))" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="quiet_count" name="Quiet" stroke="hsl(var(--muted-foreground))" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="active_count" name="Active" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="brands_checked_24h" name="Checked (24h)" stroke="hsl(var(--accent-foreground))" strokeWidth={1} strokeDasharray="5 5" dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </Card>
+      )}
 
       {/* Status Breakdown */}
       <Card className="p-6 mb-8">
