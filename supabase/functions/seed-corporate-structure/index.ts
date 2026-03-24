@@ -328,6 +328,23 @@ Deno.serve(async (req) => {
 
           parentCompanyId = spineId as string | null;
           log(`Upserted parent company via spine: ${ultimateParent.name} (${parentCompanyId})`);
+
+          // Populate normalized_name on the company record
+          if (parentCompanyId) {
+            const normalizedName = ultimateParent.name
+              .toLowerCase()
+              .replace(/[éèêë]/g, 'e').replace(/[àáâãä]/g, 'a')
+              .replace(/[ìíîï]/g, 'i').replace(/[òóôõö]/g, 'o')
+              .replace(/[ùúûü]/g, 'u').replace(/[ñ]/g, 'n').replace(/[ç]/g, 'c')
+              .replace(/\b(inc|incorporated|corp|corporation|co|company|llc|llp|ltd|limited|plc|ag|sa|gmbh|nv|bv|se|spa|srl|pty|pvt|holdings|group|enterprises|industries|international|global|north america|usa|us|americas|of america|the)\b\.?/gi, '')
+              .replace(/[^a-z0-9\s]/g, '')
+              .replace(/\s+/g, ' ')
+              .trim();
+
+            await supabase.from("companies").update({
+              normalized_name: normalizedName,
+            }).eq("id", parentCompanyId);
+          }
         }
 
         // Step 5: Link brand to parent

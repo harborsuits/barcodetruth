@@ -429,6 +429,101 @@ async function rapexOecdFallback(query: string, maxResults: number): Promise<Raw
   return records;
 }
 
+// ── 8. SEC EDGAR Exhibit 21 (Subsidiary Lists) ────────────────────────
+
+/**
+ * SEC EDGAR full-text search for Exhibit 21 filings (subsidiary lists).
+ * These filings list ALL subsidiaries of a public corporation.
+ * This is the single highest-yield dataset for corporate graph expansion.
+ * 
+ * Each subsidiary becomes a potential brand match or company_ownership link.
+ */
+export const secEdgar21Adapter: SourceAdapter = {
+  id: 'sec-exhibit-21',
+  featureFlagKey: 'ingest_sec_exhibit_21_enabled',
+  async fetch(query: string, maxResults: number): Promise<RawRegRecord[]> {
+    const records: RawRegRecord[] = [];
+    try {
+      // EDGAR full-text search for Exhibit 21 filings mentioning the company
+      const url = `https://efts.sec.gov/LATEST/search-index?q=%22${encodeURIComponent(query)}%22&dateRange=custom&startdt=2020-01-01&forms=EX-21&from=0&size=${Math.min(maxResults, 40)}`;
+      const resp = await fetch(url, {
+        headers: {
+          'User-Agent': 'BarcodeTrauth/1.0 (compliance@barcodetruth.com)',
+          'Accept': 'application/json',
+        },
+      });
+      if (!resp.ok) {
+        // Fallback: EDGAR company search API
+        return await secEdgarCompanyFallback(query, maxResults);
+      }
+      const data = await resp.json();
+      const hits = data?.hits?.hits || [];
+
+      for (const hit of hits.slice(0, maxResults)) {
+        const filing = hit._source || {};
+        const cik = filing.entity_id || filing.cik || '';
+        const companyName = filing.entity_name || filing.display_names?.[0] || query;
+        const filingDate = filing.file_date || filing.period_of_report || '';
+        const accession = filing.file_num || filing.accession_no || '';
+
+        records.push({
+          sourceId: `sec-ex21-${cik}-${accession}-${filingDate}`,
+          title: `SEC Exhibit 21: ${companyName} subsidiary disclosure`,
+          description: `Annual subsidiary list filing by ${companyName}. Exhibit 21 lists all significant subsidiaries and their jurisdictions of incorporation.`,
+          firmName: companyName,
+          date: sanitizeDate(filingDate),
+          sourceUrl: `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${cik}&type=EX-21`,
+          category: 'politics', // corporate governance
+          impact: 0, // neutral — structural data, not violations
+          sourceName: 'SEC EDGAR',
+          sourceDomain: 'sec.gov',
+          agencyFullName: 'U.S. Securities and Exchange Commission',
+          rawData: { cik, companyName, filingDate, accession, type: 'exhibit-21' },
+        });
+      }
+    } catch (err) {
+      console.error('[sec-exhibit-21] Error:', err);
+    }
+    return records;
+  },
+};
+
+async function secEdgarCompanyFallback(query: string, maxResults: number): Promise<RawRegRecord[]> {
+  const records: RawRegRecord[] = [];
+  try {
+    const url = `https://efts.sec.gov/LATEST/search-index?q=%22${encodeURIComponent(query)}%22+%22exhibit+21%22&from=0&size=${Math.min(maxResults, 20)}`;
+    const resp = await fetch(url, {
+      headers: {
+        'User-Agent': 'BarcodeTrauth/1.0 (compliance@barcodetruth.com)',
+        'Accept': 'application/json',
+      },
+    });
+    if (!resp.ok) return records;
+    const data = await resp.json();
+
+    for (const hit of (data?.hits?.hits || []).slice(0, maxResults)) {
+      const filing = hit._source || {};
+      records.push({
+        sourceId: `sec-ex21-fallback-${filing.accession_no || Math.random()}`,
+        title: `SEC Filing: ${filing.entity_name || query} — Exhibit 21`,
+        description: `Subsidiary disclosure filing for ${filing.entity_name || query}`,
+        firmName: filing.entity_name || query,
+        date: sanitizeDate(filing.file_date),
+        sourceUrl: `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${filing.entity_id || ''}&type=EX-21`,
+        category: 'politics',
+        impact: 0,
+        sourceName: 'SEC EDGAR',
+        sourceDomain: 'sec.gov',
+        agencyFullName: 'U.S. Securities and Exchange Commission',
+        rawData: filing,
+      });
+    }
+  } catch (err) {
+    console.error('[sec-exhibit-21] Fallback error:', err);
+  }
+  return records;
+}
+
 // ── Registry ───────────────────────────────────────────────────────────
 
 /** All available adapters in priority order */
@@ -440,6 +535,7 @@ export const ALL_ADAPTERS: SourceAdapter[] = [
   ftcAdapter,
   usdaAdapter,
   rapexAdapter,
+  secEdgar21Adapter,
 ];
 
 /** Get adapters by ID */
