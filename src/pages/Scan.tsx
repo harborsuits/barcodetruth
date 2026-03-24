@@ -735,21 +735,11 @@ export const Scan = () => {
                 </>
               )}
               
-              {/* Idle state placeholder - only visible when not scanning */}
+              {/* Idle state — animated barcode scanner visualization */}
               {!(isScanning || scanResult === 'processing') && (
-                <>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-64 h-48 relative">
-                      <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M 0 24 L 0 0 L 24 0" stroke="hsl(var(--primary) / 0.5)" strokeWidth="4" fill="none" strokeLinecap="round"/>
-                        <path d="M 232 0 L 256 0 L 256 24" stroke="hsl(var(--primary) / 0.5)" strokeWidth="4" fill="none" strokeLinecap="round"/>
-                        <path d="M 0 168 L 0 192 L 24 192" stroke="hsl(var(--primary) / 0.5)" strokeWidth="4" fill="none" strokeLinecap="round"/>
-                        <path d="M 232 192 L 256 192 L 256 168" stroke="hsl(var(--primary) / 0.5)" strokeWidth="4" fill="none" strokeLinecap="round"/>
-                      </svg>
-                    </div>
-                  </div>
-                  <Camera className="h-16 w-16 text-muted-foreground" />
-                </>
+                <div className="absolute inset-0 bg-[#0f1923] rounded-lg overflow-hidden">
+                  <ScannerIdleAnimation />
+                </div>
               )}
             </div>
             
