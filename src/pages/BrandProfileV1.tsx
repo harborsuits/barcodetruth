@@ -730,7 +730,7 @@ export default function BrandProfileV1() {
 
         {/* ═══ FORENSIC EVIDENCE ═══ */}
         <div className="space-y-3">
-          <h2 className="label-forensic">Forensic Evidence</h2>
+          <h2 className="label-forensic">FORENSIC EVIDENCE REPOSITORY</h2>
           
           {/* Coverage status */}
           <BrandCoverageStatus 
