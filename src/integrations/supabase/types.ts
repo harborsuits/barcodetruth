@@ -2867,6 +2867,7 @@ export type Database = {
           company_type: Database["public"]["Enums"]["company_type_enum"] | null
           confidence_notes: string | null
           confidence_overall: number | null
+          coverage_priority: number | null
           created_at: string
           description: string | null
           description_lang: string | null
@@ -2884,14 +2885,18 @@ export type Database = {
           is_test: boolean
           last_build_error: string | null
           last_ingestion_status: string | null
+          last_material_event_at: string | null
+          last_news_check_at: string | null
           last_news_ingestion: string | null
           logo_attribution: string | null
           logo_etag: string | null
           logo_last_checked: string | null
           logo_source: string | null
           logo_url: string | null
+          material_event_count_30d: number | null
           monitoring_config: Json | null
           name: string
+          news_coverage_status: string | null
           news_vector_cache: Json | null
           news_vector_updated_at: string | null
           newsroom_domains: string[] | null
@@ -2917,6 +2922,7 @@ export type Database = {
           company_type?: Database["public"]["Enums"]["company_type_enum"] | null
           confidence_notes?: string | null
           confidence_overall?: number | null
+          coverage_priority?: number | null
           created_at?: string
           description?: string | null
           description_lang?: string | null
@@ -2934,14 +2940,18 @@ export type Database = {
           is_test?: boolean
           last_build_error?: string | null
           last_ingestion_status?: string | null
+          last_material_event_at?: string | null
+          last_news_check_at?: string | null
           last_news_ingestion?: string | null
           logo_attribution?: string | null
           logo_etag?: string | null
           logo_last_checked?: string | null
           logo_source?: string | null
           logo_url?: string | null
+          material_event_count_30d?: number | null
           monitoring_config?: Json | null
           name: string
+          news_coverage_status?: string | null
           news_vector_cache?: Json | null
           news_vector_updated_at?: string | null
           newsroom_domains?: string[] | null
@@ -2967,6 +2977,7 @@ export type Database = {
           company_type?: Database["public"]["Enums"]["company_type_enum"] | null
           confidence_notes?: string | null
           confidence_overall?: number | null
+          coverage_priority?: number | null
           created_at?: string
           description?: string | null
           description_lang?: string | null
@@ -2984,14 +2995,18 @@ export type Database = {
           is_test?: boolean
           last_build_error?: string | null
           last_ingestion_status?: string | null
+          last_material_event_at?: string | null
+          last_news_check_at?: string | null
           last_news_ingestion?: string | null
           logo_attribution?: string | null
           logo_etag?: string | null
           logo_last_checked?: string | null
           logo_source?: string | null
           logo_url?: string | null
+          material_event_count_30d?: number | null
           monitoring_config?: Json | null
           name?: string
+          news_coverage_status?: string | null
           news_vector_cache?: Json | null
           news_vector_updated_at?: string | null
           newsroom_domains?: string[] | null
