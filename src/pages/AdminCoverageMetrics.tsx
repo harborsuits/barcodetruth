@@ -34,6 +34,23 @@ export default function AdminCoverageMetrics() {
     },
   });
 
+  // Fetch daily trend snapshots
+  const { data: trendData } = useQuery({
+    queryKey: ['coverage-trend'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('coverage_daily_snapshots' as any)
+        .select('snapshot_date, never_checked_count, quiet_count, stale_count, active_count, hot_count, total_products, brand_linked_pct, brands_checked_24h')
+        .order('snapshot_date', { ascending: true })
+        .limit(90);
+      if (error) throw error;
+      return (data || []).map((d: any) => ({
+        ...d,
+        date: new Date(d.snapshot_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      }));
+    },
+  });
+
   const handleRecompute = async () => {
     setRefreshing(true);
     try {
