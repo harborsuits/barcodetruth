@@ -35,7 +35,8 @@ export function RecentVerifications() {
           brands (
             id,
             name,
-            logo_url
+            logo_url,
+            status
           )
         `)
         .order('created_at', { ascending: false })
