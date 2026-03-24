@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, BarChart3, AlertTriangle, CheckCircle2, Clock, TrendingDown } from 'lucide-react';
+import { RefreshCw, BarChart3, AlertTriangle, Clock, TrendingDown, TrendingUp, ArrowDown, ArrowUp, Minus } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -22,6 +22,32 @@ interface CoverageMetrics {
   feed_concentration: { top10_pct: number; total_events_30d: number } | null;
 }
 
+interface Snapshot {
+  snapshot_date: string;
+  never_checked_count: number;
+  quiet_count: number;
+  stale_count: number;
+  active_count: number;
+  hot_count: number;
+  total_products: number;
+  brand_linked_pct: number;
+  brands_checked_24h: number;
+}
+
+function DeltaChip({ current, previous, label, invertColor = false }: { current: number; previous: number | null; label: string; invertColor?: boolean }) {
+  if (previous === null) return null;
+  const delta = current - previous;
+  if (delta === 0) return <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Minus className="h-3 w-3" /> 0</span>;
+  const isPositive = delta > 0;
+  const isGood = invertColor ? !isPositive : isPositive;
+  return (
+    <span className={`text-xs font-medium flex items-center gap-0.5 ${isGood ? 'text-green-600' : 'text-red-600'}`}>
+      {isPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+      {isPositive ? '+' : ''}{delta.toFixed(label === 'brand_linked_pct' ? 2 : 0)}
+    </span>
+  );
+}
+
 export default function AdminCoverageMetrics() {
   const [refreshing, setRefreshing] = useState(false);
 
@@ -34,7 +60,6 @@ export default function AdminCoverageMetrics() {
     },
   });
 
-  // Fetch daily trend snapshots
   const { data: trendData } = useQuery({
     queryKey: ['coverage-trend'],
     queryFn: async () => {
@@ -47,9 +72,13 @@ export default function AdminCoverageMetrics() {
       return (data || []).map((d: any) => ({
         ...d,
         date: new Date(d.snapshot_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      }));
+      })) as (Snapshot & { date: string })[];
     },
   });
+
+  // Get latest two snapshots for deltas
+  const latest = trendData && trendData.length > 0 ? trendData[trendData.length - 1] : null;
+  const previous = trendData && trendData.length > 1 ? trendData[trendData.length - 2] : null;
 
   const handleRecompute = async () => {
     setRefreshing(true);
@@ -62,6 +91,16 @@ export default function AdminCoverageMetrics() {
       toast.error(e.message);
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const handleRecordSnapshot = async () => {
+    try {
+      const { error } = await (supabase.rpc as any)('record_coverage_snapshot');
+      if (error) throw error;
+      toast.success('Snapshot recorded');
+    } catch (e: any) {
+      toast.error(e.message);
     }
   };
 
@@ -90,29 +129,48 @@ export default function AdminCoverageMetrics() {
           <h1 className="text-3xl font-bold">Coverage Metrics</h1>
           <p className="text-muted-foreground">Brand coverage fairness and health</p>
         </div>
-        <Button onClick={handleRecompute} disabled={refreshing} variant="outline" size="sm">
-          <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-          Recompute
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleRecordSnapshot} variant="outline" size="sm">
+            📸 Snapshot
+          </Button>
+          <Button onClick={handleRecompute} disabled={refreshing} variant="outline" size="sm">
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            Recompute
+          </Button>
+        </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      {/* KPI Cards with Deltas */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
         <Card className="p-4 text-center">
-          <p className="text-sm text-muted-foreground">Active Brands</p>
-          <p className="text-3xl font-bold">{metrics.total_active_brands}</p>
+          <p className="text-xs text-muted-foreground">Never Checked</p>
+          <p className="text-2xl font-bold text-orange-600">{latest?.never_checked_count ?? metrics.never_checked}</p>
+          <DeltaChip current={latest?.never_checked_count ?? 0} previous={previous?.never_checked_count ?? null} label="never_checked" invertColor />
         </Card>
         <Card className="p-4 text-center">
-          <p className="text-sm text-muted-foreground">Checked (24h)</p>
-          <p className="text-3xl font-bold text-green-600">{metrics.checked_24h}</p>
+          <p className="text-xs text-muted-foreground">Quiet</p>
+          <p className="text-2xl font-bold">{latest?.quiet_count ?? 0}</p>
+          <DeltaChip current={latest?.quiet_count ?? 0} previous={previous?.quiet_count ?? null} label="quiet" />
         </Card>
         <Card className="p-4 text-center">
-          <p className="text-sm text-muted-foreground">Checked (7d)</p>
-          <p className="text-3xl font-bold">{metrics.checked_7d}</p>
+          <p className="text-xs text-muted-foreground">Stale</p>
+          <p className="text-2xl font-bold text-orange-500">{latest?.stale_count ?? metrics.stale_14d}</p>
+          <DeltaChip current={latest?.stale_count ?? 0} previous={previous?.stale_count ?? null} label="stale" invertColor />
         </Card>
         <Card className="p-4 text-center">
-          <p className="text-sm text-muted-foreground">Never Checked</p>
-          <p className="text-3xl font-bold text-orange-600">{metrics.never_checked}</p>
+          <p className="text-xs text-muted-foreground">Checked (24h)</p>
+          <p className="text-2xl font-bold text-green-600">{latest?.brands_checked_24h ?? metrics.checked_24h}</p>
+          <DeltaChip current={latest?.brands_checked_24h ?? 0} previous={previous?.brands_checked_24h ?? null} label="checked_24h" />
+        </Card>
+        <Card className="p-4 text-center">
+          <p className="text-xs text-muted-foreground">Total Products</p>
+          <p className="text-2xl font-bold">{latest?.total_products ?? 0}</p>
+          <DeltaChip current={latest?.total_products ?? 0} previous={previous?.total_products ?? null} label="total_products" />
+        </Card>
+        <Card className="p-4 text-center">
+          <p className="text-xs text-muted-foreground">Brand Linked %</p>
+          <p className="text-2xl font-bold">{(latest?.brand_linked_pct ?? 0).toFixed(1)}%</p>
+          <DeltaChip current={latest?.brand_linked_pct ?? 0} previous={previous?.brand_linked_pct ?? null} label="brand_linked_pct" />
         </Card>
       </div>
 
@@ -148,10 +206,7 @@ export default function AdminCoverageMetrics() {
         </h2>
         <div className="flex flex-wrap gap-3">
           {Object.entries(metrics.status_breakdown || {}).map(([status, count]) => (
-            <div
-              key={status}
-              className={`px-4 py-2 rounded-lg border ${statusColors[status] || 'bg-muted'}`}
-            >
+            <div key={status} className={`px-4 py-2 rounded-lg border ${statusColors[status] || 'bg-muted'}`}>
               <p className="text-sm font-medium capitalize">{status.replace('_', ' ')}</p>
               <p className="text-2xl font-bold">{count}</p>
             </div>
@@ -199,7 +254,6 @@ export default function AdminCoverageMetrics() {
             ))}
           </div>
         </Card>
-
         <Card className="p-6">
           <h2 className="font-semibold text-lg mb-4">Top Parents by Volume (30d)</h2>
           <div className="space-y-2">
