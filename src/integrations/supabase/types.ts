@@ -10212,6 +10212,7 @@ export type Database = {
           title_fp: string
         }[]
       }
+      get_coverage_metrics: { Args: never; Returns: Json }
       get_enrichment_coverage: { Args: never; Returns: Json }
       get_enrichment_stats: { Args: never; Returns: Json }
       get_health_dashboard: { Args: never; Returns: Json }
@@ -10382,6 +10383,7 @@ export type Database = {
           updated_count: number
         }[]
       }
+      recompute_brand_coverage_status: { Args: never; Returns: undefined }
       refresh_brand_coverage: { Args: never; Returns: undefined }
       refresh_community_outlook: { Args: never; Returns: undefined }
       refresh_coverage_materialized_view: { Args: never; Returns: undefined }
