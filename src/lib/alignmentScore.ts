@@ -1,11 +1,18 @@
 /**
- * Unified Alignment Scoring System
+ * Unified Alignment Scoring System (v3 — Hardened)
  * 
  * This is the SINGLE SOURCE OF TRUTH for calculating how well a brand
  * aligns with a user's preferences. All other scoring functions are deprecated.
  * 
  * Core principle: We are NOT rating brands as "good" or "bad".
  * We are calculating how closely a brand aligns with what the user personally cares about.
+ * 
+ * HARDENING RULES (v3):
+ * 1. User preferences reweight DIMENSION SCORES, never raw events/articles
+ * 2. Low-confidence dimensions are dampened toward neutral (50) before weighting
+ * 3. Insufficient evidence cannot be over-amplified by slider extremes
+ * 4. All sliders at zero → equal weight fallback
+ * 5. Formula is identical server-side (personalized_brand_score_v2 RPC)
  */
 
 // ============================================================================
@@ -48,6 +55,14 @@ export interface BrandDimensionScores {
     politics?: ConfidenceLevel;
     social?: ConfidenceLevel;
   };
+  
+  // Optional: per-dimension event counts (from reason_json)
+  eventCounts?: {
+    labor?: number;
+    environment?: number;
+    politics?: number;
+    social?: number;
+  };
 }
 
 export interface AlignmentDriver {
@@ -56,9 +71,11 @@ export interface AlignmentDriver {
   impact: 'positive' | 'negative' | 'neutral';
   contribution: number;       // The weighted contribution to final score
   brandScore: number;         // The brand's score in this dimension
+  effectiveScore: number;     // After confidence dampening
   userWeight: number;         // How much user cares (normalized 0-1)
   userWeightRaw: number;      // Original 0-100 weight
   confidence: ConfidenceLevel;
+  coverageNote?: string;      // Human-readable coverage status
 }
 
 export interface DealBreakerResult {
@@ -93,6 +110,9 @@ export interface AlignmentResult {
   // For display
   summary: string;                        // Human-readable summary
   isPersonalized: boolean;                // Whether this uses user prefs
+  
+  // Personalization explanation (v3)
+  preferenceExplanation: string[];        // Lines explaining why score differs
 }
 
 // ============================================================================
@@ -113,10 +133,22 @@ const DIMENSION_EMOJIS: Record<Dimension, string> = {
   social: '🤝',
 };
 
-// Confidence penalties - low confidence dimensions contribute less
+/**
+ * HARDENED confidence multipliers (v3)
+ * 
+ * Low confidence dimensions are dampened MORE aggressively toward neutral.
+ * This prevents a user from maxing the Environment slider and getting a
+ * misleading score from a brand that has only 1 weak news article about environment.
+ * 
+ * The multiplier blends the raw score toward 50 (neutral):
+ *   effectiveScore = 50 + (rawScore - 50) * multiplier
+ * 
+ * So a brand with score=80, low confidence:
+ *   effective = 50 + (80-50) * 0.5 = 65  (dampened toward neutral)
+ */
 export const CONFIDENCE_MULTIPLIERS: Record<ConfidenceLevel, number> = {
-  low: 0.85,
-  medium: 0.95,
+  low: 0.5,     // v2 was 0.85 — too weak. Now halves deviation from neutral
+  medium: 0.85,  // v2 was 0.95
   high: 1.0,
 };
 
@@ -128,17 +160,27 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   social: 50,
 };
 
+// Minimum event count per dimension for medium confidence
+const MIN_EVENTS_MEDIUM = 2;
+// Minimum event count per dimension for high confidence
+const MIN_EVENTS_HIGH = 5;
+
 // ============================================================================
 // Core Calculation
 // ============================================================================
 
 /**
  * Normalize user weights to sum to 1.0
+ * 
+ * CRITICAL: Weights are RELATIVE, not absolute.
+ * [100, 0, 0, 0] → [1.0, 0, 0, 0] — only labor matters
+ * [50, 50, 50, 50] → [0.25, 0.25, 0.25, 0.25] — equal weight
+ * [0, 0, 0, 0] → [0.25, 0.25, 0.25, 0.25] — safe fallback
  */
-function normalizeWeights(prefs: UserPreferences): Record<Dimension, number> {
+export function normalizeWeights(prefs: UserPreferences): Record<Dimension, number> {
   const total = prefs.labor + prefs.environment + prefs.politics + prefs.social;
   
-  // If user set all to 0, use equal weights
+  // If user set all to 0, use equal weights (safe fallback)
   if (total === 0) {
     return { labor: 0.25, environment: 0.25, politics: 0.25, social: 0.25 };
   }
@@ -153,6 +195,9 @@ function normalizeWeights(prefs: UserPreferences): Record<Dimension, number> {
 
 /**
  * Get confidence level for a dimension based on available data
+ * 
+ * Uses event counts when available (from reason_json.dimension_counts),
+ * falls back to score heuristics.
  */
 function getDimensionConfidence(
   dimension: Dimension,
@@ -163,20 +208,47 @@ function getDimensionConfidence(
     return brandScores.confidence[dimension]!;
   }
   
-  // Default to medium if we have a score, low if null
+  // Use event counts if available (most accurate)
+  const eventCount = brandScores.eventCounts?.[dimension];
+  if (eventCount !== undefined) {
+    if (eventCount >= MIN_EVENTS_HIGH) return 'high';
+    if (eventCount >= MIN_EVENTS_MEDIUM) return 'medium';
+    return 'low';
+  }
+  
+  // Fallback: heuristic from score value
   const scoreKey = `score_${dimension}` as keyof BrandDimensionScores;
   const score = brandScores[scoreKey];
   
-  if (score === null || score === undefined) {
-    return 'low';
-  }
-  
-  // If score is exactly 50 (neutral default), confidence is lower
-  if (score === 50) {
-    return 'low';
-  }
+  if (score === null || score === undefined) return 'low';
+  if (score === 50) return 'low'; // Neutral default = no real data
   
   return 'medium';
+}
+
+/**
+ * HARDENED: Apply confidence dampening to a dimension score.
+ * 
+ * Blends toward neutral (50) based on confidence level.
+ * This ensures weak evidence doesn't produce extreme effective scores
+ * even when a user's slider is maxed.
+ */
+function dampenScore(rawScore: number, confidence: ConfidenceLevel): number {
+  const multiplier = CONFIDENCE_MULTIPLIERS[confidence];
+  return 50 + (rawScore - 50) * multiplier;
+}
+
+/**
+ * Generate coverage note for a dimension
+ */
+function getCoverageNote(dimension: Dimension, confidence: ConfidenceLevel): string | undefined {
+  if (confidence === 'low') {
+    return `${DIMENSION_LABELS[dimension]} coverage is limited — weighted cautiously`;
+  }
+  if (confidence === 'medium') {
+    return `${DIMENSION_LABELS[dimension]} has moderate evidence`;
+  }
+  return undefined;
 }
 
 /**
@@ -196,7 +268,6 @@ function checkDealbreakers(
       const scoreKey = `score_${dim}` as keyof BrandDimensionScores;
       const actual = brandScores[scoreKey] as number | null;
       
-      // If brand has a score and it's below threshold, dealbreaker triggered
       if (actual !== null && actual < threshold) {
         return {
           triggered: true,
@@ -219,7 +290,6 @@ function calculateOverallConfidence(
   includedDims: Dimension[],
   dimensionConfidences: Record<Dimension, ConfidenceLevel>
 ): { level: ConfidenceLevel; reason: string } {
-  // If less than 3 dimensions have data, it's early stage
   if (includedDims.length < 3) {
     return {
       level: 'low',
@@ -227,13 +297,11 @@ function calculateOverallConfidence(
     };
   }
   
-  // Count confidence levels
   const counts = { low: 0, medium: 0, high: 0 };
   for (const dim of includedDims) {
     counts[dimensionConfidences[dim]]++;
   }
   
-  // Majority rules
   if (counts.high >= 2) {
     return { level: 'high', reason: 'Multiple dimensions have strong evidence' };
   }
@@ -281,32 +349,84 @@ function generateSummary(
 }
 
 /**
+ * Generate preference explanation lines (v3)
+ * 
+ * Explains WHY the personalized score differs from baseline:
+ * - Which dimensions the user emphasized
+ * - Which dimensions the brand is strong/weak in
+ * - Which dimensions have limited coverage
+ */
+function generatePreferenceExplanation(
+  drivers: AlignmentDriver[],
+  isPersonalized: boolean,
+  weights: Record<Dimension, number>
+): string[] {
+  if (!isPersonalized) {
+    return ['Using equal weight across all dimensions (sign in to personalize)'];
+  }
+  
+  const lines: string[] = [];
+  
+  // What the user emphasized
+  const sortedByWeight = [...drivers].sort((a, b) => b.userWeight - a.userWeight);
+  const topWeighted = sortedByWeight.filter(d => d.userWeight > 0.3);
+  if (topWeighted.length > 0) {
+    const names = topWeighted.map(d => d.label).join(' and ');
+    lines.push(`Your preferences emphasize ${names}`);
+  }
+  
+  // Brand strengths vs weaknesses relative to user preferences
+  const strongForUser = drivers.filter(d => d.impact === 'positive' && d.userWeight > 0.15);
+  const weakForUser = drivers.filter(d => d.impact === 'negative' && d.userWeight > 0.15);
+  
+  if (strongForUser.length > 0) {
+    const name = strongForUser[0].label;
+    lines.push(`This brand scores well in ${name}, which you care about`);
+  }
+  
+  if (weakForUser.length > 0) {
+    const name = weakForUser[0].label;
+    lines.push(`This brand has concerns in ${name}, which matters to you`);
+  }
+  
+  // Coverage warnings
+  const lowCoverage = drivers.filter(d => d.confidence === 'low' && d.userWeight > 0.15);
+  for (const d of lowCoverage) {
+    lines.push(`${d.label} coverage is limited, so it was weighted cautiously`);
+  }
+  
+  return lines.length > 0 ? lines : ['Score reflects your value preferences applied to evidence-based dimension scores'];
+}
+
+/**
  * MAIN FUNCTION: Calculate alignment between user preferences and brand scores
+ * 
+ * CANONICAL FORMULA (must match server-side RPC):
+ * 1. Normalize user weights to sum to 1.0
+ * 2. For each dimension with data:
+ *    a. Get confidence level (from event counts or heuristics)
+ *    b. Dampen score toward 50 based on confidence: effectiveScore = 50 + (raw - 50) * multiplier
+ *    c. Contribution = effectiveScore * normalizedWeight
+ * 3. If some dimensions excluded, renormalize remaining weights
+ * 4. Final score = sum of contributions (0-100 scale)
+ * 5. Check dealbreakers
  */
 export function calculateAlignment(
   userPrefs: UserPreferences | null,
   brandScores: BrandDimensionScores
 ): AlignmentResult {
-  // Use defaults if no preferences provided
   const prefs = userPrefs ?? DEFAULT_PREFERENCES;
   const isPersonalized = userPrefs !== null;
   
-  // Normalize weights
   const weights = normalizeWeights(prefs);
-  
-  // Check dealbreakers first
   const dealbreaker = checkDealbreakers(prefs, brandScores);
   
-  // Calculate per-dimension contributions
   const dimensions: Dimension[] = ['labor', 'environment', 'politics', 'social'];
   const drivers: AlignmentDriver[] = [];
   const excludedDimensions: Dimension[] = [];
   const includedDimensions: Dimension[] = [];
   const dimensionConfidences: Record<Dimension, ConfidenceLevel> = {
-    labor: 'low',
-    environment: 'low',
-    politics: 'low',
-    social: 'low',
+    labor: 'low', environment: 'low', politics: 'low', social: 'low',
   };
   
   let rawScore = 0;
@@ -328,11 +448,14 @@ export function calculateAlignment(
     includedDimensions.push(dim);
     
     const weight = weights[dim];
-    const contribution = brandScore * weight;
-    const confidenceMultiplier = CONFIDENCE_MULTIPLIERS[confidence];
-    const adjustedContribution = contribution * confidenceMultiplier;
     
-    rawScore += contribution;
+    // HARDENED (v3): Dampen score based on confidence BEFORE weighting
+    const effectiveScore = dampenScore(brandScore, confidence);
+    
+    const rawContribution = brandScore * weight;
+    const adjustedContribution = effectiveScore * weight;
+    
+    rawScore += rawContribution;
     adjustedScore += adjustedContribution;
     totalWeight += weight;
     
@@ -352,9 +475,11 @@ export function calculateAlignment(
       impact,
       contribution: adjustedContribution,
       brandScore,
+      effectiveScore: Math.round(effectiveScore),
       userWeight: weight,
       userWeightRaw: prefs[dim],
       confidence,
+      coverageNote: getCoverageNote(dim, confidence),
     });
   }
   
@@ -373,14 +498,12 @@ export function calculateAlignment(
   const topPositive = positiveDrivers[0];
   const topNegative = negativeDrivers[0];
   
-  // Calculate overall confidence
   const { level: overallConfidence, reason: confidenceReason } = calculateOverallConfidence(
-    includedDimensions,
-    dimensionConfidences
+    includedDimensions, dimensionConfidences
   );
   
-  // Generate summary
   const summary = generateSummary(adjustedScore, dealbreaker, topPositive, topNegative);
+  const preferenceExplanation = generatePreferenceExplanation(drivers, isPersonalized, weights);
   
   return {
     score: Math.round(adjustedScore),
@@ -395,6 +518,7 @@ export function calculateAlignment(
     includedDimensions,
     summary,
     isPersonalized,
+    preferenceExplanation,
   };
 }
 
@@ -402,27 +526,18 @@ export function calculateAlignment(
 // Utility Functions
 // ============================================================================
 
-/**
- * Get display color for alignment score
- */
 export function getAlignmentColor(score: number): string {
   if (score >= 70) return 'text-green-600 dark:text-green-400';
   if (score >= 40) return 'text-amber-600 dark:text-amber-400';
   return 'text-red-600 dark:text-red-400';
 }
 
-/**
- * Get background color for alignment score
- */
 export function getAlignmentBgColor(score: number): string {
   if (score >= 70) return 'bg-green-100 dark:bg-green-950';
   if (score >= 40) return 'bg-amber-100 dark:bg-amber-950';
   return 'bg-red-100 dark:bg-red-950';
 }
 
-/**
- * Get confidence badge color
- */
 export function getConfidenceColor(level: ConfidenceLevel): string {
   switch (level) {
     case 'high': return 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300';
@@ -431,30 +546,18 @@ export function getConfidenceColor(level: ConfidenceLevel): string {
   }
 }
 
-/**
- * Get emoji for dimension
- */
 export function getDimensionEmoji(dim: Dimension): string {
   return DIMENSION_EMOJIS[dim];
 }
 
-/**
- * Get label for dimension
- */
 export function getDimensionLabel(dim: Dimension): string {
   return DIMENSION_LABELS[dim];
 }
 
-/**
- * Format score delta (e.g., "+12" or "-8")
- */
 export function formatDelta(delta: number): string {
   return delta >= 0 ? `+${delta}` : `${delta}`;
 }
 
-/**
- * Check if a brand is "recommendable" (has enough evidence and no dealbreakers)
- */
 export function isRecommendable(result: AlignmentResult): boolean {
   return !result.dealbreaker.triggered && result.includedDimensions.length >= 3;
 }

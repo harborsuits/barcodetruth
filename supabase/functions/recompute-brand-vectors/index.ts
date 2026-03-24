@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isScoreEligible, TIER_SCORE_WEIGHTS, type SourceTier } from '../_shared/sourceTiers.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,17 +15,6 @@ const LOOKBACK_DAYS = 90;
 
 type Category = typeof CATEGORIES[number];
 type CategoryVector = Record<Category, number>;
-
-// Severity mapping
-function getSeverityValue(severity: string | null): number {
-  switch (severity?.toLowerCase()) {
-    case 'critical': return 1.0;
-    case 'high': return 0.8;
-    case 'medium': return 0.5;
-    case 'low': return 0.3;
-    default: return 0.5;
-  }
-}
 
 // Verification factor mapping
 function getVerificationFactor(verification: string | null): number {
@@ -44,21 +34,40 @@ function recencyDecay(eventDate: string): number {
   return Math.exp(-ageDays * Math.LN2 / HALF_LIFE_DAYS);
 }
 
-// Compute news vector for a brand from its events
-function computeNewsVector(events: any[]): CategoryVector {
+/**
+ * Compute news vector from ONLY score-eligible events.
+ * Returns the vector plus event count stats for transparency.
+ */
+function computeNewsVector(events: any[]): { vector: CategoryVector; eligible: number; filtered: number } {
   const vector: CategoryVector = { labor: 0, environment: 0, politics: 0, social: 0 };
+  let eligible = 0;
+  let filtered = 0;
 
   for (const event of events) {
+    // PRIORITY 1 FIX: Enforce the same 5-gate eligibility as recompute-brand-scores
+    if (!isScoreEligible({
+      category: event.category,
+      is_irrelevant: event.is_irrelevant,
+      source_tier: event.source_tier as SourceTier,
+      category_confidence: event.category_confidence,
+      category_impacts: event.category_impacts,
+    })) {
+      filtered++;
+      continue;
+    }
+
+    eligible++;
     const impacts = event.category_impacts || {};
-    const severity = getSeverityValue(event.severity);
     const credibility = event.credibility ?? 0.5;
     const verificationFactor = event.verification_factor ?? getVerificationFactor(event.verification);
     const eventDate = event.event_date || event.created_at;
     const decay = recencyDecay(eventDate);
+    // Apply tier weight (Tier 1 = 1.0, Tier 2 = 0.6)
+    const tierWeight = TIER_SCORE_WEIGHTS[(event.source_tier as SourceTier) ?? 'tier_3'];
 
     for (const cat of CATEGORIES) {
       const impact = impacts[cat] ?? 0;
-      const contribution = impact * severity * credibility * verificationFactor * decay;
+      const contribution = impact * credibility * verificationFactor * decay * tierWeight;
       vector[cat] += contribution;
     }
   }
@@ -68,7 +77,7 @@ function computeNewsVector(events: any[]): CategoryVector {
     vector[cat] = Math.max(-CAP_PER_CATEGORY, Math.min(CAP_PER_CATEGORY, vector[cat]));
   }
 
-  return vector;
+  return { vector, eligible, filtered };
 }
 
 serve(async (req) => {
@@ -92,11 +101,8 @@ serve(async (req) => {
     let brandsToUpdate: string[] = [];
 
     if (brandId) {
-      // Single brand update
       brandsToUpdate = [brandId];
     } else {
-      // Batch: get brands that need updates (stale or null news_vector_updated_at)
-      // Using dedicated timestamp instead of updated_at to avoid false staleness from unrelated edits
       const { data: brands, error: brandsError } = await supabase
         .from('brands')
         .select('id')
@@ -116,17 +122,18 @@ serve(async (req) => {
     }
 
     let updatedCount = 0;
+    let totalEligible = 0;
+    let totalFiltered = 0;
     const errors: string[] = [];
 
     for (const bid of brandsToUpdate) {
       try {
-        // Fetch recent events for this brand
+        // Fetch recent events WITH all fields needed for 5-gate eligibility check
         const { data: events, error: eventsError } = await supabase
           .from('brand_events')
-          .select('category_impacts, severity, credibility, verification_factor, verification, event_date, created_at')
+          .select('category_impacts, category, severity, credibility, verification_factor, verification, event_date, created_at, is_irrelevant, source_tier, category_confidence, score_eligible')
           .eq('brand_id', bid)
           .gte('created_at', since.toISOString())
-          .eq('is_irrelevant', false)
           .order('created_at', { ascending: false })
           .limit(200);
 
@@ -135,10 +142,11 @@ serve(async (req) => {
           continue;
         }
 
-        // Compute the news vector
-        const newsVector = computeNewsVector(events || []);
+        // Compute vector using ONLY score-eligible events
+        const { vector: newsVector, eligible, filtered } = computeNewsVector(events || []);
+        totalEligible += eligible;
+        totalFiltered += filtered;
 
-        // Update the brand with dedicated staleness timestamp
         const { error: updateError } = await supabase
           .from('brands')
           .update({ 
@@ -159,11 +167,15 @@ serve(async (req) => {
       }
     }
 
+    console.log(`[recompute-brand-vectors] Updated ${updatedCount} brands. Eligible events: ${totalEligible}, Filtered: ${totalFiltered}`);
+
     return new Response(
       JSON.stringify({
         success: true,
         updated: updatedCount,
         total: brandsToUpdate.length,
+        events_eligible: totalEligible,
+        events_filtered: totalFiltered,
         errors: errors.length > 0 ? errors : undefined,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
