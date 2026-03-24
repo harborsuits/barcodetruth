@@ -10457,6 +10457,13 @@ export type Database = {
         Args: { p_brand_id: string; p_user_id?: string }
         Returns: Json
       }
+      promote_eligible_brands: {
+        Args: never
+        Returns: {
+          brand_id: string
+          brand_name: string
+        }[]
+      }
       reclassify_all_events: {
         Args: never
         Returns: {
