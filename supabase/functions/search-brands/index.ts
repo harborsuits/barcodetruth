@@ -93,7 +93,8 @@ serve(async (req) => {
         brands!brand_aliases_canonical_brand_id_fkey (
           id,
           name,
-          parent_company
+          parent_company,
+          status
         )
       `)
       .or(`external_name.ilike.${escapedRaw},external_name.ilike.${escapedNormalized}`)
