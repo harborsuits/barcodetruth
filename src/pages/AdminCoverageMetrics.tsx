@@ -4,9 +4,10 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, BarChart3, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
+import { RefreshCw, BarChart3, AlertTriangle, CheckCircle2, Clock, TrendingDown } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface CoverageMetrics {
   total_active_brands: number;
