@@ -755,13 +755,13 @@ export const Scan = () => {
             {scanResult === 'idle' && (
               <div className="mt-6 space-y-4 text-center">
                 <div className="space-y-2">
-                  <h3 className="font-semibold">Ready to scan</h3>
+                  <h3 className="font-semibold">System Ready for Ingestion</h3>
                   <p className="text-sm text-muted-foreground">
                     Position a product barcode in front of your camera for instant brand analysis
                   </p>
                   {!is_subscribed && (
-                    <p className="text-sm font-medium text-primary">
-                      {scans_remaining} free scans remaining this month
+                    <p className="text-sm font-medium text-primary font-mono">
+                      {scans_remaining} scans remaining
                     </p>
                   )}
                 </div>
@@ -778,6 +778,7 @@ export const Scan = () => {
                     onClick={startScanner} 
                     aria-label="Start barcode scanner"
                     disabled={!isSecure || !can_scan}
+                    className="font-mono text-xs uppercase tracking-wider"
                   >
                     <Camera className="mr-2 h-4 w-4" />
                     Start Camera
@@ -787,8 +788,9 @@ export const Scan = () => {
                     onClick={onManualFallbackClick} 
                     aria-label="Enter barcode manually"
                     disabled={!can_scan}
+                    className="font-mono text-xs uppercase tracking-wider"
                   >
-                    Enter barcode instead
+                    Manual Entry
                   </Button>
                 </div>
                   <div className="flex items-center gap-2">
@@ -798,6 +800,7 @@ export const Scan = () => {
                       onClick={() => fileInputRef.current?.click()}
                       disabled={!can_scan}
                       aria-label="Upload barcode photo"
+                      className="font-mono text-[10px] uppercase tracking-wider"
                     >
                       <Upload className="mr-2 h-4 w-4" />
                       Upload photo
@@ -813,15 +816,14 @@ export const Scan = () => {
                   </div>
                 </div>
                 
-                <div className="text-xs text-muted-foreground space-y-1">
-                  <p>📷 Privacy: Video stays on your device. We only read the barcode number.</p>
-                  <p>Supports EAN-13, UPC-A, Code 128, and more</p>
-                </div>
+                <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">
+                  Data transmitted over secure HTTPS. No images stored.
+                </p>
 
-                {/* Manual barcode entry (when showManual is true) */}
+                {/* Manual barcode entry */}
                 {showManual && (
-                  <div className="pt-4 border-t">
-                    <label htmlFor="manual-barcode" className="text-sm font-medium">No camera? Enter barcode:</label>
+                  <div className="pt-4 border-t border-border">
+                    <label htmlFor="manual-barcode" className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">BARCODE_IDENTIFIER</label>
                     <div className="mt-2 flex items-center gap-2">
                       <Input
                         id="manual-barcode"
@@ -829,46 +831,46 @@ export const Scan = () => {
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        placeholder="e.g., 0123456789012"
+                        placeholder="Enter Barcode Identifier..."
                         value={manualBarcode}
                         onChange={(e) => setManualBarcode(e.target.value.replace(/\D/g, ''))}
                         onKeyDown={(e) => e.key === 'Enter' && handleManualSubmit()}
                         maxLength={14}
-                        className="flex-1"
+                        className="flex-1 bg-card border-border/30 font-mono text-sm"
                         aria-label="Enter barcode digits manually"
                       />
-                      <Button onClick={handleManualSubmit} disabled={manualBarcode.length < 8} aria-label="Look up barcode">
-                        Lookup
+                      <Button 
+                        onClick={handleManualSubmit} 
+                        disabled={manualBarcode.length < 8}
+                        className="font-mono text-xs uppercase tracking-wider"
+                      >
+                        INITIALIZE AUDIT
                       </Button>
                     </div>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Supports 8–14 digit EAN/UPC/ITF/Code 128 formats.
-                    </p>
                   </div>
                 )}
 
-                {/* Quick-tap test UPCs */}
-                <div className="pt-6 border-t">
-                  <p className="text-xs text-muted-foreground text-center mb-3">
-                    Try scanning these popular brands:
+                {/* Quick-tap brand chips */}
+                <div className="pt-4 border-t border-border">
+                  <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3">
+                    QUICK_TAP_TEST_BRANDS
                   </p>
-                  <div className="grid grid-cols-2 gap-2 max-w-md mx-auto">
+                  <div className="flex flex-wrap gap-2 justify-center">
                     {[
-                      { name: "Coca-Cola", upc: "0049000042566" },
-                      { name: "Pepsi", upc: "0012000000348" },
-                      { name: "Nestlé", upc: "0028000805050" },
-                      { name: "Kraft", upc: "0021000010240" },
+                      { name: "COCA-COLA", upc: "0049000042566" },
+                      { name: "PEPSI", upc: "0012000000348" },
+                      { name: "NESTLÉ", upc: "0028000805050" },
+                      { name: "KRAFT", upc: "0021000010240" },
                     ].map((item) => (
                       <Button
                         key={item.upc}
                         variant="outline"
                         size="sm"
-                        className="justify-between text-xs"
+                        className="font-mono text-[10px] uppercase tracking-wider px-3"
                         onClick={() => handleConfirmedLookup(item.upc)}
                         disabled={!can_scan}
                       >
-                        <span className="font-medium">{item.name}</span>
-                        <code className="text-[10px] text-muted-foreground">{item.upc}</code>
+                        {item.name}
                       </Button>
                     ))}
                   </div>
