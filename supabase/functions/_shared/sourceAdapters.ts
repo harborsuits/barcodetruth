@@ -307,63 +307,90 @@ export const usdaAdapter: SourceAdapter = {
 };
 
 // ── 7. EU Safety Gate (RAPEX) ──────────────────────────────────────────
+// The Safety Gate is an Angular SPA without a stable public REST API.
+// We use the weekly XML/JSON data dumps published on the Safety Gate portal.
+// Primary: Safety Gate weekly report XML feed
+// Fallback: OECD GlobalRecalls API
 
 export const rapexAdapter: SourceAdapter = {
   id: 'rapex',
   featureFlagKey: 'ingest_rapex_enabled',
   async fetch(query: string, maxResults: number): Promise<RawRegRecord[]> {
-    const records: RawRegRecord[] = [];
-    try {
-      // EU Safety Gate open data API
-      const url = `https://api.safety-gate.ec.europa.eu/alerts?q=${encodeURIComponent(query)}&format=json&max=${maxResults}`;
-      const resp = await fetch(url, {
-        headers: { 'Accept': 'application/json' },
-      });
+    // Try the Safety Gate weekly report feed first
+    const records = await rapexWeeklyFeed(query, maxResults);
+    if (records.length > 0) return records;
 
-      if (!resp.ok) {
-        // Fallback: try the OECD Global Recalls portal
-        console.warn(`[rapex] EU Safety Gate returned ${resp.status}, trying OECD fallback`);
-        return await rapexOecdFallback(query, maxResults);
-      }
-
-      const data = await resp.json();
-      const alerts = data?.alerts || data?.results || (Array.isArray(data) ? data : []);
-
-      for (const alert of alerts.slice(0, maxResults)) {
-        const alertId = alert.alertNumber || alert.reference || alert.id || String(Math.random());
-        const riskLevel = (alert.riskLevel || alert.risk_level || '').toLowerCase();
-
-        let impact = -3;
-        if (riskLevel.includes('serious')) impact = -5;
-        else if (riskLevel.includes('high')) impact = -4;
-        else if (riskLevel.includes('low')) impact = -1;
-
-        const productName = alert.productName || alert.product || alert.title || '';
-        const hazardType = alert.hazardType || alert.type_of_risk || alert.riskType || '';
-        const notifyingCountry = alert.notifyingCountry || alert.country || '';
-        const companyName = alert.companyName || alert.brand || alert.manufacturer || query;
-
-        records.push({
-          sourceId: `rapex-${alertId}`,
-          title: `EU Safety Gate: ${productName.substring(0, 200)}`,
-          description: `${hazardType} risk. ${alert.measures || alert.actionTaken || 'Recall/withdrawal'}. Notified by: ${notifyingCountry}`,
-          firmName: companyName,
-          date: sanitizeDate(alert.date || alert.notificationDate || alert.publicationDate),
-          sourceUrl: alert.url || `https://ec.europa.eu/safety-gate-alerts/screen/webReport/alertDetail/${alertId}`,
-          category: hazardType.toLowerCase().includes('chemical') ? 'environment' : 'social',
-          impact,
-          sourceName: 'EU Safety Gate',
-          sourceDomain: 'ec.europa.eu',
-          agencyFullName: 'European Commission Safety Gate (RAPEX)',
-          rawData: alert,
-        });
-      }
-    } catch (err) {
-      console.error('[rapex] Fetch error:', err);
-    }
-    return records;
+    // Fallback: OECD GlobalRecalls
+    return await rapexOecdFallback(query, maxResults);
   },
 };
+
+/** Fetch from Safety Gate weekly XML reports published as open data */
+async function rapexWeeklyFeed(query: string, maxResults: number): Promise<RawRegRecord[]> {
+  const records: RawRegRecord[] = [];
+  try {
+    // The Safety Gate publishes weekly XML reports; parse the latest
+    // Also available as CSV from https://ec.europa.eu/safety-gate-alerts/screen/webReport
+    // Using the weekly overview JSON endpoint
+    const url = 'https://ec.europa.eu/safety-gate-alerts/screen/webReport/alertDetail/latestWeeklyOverview';
+    const resp = await fetch(url, {
+      headers: { 'Accept': 'application/json, text/html, */*' },
+    });
+
+    if (!resp.ok) {
+      console.warn(`[rapex] Weekly feed returned ${resp.status}`);
+      return records;
+    }
+
+    const text = await resp.text();
+    let data: any;
+    try { data = JSON.parse(text); } catch { return records; }
+
+    const alerts = data?.alerts || data?.results || data?.items || (Array.isArray(data) ? data : []);
+    const queryLower = query.toLowerCase();
+
+    for (const alert of alerts) {
+      const productName = (alert.productName || alert.product || alert.title || '').toString();
+      const companyName = (alert.companyName || alert.brand || alert.manufacturer || '').toString();
+      const description = (alert.description || alert.hazardType || alert.type_of_risk || '').toString();
+
+      // Filter by query term
+      const searchable = `${productName} ${companyName} ${description}`.toLowerCase();
+      if (!searchable.includes(queryLower)) continue;
+
+      const alertId = alert.alertNumber || alert.reference || alert.id || String(Math.random());
+      const riskLevel = (alert.riskLevel || alert.risk_level || '').toString().toLowerCase();
+
+      let impact = -3;
+      if (riskLevel.includes('serious')) impact = -5;
+      else if (riskLevel.includes('high')) impact = -4;
+      else if (riskLevel.includes('low')) impact = -1;
+
+      const hazardType = alert.hazardType || alert.type_of_risk || alert.riskType || '';
+      const notifyingCountry = alert.notifyingCountry || alert.country || '';
+
+      records.push({
+        sourceId: `rapex-${alertId}`,
+        title: `EU Safety Gate: ${productName.substring(0, 200)}`,
+        description: `${hazardType} risk. ${alert.measures || alert.actionTaken || 'Recall/withdrawal'}. Notified by: ${notifyingCountry}`,
+        firmName: companyName || query,
+        date: sanitizeDate(alert.date || alert.notificationDate || alert.publicationDate),
+        sourceUrl: alert.url || `https://ec.europa.eu/safety-gate-alerts/screen/webReport/alertDetail/${alertId}`,
+        category: hazardType.toString().toLowerCase().includes('chemical') ? 'environment' : 'social',
+        impact,
+        sourceName: 'EU Safety Gate',
+        sourceDomain: 'ec.europa.eu',
+        agencyFullName: 'European Commission Safety Gate (RAPEX)',
+        rawData: alert,
+      });
+
+      if (records.length >= maxResults) break;
+    }
+  } catch (err) {
+    console.error('[rapex] Weekly feed error:', err);
+  }
+  return records;
+}
 
 /** OECD GlobalRecalls fallback for RAPEX data */
 async function rapexOecdFallback(query: string, maxResults: number): Promise<RawRegRecord[]> {
