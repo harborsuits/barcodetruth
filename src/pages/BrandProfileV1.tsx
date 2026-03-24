@@ -22,6 +22,7 @@ import { BuildingProfile } from '@/components/brand/BuildingProfile';
 import { NeedsReviewProfile } from '@/components/brand/NeedsReviewProfile';
 import { PowerProfitCard } from '@/components/brand/PowerProfitCard';
 import { deduplicateEvents } from '@/lib/deduplicateEvents';
+import { BrandCoverageStatus } from '@/components/brand/BrandCoverageStatus';
 
 // V1 Consumer Contract - with 3 explicit states:
 // State A: Assessable (full profile) - identity verified + 3+ dimensions with evidence
@@ -235,14 +236,7 @@ function EvidenceList({ brandId }: { brandId: string }) {
   }
   
   if (!evidence || evidence.length === 0) {
-    return (
-      <div className="text-center p-4 bg-muted/50 rounded-lg">
-        <p className="text-sm text-muted-foreground">No evidence yet</p>
-        <p className="text-xs text-muted-foreground mt-1">
-          Event coverage expanding — no verified events for this brand yet.
-        </p>
-      </div>
-    );
+    return null; // Coverage status shown at page level handles this
   }
   
   // Only display first 5 deduplicated events
@@ -255,12 +249,20 @@ function EvidenceList({ brandId }: { brandId: string }) {
         const content = (
           <>
             <p className="text-sm font-medium line-clamp-2">{ev.title}</p>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               <span className="text-xs text-muted-foreground capitalize">{ev.category}</span>
               <span className="text-xs text-muted-foreground">•</span>
               <span className="text-xs text-muted-foreground">
                 {new Date(ev.event_date).toLocaleDateString()}
               </span>
+              {ev.duplicates && ev.duplicates.length > 0 && (
+                <>
+                  <span className="text-xs text-muted-foreground">•</span>
+                  <span className="text-xs text-muted-foreground">
+                    Covered by {ev.duplicates.length + 1} outlets
+                  </span>
+                </>
+              )}
               {hasUrl && (
                 <>
                   <span className="text-xs text-muted-foreground">•</span>
@@ -704,6 +706,15 @@ export default function BrandProfileV1() {
 
         {/* Trust Pledge - How We Stay Neutral */}
         <TrustPledge />
+
+        {/* Coverage Status */}
+        {resolvedBrandId && (
+          <BrandCoverageStatus 
+            status={brand.news_coverage_status}
+            lastCheckedAt={brand.last_news_check_at}
+            materialEventCount={brand.material_event_count_30d}
+          />
+        )}
 
         {/* Card 4: Evidence */}
         <Card>
