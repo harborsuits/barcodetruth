@@ -248,13 +248,16 @@ export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidenc
   // Fetch top scoring events for narrative generation
   const { data: topEvents } = useTopScoringEvents(brandId, 5);
   
+  // Fetch user preferences for alignment calculation
+  const { data: userPrefs } = useUserPreferences(userId);
+  
   // FALLBACK: Fetch brand_scores with pillar breakdown as backup
   const { data: fallbackScore, isLoading: fallbackLoading } = useQuery({
     queryKey: ['brand-scores-fallback', brandId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('brand_scores')
-        .select('score, score_labor, score_environment, score_politics, score_social, last_updated, recomputed_at')
+        .select('score, score_labor, score_environment, score_politics, score_social, last_updated, recomputed_at, reason_json')
         .eq('brand_id', brandId)
         .maybeSingle();
       if (error || !data) return null;
@@ -263,17 +266,32 @@ export function PersonalizedScoreDisplay({ brandId, brandName, identityConfidenc
     enabled: !!brandId,
   });
   
+  // CANONICAL: Calculate alignment using the hardened alignmentScore.ts
+  const alignmentResult = useMemo((): AlignmentResult | null => {
+    if (!fallbackScore) return null;
+    
+    const brandScores: BrandDimensionScores = {
+      score_labor: fallbackScore.score_labor,
+      score_environment: fallbackScore.score_environment,
+      score_politics: fallbackScore.score_politics,
+      score_social: fallbackScore.score_social,
+      eventCounts: (fallbackScore.reason_json as any)?.dimension_counts,
+    };
+    
+    return calculateAlignment(userPrefs ?? null, brandScores);
+  }, [fallbackScore, userPrefs]);
+  
   const isLoading = (userId ? personalizedLoading : defaultLoading) && fallbackLoading;
   const vectorResult = userId ? personalizedResult : defaultResult;
-  const isPersonalized = !!userId && !!personalizedResult;
   
   // Check if vector-based score is valid (not all zeros / not exactly 50)
   const vectorScoreIsValid = vectorResult && vectorResult.personalScore !== 50;
   
-  // Use vector result if valid, otherwise fall back to brand_scores
-  const hasValidScore = vectorScoreIsValid || (fallbackScore?.score !== null && fallbackScore?.score !== undefined);
-  const displayScore = vectorScoreIsValid ? vectorResult?.personalScore : fallbackScore?.score;
-  const isFallbackScore = !vectorScoreIsValid && fallbackScore?.score !== null;
+  // HARDENED: Prefer alignment-based score over vector-based score
+  const hasAlignmentScore = alignmentResult !== null;
+  const hasValidScore = hasAlignmentScore || vectorScoreIsValid;
+  const displayScore = hasAlignmentScore ? alignmentResult!.score : (vectorScoreIsValid ? vectorResult?.personalScore : fallbackScore?.score);
+  const isPersonalized = !!userId && !!userPrefs;
   
   // Get freshness timestamp
   const lastUpdated = fallbackScore?.recomputed_at || fallbackScore?.last_updated;
