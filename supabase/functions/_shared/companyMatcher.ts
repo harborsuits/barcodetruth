@@ -88,21 +88,26 @@ export function normalizeFirmName(name: string): string {
   const acronymResult2 = ACRONYM_MAP[basicClean];
   if (acronymResult2) return acronymResult2;
 
-  // Token-level acronym expansion (e.g. "p&g manufacturing" → "procter and gamble manufacturing")
-  const tokens = basicClean.split(/\s+/);
-  const expanded = tokens.map(t => ACRONYM_MAP[t] || t);
-  normalized = expanded.join(' ');
-
-  // Strip suffixes first, then punctuation
-  normalized = normalized
+  // Strip corporate suffixes BEFORE acronym expansion
+  // (so expanded names like "international business machines" don't get mangled)
+  let stripped = basicClean
     .replace(/[&]/g, ' and ')
     .replace(SUFFIX_REGEX, '')
-    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/[^a-z0-9\s&]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 
-  // Deduplicate consecutive repeated words (e.g. "lg electronics electronics" → "lg electronics")
-  normalized = normalized.replace(/\b(\w+)(\s+\1)+\b/g, '$1');
+  // Token-level acronym expansion on the suffix-stripped result
+  const tokens = stripped.split(/\s+/);
+  const expanded = tokens.map(t => ACRONYM_MAP[t] || t);
+  normalized = expanded.join(' ');
+
+  // Final cleanup + deduplicate consecutive repeated words
+  normalized = normalized
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b(\w+)(\s+\1)+\b/g, '$1');
 
   return normalized;
 }
