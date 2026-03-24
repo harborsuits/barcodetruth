@@ -249,12 +249,20 @@ function EvidenceList({ brandId }: { brandId: string }) {
         const content = (
           <>
             <p className="text-sm font-medium line-clamp-2">{ev.title}</p>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               <span className="text-xs text-muted-foreground capitalize">{ev.category}</span>
               <span className="text-xs text-muted-foreground">•</span>
               <span className="text-xs text-muted-foreground">
                 {new Date(ev.event_date).toLocaleDateString()}
               </span>
+              {ev.duplicates && ev.duplicates.length > 0 && (
+                <>
+                  <span className="text-xs text-muted-foreground">•</span>
+                  <span className="text-xs text-muted-foreground">
+                    Covered by {ev.duplicates.length + 1} outlets
+                  </span>
+                </>
+              )}
               {hasUrl && (
                 <>
                   <span className="text-xs text-muted-foreground">•</span>
