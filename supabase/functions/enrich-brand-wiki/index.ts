@@ -50,68 +50,119 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, maxRetries
   throw lastError || new Error('Fetch failed');
 }
 
+// Disambiguation / non-commercial signals to reject
+const DISAMBIGUATION_SIGNALS = [
+  'may refer to', 'can refer to', 'may also refer to', 'is a disambiguation',
+  'for other uses', 'in computer graphics', 'in folklore', 'mythological',
+  'mythical', 'a sprite is a', 'in mythology', 'is a genus', 'is a species',
+  'is a village', 'is a town in', 'is a city in', 'is a river', 'is a mountain',
+  'is a fictional', 'is a character', 'is a song', 'is an album', 'is a film',
+  'is a novel', 'is a video game', 'is a television', 'is a tv ',
+];
+
+const COMMERCIAL_SIGNALS = [
+  'company', 'corporation', 'brand', 'manufacturer', 'produced by', 'subsidiary',
+  'headquartered', 'founded in', 'incorporated', 'publicly traded', 'conglomerate',
+  'retailer', 'beverage', 'food product', 'soft drink', 'consumer', 'marketed',
+  'sells', 'product line', 'trademark', 'owned by', 'parent company',
+];
+
+function isDisambiguationText(text: string): boolean {
+  const lower = text.toLowerCase();
+  return DISAMBIGUATION_SIGNALS.some(s => lower.includes(s));
+}
+
+function hasCommercialSignal(text: string): boolean {
+  const lower = text.toLowerCase();
+  return COMMERCIAL_SIGNALS.some(s => lower.includes(s));
+}
+
 // Wikipedia REST API fallback - doesn't require Wikidata
-// Returns title, extract, and official_url if found in infobox
+// Now with disambiguation filtering and commercial entity validation
 async function fetchWikipediaSummary(searchTerm: string): Promise<{ title: string; extract: string; official_url?: string } | null> {
   try {
     log('Attempting Wikipedia REST API fallback for:', searchTerm);
     
-    // Search Wikipedia directly for the brand name
-    const searchUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(searchTerm)}&limit=5&namespace=0&format=json`;
-    const searchRes = await fetch(searchUrl);
-    if (!searchRes.ok) return null;
+    // Try multiple search variants to find the commercial entity
+    const searchVariants = [
+      `${searchTerm} (brand)`,
+      `${searchTerm} (drink)`,
+      `${searchTerm} (company)`,
+      `${searchTerm} brand`,
+      `${searchTerm} company`,
+      searchTerm,
+    ];
     
-    const searchData = await searchRes.json();
-    const titles = searchData[1] as string[];
-    
-    if (!titles || titles.length === 0) {
-      log('Wikipedia search returned no results');
-      return null;
-    }
-    
-    // Find best match (prefer exact or company-like titles)
-    const normalizedSearch = searchTerm.toLowerCase().replace(/[^a-z0-9]/g, '');
-    let bestTitle = titles[0];
-    
-    for (const title of titles) {
-      const normalizedTitle = title.toLowerCase().replace(/[^a-z0-9]/g, '');
-      if (normalizedTitle === normalizedSearch || 
-          title.toLowerCase().includes('(company)') ||
-          title.toLowerCase().includes('(brand)') ||
-          title.toLowerCase().includes('(retailer)')) {
-        bestTitle = title;
-        break;
+    let bestResult: { title: string; extract: string; official_url?: string } | null = null;
+
+    for (const variant of searchVariants) {
+      const searchUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(variant)}&limit=5&namespace=0&format=json`;
+      const searchRes = await fetch(searchUrl);
+      if (!searchRes.ok) continue;
+      
+      const searchData = await searchRes.json();
+      const titles = searchData[1] as string[];
+      
+      if (!titles || titles.length === 0) continue;
+      
+      // Prefer titles with commercial qualifiers
+      const prioritizedTitles = [...titles].sort((a, b) => {
+        const aLower = a.toLowerCase();
+        const bLower = b.toLowerCase();
+        const commercialQualifiers = ['(company)', '(brand)', '(retailer)', '(beverage)', '(drink)', '(soft drink)'];
+        const aHas = commercialQualifiers.some(q => aLower.includes(q)) ? -1 : 0;
+        const bHas = commercialQualifiers.some(q => bLower.includes(q)) ? -1 : 0;
+        return aHas - bHas;
+      });
+      
+      for (const title of prioritizedTitles) {
+        // Skip disambiguation pages by title
+        if (title.toLowerCase().includes('disambiguation')) continue;
+        
+        const extractUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|extlinks&exintro=true&explaintext=true&titles=${encodeURIComponent(title)}&format=json&ellimit=20`;
+        const extractRes = await fetch(extractUrl);
+        if (!extractRes.ok) continue;
+        
+        const extractData = await extractRes.json();
+        const pages = extractData.query?.pages;
+        const pageId = Object.keys(pages)[0];
+        const page = pages[pageId];
+        const extract = page?.extract;
+        
+        if (!extract || extract.length < 50) continue;
+        
+        // Reject disambiguation text
+        if (isDisambiguationText(extract)) {
+          log(`Rejected Wikipedia result "${title}" - disambiguation/non-commercial`);
+          continue;
+        }
+        
+        let official_url: string | undefined;
+        const extlinks = page?.extlinks as Array<{ '*': string }> | undefined;
+        if (extlinks && extlinks.length > 0) {
+          official_url = extlinks[0]?.['*'];
+        }
+        
+        // If it has commercial signals, accept immediately
+        if (hasCommercialSignal(extract)) {
+          log(`Accepted Wikipedia result "${title}" - commercial entity confirmed`);
+          return { title, extract, official_url };
+        }
+        
+        // Save as fallback if nothing better found
+        if (!bestResult) {
+          bestResult = { title, extract, official_url };
+        }
       }
+      
+      // Stop searching variants if we found a confirmed commercial match
+      if (bestResult && hasCommercialSignal(bestResult.extract)) break;
     }
     
-    log('Wikipedia best match:', bestTitle);
-    
-    // Fetch the extract AND external links (official website) for best match
-    const extractUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|extlinks&exintro=true&explaintext=true&titles=${encodeURIComponent(bestTitle)}&format=json&ellimit=20`;
-    const extractRes = await fetch(extractUrl);
-    if (!extractRes.ok) return null;
-    
-    const extractData = await extractRes.json();
-    const pages = extractData.query?.pages;
-    const pageId = Object.keys(pages)[0];
-    const page = pages[pageId];
-    const extract = page?.extract;
-    
-    // Try to find official website from external links
-    let official_url: string | undefined;
-    const extlinks = page?.extlinks as Array<{ '*': string }> | undefined;
-    if (extlinks && extlinks.length > 0) {
-      // First external link is often the official site
-      official_url = extlinks[0]?.['*'];
-      log('Wikipedia found external link:', official_url);
+    if (bestResult) {
+      log('Wikipedia fallback using best result:', bestResult.title);
     }
-    
-    if (extract && extract.length > 50) {
-      log('Wikipedia fallback found extract:', extract.substring(0, 100) + '...');
-      return { title: bestTitle, extract, official_url };
-    }
-    
-    return null;
+    return bestResult;
   } catch (e) {
     warn('Wikipedia fallback failed:', (e as Error).message);
     return null;
