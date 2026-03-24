@@ -228,51 +228,51 @@ function EvidenceList({ brandId }: { brandId: string }) {
   
   if (isLoading) {
     return (
-      <div className="space-y-2">
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
+      <div className="p-4 space-y-3">
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-16 w-full" />
       </div>
     );
   }
   
   if (!evidence || evidence.length === 0) {
-    return null; // Coverage status shown at page level handles this
+    return (
+      <div className="p-6 text-center">
+        <p className="text-sm text-muted-foreground">No verified evidence items yet.</p>
+      </div>
+    );
   }
   
-  // Only display first 5 deduplicated events
   const displayedEvidence = evidence.slice(0, 5);
   
   return (
-    <div className="space-y-2">
+    <div className="divide-y divide-border">
       {displayedEvidence.map((ev) => {
         const hasUrl = !!ev.source_url;
-        const content = (
-          <>
-            <p className="text-sm font-medium line-clamp-2">{ev.title}</p>
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <span className="text-xs text-muted-foreground capitalize">{ev.category}</span>
-              <span className="text-xs text-muted-foreground">•</span>
-              <span className="text-xs text-muted-foreground">
-                {new Date(ev.event_date).toLocaleDateString()}
-              </span>
+        const categoryLabel = ev.category?.charAt(0).toUpperCase() + ev.category?.slice(1);
+        
+        const inner = (
+          <div className="p-4 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-[10px] font-mono uppercase tracking-wider">
+                {categoryLabel}
+              </Badge>
               {ev.duplicates && ev.duplicates.length > 0 && (
-                <>
-                  <span className="text-xs text-muted-foreground">•</span>
-                  <span className="text-xs text-muted-foreground">
-                    Covered by {ev.duplicates.length + 1} outlets
-                  </span>
-                </>
-              )}
-              {hasUrl && (
-                <>
-                  <span className="text-xs text-muted-foreground">•</span>
-                  <span className="text-xs text-primary inline-flex items-center gap-1">
-                    View source <ExternalLink className="h-3 w-3" />
-                  </span>
-                </>
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  {ev.duplicates.length + 1} outlets
+                </span>
               )}
             </div>
-          </>
+            <p className="text-sm font-medium leading-snug">{ev.title}</p>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>{new Date(ev.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+              {hasUrl && (
+                <span className="text-primary inline-flex items-center gap-0.5">
+                  Source <ExternalLink className="h-2.5 w-2.5" />
+                </span>
+              )}
+            </div>
+          </div>
         );
 
         if (hasUrl) {
@@ -282,29 +282,30 @@ function EvidenceList({ brandId }: { brandId: string }) {
               href={ev.source_url!} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="block p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors cursor-pointer"
+              className="block hover:bg-elevated-2 transition-colors"
             >
-              {content}
+              {inner}
             </a>
           );
         }
 
         return (
-          <div key={ev.event_id} className="p-3 bg-muted/50 rounded-lg opacity-60">
-            {content}
+          <div key={ev.event_id} className="opacity-70">
+            {inner}
           </div>
         );
       })}
       
-      {/* View all link */}
       {(totalCount || 0) > 5 && (
-        <Button 
-          variant="ghost" 
-          className="w-full text-sm"
-          onClick={() => navigate(`/proof/${brandId}`)}
-        >
-          View all {totalCount} evidence items →
-        </Button>
+        <div className="p-3">
+          <Button 
+            variant="ghost" 
+            className="w-full text-xs font-mono uppercase tracking-wider"
+            onClick={() => navigate(`/proof/${brandId}`)}
+          >
+            View all {totalCount} evidence items →
+          </Button>
+        </div>
       )}
     </div>
   );
