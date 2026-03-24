@@ -707,6 +707,15 @@ export default function BrandProfileV1() {
         {/* Trust Pledge - How We Stay Neutral */}
         <TrustPledge />
 
+        {/* Coverage Status */}
+        {resolvedBrandId && (
+          <BrandCoverageStatus 
+            status={brand.news_coverage_status}
+            lastCheckedAt={brand.last_news_check_at}
+            materialEventCount={brand.material_event_count_30d}
+          />
+        )}
+
         {/* Card 4: Evidence */}
         <Card>
           <CardContent className="pt-6">
