@@ -748,6 +748,13 @@ export default function BrandProfileV1() {
         {resolvedBrandId && (
           <div className="space-y-3">
             <h2 className="label-forensic">Ethical Alternatives</h2>
+            <Button 
+              variant="outline" 
+              className="w-full font-mono text-[10px] uppercase tracking-widest"
+              onClick={() => navigate(`/brand/${brand.slug || resolvedBrandId}#alternatives`)}
+            >
+              VIEW ALTERNATIVES →
+            </Button>
             <AlternativesSection brandId={resolvedBrandId} brandName={brand.name} />
           </div>
         )}
