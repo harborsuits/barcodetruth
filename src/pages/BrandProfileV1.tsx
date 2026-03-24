@@ -236,14 +236,7 @@ function EvidenceList({ brandId }: { brandId: string }) {
   }
   
   if (!evidence || evidence.length === 0) {
-    return (
-      <div className="text-center p-4 bg-muted/50 rounded-lg">
-        <p className="text-sm text-muted-foreground">No evidence yet</p>
-        <p className="text-xs text-muted-foreground mt-1">
-          Event coverage expanding — no verified events for this brand yet.
-        </p>
-      </div>
-    );
+    return null; // Coverage status shown at page level handles this
   }
   
   // Only display first 5 deduplicated events
