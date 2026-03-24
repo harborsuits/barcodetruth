@@ -648,7 +648,10 @@ export default function BrandProfileV1() {
         {/* ═══ METRIC DISTRIBUTION ═══ */}
         {resolvedBrandId && (
           <div className="space-y-3">
-            <h2 className="label-forensic">Metric Distribution</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="label-forensic">FORENSIC METRIC DISTRIBUTION</h2>
+              <span className="font-mono text-[10px] text-muted-foreground">{new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+            </div>
             <MetricDistribution brandId={resolvedBrandId} />
           </div>
         )}
