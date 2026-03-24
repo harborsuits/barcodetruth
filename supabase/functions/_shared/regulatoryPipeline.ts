@@ -1,51 +1,43 @@
 /**
  * Unified Regulatory Ingestion Pipeline
  * 
- * All government data sources feed into this single pipeline:
- *   source adapter → normalize → match brand → dedupe → insert event → activation queue
+ * Two modes:
+ *   1. Brand-targeted: Run adapters with brand name as search query
+ *   2. Discovery: Fetch recent records broadly, resolve firm names to brands via matcher
  * 
- * Each source only needs to implement a RegulatoryAdapter that returns RawRegRecord[].
- * The pipeline handles brand matching, deduplication, event creation, and source tracking.
+ * Pipeline: source adapter → normalize → match brand → dedupe → insert event
  */
 
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { RELEVANCE_MAX_SCORE } from "./scoringConstants.ts";
+import {
+  loadMatchCache,
+  matchFirmToBrand,
+  matchFirmHighConfidence,
+  normalizeFirmName,
+  type BrandMatch,
+} from "./companyMatcher.ts";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
 export interface RawRegRecord {
-  /** Unique ID from the source (recall number, inspection ID, case number) */
   sourceId: string;
-  /** Human-readable title */
   title: string;
-  /** Longer description */
   description: string;
-  /** Company/firm name as it appears in the dataset */
   firmName: string;
-  /** ISO date string of when the event occurred */
   date: string;
-  /** Source URL for linking */
   sourceUrl: string;
-  /** Event category: labor, environment, social, politics */
   category: 'labor' | 'environment' | 'social' | 'politics';
-  /** Negative impact score (-5 to -1) */
   impact: number;
-  /** Source agency name */
   sourceName: string;
-  /** Domain of the source */
   sourceDomain: string;
-  /** Full name of the agency */
   agencyFullName: string;
-  /** Raw JSON data to store */
   rawData?: Record<string, unknown>;
 }
 
 export interface SourceAdapter {
-  /** Unique source identifier */
   id: string;
-  /** Feature flag key in app_config */
   featureFlagKey: string;
-  /** Fetch records for a given search query */
   fetch(query: string, maxResults: number): Promise<RawRegRecord[]>;
 }
 
@@ -56,13 +48,20 @@ export interface PipelineResult {
   inserted: number;
   skipped: number;
   errors: number;
+  queued_for_review: number;
+}
+
+export interface DiscoveryResult {
+  source: string;
+  totalRecords: number;
+  matched: number;
+  inserted: number;
+  queued: number;
+  noMatch: number;
 }
 
 // ── Brand Resolution ───────────────────────────────────────────────────
 
-/**
- * Resolve search queries for a brand: name + parent_company + aliases
- */
 export async function resolveBrandQueries(
   supabase: SupabaseClient,
   brandId: string
@@ -99,9 +98,6 @@ export async function resolveBrandQueries(
 
 // ── Deduplication ──────────────────────────────────────────────────────
 
-/**
- * Check if an event already exists by source_url
- */
 async function isDuplicate(supabase: SupabaseClient, sourceUrl: string): Promise<boolean> {
   const { data } = await supabase
     .from('brand_events')
@@ -120,10 +116,8 @@ async function insertEvent(
 ): Promise<string | null> {
   const uniqueUrl = `${record.sourceUrl}#${record.sourceId}`;
 
-  // Check duplicate
   if (await isDuplicate(supabase, uniqueUrl)) return null;
 
-  // Insert event (occurred_at is generated, don't include it)
   const { data: newEvent, error } = await supabase
     .from('brand_events')
     .insert({
@@ -144,12 +138,11 @@ async function insertEvent(
     .single();
 
   if (error) {
-    if (error.code === '23505') return null; // Race condition duplicate
+    if (error.code === '23505') return null;
     console.error(`[pipeline] Insert error for ${record.sourceId}:`, error.message);
     return null;
   }
 
-  // Insert evidence source
   const safeTitle = `${record.sourceName}: ${record.title.substring(0, 100)}`;
   await supabase
     .from('event_sources')
@@ -174,12 +167,37 @@ async function insertEvent(
   return newEvent.event_id;
 }
 
-// ── Main Pipeline ──────────────────────────────────────────────────────
+// ── Queue for Review ───────────────────────────────────────────────────
 
-/**
- * Run a source adapter against a single brand.
- * Returns the pipeline result with counts.
- */
+async function queueForReview(
+  supabase: SupabaseClient,
+  record: RawRegRecord,
+  adapterId: string,
+  match: BrandMatch | null,
+): Promise<void> {
+  await supabase
+    .from('regulatory_match_review')
+    .upsert(
+      {
+        firm_name: record.firmName,
+        normalized_firm: normalizeFirmName(record.firmName),
+        source_adapter: adapterId,
+        source_record_id: record.sourceId,
+        suggested_brand_id: match?.brandId || null,
+        suggested_brand_name: match?.brandName || null,
+        match_confidence: match?.confidence || 'none',
+        similarity_score: match?.score || 0,
+        matched_via: match?.matchedVia || null,
+        record_title: record.title.substring(0, 300),
+        record_date: record.date,
+        raw_data: record.rawData ? JSON.parse(JSON.stringify(record.rawData)) : null,
+      },
+      { onConflict: 'source_adapter,source_record_id', ignoreDuplicates: true }
+    );
+}
+
+// ── Brand-Targeted Pipeline ────────────────────────────────────────────
+
 export async function runPipeline(
   supabase: SupabaseClient,
   adapter: SourceAdapter,
@@ -194,26 +212,19 @@ export async function runPipeline(
     inserted: 0,
     skipped: 0,
     errors: 0,
+    queued_for_review: 0,
   };
 
-  // Check feature flag
   const { data: config } = await supabase
     .from('app_config')
     .select('value')
     .eq('key', adapter.featureFlagKey)
     .maybeSingle();
 
-  if (config?.value === false) {
-    console.log(`[pipeline:${adapter.id}] Disabled via feature flag`);
-    return result;
-  }
+  if (config?.value === false) return result;
 
-  // Resolve brand queries
   const brand = await resolveBrandQueries(supabase, brandId);
-  if (!brand) {
-    console.error(`[pipeline:${adapter.id}] Brand not found: ${brandId}`);
-    return result;
-  }
+  if (!brand) return result;
   result.brandName = brand.name;
 
   const queries = queryOverride ? [queryOverride] : brand.queries;
@@ -221,48 +232,131 @@ export async function runPipeline(
 
   for (const query of queries) {
     try {
-      console.log(`[pipeline:${adapter.id}] Fetching for "${query}"`);
       const records = await adapter.fetch(query, maxResults);
-      
       for (const record of records) {
-        // Skip if we've already seen this sourceId in this run
         if (seenSourceIds.has(record.sourceId)) continue;
         seenSourceIds.add(record.sourceId);
-        
         result.scanned++;
 
         try {
           const eventId = await insertEvent(supabase, brandId, record);
           if (eventId) {
             result.inserted++;
-            console.log(`[pipeline:${adapter.id}] ✅ ${record.sourceId}`);
           } else {
             result.skipped++;
           }
         } catch (err) {
           result.errors++;
-          console.error(`[pipeline:${adapter.id}] Error inserting ${record.sourceId}:`, err);
         }
 
-        // Rate limit between inserts
         await new Promise(r => setTimeout(r, 100));
       }
     } catch (err) {
-      console.error(`[pipeline:${adapter.id}] Fetch error for "${query}":`, err);
       result.errors++;
     }
-
-    // Rate limit between queries
     await new Promise(r => setTimeout(r, 200));
   }
 
-  console.log(`[pipeline:${adapter.id}] ${brand.name}: scanned=${result.scanned} inserted=${result.inserted} skipped=${result.skipped}`);
+  console.log(`[pipeline:${adapter.id}] ${brand.name}: inserted=${result.inserted} skipped=${result.skipped}`);
   return result;
 }
 
+// ── Discovery Pipeline (broad ingestion with firm matching) ────────────
+
 /**
- * Run multiple adapters against a single brand, then optionally promote.
+ * Fetch records broadly (e.g. recent FDA recalls) and resolve each
+ * firm name to a brand using the company matcher.
+ * 
+ * High-confidence matches → insert event directly.
+ * Low-confidence matches → queue for admin review.
+ * No match → skip (or queue if record looks significant).
  */
+export async function runDiscovery(
+  supabase: SupabaseClient,
+  adapter: SourceAdapter,
+  searchTerms: string[],
+  maxResults = 100,
+): Promise<DiscoveryResult> {
+  const result: DiscoveryResult = {
+    source: adapter.id,
+    totalRecords: 0,
+    matched: 0,
+    inserted: 0,
+    queued: 0,
+    noMatch: 0,
+  };
+
+  // Load the brand/alias cache for matching
+  await loadMatchCache(supabase);
+
+  const seenSourceIds = new Set<string>();
+
+  for (const term of searchTerms) {
+    try {
+      const records = await adapter.fetch(term, maxResults);
+
+      for (const record of records) {
+        if (seenSourceIds.has(record.sourceId)) continue;
+        seenSourceIds.add(record.sourceId);
+        result.totalRecords++;
+
+        // Try to match the firm name to a brand
+        const match = matchFirmToBrand(record.firmName);
+
+        if (!match) {
+          result.noMatch++;
+          continue;
+        }
+
+        // High confidence → insert directly
+        if (match.confidence === 'exact' || match.confidence === 'alias' || match.confidence === 'parent') {
+          try {
+            const eventId = await insertEvent(supabase, match.brandId, record);
+            if (eventId) {
+              result.inserted++;
+              result.matched++;
+              console.log(`[discovery:${adapter.id}] ✅ "${record.firmName}" → ${match.brandName} (${match.matchedVia})`);
+            } else {
+              result.matched++; // matched but duplicate
+            }
+          } catch {
+            // ignore
+          }
+        }
+        // High fuzzy (≥0.85) → insert but also queue for review
+        else if (match.confidence === 'fuzzy' && match.score >= 0.85) {
+          try {
+            const eventId = await insertEvent(supabase, match.brandId, record);
+            if (eventId) {
+              result.inserted++;
+              result.matched++;
+            }
+          } catch {
+            // ignore
+          }
+          await queueForReview(supabase, record, adapter.id, match);
+          result.queued++;
+        }
+        // Low fuzzy → queue only, don't insert
+        else if (match.confidence === 'fuzzy') {
+          await queueForReview(supabase, record, adapter.id, match);
+          result.queued++;
+        }
+
+        await new Promise(r => setTimeout(r, 80));
+      }
+    } catch (err) {
+      console.error(`[discovery:${adapter.id}] Error for "${term}":`, err);
+    }
+    await new Promise(r => setTimeout(r, 200));
+  }
+
+  console.log(`[discovery:${adapter.id}] total=${result.totalRecords} matched=${result.matched} inserted=${result.inserted} queued=${result.queued} noMatch=${result.noMatch}`);
+  return result;
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────
+
 export async function runAllAdapters(
   supabase: SupabaseClient,
   adapters: SourceAdapter[],
