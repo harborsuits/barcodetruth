@@ -93,14 +93,15 @@ serve(async (req) => {
         brands!brand_aliases_canonical_brand_id_fkey (
           id,
           name,
-          parent_company
+          parent_company,
+          status
         )
       `)
       .or(`external_name.ilike.${escapedRaw},external_name.ilike.${escapedNormalized}`)
       .limit(5);
 
     const aliasResults = (aliasMatches || [])
-      .filter(m => m.brands)
+      .filter(m => m.brands && (m.brands as any).status === 'active')
       .map(m => ({
         ...m.brands,
         confidence: 0.95,
@@ -108,10 +109,11 @@ serve(async (req) => {
         matched_alias: m.external_name
       }));
 
-    // Step 2: Exact/prefix match on brands
+    // Step 2: Exact/prefix match on brands (active only)
     const { data: exactMatches } = await supabase
       .from("brands")
       .select("id, name, parent_company")
+      .eq("status", "active")
       .or(`name.ilike.${escapedRaw},name.ilike.${escapedRaw}%`)
       .limit(10);
 
@@ -131,14 +133,16 @@ serve(async (req) => {
         })
         .limit(10);
 
-      fuzzyResults = (fuzzyMatches || []).map((b: any) => ({
-        id: b.id,
-        name: b.name,
-        parent_company: b.parent_company,
-        confidence: Math.min(0.8, b.similarity),
-        match_type: "fuzzy",
-        similarity: b.similarity
-      }));
+      fuzzyResults = (fuzzyMatches || [])
+        .filter((b: any) => b.status === 'active')
+        .map((b: any) => ({
+          id: b.id,
+          name: b.name,
+          parent_company: b.parent_company,
+          confidence: Math.min(0.8, b.similarity),
+          match_type: "fuzzy",
+          similarity: b.similarity
+        }));
     }
 
     // Combine and dedupe results
