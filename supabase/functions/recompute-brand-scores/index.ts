@@ -2,7 +2,7 @@
 // Calculates brand scores from last 365 days of events with recency & verification weights
 // FIXED: Now reads all 4 category impacts and computes per-dimension scores
 // ADDED: Title-similarity deduplication to prevent multiple articles about same event counting multiple times
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 import { compareTwoStrings } from 'https://esm.sh/string-similarity@4.0.4';
 import { corsHeaders } from '../_shared/cors.ts';
 import { TIER_SCORE_WEIGHTS, type SourceTier } from '../_shared/sourceTiers.ts';

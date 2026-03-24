@@ -16,7 +16,7 @@
  *   "NESTLÉ PURINA PETCARE CO"    → Nestlé (via normalized match)
  */
 
-import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 // ── Corporate suffixes to strip ────────────────────────────────────────
 
