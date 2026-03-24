@@ -1,18 +1,21 @@
 /**
  * Bulk Regulatory Ingestion Orchestrator
  * 
- * Runs ALL regulatory source adapters against the activation queue.
- * After ingestion, auto-promotes eligible brands.
+ * Two modes:
+ *   1. Brand-targeted (default): Run adapters against activation queue brands
+ *   2. Discovery: Fetch broadly, resolve firm names via company matcher
  * 
- * POST body (all optional):
- *   batch_size: number (default 30, max 100)
- *   tier: 'near_ready' | 'fast_follow' | 'all' (default 'all')
- *   sources: string[] (adapter IDs to run, default all)
- *   brand_id: string (run for a single brand instead of queue)
+ * POST body:
+ *   mode: 'targeted' | 'discovery' (default: 'targeted')
+ *   batch_size: number (default 30, max 100) 
+ *   tier: 'near_ready' | 'fast_follow' | 'all'
+ *   sources: string[] (adapter IDs)
+ *   brand_id: string (single brand override)
+ *   search_terms: string[] (for discovery mode, e.g. ["food", "cosmetics"])
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { runAllAdapters, type PipelineResult } from "../_shared/regulatoryPipeline.ts";
+import { runAllAdapters, runDiscovery, type PipelineResult, type DiscoveryResult } from "../_shared/regulatoryPipeline.ts";
 import { getAdapters } from "../_shared/sourceAdapters.ts";
 
 const corsHeaders = {
@@ -30,24 +33,63 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Parse options
+    let mode = 'targeted';
     let batchSize = 30;
     let tierFilter = 'all';
     let sourceIds: string[] | undefined;
     let singleBrandId: string | undefined;
+    let searchTerms: string[] = [];
 
     try {
       const body = await req.json();
+      if (body.mode) mode = body.mode;
       if (body.batch_size) batchSize = Math.min(body.batch_size, 100);
       if (body.tier) tierFilter = body.tier;
       if (body.sources) sourceIds = body.sources;
       if (body.brand_id) singleBrandId = body.brand_id;
+      if (body.search_terms) searchTerms = body.search_terms;
     } catch { /* no body */ }
 
     const adapters = getAdapters(sourceIds);
-    console.log(`[bulk-regulatory] Sources: ${adapters.map(a => a.id).join(', ')}`);
+    console.log(`[bulk-regulatory] Mode: ${mode}, Sources: ${adapters.map(a => a.id).join(', ')}`);
 
-    // Get target brands
+    // ── Discovery Mode ──────────────────────────────────────────────
+    if (mode === 'discovery') {
+      if (searchTerms.length === 0) {
+        // Default broad search terms for discovery
+        searchTerms = ['food', 'beverage', 'cosmetic', 'consumer', 'electronics'];
+      }
+
+      const discoveryResults: DiscoveryResult[] = [];
+      for (const adapter of adapters) {
+        const r = await runDiscovery(supabase, adapter, searchTerms);
+        discoveryResults.push(r);
+      }
+
+      // Auto-promote after discovery
+      const { data: promoted } = await supabase.rpc('promote_eligible_brands');
+
+      const totalInserted = discoveryResults.reduce((s, r) => s + r.inserted, 0);
+      const totalQueued = discoveryResults.reduce((s, r) => s + r.queued, 0);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          mode: 'discovery',
+          search_terms: searchTerms,
+          total_records: discoveryResults.reduce((s, r) => s + r.totalRecords, 0),
+          total_matched: discoveryResults.reduce((s, r) => s + r.matched, 0),
+          total_inserted: totalInserted,
+          total_queued_for_review: totalQueued,
+          total_no_match: discoveryResults.reduce((s, r) => s + r.noMatch, 0),
+          brands_promoted: promoted || 0,
+          by_source: discoveryResults,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ── Targeted Mode ───────────────────────────────────────────────
     let targets: Array<{ brand_id: string; brand_name: string; event_count: number }>;
 
     if (singleBrandId) {
@@ -63,7 +105,6 @@ Deno.serve(async (req) => {
       if (error) throw error;
       targets = queue || [];
 
-      // Filter by tier
       if (tierFilter === 'near_ready') {
         targets = targets.filter((b: any) => b.event_count >= 4);
       } else if (tierFilter === 'fast_follow') {
@@ -78,7 +119,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`[bulk-regulatory] Processing ${targets.length} brands with ${adapters.length} sources`);
+    console.log(`[bulk-regulatory] Processing ${targets.length} brands`);
 
     const allResults: Array<{
       brand_id: string;
@@ -88,33 +129,23 @@ Deno.serve(async (req) => {
     }> = [];
 
     for (const brand of targets) {
-      console.log(`[bulk-regulatory] ── ${brand.brand_name} (events: ${brand.event_count}) ──`);
-      
       const sourceResults = await runAllAdapters(supabase, adapters, brand.brand_id);
       const totalInserted = sourceResults.reduce((s, r) => s + r.inserted, 0);
-      
       allResults.push({
         brand_id: brand.brand_id,
         brand_name: brand.brand_name,
         total_inserted: totalInserted,
         by_source: sourceResults,
       });
-
-      // Brief pause between brands
       await new Promise(r => setTimeout(r, 500));
     }
 
-    // Auto-promote after all ingestion
-    console.log('[bulk-regulatory] Running promote_eligible_brands()...');
-    const { data: promoted, error: promoteErr } = await supabase.rpc('promote_eligible_brands');
-    if (promoteErr) {
-      console.error('[bulk-regulatory] Promotion error:', promoteErr);
-    }
+    // Auto-promote
+    const { data: promoted } = await supabase.rpc('promote_eligible_brands');
 
     const totalInserted = allResults.reduce((s, r) => s + r.total_inserted, 0);
-    const brandsWithNewEvents = allResults.filter(r => r.total_inserted > 0).length;
 
-    // Summary by source
+    // Source summary
     const sourceSummary: Record<string, { scanned: number; inserted: number; skipped: number }> = {};
     for (const br of allResults) {
       for (const sr of br.by_source) {
@@ -125,13 +156,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[bulk-regulatory] Complete: ${totalInserted} events from ${targets.length} brands, ${promoted || 0} promoted`);
-
     return new Response(
       JSON.stringify({
         success: true,
+        mode: 'targeted',
         brands_processed: targets.length,
-        brands_with_new_events: brandsWithNewEvents,
+        brands_with_new_events: allResults.filter(r => r.total_inserted > 0).length,
         total_events_inserted: totalInserted,
         brands_promoted: promoted || 0,
         source_summary: sourceSummary,
