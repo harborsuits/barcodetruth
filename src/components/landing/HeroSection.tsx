@@ -16,7 +16,7 @@ export function HeroSection() {
   };
 
   return (
-    <section className="w-full py-12 sm:py-20 relative overflow-hidden">
+    <section className="w-full pt-0 pb-12 sm:pb-20 relative overflow-hidden">
       <div className="max-w-xl mx-auto flex flex-col items-center gap-10 relative z-10">
 
         {/* ── Canvas Scanner Animation ── */}
