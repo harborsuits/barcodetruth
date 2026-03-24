@@ -6168,6 +6168,172 @@ export type Database = {
         }
         Relationships: []
       }
+      regulatory_match_review: {
+        Row: {
+          created_at: string | null
+          firm_name: string
+          id: string
+          match_confidence: string
+          matched_via: string | null
+          normalized_firm: string
+          raw_data: Json | null
+          record_date: string | null
+          record_title: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          similarity_score: number | null
+          source_adapter: string
+          source_record_id: string
+          status: string
+          suggested_brand_id: string | null
+          suggested_brand_name: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          firm_name: string
+          id?: string
+          match_confidence: string
+          matched_via?: string | null
+          normalized_firm: string
+          raw_data?: Json | null
+          record_date?: string | null
+          record_title?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          similarity_score?: number | null
+          source_adapter: string
+          source_record_id: string
+          status?: string
+          suggested_brand_id?: string | null
+          suggested_brand_name?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          firm_name?: string
+          id?: string
+          match_confidence?: string
+          matched_via?: string | null
+          normalized_firm?: string
+          raw_data?: Json | null
+          record_date?: string | null
+          record_title?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          similarity_score?: number | null
+          source_adapter?: string
+          source_record_id?: string
+          status?: string
+          suggested_brand_id?: string | null
+          suggested_brand_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "regulatory_match_review_suggested_brand_id_fkey"
+            columns: ["suggested_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_alias_suggestions"
+            referencedColumns: ["suggested_brand_id"]
+          },
+          {
+            foreignKeyName: "regulatory_match_review_suggested_brand_id_fkey"
+            columns: ["suggested_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "regulatory_match_review_suggested_brand_id_fkey"
+            columns: ["suggested_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_monitoring_status"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "regulatory_match_review_suggested_brand_id_fkey"
+            columns: ["suggested_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_profile_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "regulatory_match_review_suggested_brand_id_fkey"
+            columns: ["suggested_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_standings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "regulatory_match_review_suggested_brand_id_fkey"
+            columns: ["suggested_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_trending"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "regulatory_match_review_suggested_brand_id_fkey"
+            columns: ["suggested_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "regulatory_match_review_suggested_brand_id_fkey"
+            columns: ["suggested_brand_id"]
+            isOneToOne: false
+            referencedRelation: "digest_events_last_24h"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "regulatory_match_review_suggested_brand_id_fkey"
+            columns: ["suggested_brand_id"]
+            isOneToOne: false
+            referencedRelation: "product_alternatives"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "regulatory_match_review_suggested_brand_id_fkey"
+            columns: ["suggested_brand_id"]
+            isOneToOne: false
+            referencedRelation: "product_brand_profile"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "regulatory_match_review_suggested_brand_id_fkey"
+            columns: ["suggested_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "regulatory_match_review_suggested_brand_id_fkey"
+            columns: ["suggested_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "regulatory_match_review_suggested_brand_id_fkey"
+            columns: ["suggested_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brand_completeness"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "regulatory_match_review_suggested_brand_id_fkey"
+            columns: ["suggested_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brand_confidence_pivot"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "regulatory_match_review_suggested_brand_id_fkey"
+            columns: ["suggested_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rejected_entities: {
         Row: {
           created_at: string
