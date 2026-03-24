@@ -588,6 +588,20 @@ const App = () => {
             }
           />
           <Route
+            path="/admin/coverage-metrics"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading coverage metrics…" />}>
+                      <AdminCoverageMetrics />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/admin/fuzzy-review"
             element={
               <ProtectedRoute>
