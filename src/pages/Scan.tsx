@@ -582,8 +582,20 @@ export const Scan = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background forensic-grid">
       <main className="container max-w-2xl mx-auto px-4 py-6 space-y-4">
+        {/* Forensic header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">INVESTIGATOR_MODULE</p>
+            <p className="font-mono text-[10px] uppercase tracking-widest text-primary/60">ACTIVE_SESSION_ONLINE</p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="h-1.5 w-1.5 bg-success rounded-full animate-pulse" />
+            <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">SYSTEM_STATUS</span>
+          </div>
+        </div>
+
         {/* Status announcer for screen readers */}
         <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
           {scanResult === 'scanning' && 'Scanning for barcode'}
