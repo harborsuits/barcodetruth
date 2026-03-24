@@ -431,9 +431,9 @@ export function EvidencePanel({ evidence, onReport, onSuggest, brandName = "this
 
                         {/* Source and actions */}
                         <div className="space-y-2">
-                          {ev.canonical_url && (
+                          {(ev.canonical_url || (ev as any).source_url) && (
                             <a
-                              href={ev.canonical_url}
+                              href={ev.canonical_url || (ev as any).source_url}
                               target="_blank"
                               rel="noreferrer"
                               className="inline-flex items-center gap-1 text-sm text-primary hover:underline"

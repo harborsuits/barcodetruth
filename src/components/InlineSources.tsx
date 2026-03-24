@@ -220,24 +220,7 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                         </div>
                         
                         <div className="flex gap-1">
-                          {source.link_kind === 'article' && source.canonical_url && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              asChild
-                              className="h-7 text-xs px-2"
-                            >
-                              <a
-                                href={source.canonical_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <ExternalLink className="h-3 w-3 mr-1" />
-                                View Article
-                              </a>
-                            </Button>
-                          )}
-                          {source.link_kind === 'database' && linkUrl && (
+                          {linkUrl && source.link_kind !== 'homepage' ? (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -250,11 +233,10 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                                 rel="noopener noreferrer"
                               >
                                 <ExternalLink className="h-3 w-3 mr-1" />
-                                View Database
+                                {source.link_kind === 'database' ? 'View Record' : 'View Source'}
                               </a>
                             </Button>
-                          )}
-                          {source.link_kind === 'homepage' && (
+                          ) : source.link_kind === 'homepage' ? (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -263,7 +245,7 @@ export function InlineSources({ brandId, category, categoryLabel }: InlineSource
                             >
                               Article pending
                             </Button>
-                          )}
+                          ) : null}
                         </div>
                       </div>
                     </div>
