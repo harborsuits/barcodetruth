@@ -431,7 +431,7 @@ export default function OwnershipTree() {
                     >
                       <div className="w-16 h-16 rounded-lg overflow-hidden bg-card flex items-center justify-center">
                         {parentCompany!.logo_url ? (
-                          <img src={parentCompany!.logo_url} alt={parentCompany!.name} className="w-full h-full object-contain p-1" />
+                          <img src={parentCompany!.logo_url} alt={parentCompany!.name} className="w-full h-full object-contain p-1" onError={(e) => { e.currentTarget.style.display = "none"; }} />
                         ) : (
                           <Building2 className="h-7 w-7 text-muted-foreground" />
                         )}
