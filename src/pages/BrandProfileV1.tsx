@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AlternativesSection } from '@/components/brand/AlternativesSection';
+import { CorporateFamilyTree } from '@/components/brand/CorporateFamilyTree';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -591,17 +592,24 @@ export default function BrandProfileV1() {
           />
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold tracking-tight truncate">{brand.name}</h1>
-            {brand.website && (
-              <a 
-                href={brand.website} 
-                target="_blank" 
-                rel="noreferrer"
-                className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-              >
-                {new URL(brand.website).hostname.replace('www.', '')}
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            )}
+            {brand.website && (() => {
+              try {
+                const hostname = new URL(brand.website).hostname.replace('www.', '');
+                return (
+                  <a 
+                    href={brand.website} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    {hostname}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                );
+              } catch {
+                return null;
+              }
+            })()}
           </div>
         </div>
 
@@ -640,6 +648,11 @@ export default function BrandProfileV1() {
         {/* ─── 2. OWNERSHIP REVEAL ─── */}
         {resolvedBrandId && (
           <OwnershipDisplay brandId={resolvedBrandId} />
+        )}
+
+        {/* ─── 2b. CORPORATE FAMILY TREE ─── */}
+        {resolvedBrandId && (
+          <CorporateFamilyTree brandId={resolvedBrandId} brandName={brand.name} />
         )}
 
         {/* ─── 3. SCORE BREAKDOWN ─── */}

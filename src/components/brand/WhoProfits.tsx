@@ -161,10 +161,8 @@ export function WhoProfits({ brandId, brandName = "This brand", companyType }: W
 
       {/* Corporate Family Tree */}
       <CorporateFamilyTree 
+        brandId={brandId}
         brandName={brandName}
-        ownershipData={ownershipData}
-        isLoading={ownershipLoading}
-        isParentCompany={isParentCompany}
       />
     </Card>
   );
