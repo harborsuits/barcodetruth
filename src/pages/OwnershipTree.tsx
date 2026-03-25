@@ -239,17 +239,18 @@ export default function OwnershipTree() {
   const [phase, setPhase] = useState(0); // 0=brand, 1=parent reveal, 2=siblings
 
   // Fetch brand
-  const { data: brand, isLoading: brandLoading } = useQuery({
+  const { data: brand, isLoading: brandLoading, error: brandError } = useQuery({
     queryKey: ["ownership-tree-brand", id],
     queryFn: async () => {
       if (!id) return null;
-      // Try slug first, then UUID
       const { data: bySlug } = await supabase.from("brands").select("*").eq("slug", id).maybeSingle();
       if (bySlug) return bySlug;
       const { data: byId } = await supabase.from("brands").select("*").eq("id", id).maybeSingle();
       return byId;
     },
     enabled: !!id,
+    retry: 1,
+    staleTime: 1000 * 60 * 10,
   });
 
   const brandId = brand?.id;
