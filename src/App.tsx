@@ -69,6 +69,7 @@ const Methodology = lazyNamed(() => import("./pages/Methodology"), "default");
 const ResponsibleUse = lazyNamed(() => import("./pages/ResponsibleUse"), "default");
 const InvestorProfile = lazyNamed(() => import("./pages/InvestorProfile"), "default");
 const PersonProfile = lazyNamed(() => import("./pages/PersonProfile"), "default");
+const OwnershipTree = lazyNamed(() => import("./pages/OwnershipTree"), "default");
 
 const queryClient = new QueryClient();
 
@@ -687,6 +688,16 @@ const App = () => {
               <Suspense fallback={<RouteFallback label="Loading person…" />}>
                 <PersonProfile />
               </Suspense>
+            }
+          />
+          <Route
+            path="/brand/:id/ownership"
+            element={
+              <RouteErrorBoundary>
+                <Suspense fallback={<RouteFallback label="Loading ownership tree…" />}>
+                  <OwnershipTree />
+                </Suspense>
+              </RouteErrorBoundary>
             }
           />
           <Route path="*" element={<NotFound />} />
