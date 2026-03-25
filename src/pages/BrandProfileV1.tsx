@@ -118,7 +118,8 @@ function ScoreDisplay({ score }: { score: number | null }) {
   );
 }
 
-function OwnershipDisplay({ brandId }: { brandId: string }) {
+function OwnershipDisplay({ brandId, brandSlug }: { brandId: string; brandSlug?: string }) {
+  const navigate = useNavigate();
   const { data: ownership, isLoading } = useQuery({
     queryKey: ['brand-ownership-v1', brandId],
     queryFn: async () => {
@@ -142,16 +143,22 @@ function OwnershipDisplay({ brandId }: { brandId: string }) {
   const selfEntity = chain.length > 0 ? chain[0] : null;
   const parentCompany = chain.length > 1 ? chain[chain.length - 1] : null;
   const isPublicCompany = selfEntity?.is_public === true;
+  const slug = brandSlug || brandId;
   
   // Case 1: Has a parent company above it
   if (parentCompany) {
     return (
-      <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
+      <div
+        className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted/70 transition-colors active:scale-[0.98]"
+        onClick={() => navigate(`/brand/${slug}/ownership`)}
+        role="button"
+      >
         <Building2 className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-        <div>
+        <div className="flex-1">
           <p className="text-sm text-muted-foreground">Corporate Owner</p>
           <p className="font-semibold">{parentCompany.name}</p>
         </div>
+        <Network className="h-4 w-4 text-primary flex-shrink-0" />
       </div>
     );
   }
@@ -159,14 +166,19 @@ function OwnershipDisplay({ brandId }: { brandId: string }) {
   // Case 2: This IS a public parent company (no parent above it)
   if (isPublicCompany && selfEntity) {
     return (
-      <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
+      <div
+        className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted/70 transition-colors"
+        onClick={() => navigate(`/brand/${slug}/ownership`)}
+        role="button"
+      >
         <Building2 className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-        <div>
+        <div className="flex-1">
           <p className="font-medium">Public Company</p>
           <p className="text-xs text-muted-foreground">
             {selfEntity.name} is publicly traded — no parent corporation
           </p>
         </div>
+        <Network className="h-4 w-4 text-primary flex-shrink-0" />
       </div>
     );
   }
