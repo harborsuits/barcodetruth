@@ -326,10 +326,12 @@ export default function OwnershipTree() {
     );
   }
 
-  if (!brand) {
+  if (!brand || brandError) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3">
+        <Building2 className="h-10 w-10 text-muted-foreground/30" />
         <p className="text-muted-foreground">Brand not found</p>
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>Go back</Button>
       </div>
     );
   }
