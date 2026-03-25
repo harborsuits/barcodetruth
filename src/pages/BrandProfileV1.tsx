@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AlternativesSection } from '@/components/brand/AlternativesSection';
+import { CorporateFamilyTree } from '@/components/brand/CorporateFamilyTree';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -647,6 +648,11 @@ export default function BrandProfileV1() {
         {/* ─── 2. OWNERSHIP REVEAL ─── */}
         {resolvedBrandId && (
           <OwnershipDisplay brandId={resolvedBrandId} />
+        )}
+
+        {/* ─── 2b. CORPORATE FAMILY TREE ─── */}
+        {resolvedBrandId && (
+          <CorporateFamilyTree brandId={resolvedBrandId} brandName={brand.name} />
         )}
 
         {/* ─── 3. SCORE BREAKDOWN ─── */}
