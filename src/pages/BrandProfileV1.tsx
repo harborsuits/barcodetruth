@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, ExternalLink, AlertCircle, Building2, Loader2, ShieldCheck, Clock } from 'lucide-react';
+import { ArrowLeft, ExternalLink, AlertCircle, Building2, Loader2, ShieldCheck, Clock, Network } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBrandLogo } from '@/hooks/useBrandLogo';
 import { useAutoEnrichment } from '@/hooks/useAutoEnrichment';
