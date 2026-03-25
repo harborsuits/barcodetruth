@@ -7,22 +7,17 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, ExternalLink, AlertCircle, Building2, Loader2, ShieldCheck, Bell, BellOff, Trophy, Clock } from 'lucide-react';
+import { ArrowLeft, ExternalLink, AlertCircle, Building2, Loader2, ShieldCheck, Clock } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBrandLogo } from '@/hooks/useBrandLogo';
 import { useAutoEnrichment } from '@/hooks/useAutoEnrichment';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useToast } from '@/hooks/use-toast';
 import { isUUID } from '@/lib/utils';
-import { PersonalizedScoreDisplay } from '@/components/brand/PersonalizedScoreDisplay';
-import { TrustPledge } from '@/components/brand/TrustPledge';
-import { formatDistanceToNow } from 'date-fns';
 import { useProfileState } from '@/hooks/useProfileState';
 import { BuildingProfile } from '@/components/brand/BuildingProfile';
 import { NeedsReviewProfile } from '@/components/brand/NeedsReviewProfile';
-import { PowerProfitCard } from '@/components/brand/PowerProfitCard';
 import { deduplicateEvents } from '@/lib/deduplicateEvents';
-import { BrandCoverageStatus } from '@/components/brand/BrandCoverageStatus';
 
 // V1 Consumer Contract - with 3 explicit states:
 // State A: Assessable (full profile) - identity verified + 3+ dimensions with evidence
@@ -531,22 +526,55 @@ export default function BrandProfileV1() {
     );
   }
 
-  // State A: Assessable (full profile) - Forensic Editorial layout
+  // State A: Assessable (full profile) — Consumer Decision Layout
 
-  const scoreValue = scoreData?.score ? Math.round(JSON.parse(JSON.stringify(scoreData.score))?.overall ?? scoreData.score ?? 0) : null;
-
-  const getAlignmentLabel = (s: number | null) => {
-    if (s === null) return { text: 'Pending', className: 'bg-muted text-muted-foreground' };
-    if (s >= 70) return { text: 'High Alignment', className: 'bg-success/20 text-success' };
-    if (s >= 40) return { text: 'Mixed Record', className: 'bg-warning/20 text-warning' };
-    return { text: 'Low Alignment', className: 'text-data' };
+  const parsedScore = scoreData?.score ? (typeof scoreData.score === 'string' ? JSON.parse(scoreData.score) : scoreData.score) : null;
+  const scoreValue = parsedScore?.overall != null ? Math.round(parsedScore.overall) : null;
+  
+  // Dimension scores for breakdown
+  const dimScores = {
+    labor: parsedScore?.score_labor ?? null,
+    environment: parsedScore?.score_environment ?? null,
+    politics: parsedScore?.score_politics ?? null,
+    social: parsedScore?.score_social ?? null,
   };
 
-  const alignment = getAlignmentLabel(scoreValue);
+  // Verdict
+  const getVerdict = (s: number | null) => {
+    if (s === null) return { label: 'Unrated', color: 'bg-muted text-muted-foreground', emoji: '—' };
+    if (s >= 65) return { label: 'Trust', color: 'bg-success/15 text-success', emoji: '🟢' };
+    if (s >= 40) return { label: 'Caution', color: 'bg-warning/15 text-warning', emoji: '🟡' };
+    return { label: 'Avoid', color: 'bg-destructive/15 text-destructive', emoji: '🔴' };
+  };
+  const verdict = getVerdict(scoreValue);
+
+  // Letter grades
+  const getGrade = (s: number | null) => {
+    if (s === null) return '—';
+    if (s >= 85) return 'A';
+    if (s >= 70) return 'B';
+    if (s >= 55) return 'C';
+    if (s >= 40) return 'D';
+    return 'F';
+  };
+
+  const getGradeColor = (s: number | null) => {
+    if (s === null) return 'text-muted-foreground';
+    if (s >= 70) return 'text-success';
+    if (s >= 55) return 'text-warning';
+    return 'text-destructive';
+  };
+
+  const dimensions = [
+    { key: 'labor', label: 'Worker Rights', score: dimScores.labor },
+    { key: 'environment', label: 'Environment', score: dimScores.environment },
+    { key: 'politics', label: 'Political Influence', score: dimScores.politics },
+    { key: 'social', label: 'Social Impact', score: dimScores.social },
+  ];
 
   return (
-    <div className="min-h-screen bg-background forensic-grid">
-      <main className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
+    <div className="min-h-screen bg-background">
+      <main className="container max-w-md mx-auto px-4 py-6 space-y-4">
         {/* Back button */}
         {cameFromBrand && (
           <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="-mt-2 mb-2">
@@ -554,321 +582,202 @@ export default function BrandProfileV1() {
           </Button>
         )}
 
-        {/* ═══ REPORT HEADER ═══ */}
-        <div className="space-y-4">
-          {/* Brand identity row */}
-          <div className="flex items-start gap-4">
-            <BrandLogo 
-              logoUrl={brand.logo_url} 
-              website={brand.website}
-              brandName={brand.name}
-            />
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl font-bold tracking-tight">{brand.name}</h1>
-              {brand.website && (
-                <a 
-                  href={brand.website} 
-                  target="_blank" 
-                  rel="noreferrer"
-                  className="text-sm text-primary hover:underline inline-flex items-center gap-1 mt-0.5"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                  {new URL(brand.website).hostname.replace('www.', '')}
-                </a>
-              )}
-              <p className="label-forensic mt-1">
-                Report #{brand.id.slice(0, 4).toUpperCase()}-{brand.id.slice(4, 5).toUpperCase()}
-              </p>
-            </div>
-          </div>
-
-          {/* Score hero */}
-          <div className="bg-elevated-1 border border-border p-6 flex items-center justify-between">
-            <div>
-              <p className="label-forensic mb-1">Composite Score</p>
-              <div className="text-6xl font-extrabold tracking-tighter" style={{ fontFamily: "'Public Sans', sans-serif" }}>
-                {scoreValue !== null ? scoreValue : '—'}
-              </div>
-            </div>
-            <div className="text-right space-y-2">
-              <Badge className={`${alignment.className} text-xs font-mono uppercase tracking-wider px-3 py-1`}>
-                {alignment.text}
-              </Badge>
-              {brand.identity_confidence && brand.identity_confidence !== 'low' && (
-                <p className="text-xs text-muted-foreground">
-                  Identity: {brand.identity_confidence}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Enrichment progress */}
-          {enrichmentProgress.status === 'enriching' && (
-            <EnrichmentProgress 
-              status={enrichmentProgress.status}
-              message={enrichmentProgress.message}
-              step={enrichmentProgress.step}
-              totalSteps={enrichmentProgress.totalSteps}
-            />
-          )}
-
-          {/* Pending/Building Banner */}
-          {isPending && (
-            <div className="border border-warning/30 bg-warning/5 p-4 flex items-start gap-3">
-              <Trophy className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-warning">Profile in progress</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  We're gathering evidence for this brand. Follow for updates.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Failed Banner */}
-          {isFailed && (
-            <div className="border border-destructive/30 bg-destructive/5 p-4 flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-destructive">Verification pending — retrying automatically</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Content below may be incomplete.
-                </p>
-                {brand.next_enrichment_at && (
-                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    Next retry: {formatDistanceToNow(new Date(brand.next_enrichment_at), { addSuffix: true })}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ═══ METRIC DISTRIBUTION ═══ */}
-        {resolvedBrandId && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="label-forensic">FORENSIC METRIC DISTRIBUTION</h2>
-              <span className="font-mono text-[10px] text-muted-foreground">{new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
-            </div>
-            <MetricDistribution brandId={resolvedBrandId} />
-          </div>
-        )}
-
-        {/* ═══ BRAND OVERVIEW ═══ */}
-        <div className="bg-elevated-1 border border-border p-5 space-y-3">
-          <h2 className="label-forensic">Brand Overview</h2>
-          {brand.description && brand.identity_confidence !== 'low' ? (
-            <p className="text-sm text-foreground/80 leading-relaxed">
-              {brand.description}
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground italic">
-              {brandStatus === 'stub' || brandStatus === 'building' 
-                ? 'Building brand profile…'
-                : brand.identity_confidence === 'low'
-                ? 'Description pending verification'
-                : 'No description yet'}
-            </p>
-          )}
-          
-          {/* Key facts row */}
-          <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border">
-            {brand.parent_company && (
-              <div>
-                <p className="label-forensic text-[10px]">Parent Company</p>
-                <p className="text-sm font-medium text-foreground">{brand.parent_company}</p>
-              </div>
-            )}
-            {brand.website && (
-              <div>
-                <p className="label-forensic text-[10px]">Domain</p>
-                <p className="text-sm font-medium text-foreground">{new URL(brand.website).hostname.replace('www.', '')}</p>
-              </div>
-            )}
-            {brand.wikidata_qid && (
-              <div>
-                <p className="label-forensic text-[10px]">Wikidata</p>
-                <p className="text-sm font-medium text-foreground font-mono">{brand.wikidata_qid}</p>
-              </div>
-            )}
-          </div>
-
-          {/* Admin verify button */}
-          {isAdmin && brand.identity_confidence === 'low' && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-2"
-              onClick={markIdentityVerified}
-              disabled={verifying}
-            >
-              {verifying ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <ShieldCheck className="h-4 w-4 mr-2" />
-              )}
-              Mark Identity Verified
-            </Button>
-          )}
-        </div>
-
-        {/* ═══ POWER METRICS ═══ */}
-        {resolvedBrandId && (
-          <PowerProfitCard brandId={resolvedBrandId} brandName={brand.name} />
-        )}
-
-        {/* ═══ PERSONALIZED SCORE ═══ */}
-        {resolvedBrandId && (
-          <PersonalizedScoreDisplay 
-            brandId={resolvedBrandId} 
+        {/* ─── Brand Identity ─── */}
+        <div className="flex items-center gap-3">
+          <BrandLogo 
+            logoUrl={brand.logo_url} 
+            website={brand.website}
             brandName={brand.name}
-            identityConfidence={brand.identity_confidence}
           />
-        )}
-
-        {/* ═══ FORENSIC EVIDENCE ═══ */}
-        <div className="space-y-3">
-          <h2 className="label-forensic">FORENSIC EVIDENCE REPOSITORY</h2>
-          
-          {/* Coverage status */}
-          <BrandCoverageStatus 
-            status={brand.news_coverage_status}
-            lastCheckedAt={brand.last_news_check_at}
-            materialEventCount={brand.material_event_count_30d}
-          />
-
-          <div className="bg-elevated-1 border border-border">
-            {resolvedBrandId && <EvidenceList brandId={resolvedBrandId} />}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold tracking-tight truncate">{brand.name}</h1>
+            {brand.website && (
+              <a 
+                href={brand.website} 
+                target="_blank" 
+                rel="noreferrer"
+                className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+              >
+                {new URL(brand.website).hostname.replace('www.', '')}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
           </div>
         </div>
 
-        {/* ═══ ETHICAL ALTERNATIVES ═══ */}
+        {/* ─── 1. INSTANT VERDICT ─── */}
+        <div className={`${verdict.color} border border-border p-5`}>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Trust Score</p>
+              <div className="text-5xl font-extrabold tracking-tighter mt-1" style={{ fontFamily: "'Public Sans', sans-serif" }}>
+                {scoreValue !== null ? scoreValue : '—'}
+                <span className="text-lg font-normal text-muted-foreground ml-1">/ 100</span>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-2xl">{verdict.emoji}</span>
+              <p className="text-lg font-bold mt-1">{verdict.label}</p>
+            </div>
+          </div>
+
+          {/* Top reasons */}
+          {resolvedBrandId && (
+            <TopReasons brandId={resolvedBrandId} parentCompany={brand.parent_company} brandName={brand.name} dimScores={dimScores} />
+          )}
+        </div>
+
+        {/* Enrichment progress if still running */}
+        {enrichmentProgress.status === 'enriching' && (
+          <EnrichmentProgress 
+            status={enrichmentProgress.status}
+            message={enrichmentProgress.message}
+            step={enrichmentProgress.step}
+            totalSteps={enrichmentProgress.totalSteps}
+          />
+        )}
+
+        {/* ─── 2. OWNERSHIP REVEAL ─── */}
         {resolvedBrandId && (
-          <div className="space-y-3">
-            <h2 className="label-forensic">Ethical Alternatives</h2>
-            <Button 
-              variant="outline" 
-              className="w-full font-mono text-[10px] uppercase tracking-widest"
-              onClick={() => navigate(`/brand/${brand.slug || resolvedBrandId}#alternatives`)}
-            >
-              VIEW ALTERNATIVES →
-            </Button>
-            <AlternativesSection brandId={resolvedBrandId} brandName={brand.name} />
-          </div>
+          <OwnershipDisplay brandId={resolvedBrandId} />
         )}
 
-        {/* ═══ FOOTER LINKS ═══ */}
-        <div className="flex items-center justify-center gap-4 py-4 border-t border-border">
-          <button 
-            className="text-xs text-muted-foreground hover:text-primary transition-colors font-mono uppercase tracking-wider"
-            onClick={() => {/* scroll to score */}}
-          >
-            Why This Score
-          </button>
-          <span className="text-border">|</span>
-          <button 
-            className="text-xs text-muted-foreground hover:text-primary transition-colors font-mono uppercase tracking-wider"
-          >
-            How We Stay Neutral
-          </button>
-          <span className="text-border">|</span>
-          <button 
-            className="text-xs text-muted-foreground hover:text-primary transition-colors font-mono uppercase tracking-wider"
-            onClick={() => resolvedBrandId && navigate(`/proof/${resolvedBrandId}`)}
-          >
-            Show Me Proof
-          </button>
-        </div>
+        {/* ─── 3. SCORE BREAKDOWN ─── */}
+        <Card>
+          <CardContent className="pt-5 pb-5 space-y-3">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Score Breakdown</p>
+            {dimensions.map(dim => (
+              <div key={dim.key} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                <span className="text-sm font-medium">{dim.label}</span>
+                <div className="flex items-center gap-2">
+                  <span className={`text-lg font-bold ${getGradeColor(dim.score)}`}>
+                    {getGrade(dim.score)}
+                  </span>
+                  <span className="text-xs text-muted-foreground w-8 text-right">
+                    {dim.score != null ? Math.round(dim.score) : '—'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
 
-        {/* Beta banner */}
-        <p className="text-xs text-center text-muted-foreground px-4">
-          Early beta — coverage expands weekly.
+        {/* ─── 4. BETTER ALTERNATIVES ─── */}
+        {resolvedBrandId && (
+          <AlternativesSection brandId={resolvedBrandId} brandName={brand.name} />
+        )}
+
+        {/* ─── 5. EVIDENCE (collapsed, secondary) ─── */}
+        <Card>
+          <CardContent className="pt-5 pb-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Evidence</p>
+              {resolvedBrandId && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => navigate(`/proof/${resolvedBrandId}`)}
+                >
+                  View all →
+                </Button>
+              )}
+            </div>
+            {resolvedBrandId && <EvidenceList brandId={resolvedBrandId} />}
+          </CardContent>
+        </Card>
+
+        {/* ─── Description (secondary) ─── */}
+        {brand.description && brand.identity_confidence !== 'low' && (
+          <Card>
+            <CardContent className="pt-5 pb-5">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-2">About</p>
+              <p className="text-sm text-foreground/80 leading-relaxed">
+                {brand.description}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Admin verify */}
+        {isAdmin && brand.identity_confidence === 'low' && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={markIdentityVerified}
+            disabled={verifying}
+          >
+            {verifying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
+            Mark Identity Verified
+          </Button>
+        )}
+
+        {/* Beta */}
+        <p className="text-xs text-center text-muted-foreground px-4 pb-4">
+          Scores based on verified government records (EPA, OSHA, FEC, FDA). Coverage expands weekly.
         </p>
       </main>
     </div>
   );
 }
 
-/* ═══ METRIC DISTRIBUTION COMPONENT ═══ */
-function MetricDistribution({ brandId }: { brandId: string }) {
-  const { data: scores, isLoading } = useQuery({
-    queryKey: ['brand-dimension-scores', brandId],
+/* ═══ TOP REASONS — "Why this score?" inline ═══ */
+function TopReasons({ brandId, parentCompany, brandName, dimScores }: { brandId: string; parentCompany?: string | null; brandName: string; dimScores: Record<string, number | null> }) {
+  const { data: counts } = useQuery({
+    queryKey: ['brand-evidence-counts-profile', brandId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('brand_scores')
-        .select('score')
+        .from('brand_events')
+        .select('category')
         .eq('brand_id', brandId)
-        .order('last_updated', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error || !data) return null;
-      const s = typeof data.score === 'string' ? JSON.parse(data.score) : data.score;
-      return {
-        labor: s?.score_labor ?? null,
-        environment: s?.score_environment ?? null,
-        politics: s?.score_politics ?? null,
-        social: s?.score_social ?? null,
-      };
+        .eq('is_irrelevant', false);
+      if (error || !data) return { labor: 0, environment: 0, politics: 0, social: 0 };
+      const c: Record<string, number> = { labor: 0, environment: 0, politics: 0, social: 0 };
+      data.forEach((e: any) => { if (e.category && c[e.category] !== undefined) c[e.category]++; });
+      return c;
     },
     enabled: !!brandId,
   });
 
-  if (isLoading) {
-    return (
-      <div className="space-y-3">
-        {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20" />)}
-      </div>
-    );
+  const reasons: string[] = [];
+  const c = counts || { labor: 0, environment: 0, politics: 0, social: 0 };
+
+  if (dimScores.labor != null && dimScores.labor < 45) {
+    reasons.push(c.labor > 0 ? `${c.labor} labor/safety issue${c.labor !== 1 ? 's' : ''} on record` : 'Below-average labor practices');
+  }
+  if (dimScores.environment != null && dimScores.environment < 45) {
+    reasons.push(c.environment > 0 ? `${c.environment} environmental issue${c.environment !== 1 ? 's' : ''} flagged` : 'Environmental record needs improvement');
+  }
+  if (dimScores.politics != null && dimScores.politics < 45) {
+    reasons.push('Significant political lobbying exposure');
+  }
+  if (dimScores.social != null && dimScores.social < 45) {
+    reasons.push('Social responsibility concerns identified');
+  }
+  if (parentCompany && parentCompany !== brandName) {
+    reasons.push(`Owned by ${parentCompany}`);
+  }
+  if (reasons.length === 0) {
+    const overall = Object.values(dimScores).filter(v => v != null);
+    const avg = overall.length > 0 ? overall.reduce((a, b) => a! + b!, 0)! / overall.length : 50;
+    if (avg >= 65) reasons.push('No major issues found in checked sources');
+    else reasons.push('Mixed record across categories');
   }
 
-  const dimensions = [
-    { key: 'labor', label: 'Worker Rights', icon: '👷', description: 'Systemic analysis of labor practices, workplace conditions, and employee treatment across supply chains.' },
-    { key: 'environment', label: 'Environment', icon: '🌍', description: 'Environmental impact assessment including emissions, waste, sustainability initiatives, and regulatory compliance.' },
-    { key: 'politics', label: 'Political', icon: '🏛️', description: 'Corporate political activity including lobbying expenditures, PAC contributions, and policy advocacy.' },
-    { key: 'social', label: 'Social', icon: '🤝', description: 'Social responsibility metrics covering diversity, community engagement, and inclusion practices.' },
-  ] as const;
-
-  const getSeverity = (score: number | null): { label: string; className: string } => {
-    if (score === null) return { label: 'Pending', className: 'text-muted-foreground bg-muted' };
-    if (score >= 70) return { label: 'Good', className: 'text-success bg-success/10' };
-    if (score >= 50) return { label: 'Warning', className: 'text-warning bg-warning/10' };
-    if (score >= 30) return { label: 'Low', className: 'text-destructive bg-destructive/10' };
-    return { label: 'Critical', className: 'text-destructive bg-destructive/10' };
-  };
+  if (reasons.length === 0) return null;
 
   return (
-    <div className="space-y-2">
-      {dimensions.map(dim => {
-        const value = scores?.[dim.key] ?? null;
-        const severity = getSeverity(value);
-        return (
-          <div 
-            key={dim.key} 
-            className="bg-elevated-1 border border-border p-4 space-y-2"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">{dim.icon}</span>
-                <span className="font-mono text-xs uppercase tracking-widest text-foreground font-semibold">{dim.label}</span>
-              </div>
-              <Badge 
-                className={`${severity.className} text-[10px] font-mono uppercase tracking-wider border-0 px-2 py-0.5`}
-              >
-                {severity.label}
-              </Badge>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">{dim.description}</p>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl font-bold font-mono" style={{ fontFamily: "'Space Grotesk', monospace" }}>
-                {value !== null ? Math.round(value) : '—'}
-              </span>
-              <span className="text-xs text-muted-foreground font-mono">/ 100</span>
-            </div>
-          </div>
-        );
-      })}
+    <div className="space-y-1.5 pt-3 border-t border-border/50">
+      <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Why</p>
+      {reasons.slice(0, 3).map((r, i) => (
+        <p key={i} className="text-sm flex items-start gap-2">
+          <span className="text-muted-foreground mt-0.5">•</span>
+          <span>{r}</span>
+        </p>
+      ))}
     </div>
   );
 }
+
+
