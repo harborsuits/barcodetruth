@@ -785,8 +785,6 @@ function TopReasons({ brandId, parentCompany, brandName, dimScores }: { brandId:
   );
 }
 
-/* ═══ METRIC DISTRIBUTION COMPONENT ═══ */
-function MetricDistribution({ brandId }: { brandId: string }) {
   const { data: scores, isLoading } = useQuery({
     queryKey: ['brand-dimension-scores', brandId],
     queryFn: async () => {
