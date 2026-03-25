@@ -373,7 +373,12 @@ export default function OwnershipTree() {
           >
             <div className="w-14 h-14 rounded-lg overflow-hidden bg-muted flex items-center justify-center flex-shrink-0">
               {brand.logo_url ? (
-                <img src={brand.logo_url} alt={brand.name} className="w-full h-full object-contain p-1" />
+                <img
+                  src={brand.logo_url}
+                  alt={brand.name}
+                  className="w-full h-full object-contain p-1"
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                />
               ) : (
                 <span className="text-xl font-bold text-muted-foreground/40">{brand.name[0]}</span>
               )}
