@@ -1,204 +1,281 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Building2, Loader2, AlertTriangle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Building2, ChevronDown, Network } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
-interface OwnershipData {
-  company_id: string | null;
-  structure: {
-    chain: Array<{ id: string; name: string; type: string; logo_url?: string }>;
-    siblings: Array<{ id: string; name: string; type: string; logo_url?: string }>;
-  };
-  ownership_structure?: any;
-  ownership_details?: any[];
-  shareholders: any;
+interface TreeNode {
+  id: string;
+  name: string;
+  logo_url?: string;
+  is_public?: boolean;
+  ticker?: string;
+  type?: string;
 }
 
-interface CorporateFamilyTreeProps {
-  brandName: string;
-  ownershipData?: OwnershipData | null;
-  isLoading?: boolean;
-  isParentCompany?: boolean;
-}
-
-export function CorporateFamilyTree({ 
-  brandName, 
-  ownershipData, 
-  isLoading,
-  isParentCompany = false 
-}: CorporateFamilyTreeProps) {
+export function CorporateFamilyTree({ brandId, brandName }: { brandId: string; brandName: string }) {
   const navigate = useNavigate();
-  const [loadingEntity, setLoadingEntity] = useState<string | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const { data: ownership, isLoading } = useQuery({
+    queryKey: ["corporate-family-tree", brandId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_brand_ownership" as any, {
+        p_brand_id: brandId,
+      });
+      if (error) return null;
+      return data as any;
+    },
+    enabled: !!brandId,
+    staleTime: 1000 * 60 * 30,
+  });
+
+  const chain: TreeNode[] = ownership?.structure?.chain || [];
+  const siblings: TreeNode[] = ownership?.structure?.siblings || [];
+
+  const parentCompany = chain.length > 1 ? chain[chain.length - 1] : null;
+  // Filter self-referential parent
+  const showParent = parentCompany && 
+    parentCompany.name.trim().toLowerCase() !== brandName.trim().toLowerCase();
   
+  const allSiblings = siblings.filter((s) => s.id !== brandId);
+  const hasFamilyData = showParent || allSiblings.length > 0;
+
   if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-16 w-full" />
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-24 w-full" />
-      </div>
-    );
+    return <Skeleton className="h-20 w-full rounded-lg" />;
   }
 
-  if (!ownershipData) {
-    return (
-      <div className="text-center py-8 px-4">
-        <Building2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
-        <h4 className="font-semibold mb-2">Ownership Information Unavailable</h4>
-        <p className="text-sm text-muted-foreground max-w-md mx-auto">
-          We couldn't determine the ownership structure for this brand.
-        </p>
-        <p className="text-xs text-muted-foreground/70 mt-3 italic">
-          Private equity, licensing arrangements, and complex corporate structures may not be publicly documented.
-        </p>
-      </div>
-    );
-  }
-  
-  // Use database ownership data directly
-  const parent = ownershipData.structure.chain?.[0];
-  const siblings = ownershipData.structure.siblings || [];
+  if (!hasFamilyData) return null;
 
-  // Hide parent tile if it's the same as the current brand (self-referential)
-  // OR if this brand IS the parent company
-  const showParent = parent && 
-    parent.name.trim().toLowerCase() !== brandName.trim().toLowerCase() &&
-    !isParentCompany;
+  const totalFamily = allSiblings.length + 1;
 
-  // Detect logical inconsistency: siblings exist but no parent shown
-  // This could mean incomplete data OR this brand IS the parent
-  const hasSiblingsWithoutParent = siblings.length > 0 && !showParent && !isParentCompany;
-
-  const handleEntityClick = async (entity: { id: string; name: string }) => {
-    console.log('[Entity Click] Navigating to brand:', entity.id);
-    navigate(`/brand/${entity.id}`);
+  const goToBrand = (id: string) => {
+    navigate(`/brand/${id}`, { state: { fromBrand: true } });
   };
 
   return (
-    <div className="space-y-6">
-      {/* Data Inconsistency Warning */}
-      {hasSiblingsWithoutParent && (
-        <Alert variant="default" className="bg-amber-50 border-amber-200">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-amber-800 text-sm">
-            Related brands detected but parent company not fully resolved. This may indicate incomplete data.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Parent Company */}
-      {showParent && (
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <h4 className="text-sm font-medium text-muted-foreground">Parent Company</h4>
-          </div>
-          
-          <button
-            onClick={() => handleEntityClick(parent)}
-            disabled={loadingEntity === parent.id}
-            className="flex flex-col items-center gap-2 p-3 w-40 border border-border rounded-lg hover:border-primary hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-card"
-          >
-            <div className="relative aspect-square w-full">
-              {parent.logo_url ? (
-                <img 
-                  src={parent.logo_url}
-                  alt={parent.name}
-                  className="w-full h-full object-contain"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    const fallbackDiv = e.currentTarget.parentElement?.querySelector('.logo-fallback') as HTMLElement;
-                    if (fallbackDiv) fallbackDiv.style.display = 'flex';
-                  }}
-                />
-              ) : null}
-              
-              <div className={`logo-fallback absolute inset-0 flex items-center justify-center text-4xl font-bold text-muted-foreground/30 ${parent.logo_url ? 'hidden' : 'flex'}`}>
-                {parent.name.charAt(0)}
-              </div>
-              
-              {loadingEntity === parent.id && (
-                <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-lg">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Card className="overflow-hidden border-primary/20">
+        <CollapsibleTrigger asChild>
+          <button className="w-full text-left">
+            <CardContent className="pt-5 pb-4 flex items-center justify-between cursor-pointer hover:bg-muted/30 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Network className="h-5 w-5 text-primary" />
                 </div>
-              )}
-            </div>
-            
-            <span className="text-xs font-medium text-center line-clamp-2 w-full">
-              {parent.name}
-            </span>
-          </button>
-        </div>
-      )}
-      
-      {/* Subsidiaries (when this is a parent company) or Sister Brands (when this has siblings) */}
-      {siblings.length > 0 && (
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <h4 className="text-sm font-medium text-muted-foreground">
-              {isParentCompany ? 'Owned Brands & Subsidiaries' : 'Sister Brands'}
-            </h4>
-            <Badge variant="secondary" className="text-xs">
-              {siblings.length}
-            </Badge>
-          </div>
-          
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {siblings.map((sibling) => (
-              <button
-                key={sibling.id}
-                onClick={() => handleEntityClick(sibling)}
-                disabled={loadingEntity === sibling.id}
-                className="relative group flex flex-col items-center gap-2 p-3 border border-border rounded-lg hover:border-primary hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-card"
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
+                    Corporate Family
+                  </p>
+                  <p className="text-sm font-semibold">
+                    {showParent ? parentCompany!.name : brandName}
+                    {totalFamily > 1 && (
+                      <span className="text-muted-foreground font-normal ml-1.5 text-xs">
+                        · {totalFamily} brands
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <motion.div
+                animate={{ rotate: isOpen ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
               >
-                <div className="relative aspect-square w-full">
-                  {sibling.logo_url ? (
-                    <img 
-                      src={sibling.logo_url}
-                      alt={sibling.name}
-                      className="w-full h-full object-contain"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                        const fallbackDiv = e.currentTarget.parentElement?.querySelector('.logo-fallback') as HTMLElement;
-                        if (fallbackDiv) fallbackDiv.style.display = 'flex';
-                      }}
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              </motion.div>
+            </CardContent>
+          </button>
+        </CollapsibleTrigger>
+
+        <CollapsibleContent>
+          <AnimatePresence>
+            {isOpen && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="px-5 pb-5"
+              >
+                <div className="relative space-y-1">
+                  {/* ── Parent (root) ── */}
+                  {showParent && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.05 }}
+                    >
+                      <FamilyNodeCard
+                        node={parentCompany!}
+                        variant="parent"
+                        onClick={() => goToBrand(parentCompany!.id)}
+                      />
+                      {/* Vertical connector */}
+                      <div className="flex justify-center">
+                        <motion.div
+                          className="w-px h-5 bg-border"
+                          initial={{ scaleY: 0 }}
+                          animate={{ scaleY: 1 }}
+                          transition={{ delay: 0.12, duration: 0.15 }}
+                          style={{ transformOrigin: "top" }}
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* ── Current brand (highlighted) ── */}
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.96 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.18 }}
+                  >
+                    <FamilyNodeCard
+                      node={{ id: brandId, name: brandName, logo_url: chain[0]?.logo_url }}
+                      variant="current"
                     />
-                  ) : null}
-                  
-                  <div className={`logo-fallback absolute inset-0 flex items-center justify-center text-4xl font-bold text-muted-foreground/30 ${sibling.logo_url ? 'hidden' : 'flex'}`}>
-                    {sibling.name.charAt(0)}
-                  </div>
-                  
-                  {loadingEntity === sibling.id && (
-                    <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-lg">
-                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    </div>
+                  </motion.div>
+
+                  {/* ── Sister brands ── */}
+                  {allSiblings.length > 0 && (
+                    <>
+                      {showParent && (
+                        <div className="flex justify-center">
+                          <motion.div
+                            className="w-px h-3 bg-border"
+                            initial={{ scaleY: 0 }}
+                            animate={{ scaleY: 1 }}
+                            transition={{ delay: 0.22, duration: 0.1 }}
+                            style={{ transformOrigin: "top" }}
+                          />
+                        </div>
+                      )}
+
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.25 }}
+                        className="pt-1"
+                      >
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium mb-2 text-center">
+                          Also owned by {showParent ? parentCompany!.name : "same parent"}
+                        </p>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {allSiblings.slice(0, 8).map((sib, i) => (
+                            <motion.div
+                              key={sib.id}
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 0.3 + i * 0.04 }}
+                            >
+                              <FamilyNodeCard
+                                node={sib}
+                                variant="sibling"
+                                onClick={() => goToBrand(sib.id)}
+                              />
+                            </motion.div>
+                          ))}
+                        </div>
+                        {allSiblings.length > 8 && (
+                          <p className="text-xs text-muted-foreground text-center mt-2">
+                            + {allSiblings.length - 8} more brands
+                          </p>
+                        )}
+                      </motion.div>
+                    </>
                   )}
                 </div>
-                
-                <span className="text-xs font-medium text-center line-clamp-2 w-full">
-                  {sibling.name}
-                </span>
-              </button>
-            ))}
-          </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
+  );
+}
+
+/* ── Individual node card ── */
+function FamilyNodeCard({
+  node,
+  variant,
+  onClick,
+}: {
+  node: TreeNode;
+  variant: "parent" | "current" | "sibling";
+  onClick?: () => void;
+}) {
+  const isClickable = variant !== "current" && !!onClick;
+
+  const styles = {
+    parent: "p-3",
+    current: "p-3 ring-2 ring-primary bg-primary/5",
+    sibling: "p-2",
+  };
+
+  const logoSizes = {
+    parent: "w-10 h-10",
+    current: "w-10 h-10",
+    sibling: "w-7 h-7",
+  };
+
+  const iconSizes = {
+    parent: "h-5 w-5",
+    current: "h-5 w-5",
+    sibling: "h-3.5 w-3.5",
+  };
+
+  const textStyles = {
+    parent: "text-sm font-semibold",
+    current: "text-sm font-bold",
+    sibling: "text-xs font-medium",
+  };
+
+  return (
+    <div
+      className={`
+        flex items-center gap-2.5 rounded-lg border bg-card
+        ${styles[variant]}
+        ${isClickable ? "cursor-pointer hover:bg-accent active:scale-[0.98] transition-all" : ""}
+      `}
+      onClick={isClickable ? onClick : undefined}
+      role={isClickable ? "button" : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onKeyDown={isClickable ? (e) => e.key === "Enter" && onClick?.() : undefined}
+    >
+      {node.logo_url ? (
+        <img
+          src={node.logo_url}
+          alt={`${node.name} logo`}
+          className={`${logoSizes[variant]} rounded object-contain bg-muted p-0.5 flex-shrink-0`}
+          loading="lazy"
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
+        />
+      ) : (
+        <div
+          className={`${logoSizes[variant]} rounded bg-muted flex items-center justify-center flex-shrink-0`}
+        >
+          <Building2 className={`${iconSizes[variant]} text-muted-foreground`} />
         </div>
       )}
-      
-      {/* Empty state - only show when truly no relationships */}
-      {!showParent && siblings.length === 0 && (
-        <div className="text-center py-8 px-4">
-          <Building2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
-          <h4 className="font-semibold mb-2">No Known Subsidiaries or Parent</h4>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            {brandName} appears to operate independently, or ownership relationships aren't publicly documented.
-          </p>
-          <p className="text-xs text-muted-foreground/70 mt-3 italic">
-            Some companies operate under a single brand, or their corporate structure may not be publicly disclosed.
-          </p>
-        </div>
-      )}
+      <div className="flex-1 min-w-0">
+        <p className={`${textStyles[variant]} truncate`}>{node.name}</p>
+        {variant === "parent" && (
+          <Badge variant="outline" className="text-[9px] mt-0.5 px-1.5 py-0">
+            Parent Company
+          </Badge>
+        )}
+        {variant === "current" && (
+          <Badge className="text-[9px] mt-0.5 px-1.5 py-0 bg-primary/15 text-primary border-primary/20">
+            You scanned this
+          </Badge>
+        )}
+      </div>
     </div>
   );
 }
