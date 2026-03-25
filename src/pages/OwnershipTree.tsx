@@ -239,17 +239,18 @@ export default function OwnershipTree() {
   const [phase, setPhase] = useState(0); // 0=brand, 1=parent reveal, 2=siblings
 
   // Fetch brand
-  const { data: brand, isLoading: brandLoading } = useQuery({
+  const { data: brand, isLoading: brandLoading, error: brandError } = useQuery({
     queryKey: ["ownership-tree-brand", id],
     queryFn: async () => {
       if (!id) return null;
-      // Try slug first, then UUID
       const { data: bySlug } = await supabase.from("brands").select("*").eq("slug", id).maybeSingle();
       if (bySlug) return bySlug;
       const { data: byId } = await supabase.from("brands").select("*").eq("id", id).maybeSingle();
       return byId;
     },
     enabled: !!id,
+    retry: 1,
+    staleTime: 1000 * 60 * 10,
   });
 
   const brandId = brand?.id;
@@ -263,9 +264,10 @@ export default function OwnershipTree() {
       return data as any;
     },
     enabled: !!brandId,
+    retry: 1,
   });
 
-  // Fetch score
+  // Fetch score — score column is an integer
   const { data: scoreData } = useQuery({
     queryKey: ["ownership-tree-score", brandId],
     queryFn: async () => {
@@ -276,11 +278,10 @@ export default function OwnershipTree() {
         .order("last_updated", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (!data?.score) return null;
-      const parsed = typeof data.score === "string" ? JSON.parse(data.score) : data.score;
-      return parsed?.overall != null ? Math.round(parsed.overall) : null;
+      return data?.score != null ? Math.round(Number(data.score)) : null;
     },
     enabled: !!brandId,
+    retry: 1,
   });
 
   // Animate phases
@@ -326,10 +327,12 @@ export default function OwnershipTree() {
     );
   }
 
-  if (!brand) {
+  if (!brand || brandError) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3">
+        <Building2 className="h-10 w-10 text-muted-foreground/30" />
         <p className="text-muted-foreground">Brand not found</p>
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>Go back</Button>
       </div>
     );
   }
@@ -375,7 +378,12 @@ export default function OwnershipTree() {
           >
             <div className="w-14 h-14 rounded-lg overflow-hidden bg-muted flex items-center justify-center flex-shrink-0">
               {brand.logo_url ? (
-                <img src={brand.logo_url} alt={brand.name} className="w-full h-full object-contain p-1" />
+                <img
+                  src={brand.logo_url}
+                  alt={brand.name}
+                  className="w-full h-full object-contain p-1"
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                />
               ) : (
                 <span className="text-xl font-bold text-muted-foreground/40">{brand.name[0]}</span>
               )}
@@ -428,7 +436,7 @@ export default function OwnershipTree() {
                     >
                       <div className="w-16 h-16 rounded-lg overflow-hidden bg-card flex items-center justify-center">
                         {parentCompany!.logo_url ? (
-                          <img src={parentCompany!.logo_url} alt={parentCompany!.name} className="w-full h-full object-contain p-1" />
+                          <img src={parentCompany!.logo_url} alt={parentCompany!.name} className="w-full h-full object-contain p-1" onError={(e) => { e.currentTarget.style.display = "none"; }} />
                         ) : (
                           <Building2 className="h-7 w-7 text-muted-foreground" />
                         )}
