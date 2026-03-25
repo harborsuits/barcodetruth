@@ -281,7 +281,7 @@ export default function OwnershipTree() {
       return data?.score != null ? Math.round(Number(data.score)) : null;
     },
     enabled: !!brandId,
-  });
+    retry: 1,
 
   // Animate phases
   useEffect(() => {
