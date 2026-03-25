@@ -282,6 +282,7 @@ export default function OwnershipTree() {
     },
     enabled: !!brandId,
     retry: 1,
+  });
 
   // Animate phases
   useEffect(() => {
