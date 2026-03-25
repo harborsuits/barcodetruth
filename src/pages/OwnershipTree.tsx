@@ -264,6 +264,7 @@ export default function OwnershipTree() {
       return data as any;
     },
     enabled: !!brandId,
+    retry: 1,
   });
 
   // Fetch score — score column is an integer
