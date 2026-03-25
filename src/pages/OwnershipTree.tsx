@@ -265,7 +265,7 @@ export default function OwnershipTree() {
     enabled: !!brandId,
   });
 
-  // Fetch score
+  // Fetch score — score column is an integer
   const { data: scoreData } = useQuery({
     queryKey: ["ownership-tree-score", brandId],
     queryFn: async () => {
@@ -276,9 +276,7 @@ export default function OwnershipTree() {
         .order("last_updated", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (!data?.score) return null;
-      const parsed = typeof data.score === "string" ? JSON.parse(data.score) : data.score;
-      return parsed?.overall != null ? Math.round(parsed.overall) : null;
+      return data?.score != null ? Math.round(Number(data.score)) : null;
     },
     enabled: !!brandId,
   });
