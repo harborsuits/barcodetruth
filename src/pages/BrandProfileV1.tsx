@@ -785,8 +785,6 @@ function TopReasons({ brandId, parentCompany, brandName, dimScores }: { brandId:
   );
 }
 
-  const { data: scores, isLoading } = useQuery({
-    queryKey: ['brand-dimension-scores', brandId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('brand_scores')
