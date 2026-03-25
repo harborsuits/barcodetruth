@@ -659,7 +659,7 @@ export default function BrandProfileV1() {
 
         {/* ─── 2. OWNERSHIP REVEAL ─── */}
         {resolvedBrandId && (
-          <OwnershipDisplay brandId={resolvedBrandId} />
+          <OwnershipDisplay brandId={resolvedBrandId} brandSlug={brand.slug} />
         )}
 
         {/* ─── 2b. CORPORATE FAMILY TREE ─── */}
