@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     // Get ALL active brands with their scores
     const { data: activeBrands } = await sb
       .from("brands")
-      .select("id, name, parent_company, company_type, category_slug")
+      .select("id, name, parent_company, company_type, category_slug, subcategory_slug")
       .eq("status", "active")
       .limit(500);
 
