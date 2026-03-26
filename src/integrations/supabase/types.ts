@@ -2596,6 +2596,42 @@ export type Database = {
           },
         ]
       }
+      brand_seed_stage: {
+        Row: {
+          category_slug: string | null
+          created_at: string | null
+          id: number
+          is_independent: boolean | null
+          name: string
+          parent_company: string | null
+          reject_reason: string | null
+          rejected: boolean | null
+          website: string | null
+        }
+        Insert: {
+          category_slug?: string | null
+          created_at?: string | null
+          id?: number
+          is_independent?: boolean | null
+          name: string
+          parent_company?: string | null
+          reject_reason?: string | null
+          rejected?: boolean | null
+          website?: string | null
+        }
+        Update: {
+          category_slug?: string | null
+          created_at?: string | null
+          id?: number
+          is_independent?: boolean | null
+          name?: string
+          parent_company?: string | null
+          reject_reason?: string | null
+          rejected?: boolean | null
+          website?: string | null
+        }
+        Relationships: []
+      }
       brand_slug_aliases: {
         Row: {
           alias: string
