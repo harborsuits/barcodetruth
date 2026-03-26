@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     // Get ALL active brands with their scores
     const { data: activeBrands } = await sb
       .from("brands")
-      .select("id, name, parent_company, company_type, category_slug")
+      .select("id, name, parent_company, company_type, category_slug, subcategory_slug")
       .eq("status", "active")
       .limit(500);
 
@@ -86,18 +86,26 @@ Deno.serve(async (req) => {
             else if (ct === "private") independenceBonus = 4;
             else if (ct === "public") independenceBonus = 2;
 
-            // Category match bonus: strongly prefer same-category alternatives
+            // Subcategory match bonus: highest priority
+            let subcategoryBonus = 0;
+            if (brand.subcategory_slug && p.subcategory_slug &&
+                brand.subcategory_slug === p.subcategory_slug) {
+              subcategoryBonus = 25;
+            }
+
+            // Category match bonus: fallback when subcategory missing
             let categoryBonus = 0;
-            if (brand.category_slug && p.category_slug &&
+            if (subcategoryBonus === 0 && brand.category_slug && p.category_slug &&
                 brand.category_slug === p.category_slug) {
-              categoryBonus = 15;
+              categoryBonus = 10;
             }
 
             return {
               ...p,
               peerScore: ps,
-              sameCategory: categoryBonus > 0,
-              rankScore: (ps.score || 50) + independenceBonus + categoryBonus,
+              sameSubcategory: subcategoryBonus > 0,
+              sameCategory: categoryBonus > 0 || subcategoryBonus > 0,
+              rankScore: (ps.score || 50) + independenceBonus + subcategoryBonus + categoryBonus,
             };
           })
           .sort((a: any, b: any) => b.rankScore - a.rankScore)
