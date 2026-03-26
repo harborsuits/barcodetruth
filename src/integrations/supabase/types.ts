@@ -2943,6 +2943,7 @@ export type Database = {
           push_paused: boolean
           slug: string
           status: string | null
+          subcategory_slug: string | null
           ticker: string | null
           updated_at: string
           website: string | null
@@ -2998,6 +2999,7 @@ export type Database = {
           push_paused?: boolean
           slug: string
           status?: string | null
+          subcategory_slug?: string | null
           ticker?: string | null
           updated_at?: string
           website?: string | null
@@ -3053,6 +3055,7 @@ export type Database = {
           push_paused?: boolean
           slug?: string
           status?: string | null
+          subcategory_slug?: string | null
           ticker?: string | null
           updated_at?: string
           website?: string | null
