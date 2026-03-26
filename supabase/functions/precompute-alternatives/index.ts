@@ -103,8 +103,9 @@ Deno.serve(async (req) => {
             return {
               ...p,
               peerScore: ps,
-              sameCategory: categoryBonus > 0,
-              rankScore: (ps.score || 50) + independenceBonus + categoryBonus,
+              sameSubcategory: subcategoryBonus > 0,
+              sameCategory: categoryBonus > 0 || subcategoryBonus > 0,
+              rankScore: (ps.score || 50) + independenceBonus + subcategoryBonus + categoryBonus,
             };
           })
           .sort((a: any, b: any) => b.rankScore - a.rankScore)
