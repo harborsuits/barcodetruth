@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
         if (peers.length === 0) continue;
 
         // Rank peers: higher score = better alternative
-        // Bonus for independence (non-conglomerate, smaller companies)
+        // Category match bonus + independence bonus
         const rankedPeers = peers
           .map((p: any) => {
             const ps = scoreMap[p.id];
@@ -86,10 +86,18 @@ Deno.serve(async (req) => {
             else if (ct === "private") independenceBonus = 4;
             else if (ct === "public") independenceBonus = 2;
 
+            // Category match bonus: strongly prefer same-category alternatives
+            let categoryBonus = 0;
+            if (brand.category_slug && p.category_slug &&
+                brand.category_slug === p.category_slug) {
+              categoryBonus = 15;
+            }
+
             return {
               ...p,
               peerScore: ps,
-              rankScore: (ps.score || 50) + independenceBonus,
+              sameCategory: categoryBonus > 0,
+              rankScore: (ps.score || 50) + independenceBonus + categoryBonus,
             };
           })
           .sort((a: any, b: any) => b.rankScore - a.rankScore)
