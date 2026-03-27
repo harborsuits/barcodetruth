@@ -249,9 +249,9 @@ Deno.serve(async (req) => {
         }
 
         // ── BETTER OPTIONS lane ──
-        // Only indie/private/nonprofit + small-public; big-brand penalty applied
+        // Only indie/private/nonprofit; public/unknown/subsidiary all excluded
         const betterCandidates = basePeers.filter((p: any) =>
-          getBetterOptionClass(p.company_type || "") >= 2
+          getBetterOptionClass(p.company_type || "") >= 3
         );
         const betterRanked = rankPeers(brand, betterCandidates, scoreMap, "better");
         const betterFinal = selectFinal(betterRanked, 5);
