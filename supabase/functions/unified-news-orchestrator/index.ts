@@ -789,6 +789,12 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Load match policies for all brands
+    const { data: policies } = await supabase
+      .from("brand_match_policy")
+      .select("brand_id, match_mode, required_context, blocked_context");
+    const policyMap = new Map((policies || []).map((p: any) => [p.brand_id, p]));
+
     let brands: Brand[] = [];
     if (brandId) {
       console.log(`[Orchestrator] Fetching specific brand: ${brandId}`);
@@ -807,9 +813,10 @@ Deno.serve(async (req) => {
         aliases: b.aliases || [],
         ticker: b.ticker || null,
         newsroom_domains: b.newsroom_domains || [],
-        monitoring_config: (b as any).monitoring_config || null
+        monitoring_config: (b as any).monitoring_config || null,
+        match_policy: policyMap.get(b.id) || undefined
       }));
-      console.log(`[Orchestrator] Found brand: ${brands[0]?.name || 'none'}`);
+      console.log(`[Orchestrator] Found brand: ${brands[0]?.name || 'none'} (match_mode: ${brands[0]?.match_policy?.match_mode || 'normal'})`);
     } else {
       console.log("[Orchestrator] Fetching active brands (no specific brand_id)");
       const { data, error: brandsError } = await supabase
@@ -827,7 +834,8 @@ Deno.serve(async (req) => {
         aliases: b.aliases || [],
         ticker: b.ticker || null,
         newsroom_domains: b.newsroom_domains || [],
-        monitoring_config: (b as any).monitoring_config || null
+        monitoring_config: (b as any).monitoring_config || null,
+        match_policy: policyMap.get(b.id) || undefined
       }));
       console.log(`[Orchestrator] Found ${brands.length} active brands`);
     }
