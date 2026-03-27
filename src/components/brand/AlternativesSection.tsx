@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Leaf, Building2, Info, ArrowRight, Loader2, Shield, Star } from "lucide-react";
+import { Leaf, Building2, Info, ArrowRight, Loader2, Shield, Star, Repeat } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +30,6 @@ function useSmartAlternatives(brandId: string) {
   return useQuery({
     queryKey: ["smart-alternatives", brandId],
     queryFn: async () => {
-      // Try RPC directly first
       const { data, error } = await supabase.rpc("get_smart_alternatives" as any, {
         p_brand_id: brandId,
         p_limit: 12,
@@ -40,7 +39,6 @@ function useSmartAlternatives(brandId: string) {
         return data as Alternative[];
       }
 
-      // Fallback to edge function
       const { data: fnData, error: fnError } = await supabase.functions.invoke("get-alternatives", {
         body: { brand_id: brandId },
       });
@@ -62,7 +60,7 @@ function AlternativeCard({ alt }: { alt: Alternative }) {
     return "text-red-600 dark:text-red-400";
   };
 
-  const isIndependent = alt.company_type === "independent" || alt.company_type === "local" || alt.company_type === "cooperative";
+  const isIndependent = ["independent", "local", "cooperative"].includes(alt.company_type);
 
   return (
     <div className="rounded-lg border bg-card p-4 hover:bg-accent/30 transition-colors">
@@ -130,21 +128,21 @@ function AlternativeCard({ alt }: { alt: Alternative }) {
 export function AlternativesSection({ brandId, brandName }: AlternativesSectionProps) {
   const { data: alternatives, isLoading } = useSmartAlternatives(brandId);
 
-  const independent = alternatives?.filter(a => a.alt_group === "independent") || [];
-  const mainstream = alternatives?.filter(a => a.alt_group === "mainstream") || [];
+  const betterOptions = alternatives?.filter(a => a.alt_group === "better" || a.alt_group === "independent") || [];
+  const similarOptions = alternatives?.filter(a => a.alt_group === "similar" || a.alt_group === "mainstream") || [];
 
   return (
     <Card>
       <CardContent className="pt-6">
-        <h2 className="text-lg font-semibold mb-1">Better Alternatives</h2>
+        <h2 className="text-lg font-semibold mb-1">Alternatives to {brandName}</h2>
         <p className="text-xs text-muted-foreground mb-3">
-          Brands in the same category — different ownership, stronger scores
+          Same category — ranked by ethics, independence & ownership
         </p>
         <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 mb-4 space-y-0.5">
-          <p className="font-medium text-foreground/70">Why these alternatives?</p>
-          <p>✓ Different parent company than the scanned brand</p>
-          <p>✓ Ranked by ethics score + ownership independence</p>
-          <p>✓ Independent, local & co-op brands ranked higher</p>
+          <p className="font-medium text-foreground/70">How we pick these</p>
+          <p>✓ Different parent company than {brandName}</p>
+          <p>✓ Same product subcategory when possible</p>
+          <p>✓ Independent & co-op brands ranked higher</p>
         </div>
 
         {isLoading ? (
@@ -162,28 +160,30 @@ export function AlternativesSection({ brandId, brandName }: AlternativesSectionP
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {/* Independent alternatives first */}
-            {independent.length > 0 && (
+          <div className="space-y-5">
+            {/* Better Options — indie/private/nonprofit */}
+            {betterOptions.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Shield className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  <span className="text-sm font-semibold">Independent & Local</span>
+                  <span className="text-sm font-semibold">Better Options</span>
+                  <span className="text-[10px] text-muted-foreground">Independent & ethical picks</span>
                 </div>
-                {independent.map(alt => (
+                {betterOptions.map(alt => (
                   <AlternativeCard key={alt.brand_id} alt={alt} />
                 ))}
               </div>
             )}
 
-            {/* Other scored alternatives */}
-            {mainstream.length > 0 && (
+            {/* Similar Options — same-subcategory mainstream peers */}
+            {similarOptions.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Star className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-semibold">Higher Scoring Alternatives</span>
+                  <Repeat className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-semibold">Similar Products</span>
+                  <span className="text-[10px] text-muted-foreground">Same category, different ownership</span>
                 </div>
-                {mainstream.map(alt => (
+                {similarOptions.map(alt => (
                   <AlternativeCard key={alt.brand_id} alt={alt} />
                 ))}
               </div>
