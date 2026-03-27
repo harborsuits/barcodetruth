@@ -48,11 +48,6 @@ Deno.serve(async (req) => {
       scoreMap[s.brand_id] = s;
     }
 
-    const brandMap: Record<string, any> = {};
-    for (const b of sourceBrands) {
-      brandMap[b.id] = b;
-    }
-
     let computed = 0;
     const errors: string[] = [];
     const targetBrands = sourceBrands.slice(0, Math.min(limit, sourceBrands.length));
@@ -65,23 +60,25 @@ Deno.serve(async (req) => {
         // Find peers: active-only candidates EXCEPT same parent company
         const peers = candidateBrands.filter((p: any) => {
           if (p.id === brand.id) return false;
-          // Exclude brands with same parent company (no conglomerate self-substitution)
           if (brand.parent_company && p.parent_company &&
               brand.parent_company.toLowerCase() === p.parent_company.toLowerCase()) {
             return false;
           }
-          // Must have a score
           if (!scoreMap[p.id]?.score) return false;
           return true;
         });
 
         if (peers.length === 0) continue;
 
-        // Rank peers: higher score = better alternative
-        // Category match bonus + independence bonus
+        // === HARD RANKING HIERARCHY ===
+        // Tier 1: exact subcategory match (+25)
+        // Tier 2: same category only (+10), with penalty if subcategory exists but doesn't match (-5)
+        // Tier 3: general independent (no category bonus)
         const rankedPeers = peers
           .map((p: any) => {
             const ps = scoreMap[p.id];
+
+            // Independence bonus
             let independenceBonus = 0;
             const ct = (p.company_type || "").toLowerCase();
             if (ct === "independent" || ct === "local" || ct === "cooperative") independenceBonus = 8;
@@ -89,32 +86,70 @@ Deno.serve(async (req) => {
             else if (ct === "private") independenceBonus = 4;
             else if (ct === "public") independenceBonus = 2;
 
-            // Subcategory match bonus: highest priority
+            // Subcategory match: highest priority
             let subcategoryBonus = 0;
-            if (brand.subcategory_slug && p.subcategory_slug &&
-                brand.subcategory_slug === p.subcategory_slug) {
+            const exactSubcategoryMatch = brand.subcategory_slug && p.subcategory_slug &&
+                brand.subcategory_slug === p.subcategory_slug;
+            if (exactSubcategoryMatch) {
               subcategoryBonus = 25;
             }
 
-            // Category match bonus: fallback when subcategory missing
+            // Category match: fallback
             let categoryBonus = 0;
-            if (subcategoryBonus === 0 && brand.category_slug && p.category_slug &&
-                brand.category_slug === p.category_slug) {
+            let wrongSubcategoryPenalty = 0;
+            const sameCat = brand.category_slug && p.category_slug &&
+                brand.category_slug === p.category_slug;
+
+            if (subcategoryBonus === 0 && sameCat) {
               categoryBonus = 10;
+              // Penalty: both have subcategories but they differ (wrong niche)
+              if (brand.subcategory_slug && p.subcategory_slug &&
+                  brand.subcategory_slug !== p.subcategory_slug) {
+                wrongSubcategoryPenalty = -5;
+              }
             }
+
+            // Determine match reason for debug
+            let matchReason = "general_independent";
+            if (exactSubcategoryMatch) matchReason = "matched_subcategory";
+            else if (sameCat) matchReason = "matched_category";
 
             return {
               ...p,
               peerScore: ps,
-              sameSubcategory: subcategoryBonus > 0,
-              sameCategory: categoryBonus > 0 || subcategoryBonus > 0,
-              rankScore: (ps.score || 50) + independenceBonus + subcategoryBonus + categoryBonus,
+              sameSubcategory: !!exactSubcategoryMatch,
+              sameCategory: !!sameCat,
+              matchReason,
+              rankScore: (ps.score || 50) + independenceBonus + subcategoryBonus + categoryBonus + wrongSubcategoryPenalty,
             };
           })
-          .sort((a: any, b: any) => b.rankScore - a.rankScore)
-          .slice(0, 8);
+          .sort((a: any, b: any) => b.rankScore - a.rankScore);
 
-        const altRows = rankedPeers.map((peer: any) => {
+        // === GUARDRAIL: prefer fewer but cleaner ===
+        // If we have 3+ exact subcategory matches, only use those + top category matches
+        const subcatMatches = rankedPeers.filter((p: any) => p.sameSubcategory);
+        const catMatches = rankedPeers.filter((p: any) => !p.sameSubcategory && p.sameCategory);
+        const generalMatches = rankedPeers.filter((p: any) => !p.sameSubcategory && !p.sameCategory);
+
+        let finalPeers: any[];
+        if (subcatMatches.length >= 3) {
+          // Strong subcategory pool: prioritize these, add a few category matches
+          finalPeers = [...subcatMatches.slice(0, 6), ...catMatches.slice(0, 2)];
+        } else {
+          // Thin subcategory: use what we have, then category, then general
+          finalPeers = [
+            ...subcatMatches,
+            ...catMatches.slice(0, 6 - subcatMatches.length),
+            ...generalMatches.slice(0, Math.max(0, 3 - subcatMatches.length - catMatches.length)),
+          ];
+        }
+
+        // Cap at 8
+        finalPeers = finalPeers.slice(0, 8);
+
+        if (finalPeers.length === 0) continue;
+
+        const altRows = finalPeers.map((peer: any) => {
           const reasons: string[] = [];
           const ps = peer.peerScore;
 
@@ -127,17 +162,20 @@ Deno.serve(async (req) => {
           if (!peer.parent_company)
             reasons.push("Independent brand");
 
+          // Append match reason for debug
+          const debugTag = `[${peer.matchReason}]`;
+          const reasonText = reasons.length > 0 ? `${reasons[0]} ${debugTag}` : `Competitive trust score ${debugTag}`;
+
           return {
             brand_id: brand.id,
             alternative_brand_id: peer.id,
-            reason: reasons.length > 0 ? reasons[0] : "Competitive trust score",
+            reason: reasonText,
             score: ps.score || 50,
             alternative_type: "precomputed",
           };
         });
 
         if (altRows.length > 0) {
-          // Remove old precomputed alternatives
           await sb
             .from("brand_alternatives")
             .delete()
