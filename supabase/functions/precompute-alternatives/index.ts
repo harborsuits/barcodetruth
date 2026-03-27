@@ -49,13 +49,13 @@ Deno.serve(async (req) => {
     }
 
     const brandMap: Record<string, any> = {};
-    for (const b of activeBrands) {
+    for (const b of sourceBrands) {
       brandMap[b.id] = b;
     }
 
     let computed = 0;
     const errors: string[] = [];
-    const targetBrands = activeBrands.slice(0, Math.min(limit, activeBrands.length));
+    const targetBrands = sourceBrands.slice(0, Math.min(limit, sourceBrands.length));
 
     for (const brand of targetBrands) {
       try {
