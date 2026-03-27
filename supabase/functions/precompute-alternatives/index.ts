@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     const { data: allScores } = await sb
       .from("brand_scores")
       .select("brand_id, score, score_labor, score_environment, score_politics, score_social")
-      .limit(2000);
+      .limit(5000);
 
     const scoreMap: Record<string, any> = {};
     for (const s of allScores || []) {
