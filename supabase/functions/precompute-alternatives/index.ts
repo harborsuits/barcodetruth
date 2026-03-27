@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
           return true;
         });
 
-        if (peers.length === 0) continue;
+        if (peers.length === 0) { skippedNoPeers++; continue; }
 
         // === HARD RANKING HIERARCHY ===
         // Tier 1: exact subcategory match (+25)
