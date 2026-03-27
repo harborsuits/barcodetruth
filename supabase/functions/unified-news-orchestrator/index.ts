@@ -12,7 +12,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
-type Brand = { id: string; name: string; aliases: string[]; ticker: string | null; newsroom_domains: string[]; monitoring_config?: any };
+type Brand = { id: string; name: string; aliases: string[]; ticker: string | null; newsroom_domains: string[]; monitoring_config?: any; match_policy?: { match_mode: string; required_context: string[]; blocked_context: string[] } };
 type GdeltItem = { url: string; title: string; seendate: string; domain?: string };
 type NewsArticle = { title: string; summary: string; url: string; published_at: string; source_name: string; category?: "labor" | "environment" | "politics" | "social" };
 
@@ -65,8 +65,51 @@ const QUERY_TERMS = [
   "allegation", "complaint", "regulatory", "controversy", "ethics", "misconduct"
 ].join(" OR ");
 
-// Financial noise patterns to explicitly filter out
-const FINANCIAL_NOISE_PATTERNS = /\b(shares?|stock|holdings?|portfolio|analyst|rating|price target|buys?|sells?|equity|dividend|EPS|earnings per share|institutional|investment|investor|fund|capital|acquisition target|market cap|valuation)\b/i;
+// Financial noise patterns - HARD KILL LIST (expanded)
+const FINANCIAL_NOISE_PATTERNS = /\b(shares?|stock|holdings?|portfolio|analyst|rating|price target|buys?|sells?|equity|dividend|EPS|earnings per share|institutional|investment|investor|fund|capital|acquisition target|market cap|valuation|earnings|quarterly results|q[1-4] earnings|q[1-4] results|revenue guidance|beat and raise|shares fell|stock rose|fy202\d|fiscal year|profit forecast|guidance cut|guidance raised|guidance lowered|revenue miss|earnings miss|profit miss|analyst upgrade|analyst downgrade|buy rating|sell rating|hold rating|outperform|underperform|overweight|underweight|price target raised|price target lowered|eps estimate|consensus estimate|wall street expects|street estimate|top stocks|best stocks|stocks to buy|reasons to buy|bull case|bear case|investment thesis|market outlook|revenue growth|profit margin|gross margin|operating margin|net income|cash flow|balance sheet|debt ratio|credit rating)\b/i;
+
+// Score-eligible event categories (rule-based, not AI)
+const SCORE_ELIGIBLE_CATEGORIES = new Set([
+  'PRODUCT.RECALL', 'PRODUCT.SAFETY',
+  'LABOR.SAFETY', 'LABOR.PRACTICES', 'LABOR.UNION', 'LABOR.DISCRIMINATION',
+  'ESG.ENVIRONMENT', 'ENV.POLLUTION', 'ENV.EMISSIONS',
+  'LEGAL.LAWSUIT', 'LEGAL.SETTLEMENT', 'LEGAL.INVESTIGATION',
+  'REGULATORY.OSHA', 'REGULATORY.EPA', 'REGULATORY.FDA', 'REGULATORY.COMPLIANCE',
+  'SOCIAL.CAMPAIGN', 'SOC.CULTURE', 'ESG.SOCIAL',
+  'POLICY.POLITICAL', 'POLICY.PUBLIC',
+]);
+
+// Categories that should never be score-eligible
+const NEVER_SCORE_CATEGORIES = new Set([
+  'FIN.EARNINGS', 'FIN.MARKETS', 'FIN.MNA',
+  'NOISE.GENERAL', 'NOISE.FINANCIAL',
+]);
+
+// Determine 3-tier eligibility
+function computeEligibility(
+  categoryCode: string | null,
+  isIrrelevant: boolean,
+  relevanceRaw: number,
+  sourceTier: number,
+  confidence: number,
+  impactAbs: number
+): { feed_visible: boolean; profile_relevant: boolean; score_eligible: boolean } {
+  // Tier 1: feed_visible — can the user see this in the evidence feed?
+  const feed_visible = !isIrrelevant && relevanceRaw >= 7;
+
+  // Tier 2: profile_relevant — does this count as a brand-linked event?
+  const profile_relevant = feed_visible && relevanceRaw >= 11
+    && !NEVER_SCORE_CATEGORIES.has(categoryCode || '');
+
+  // Tier 3: score_eligible — can this actually move the brand score?
+  const score_eligible = profile_relevant
+    && (sourceTier <= 2)
+    && (confidence >= 50)
+    && (impactAbs > 0)
+    && SCORE_ELIGIBLE_CATEGORIES.has(categoryCode || '');
+
+  return { feed_visible, profile_relevant, score_eligible };
+}
 
 /**
  * Finds an existing event with >75% title similarity within 7 days.
