@@ -203,6 +203,11 @@ Deno.serve(async (req) => {
         ok: true,
         computed,
         total_candidates: targetBrands.length,
+        skippedNoScore,
+        skippedNoPeers,
+        skippedNoFinal,
+        candidatePoolSize: candidateBrands.length,
+        scoresLoaded: Object.keys(scoreMap).length,
         errors: errors.slice(0, 5),
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
