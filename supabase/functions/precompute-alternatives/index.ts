@@ -165,13 +165,8 @@ function selectFinal(ranked: RankedPeer[], maxResults: number): RankedPeer[] {
 
   const strong = [...exact, ...fallback];
 
-  if (strong.length >= maxResults) {
-    return strong.slice(0, maxResults);
-  }
-
-  // Only add up to 1 weak category-only match as padding, never more
-  const weakPadding = Math.min(1, maxResults - strong.length);
-  return [...strong, ...weak.slice(0, weakPadding)].slice(0, maxResults);
+  // Never pad with weak category-only matches — show fewer but cleaner
+  return strong.slice(0, maxResults);
 }
 
 /* ── Main handler ── */
