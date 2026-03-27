@@ -3598,6 +3598,7 @@ export type Database = {
           description: string | null
           description_lang: string | null
           description_source: string | null
+          entity_type: Database["public"]["Enums"]["entity_type"] | null
           exchange: string | null
           founded_year: number | null
           id: string
@@ -3630,6 +3631,7 @@ export type Database = {
           description?: string | null
           description_lang?: string | null
           description_source?: string | null
+          entity_type?: Database["public"]["Enums"]["entity_type"] | null
           exchange?: string | null
           founded_year?: number | null
           id?: string
@@ -3662,6 +3664,7 @@ export type Database = {
           description?: string | null
           description_lang?: string | null
           description_source?: string | null
+          entity_type?: Database["public"]["Enums"]["entity_type"] | null
           exchange?: string | null
           founded_year?: number | null
           id?: string
@@ -11079,6 +11082,12 @@ export type Database = {
         | "independent"
         | "unknown"
       data_confidence: "none" | "low" | "medium" | "high"
+      entity_type:
+        | "company"
+        | "brand"
+        | "brand_family"
+        | "joint_venture"
+        | "retailer_private_label"
       event_category:
         | "labor"
         | "environment"
@@ -11094,6 +11103,10 @@ export type Database = {
         | "division_of"
         | "subsidiary_of"
         | "acquired_by"
+        | "licensed_to"
+        | "distributed_by"
+        | "joint_venture_with"
+        | "private_label_for"
       ownership_role:
         | "ultimate_operating_parent"
         | "legal_parent"
@@ -11103,6 +11116,10 @@ export type Database = {
         | "private_equity_sponsor"
         | "historical_parent"
         | "investor"
+        | "licensed_to"
+        | "distributed_by"
+        | "joint_venture_with"
+        | "private_label_for"
       people_role: "chief_executive_officer" | "founder" | "chairperson"
       submission_status: "pending" | "verified" | "rejected"
       verification_level: "unverified" | "corroborated" | "official"
@@ -11251,6 +11268,13 @@ export const Constants = {
         "unknown",
       ],
       data_confidence: ["none", "low", "medium", "high"],
+      entity_type: [
+        "company",
+        "brand",
+        "brand_family",
+        "joint_venture",
+        "retailer_private_label",
+      ],
       event_category: [
         "labor",
         "environment",
@@ -11267,6 +11291,10 @@ export const Constants = {
         "division_of",
         "subsidiary_of",
         "acquired_by",
+        "licensed_to",
+        "distributed_by",
+        "joint_venture_with",
+        "private_label_for",
       ],
       ownership_role: [
         "ultimate_operating_parent",
@@ -11277,6 +11305,10 @@ export const Constants = {
         "private_equity_sponsor",
         "historical_parent",
         "investor",
+        "licensed_to",
+        "distributed_by",
+        "joint_venture_with",
+        "private_label_for",
       ],
       people_role: ["chief_executive_officer", "founder", "chairperson"],
       submission_status: ["pending", "verified", "rejected"],
