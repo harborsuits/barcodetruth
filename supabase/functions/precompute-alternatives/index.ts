@@ -62,8 +62,8 @@ Deno.serve(async (req) => {
         const brandScore = scoreMap[brand.id];
         if (!brandScore?.score) continue;
 
-        // Find peers: all active brands EXCEPT same parent company
-        const peers = activeBrands.filter((p: any) => {
+        // Find peers: active-only candidates EXCEPT same parent company
+        const peers = candidateBrands.filter((p: any) => {
           if (p.id === brand.id) return false;
           // Exclude brands with same parent company (no conglomerate self-substitution)
           if (brand.parent_company && p.parent_company &&
