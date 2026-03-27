@@ -18,27 +18,30 @@ Deno.serve(async (req) => {
 
     const { limit = 80 } = await req.json().catch(() => ({}));
 
-    // Get ALL active brands with their scores
-    const { data: activeBrands } = await sb
+    // Source brands: ready + active (any brand a user might scan)
+    const { data: sourceBrands } = await sb
       .from("brands")
-      .select("id, name, parent_company, company_type, category_slug, subcategory_slug")
-      .eq("status", "active")
-      .limit(500);
+      .select("id, name, parent_company, company_type, category_slug, subcategory_slug, status")
+      .in("status", ["active", "ready"])
+      .limit(800);
 
-    if (!activeBrands || activeBrands.length === 0) {
+    if (!sourceBrands || sourceBrands.length === 0) {
       return new Response(
-        JSON.stringify({ ok: true, computed: 0, message: "No active brands" }),
+        JSON.stringify({ ok: true, computed: 0, message: "No eligible brands" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const brandIds = activeBrands.map((b: any) => b.id);
+    // Candidate alternatives: active only (quality-gated)
+    const candidateBrands = sourceBrands.filter((b: any) => b.status === "active");
+
+    const allBrandIds = sourceBrands.map((b: any) => b.id);
 
     // Get all scores in one query
     const { data: allScores } = await sb
       .from("brand_scores")
       .select("brand_id, score, score_labor, score_environment, score_politics, score_social")
-      .in("brand_id", brandIds);
+      .in("brand_id", allBrandIds);
 
     const scoreMap: Record<string, any> = {};
     for (const s of allScores || []) {
