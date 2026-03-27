@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { brand_id, type = "smart", limit = 12 } = await req.json();
+    const { brand_id, limit = 12 } = await req.json();
 
     if (!brand_id) {
       return new Response(
@@ -26,11 +26,6 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Use the smart alternatives RPC which handles:
-    // - Same category filtering
-    // - Parent company exclusion
-    // - Independence scoring bonus
-    // - Grouping (independent / local / mainstream)
     const { data: alternatives, error } = await supabase.rpc("get_smart_alternatives", {
       p_brand_id: brand_id,
       p_limit: Math.min(limit, 20),
@@ -44,16 +39,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Group alternatives for UI
-    const independent = (alternatives || []).filter((a: any) => a.alt_group === "independent");
-    const mainstream = (alternatives || []).filter((a: any) => a.alt_group === "mainstream");
+    const better = (alternatives || []).filter((a: any) => a.alt_group === "better");
+    const similar = (alternatives || []).filter((a: any) => a.alt_group === "similar");
 
     return new Response(
       JSON.stringify({
         alternatives: alternatives || [],
         groups: {
-          independent: independent.slice(0, 5),
-          mainstream: mainstream.slice(0, 5),
+          better: better.slice(0, 6),
+          similar: similar.slice(0, 6),
         },
         source: "smart_rpc",
       }),
