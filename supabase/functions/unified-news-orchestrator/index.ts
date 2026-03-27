@@ -1052,6 +1052,18 @@ Deno.serve(async (req) => {
         // Use raw score for gating (0-20 scale)
         const isIrrelevant = rel < RELEVANCE_MIN_ACCEPTED;
 
+        // Compute 3-tier eligibility
+        const sourceTier = 3; // news = tier 3 by default (gov sources set tier 1 elsewhere)
+        const impactAbs = Math.abs(finalImpact);
+        const eligibility = computeEligibility(
+          categoryResult.category_code,
+          isIrrelevant,
+          rel,
+          sourceTier,
+          confidence,
+          impactAbs
+        );
+
         // 1) Upsert brand_events first (so FK exists)
         const { error: evErr } = await supabase
           .from("brand_events")
@@ -1071,6 +1083,9 @@ Deno.serve(async (req) => {
             relevance_score_raw: rel, // Raw score (0-20 integer)
             relevance_reason: relReason,
             is_irrelevant: isIrrelevant,
+            feed_visible: eligibility.feed_visible,
+            profile_relevant: eligibility.profile_relevant,
+            score_eligible: eligibility.score_eligible,
             impact_confidence: confidence,
             is_press_release: isPressRelease,
             impact_labor:       mainCategory === 'labor'       ? finalImpact : 0,
