@@ -17,20 +17,36 @@ function getIndependenceBonus(companyType: string): number {
   return 0;
 }
 
-/** 3 = indie/private/nonprofit, 1 = everything else (public/subsidiary/conglomerate/unknown) */
 function getBetterOptionClass(companyType: string): number {
   const ct = (companyType || "").toLowerCase();
   if (["independent", "local", "cooperative", "nonprofit", "private"].includes(ct)) return 3;
-  // Public, subsidiary, conglomerate, and UNKNOWN are all excluded from better lane
   return 1;
 }
 
 function getBigBrandPenalty(companyType: string, lane: "better" | "similar"): number {
-  if (lane === "similar") return 0; // no penalty in similar lane
+  if (lane === "similar") return 0;
   const ct = (companyType || "").toLowerCase();
   if (ct === "subsidiary" || ct === "conglomerate") return -12;
   if (ct === "public") return -4;
   return 0;
+}
+
+/* ── Subcategory fallback matching ── */
+
+/**
+ * Check if a peer is an allowed match for a brand using strict subcategory gating.
+ * Returns match tier: 'exact_subcategory' | 'fallback_subcategory' | 'no_match'
+ */
+function getSubcategoryMatch(
+  brandSubcategory: string | null,
+  peerSubcategory: string | null,
+  fallbackMap: Record<string, Set<string>>
+): "exact_subcategory" | "fallback_subcategory" | "no_match" {
+  if (!brandSubcategory || !peerSubcategory) return "no_match";
+  if (brandSubcategory === peerSubcategory) return "exact_subcategory";
+  const allowed = fallbackMap[brandSubcategory];
+  if (allowed && allowed.has(peerSubcategory)) return "fallback_subcategory";
+  return "no_match";
 }
 
 /* ── Ranking ── */
@@ -44,8 +60,7 @@ interface RankedPeer {
   subcategory_slug: string | null;
   status: string;
   peerScore: any;
-  sameSubcategory: boolean;
-  sameCategory: boolean;
+  matchTier: "exact_subcategory" | "fallback_subcategory" | "category_only";
   matchReason: string;
   betterOptionClass: number;
   rankScore: number;
@@ -55,7 +70,8 @@ function rankPeers(
   brand: any,
   peers: any[],
   scoreMap: Record<string, any>,
-  lane: "better" | "similar"
+  lane: "better" | "similar",
+  fallbackMap: Record<string, Set<string>>
 ): RankedPeer[] {
   return peers
     .map((p) => {
@@ -66,59 +82,74 @@ function rankPeers(
       const bigBrandPenalty = getBigBrandPenalty(p.company_type || "", lane);
       const betterOptionClass = getBetterOptionClass(p.company_type || "");
 
-      // Subcategory match: highest priority
-      const exactSubcategoryMatch =
-        brand.subcategory_slug &&
-        p.subcategory_slug &&
-        brand.subcategory_slug === p.subcategory_slug;
-      const subcategoryBonus = exactSubcategoryMatch ? 25 : 0;
+      // Strict subcategory gating
+      const subcatMatch = getSubcategoryMatch(
+        brand.subcategory_slug,
+        p.subcategory_slug,
+        fallbackMap
+      );
 
-      // Category match: fallback
-      const sameCat =
-        brand.category_slug &&
-        p.category_slug &&
-        brand.category_slug === p.category_slug;
-      let categoryBonus = 0;
-      let wrongSubcategoryPenalty = 0;
-      if (!exactSubcategoryMatch && sameCat) {
-        categoryBonus = 10;
-        if (
-          brand.subcategory_slug &&
-          p.subcategory_slug &&
-          brand.subcategory_slug !== p.subcategory_slug
-        ) {
-          wrongSubcategoryPenalty = -5;
-        }
+      // If brand has a subcategory, only allow exact or fallback matches
+      // Category-only matches are only used when brand has NO subcategory
+      if (brand.subcategory_slug && subcatMatch === "no_match") {
+        // Check if at least same category for loose fallback (capped)
+        const sameCat =
+          brand.category_slug && p.category_slug &&
+          brand.category_slug === p.category_slug;
+        if (!sameCat) return null; // completely unrelated, skip
+
+        // Same category but wrong subcategory — mark as category_only
+        // These get a heavy penalty and are only used if nothing better exists
+        return {
+          ...p,
+          peerScore: ps,
+          matchTier: "category_only" as const,
+          matchReason: "category_fallback_weak",
+          betterOptionClass,
+          rankScore:
+            (ps.score || 50) + independenceBonus + bigBrandPenalty - 15, // heavy penalty
+        } as RankedPeer;
       }
 
-      const matchReason = exactSubcategoryMatch
-        ? "matched_subcategory"
-        : sameCat
-        ? "matched_category"
-        : "general_independent";
+      let tierBonus = 0;
+      let matchReason = "";
+      if (subcatMatch === "exact_subcategory") {
+        tierBonus = 25;
+        matchReason = "matched_subcategory";
+      } else if (subcatMatch === "fallback_subcategory") {
+        tierBonus = 15;
+        matchReason = "matched_fallback_subcategory";
+      } else {
+        // Brand has no subcategory — use category match
+        const sameCat =
+          brand.category_slug && p.category_slug &&
+          brand.category_slug === p.category_slug;
+        if (sameCat) {
+          tierBonus = 10;
+          matchReason = "matched_category";
+        } else {
+          matchReason = "general_independent";
+        }
+      }
 
       return {
         ...p,
         peerScore: ps,
-        sameSubcategory: !!exactSubcategoryMatch,
-        sameCategory: !!sameCat,
+        matchTier: subcatMatch === "no_match" ? "category_only" : subcatMatch,
         matchReason,
         betterOptionClass,
         rankScore:
-          (ps.score || 50) +
-          independenceBonus +
-          subcategoryBonus +
-          categoryBonus +
-          wrongSubcategoryPenalty +
-          bigBrandPenalty,
+          (ps.score || 50) + independenceBonus + tierBonus + bigBrandPenalty,
       } as RankedPeer;
     })
     .filter(Boolean)
     .sort((a: any, b: any) => {
-      // Primary: subcategory match first
-      if (a.sameSubcategory !== b.sameSubcategory)
-        return a.sameSubcategory ? -1 : 1;
-      // Secondary (better lane only): betterOptionClass
+      // Primary: exact subcategory > fallback > category_only
+      const tierOrder = { exact_subcategory: 3, fallback_subcategory: 2, category_only: 1 };
+      const aTier = tierOrder[a.matchTier as keyof typeof tierOrder] || 0;
+      const bTier = tierOrder[b.matchTier as keyof typeof tierOrder] || 0;
+      if (aTier !== bTier) return bTier - aTier;
+      // Secondary (better lane): betterOptionClass
       if (lane === "better" && a.betterOptionClass !== b.betterOptionClass)
         return b.betterOptionClass - a.betterOptionClass;
       // Tertiary: rankScore
@@ -126,34 +157,16 @@ function rankPeers(
     }) as RankedPeer[];
 }
 
-/** Apply "fewer but cleaner" guardrail and cap */
+/** "Fewer but cleaner" — prefer exact/fallback, limit category_only leakage */
 function selectFinal(ranked: RankedPeer[], maxResults: number): RankedPeer[] {
-  const subcatMatches = ranked.filter((p) => p.sameSubcategory);
-  const catMatches = ranked.filter((p) => !p.sameSubcategory && p.sameCategory);
-  const general = ranked.filter((p) => !p.sameSubcategory && !p.sameCategory);
+  const exact = ranked.filter((p) => p.matchTier === "exact_subcategory");
+  const fallback = ranked.filter((p) => p.matchTier === "fallback_subcategory");
+  const weak = ranked.filter((p) => p.matchTier === "category_only");
 
-  let finalPeers: RankedPeer[];
-  if (subcatMatches.length >= 3) {
-    // Strong subcategory pool: prioritize, add a couple category fallbacks
-    finalPeers = [
-      ...subcatMatches.slice(0, maxResults - 1),
-      ...catMatches.slice(0, 2),
-    ];
-  } else {
-    // Thin: use what we have, strict cap
-    finalPeers = [
-      ...subcatMatches,
-      ...catMatches.slice(0, Math.max(0, maxResults - subcatMatches.length - 1)),
-      ...general.slice(
-        0,
-        Math.max(
-          0,
-          2 - subcatMatches.length - catMatches.length
-        )
-      ),
-    ];
-  }
-  return finalPeers.slice(0, maxResults);
+  const strong = [...exact, ...fallback];
+
+  // Never pad with weak category-only matches — show fewer but cleaner
+  return strong.slice(0, maxResults);
 }
 
 /* ── Main handler ── */
@@ -168,16 +181,38 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const sb = createClient(supabaseUrl, serviceKey);
 
-    const { limit = 80 } = await req.json().catch(() => ({}));
+    const { limit = 500 } = await req.json().catch(() => ({}));
 
-    // Source brands: ready + active (any brand a user might scan)
-    const { data: sourceBrands } = await sb
-      .from("brands")
-      .select(
-        "id, name, parent_company, company_type, category_slug, subcategory_slug, status"
-      )
-      .in("status", ["active", "ready"])
-      .limit(800);
+    // Load fallback map
+    const { data: fallbackRows } = await sb
+      .from("subcategory_fallbacks")
+      .select("source_subcategory, allowed_fallback_subcategory");
+
+    const fallbackMap: Record<string, Set<string>> = {};
+    for (const row of fallbackRows || []) {
+      if (!fallbackMap[row.source_subcategory]) {
+        fallbackMap[row.source_subcategory] = new Set();
+      }
+      fallbackMap[row.source_subcategory].add(row.allowed_fallback_subcategory);
+    }
+
+    // Source brands: ready + active (batched to avoid 1000-row limit)
+    let sourceBrands: any[] = [];
+    let brandOffset = 0;
+    const brandBatchSize = 1000;
+    while (true) {
+      const { data: batch } = await sb
+        .from("brands")
+        .select(
+          "id, name, parent_company, company_type, category_slug, subcategory_slug, status"
+        )
+        .in("status", ["active", "ready"])
+        .range(brandOffset, brandOffset + brandBatchSize - 1);
+      if (!batch || batch.length === 0) break;
+      sourceBrands = sourceBrands.concat(batch);
+      if (batch.length < brandBatchSize) break;
+      brandOffset += brandBatchSize;
+    }
 
     if (!sourceBrands || sourceBrands.length === 0) {
       return new Response(
@@ -191,7 +226,7 @@ Deno.serve(async (req) => {
       (b: any) => b.status === "active"
     );
 
-    // Load all scores in batches to avoid 1000-row limit
+    // Load all scores in batches
     let allScores: any[] = [];
     let offset = 0;
     const batchSize = 1000;
@@ -213,10 +248,7 @@ Deno.serve(async (req) => {
 
     let computed = 0;
     const errors: string[] = [];
-    const targetBrands = sourceBrands.slice(
-      0,
-      Math.min(limit, sourceBrands.length)
-    );
+    const targetBrands = sourceBrands.slice(0, Math.min(limit, sourceBrands.length));
 
     let skippedNoScore = 0;
     let skippedNoPeers = 0;
@@ -249,17 +281,14 @@ Deno.serve(async (req) => {
         }
 
         // ── BETTER OPTIONS lane ──
-        // Only indie/private/nonprofit; public/unknown/subsidiary all excluded
         const betterCandidates = basePeers.filter((p: any) =>
           getBetterOptionClass(p.company_type || "") >= 3
         );
-        const betterRanked = rankPeers(brand, betterCandidates, scoreMap, "better");
+        const betterRanked = rankPeers(brand, betterCandidates, scoreMap, "better", fallbackMap);
         const betterFinal = selectFinal(betterRanked, 5);
 
         // ── SIMILAR OPTIONS lane ──
-        // Broader same-subcategory/category peers, no big-brand penalty
-        const similarRanked = rankPeers(brand, basePeers, scoreMap, "similar");
-        // Exclude anything already in better list
+        const similarRanked = rankPeers(brand, basePeers, scoreMap, "similar", fallbackMap);
         const betterIds = new Set(betterFinal.map((p) => p.id));
         const similarFiltered = similarRanked.filter((p) => !betterIds.has(p.id));
         const similarFinal = selectFinal(similarFiltered, 5);
@@ -299,7 +328,6 @@ Deno.serve(async (req) => {
         }
 
         if (altRows.length > 0) {
-          // Clear old data for this brand
           await sb
             .from("brand_alternatives")
             .delete()
@@ -327,6 +355,7 @@ Deno.serve(async (req) => {
         skippedNoPeers,
         candidatePoolSize: candidateBrands.length,
         scoresLoaded: Object.keys(scoreMap).length,
+        fallbackMappings: Object.keys(fallbackMap).length,
         errors: errors.slice(0, 5),
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

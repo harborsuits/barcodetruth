@@ -6851,6 +6851,21 @@ export type Database = {
         }
         Relationships: []
       }
+      subcategory_fallbacks: {
+        Row: {
+          allowed_fallback_subcategory: string
+          source_subcategory: string
+        }
+        Insert: {
+          allowed_fallback_subcategory: string
+          source_subcategory: string
+        }
+        Update: {
+          allowed_fallback_subcategory?: string
+          source_subcategory?: string
+        }
+        Relationships: []
+      }
       unknown_barcodes: {
         Row: {
           barcode: string
