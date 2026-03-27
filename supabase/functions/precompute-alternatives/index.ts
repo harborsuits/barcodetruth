@@ -17,13 +17,12 @@ function getIndependenceBonus(companyType: string): number {
   return 0;
 }
 
-/** 3 = indie/private/nonprofit, 2 = public-ok, 1 = subsidiary/conglomerate */
+/** 3 = indie/private/nonprofit, 1 = everything else (public/subsidiary/conglomerate/unknown) */
 function getBetterOptionClass(companyType: string): number {
   const ct = (companyType || "").toLowerCase();
-  if (["independent", "local", "cooperative", "nonprofit"].includes(ct)) return 3;
-  if (ct === "private") return 3;
-  if (ct === "public") return 2;
-  return 1; // subsidiary, conglomerate, unknown
+  if (["independent", "local", "cooperative", "nonprofit", "private"].includes(ct)) return 3;
+  // Public, subsidiary, conglomerate, and UNKNOWN are all excluded from better lane
+  return 1;
 }
 
 function getBigBrandPenalty(companyType: string, lane: "better" | "similar"): number {
