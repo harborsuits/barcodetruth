@@ -312,7 +312,31 @@ function scoreRelevanceStrict(brand: Brand, title: string, body: string, url: UR
   }
 
   const cfg = (brand as any).monitoring_config || {};
-  const minScore = typeof cfg.min_score === 'number' ? cfg.min_score : 0.5;
+  const mp = brand.match_policy;
+  const hay = (title + ' ' + body).toLowerCase();
+
+  // ---- Match policy enforcement for common-word brands ----
+  if (mp && (mp.match_mode === 'strict' || mp.match_mode === 'exact_only')) {
+    // Check blocked_context first — hard reject
+    if (mp.blocked_context?.length) {
+      const blocked = mp.blocked_context.some((ctx: string) => hay.includes(ctx.toLowerCase()));
+      if (blocked) {
+        return { score: 0, reason: 'match_policy_blocked_context' };
+      }
+    }
+
+    // Require at least one required_context term
+    if (mp.required_context?.length) {
+      const hasContext = mp.required_context.some((ctx: string) => hay.includes(ctx.toLowerCase()));
+      if (!hasContext) {
+        // exact_only: hard reject. strict: heavy penalty (score capped at 5)
+        if (mp.match_mode === 'exact_only') {
+          return { score: 0, reason: 'match_policy_exact_only_no_context' };
+        }
+        // strict mode: continue but cap score later
+      }
+    }
+  }
 
   // Normalize brand names and aliases for matching (removes accents)
   const aliases = [brand.name, ...(brand.aliases ?? [])].map((a) => {
@@ -354,6 +378,15 @@ function scoreRelevanceStrict(brand: Brand, title: string, body: string, url: UR
   if ((titleHit || leadHit) && !context) {
     s -= 2;
     reasons.push('no_business_penalty');
+  }
+
+  // Strict mode cap: if required_context missing, cap at 5 (below threshold)
+  if (mp?.match_mode === 'strict' && mp.required_context?.length) {
+    const hasContext = mp.required_context.some((ctx: string) => hay.includes(ctx.toLowerCase()));
+    if (!hasContext) {
+      s = Math.min(s, 5);
+      reasons.push('strict_no_context_cap');
+    }
   }
 
   const score = Math.max(0, Math.min(20, s));
