@@ -1535,6 +1535,7 @@ export type Database = {
           disambiguation_reason: string | null
           event_date: string | null
           event_id: string
+          feed_visible: boolean
           impact_confidence: number | null
           impact_environment: number | null
           impact_labor: number | null
@@ -1548,6 +1549,7 @@ export type Database = {
           noise_reason: string | null
           occurred_at: string | null
           orientation: Database["public"]["Enums"]["event_orientation"] | null
+          profile_relevant: boolean
           raw_data: Json | null
           relevance_reason: string | null
           relevance_score_norm: number | null
@@ -1585,6 +1587,7 @@ export type Database = {
           disambiguation_reason?: string | null
           event_date?: string | null
           event_id?: string
+          feed_visible?: boolean
           impact_confidence?: number | null
           impact_environment?: number | null
           impact_labor?: number | null
@@ -1598,6 +1601,7 @@ export type Database = {
           noise_reason?: string | null
           occurred_at?: string | null
           orientation?: Database["public"]["Enums"]["event_orientation"] | null
+          profile_relevant?: boolean
           raw_data?: Json | null
           relevance_reason?: string | null
           relevance_score_norm?: number | null
@@ -1637,6 +1641,7 @@ export type Database = {
           disambiguation_reason?: string | null
           event_date?: string | null
           event_id?: string
+          feed_visible?: boolean
           impact_confidence?: number | null
           impact_environment?: number | null
           impact_labor?: number | null
@@ -1650,6 +1655,7 @@ export type Database = {
           noise_reason?: string | null
           occurred_at?: string | null
           orientation?: Database["public"]["Enums"]["event_orientation"] | null
+          profile_relevant?: boolean
           raw_data?: Json | null
           relevance_reason?: string | null
           relevance_score_norm?: number | null
@@ -2042,6 +2048,139 @@ export type Database = {
             foreignKeyName: "brand_identity_candidates_brand_id_fkey"
             columns: ["brand_id"]
             isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brand_match_policy: {
+        Row: {
+          blocked_context: string[] | null
+          brand_id: string
+          created_at: string
+          match_mode: string
+          required_context: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          blocked_context?: string[] | null
+          brand_id: string
+          created_at?: string
+          match_mode?: string
+          required_context?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          blocked_context?: string[] | null
+          brand_id?: string
+          created_at?: string
+          match_mode?: string
+          required_context?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_match_policy_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brand_alias_suggestions"
+            referencedColumns: ["suggested_brand_id"]
+          },
+          {
+            foreignKeyName: "brand_match_policy_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_match_policy_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brand_monitoring_status"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_match_policy_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brand_profile_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_match_policy_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brand_standings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_match_policy_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brand_trending"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_match_policy_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_match_policy_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "digest_events_last_24h"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_match_policy_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "product_alternatives"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_match_policy_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "product_brand_profile"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_match_policy_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_match_policy_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_match_policy_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "v_brand_completeness"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_match_policy_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "v_brand_confidence_pivot"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_match_policy_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
             referencedRelation: "v_brands_needing_logos"
             referencedColumns: ["id"]
           },

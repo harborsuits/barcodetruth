@@ -12,7 +12,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
-type Brand = { id: string; name: string; aliases: string[]; ticker: string | null; newsroom_domains: string[]; monitoring_config?: any };
+type Brand = { id: string; name: string; aliases: string[]; ticker: string | null; newsroom_domains: string[]; monitoring_config?: any; match_policy?: { match_mode: string; required_context: string[]; blocked_context: string[] } };
 type GdeltItem = { url: string; title: string; seendate: string; domain?: string };
 type NewsArticle = { title: string; summary: string; url: string; published_at: string; source_name: string; category?: "labor" | "environment" | "politics" | "social" };
 
@@ -65,8 +65,51 @@ const QUERY_TERMS = [
   "allegation", "complaint", "regulatory", "controversy", "ethics", "misconduct"
 ].join(" OR ");
 
-// Financial noise patterns to explicitly filter out
-const FINANCIAL_NOISE_PATTERNS = /\b(shares?|stock|holdings?|portfolio|analyst|rating|price target|buys?|sells?|equity|dividend|EPS|earnings per share|institutional|investment|investor|fund|capital|acquisition target|market cap|valuation)\b/i;
+// Financial noise patterns - HARD KILL LIST (expanded)
+const FINANCIAL_NOISE_PATTERNS = /\b(shares?|stock|holdings?|portfolio|analyst|rating|price target|buys?|sells?|equity|dividend|EPS|earnings per share|institutional|investment|investor|fund|capital|acquisition target|market cap|valuation|earnings|quarterly results|q[1-4] earnings|q[1-4] results|revenue guidance|beat and raise|shares fell|stock rose|fy202\d|fiscal year|profit forecast|guidance cut|guidance raised|guidance lowered|revenue miss|earnings miss|profit miss|analyst upgrade|analyst downgrade|buy rating|sell rating|hold rating|outperform|underperform|overweight|underweight|price target raised|price target lowered|eps estimate|consensus estimate|wall street expects|street estimate|top stocks|best stocks|stocks to buy|reasons to buy|bull case|bear case|investment thesis|market outlook|revenue growth|profit margin|gross margin|operating margin|net income|cash flow|balance sheet|debt ratio|credit rating)\b/i;
+
+// Score-eligible event categories (rule-based, not AI)
+const SCORE_ELIGIBLE_CATEGORIES = new Set([
+  'PRODUCT.RECALL', 'PRODUCT.SAFETY',
+  'LABOR.SAFETY', 'LABOR.PRACTICES', 'LABOR.UNION', 'LABOR.DISCRIMINATION',
+  'ESG.ENVIRONMENT', 'ENV.POLLUTION', 'ENV.EMISSIONS',
+  'LEGAL.LAWSUIT', 'LEGAL.SETTLEMENT', 'LEGAL.INVESTIGATION',
+  'REGULATORY.OSHA', 'REGULATORY.EPA', 'REGULATORY.FDA', 'REGULATORY.COMPLIANCE',
+  'SOCIAL.CAMPAIGN', 'SOC.CULTURE', 'ESG.SOCIAL',
+  'POLICY.POLITICAL', 'POLICY.PUBLIC',
+]);
+
+// Categories that should never be score-eligible
+const NEVER_SCORE_CATEGORIES = new Set([
+  'FIN.EARNINGS', 'FIN.MARKETS', 'FIN.MNA',
+  'NOISE.GENERAL', 'NOISE.FINANCIAL',
+]);
+
+// Determine 3-tier eligibility
+function computeEligibility(
+  categoryCode: string | null,
+  isIrrelevant: boolean,
+  relevanceRaw: number,
+  sourceTier: number,
+  confidence: number,
+  impactAbs: number
+): { feed_visible: boolean; profile_relevant: boolean; score_eligible: boolean } {
+  // Tier 1: feed_visible — can the user see this in the evidence feed?
+  const feed_visible = !isIrrelevant && relevanceRaw >= 7;
+
+  // Tier 2: profile_relevant — does this count as a brand-linked event?
+  const profile_relevant = feed_visible && relevanceRaw >= 11
+    && !NEVER_SCORE_CATEGORIES.has(categoryCode || '');
+
+  // Tier 3: score_eligible — can this actually move the brand score?
+  const score_eligible = profile_relevant
+    && (sourceTier <= 2)
+    && (confidence >= 50)
+    && (impactAbs > 0)
+    && SCORE_ELIGIBLE_CATEGORIES.has(categoryCode || '');
+
+  return { feed_visible, profile_relevant, score_eligible };
+}
 
 /**
  * Finds an existing event with >75% title similarity within 7 days.
@@ -269,7 +312,31 @@ function scoreRelevanceStrict(brand: Brand, title: string, body: string, url: UR
   }
 
   const cfg = (brand as any).monitoring_config || {};
-  const minScore = typeof cfg.min_score === 'number' ? cfg.min_score : 0.5;
+  const mp = brand.match_policy;
+  const hay = (title + ' ' + body).toLowerCase();
+
+  // ---- Match policy enforcement for common-word brands ----
+  if (mp && (mp.match_mode === 'strict' || mp.match_mode === 'exact_only')) {
+    // Check blocked_context first — hard reject
+    if (mp.blocked_context?.length) {
+      const blocked = mp.blocked_context.some((ctx: string) => hay.includes(ctx.toLowerCase()));
+      if (blocked) {
+        return { score: 0, reason: 'match_policy_blocked_context' };
+      }
+    }
+
+    // Require at least one required_context term
+    if (mp.required_context?.length) {
+      const hasContext = mp.required_context.some((ctx: string) => hay.includes(ctx.toLowerCase()));
+      if (!hasContext) {
+        // exact_only: hard reject. strict: heavy penalty (score capped at 5)
+        if (mp.match_mode === 'exact_only') {
+          return { score: 0, reason: 'match_policy_exact_only_no_context' };
+        }
+        // strict mode: continue but cap score later
+      }
+    }
+  }
 
   // Normalize brand names and aliases for matching (removes accents)
   const aliases = [brand.name, ...(brand.aliases ?? [])].map((a) => {
@@ -311,6 +378,15 @@ function scoreRelevanceStrict(brand: Brand, title: string, body: string, url: UR
   if ((titleHit || leadHit) && !context) {
     s -= 2;
     reasons.push('no_business_penalty');
+  }
+
+  // Strict mode cap: if required_context missing, cap at 5 (below threshold)
+  if (mp?.match_mode === 'strict' && mp.required_context?.length) {
+    const hasContext = mp.required_context.some((ctx: string) => hay.includes(ctx.toLowerCase()));
+    if (!hasContext) {
+      s = Math.min(s, 5);
+      reasons.push('strict_no_context_cap');
+    }
   }
 
   const score = Math.max(0, Math.min(20, s));
@@ -713,6 +789,12 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Load match policies for all brands
+    const { data: policies } = await supabase
+      .from("brand_match_policy")
+      .select("brand_id, match_mode, required_context, blocked_context");
+    const policyMap = new Map((policies || []).map((p: any) => [p.brand_id, p]));
+
     let brands: Brand[] = [];
     if (brandId) {
       console.log(`[Orchestrator] Fetching specific brand: ${brandId}`);
@@ -731,9 +813,10 @@ Deno.serve(async (req) => {
         aliases: b.aliases || [],
         ticker: b.ticker || null,
         newsroom_domains: b.newsroom_domains || [],
-        monitoring_config: (b as any).monitoring_config || null
+        monitoring_config: (b as any).monitoring_config || null,
+        match_policy: policyMap.get(b.id) || undefined
       }));
-      console.log(`[Orchestrator] Found brand: ${brands[0]?.name || 'none'}`);
+      console.log(`[Orchestrator] Found brand: ${brands[0]?.name || 'none'} (match_mode: ${brands[0]?.match_policy?.match_mode || 'normal'})`);
     } else {
       console.log("[Orchestrator] Fetching active brands (no specific brand_id)");
       const { data, error: brandsError } = await supabase
@@ -751,7 +834,8 @@ Deno.serve(async (req) => {
         aliases: b.aliases || [],
         ticker: b.ticker || null,
         newsroom_domains: b.newsroom_domains || [],
-        monitoring_config: (b as any).monitoring_config || null
+        monitoring_config: (b as any).monitoring_config || null,
+        match_policy: policyMap.get(b.id) || undefined
       }));
       console.log(`[Orchestrator] Found ${brands.length} active brands`);
     }
@@ -968,6 +1052,18 @@ Deno.serve(async (req) => {
         // Use raw score for gating (0-20 scale)
         const isIrrelevant = rel < RELEVANCE_MIN_ACCEPTED;
 
+        // Compute 3-tier eligibility
+        const sourceTier = 3; // news = tier 3 by default (gov sources set tier 1 elsewhere)
+        const impactAbs = Math.abs(finalImpact);
+        const eligibility = computeEligibility(
+          categoryResult.category_code,
+          isIrrelevant,
+          rel,
+          sourceTier,
+          confidence,
+          impactAbs
+        );
+
         // 1) Upsert brand_events first (so FK exists)
         const { error: evErr } = await supabase
           .from("brand_events")
@@ -987,6 +1083,9 @@ Deno.serve(async (req) => {
             relevance_score_raw: rel, // Raw score (0-20 integer)
             relevance_reason: relReason,
             is_irrelevant: isIrrelevant,
+            feed_visible: eligibility.feed_visible,
+            profile_relevant: eligibility.profile_relevant,
+            score_eligible: eligibility.score_eligible,
             impact_confidence: confidence,
             is_press_release: isPressRelease,
             impact_labor:       mainCategory === 'labor'       ? finalImpact : 0,
