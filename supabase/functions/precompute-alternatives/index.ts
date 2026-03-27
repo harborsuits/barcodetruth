@@ -6,6 +6,159 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+/* ── Classification helpers ── */
+
+function getIndependenceBonus(companyType: string): number {
+  const ct = (companyType || "").toLowerCase();
+  if (ct === "independent" || ct === "local" || ct === "cooperative") return 8;
+  if (ct === "nonprofit") return 7;
+  if (ct === "private") return 4;
+  if (ct === "public") return 2;
+  return 0;
+}
+
+/** 3 = indie/private/nonprofit, 2 = public-ok, 1 = subsidiary/conglomerate */
+function getBetterOptionClass(companyType: string): number {
+  const ct = (companyType || "").toLowerCase();
+  if (["independent", "local", "cooperative", "nonprofit"].includes(ct)) return 3;
+  if (ct === "private") return 3;
+  if (ct === "public") return 2;
+  return 1; // subsidiary, conglomerate, unknown
+}
+
+function getBigBrandPenalty(companyType: string, lane: "better" | "similar"): number {
+  if (lane === "similar") return 0; // no penalty in similar lane
+  const ct = (companyType || "").toLowerCase();
+  if (ct === "subsidiary" || ct === "conglomerate") return -12;
+  if (ct === "public") return -4;
+  return 0;
+}
+
+/* ── Ranking ── */
+
+interface RankedPeer {
+  id: string;
+  name: string;
+  parent_company: string | null;
+  company_type: string | null;
+  category_slug: string | null;
+  subcategory_slug: string | null;
+  status: string;
+  peerScore: any;
+  sameSubcategory: boolean;
+  sameCategory: boolean;
+  matchReason: string;
+  betterOptionClass: number;
+  rankScore: number;
+}
+
+function rankPeers(
+  brand: any,
+  peers: any[],
+  scoreMap: Record<string, any>,
+  lane: "better" | "similar"
+): RankedPeer[] {
+  return peers
+    .map((p) => {
+      const ps = scoreMap[p.id];
+      if (!ps?.score) return null;
+
+      const independenceBonus = getIndependenceBonus(p.company_type || "");
+      const bigBrandPenalty = getBigBrandPenalty(p.company_type || "", lane);
+      const betterOptionClass = getBetterOptionClass(p.company_type || "");
+
+      // Subcategory match: highest priority
+      const exactSubcategoryMatch =
+        brand.subcategory_slug &&
+        p.subcategory_slug &&
+        brand.subcategory_slug === p.subcategory_slug;
+      const subcategoryBonus = exactSubcategoryMatch ? 25 : 0;
+
+      // Category match: fallback
+      const sameCat =
+        brand.category_slug &&
+        p.category_slug &&
+        brand.category_slug === p.category_slug;
+      let categoryBonus = 0;
+      let wrongSubcategoryPenalty = 0;
+      if (!exactSubcategoryMatch && sameCat) {
+        categoryBonus = 10;
+        if (
+          brand.subcategory_slug &&
+          p.subcategory_slug &&
+          brand.subcategory_slug !== p.subcategory_slug
+        ) {
+          wrongSubcategoryPenalty = -5;
+        }
+      }
+
+      const matchReason = exactSubcategoryMatch
+        ? "matched_subcategory"
+        : sameCat
+        ? "matched_category"
+        : "general_independent";
+
+      return {
+        ...p,
+        peerScore: ps,
+        sameSubcategory: !!exactSubcategoryMatch,
+        sameCategory: !!sameCat,
+        matchReason,
+        betterOptionClass,
+        rankScore:
+          (ps.score || 50) +
+          independenceBonus +
+          subcategoryBonus +
+          categoryBonus +
+          wrongSubcategoryPenalty +
+          bigBrandPenalty,
+      } as RankedPeer;
+    })
+    .filter(Boolean)
+    .sort((a: any, b: any) => {
+      // Primary: subcategory match first
+      if (a.sameSubcategory !== b.sameSubcategory)
+        return a.sameSubcategory ? -1 : 1;
+      // Secondary (better lane only): betterOptionClass
+      if (lane === "better" && a.betterOptionClass !== b.betterOptionClass)
+        return b.betterOptionClass - a.betterOptionClass;
+      // Tertiary: rankScore
+      return b.rankScore - a.rankScore;
+    }) as RankedPeer[];
+}
+
+/** Apply "fewer but cleaner" guardrail and cap */
+function selectFinal(ranked: RankedPeer[], maxResults: number): RankedPeer[] {
+  const subcatMatches = ranked.filter((p) => p.sameSubcategory);
+  const catMatches = ranked.filter((p) => !p.sameSubcategory && p.sameCategory);
+  const general = ranked.filter((p) => !p.sameSubcategory && !p.sameCategory);
+
+  let finalPeers: RankedPeer[];
+  if (subcatMatches.length >= 3) {
+    // Strong subcategory pool: prioritize, add a couple category fallbacks
+    finalPeers = [
+      ...subcatMatches.slice(0, maxResults - 1),
+      ...catMatches.slice(0, 2),
+    ];
+  } else {
+    // Thin: use what we have, strict cap
+    finalPeers = [
+      ...subcatMatches,
+      ...catMatches.slice(0, Math.max(0, maxResults - subcatMatches.length - 1)),
+      ...general.slice(
+        0,
+        Math.max(
+          0,
+          2 - subcatMatches.length - catMatches.length
+        )
+      ),
+    ];
+  }
+  return finalPeers.slice(0, maxResults);
+}
+
+/* ── Main handler ── */
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -21,7 +174,9 @@ Deno.serve(async (req) => {
     // Source brands: ready + active (any brand a user might scan)
     const { data: sourceBrands } = await sb
       .from("brands")
-      .select("id, name, parent_company, company_type, category_slug, subcategory_slug, status")
+      .select(
+        "id, name, parent_company, company_type, category_slug, subcategory_slug, status"
+      )
       .in("status", ["active", "ready"])
       .limit(800);
 
@@ -32,17 +187,21 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Candidate alternatives: active only (quality-gated)
-    const candidateBrands = sourceBrands.filter((b: any) => b.status === "active");
+    // Candidate pool: active only
+    const candidateBrands = sourceBrands.filter(
+      (b: any) => b.status === "active"
+    );
 
-    // Get all scores in batches to avoid 1000-row limit
+    // Load all scores in batches to avoid 1000-row limit
     let allScores: any[] = [];
     let offset = 0;
     const batchSize = 1000;
     while (true) {
       const { data: batch } = await sb
         .from("brand_scores")
-        .select("brand_id, score, score_labor, score_environment, score_politics, score_social")
+        .select(
+          "brand_id, score, score_labor, score_environment, score_politics, score_social"
+        )
         .range(offset, offset + batchSize - 1);
       if (!batch || batch.length === 0) break;
       allScores = allScores.concat(batch);
@@ -51,147 +210,102 @@ Deno.serve(async (req) => {
     }
 
     const scoreMap: Record<string, any> = {};
-    for (const s of allScores || []) {
-      scoreMap[s.brand_id] = s;
-    }
+    for (const s of allScores) scoreMap[s.brand_id] = s;
 
     let computed = 0;
     const errors: string[] = [];
-    const targetBrands = sourceBrands.slice(0, Math.min(limit, sourceBrands.length));
+    const targetBrands = sourceBrands.slice(
+      0,
+      Math.min(limit, sourceBrands.length)
+    );
 
     let skippedNoScore = 0;
     let skippedNoPeers = 0;
-    let skippedNoFinal = 0;
 
     for (const brand of targetBrands) {
       try {
         const brandScore = scoreMap[brand.id];
-        if (!brandScore?.score) { skippedNoScore++; continue; }
+        if (!brandScore?.score) {
+          skippedNoScore++;
+          continue;
+        }
 
-        // Find peers: active-only candidates EXCEPT same parent company
-        const peers = candidateBrands.filter((p: any) => {
+        // Base peers: exclude self and same-parent
+        const basePeers = candidateBrands.filter((p: any) => {
           if (p.id === brand.id) return false;
-          if (brand.parent_company && p.parent_company &&
-              brand.parent_company.toLowerCase() === p.parent_company.toLowerCase()) {
+          if (
+            brand.parent_company &&
+            p.parent_company &&
+            brand.parent_company.toLowerCase() ===
+              p.parent_company.toLowerCase()
+          ) {
             return false;
           }
-          if (!scoreMap[p.id]?.score) return false;
           return true;
         });
 
-        if (peers.length === 0) { skippedNoPeers++; continue; }
-
-        // === HARD RANKING HIERARCHY ===
-        // Tier 1: exact subcategory match (+25)
-        // Tier 2: same category only (+10), with penalty if subcategory exists but doesn't match (-5)
-        // Tier 3: general independent (no category bonus)
-        const rankedPeers = peers
-          .map((p: any) => {
-            const ps = scoreMap[p.id];
-
-            // Independence bonus
-            let independenceBonus = 0;
-            const ct = (p.company_type || "").toLowerCase();
-            if (ct === "independent" || ct === "local" || ct === "cooperative") independenceBonus = 8;
-            else if (ct === "nonprofit") independenceBonus = 7;
-            else if (ct === "private") independenceBonus = 4;
-            else if (ct === "public") independenceBonus = 2;
-
-            // Subcategory match: highest priority
-            let subcategoryBonus = 0;
-            const exactSubcategoryMatch = brand.subcategory_slug && p.subcategory_slug &&
-                brand.subcategory_slug === p.subcategory_slug;
-            if (exactSubcategoryMatch) {
-              subcategoryBonus = 25;
-            }
-
-            // Category match: fallback
-            let categoryBonus = 0;
-            let wrongSubcategoryPenalty = 0;
-            const sameCat = brand.category_slug && p.category_slug &&
-                brand.category_slug === p.category_slug;
-
-            if (subcategoryBonus === 0 && sameCat) {
-              categoryBonus = 10;
-              // Penalty: both have subcategories but they differ (wrong niche)
-              if (brand.subcategory_slug && p.subcategory_slug &&
-                  brand.subcategory_slug !== p.subcategory_slug) {
-                wrongSubcategoryPenalty = -5;
-              }
-            }
-
-            // Determine match reason for debug
-            let matchReason = "general_independent";
-            if (exactSubcategoryMatch) matchReason = "matched_subcategory";
-            else if (sameCat) matchReason = "matched_category";
-
-            return {
-              ...p,
-              peerScore: ps,
-              sameSubcategory: !!exactSubcategoryMatch,
-              sameCategory: !!sameCat,
-              matchReason,
-              rankScore: (ps.score || 50) + independenceBonus + subcategoryBonus + categoryBonus + wrongSubcategoryPenalty,
-            };
-          })
-          .sort((a: any, b: any) => b.rankScore - a.rankScore);
-
-        // === GUARDRAIL: prefer fewer but cleaner ===
-        // If we have 3+ exact subcategory matches, only use those + top category matches
-        const subcatMatches = rankedPeers.filter((p: any) => p.sameSubcategory);
-        const catMatches = rankedPeers.filter((p: any) => !p.sameSubcategory && p.sameCategory);
-        const generalMatches = rankedPeers.filter((p: any) => !p.sameSubcategory && !p.sameCategory);
-
-        let finalPeers: any[];
-        if (subcatMatches.length >= 3) {
-          // Strong subcategory pool: prioritize these, add a few category matches
-          finalPeers = [...subcatMatches.slice(0, 6), ...catMatches.slice(0, 2)];
-        } else {
-          // Thin subcategory: use what we have, then category, then general
-          finalPeers = [
-            ...subcatMatches,
-            ...catMatches.slice(0, 6 - subcatMatches.length),
-            ...generalMatches.slice(0, Math.max(0, 3 - subcatMatches.length - catMatches.length)),
-          ];
+        if (basePeers.length === 0) {
+          skippedNoPeers++;
+          continue;
         }
 
-        // Cap at 8
-        finalPeers = finalPeers.slice(0, 8);
+        // ── BETTER OPTIONS lane ──
+        // Only indie/private/nonprofit + small-public; big-brand penalty applied
+        const betterCandidates = basePeers.filter((p: any) =>
+          getBetterOptionClass(p.company_type || "") >= 2
+        );
+        const betterRanked = rankPeers(brand, betterCandidates, scoreMap, "better");
+        const betterFinal = selectFinal(betterRanked, 5);
 
-        if (finalPeers.length === 0) { skippedNoFinal++; continue; }
+        // ── SIMILAR OPTIONS lane ──
+        // Broader same-subcategory/category peers, no big-brand penalty
+        const similarRanked = rankPeers(brand, basePeers, scoreMap, "similar");
+        // Exclude anything already in better list
+        const betterIds = new Set(betterFinal.map((p) => p.id));
+        const similarFiltered = similarRanked.filter((p) => !betterIds.has(p.id));
+        const similarFinal = selectFinal(similarFiltered, 5);
 
-        const altRows = finalPeers.map((peer: any) => {
-          const reasons: string[] = [];
+        // Build rows
+        const altRows: any[] = [];
+
+        for (const peer of betterFinal) {
           const ps = peer.peerScore;
-
-          if (ps.score > brandScore.score)
-            reasons.push("Higher overall trust score");
+          const reasons: string[] = [];
+          if (ps.score > brandScore.score) reasons.push("Higher trust score");
           if (ps.score_environment > (brandScore.score_environment || 50))
             reasons.push("Better environmental record");
           if (ps.score_labor > (brandScore.score_labor || 50))
             reasons.push("Better labor practices");
-          if (!peer.parent_company)
-            reasons.push("Independent brand");
+          if (!peer.parent_company) reasons.push("Independent brand");
 
-          // Append match reason for debug
-          const debugTag = `[${peer.matchReason}]`;
-          const reasonText = reasons.length > 0 ? `${reasons[0]} ${debugTag}` : `Competitive trust score ${debugTag}`;
-
-          return {
+          altRows.push({
             brand_id: brand.id,
             alternative_brand_id: peer.id,
-            reason: reasonText,
+            reason:
+              (reasons[0] || "Competitive trust score") +
+              ` [${peer.matchReason}]`,
             score: ps.score || 50,
-            alternative_type: "precomputed",
-          };
-        });
+            alternative_type: "better",
+          });
+        }
+
+        for (const peer of similarFinal) {
+          altRows.push({
+            brand_id: brand.id,
+            alternative_brand_id: peer.id,
+            reason: `Similar product [${peer.matchReason}]`,
+            score: peer.peerScore?.score || 50,
+            alternative_type: "similar",
+          });
+        }
 
         if (altRows.length > 0) {
+          // Clear old data for this brand
           await sb
             .from("brand_alternatives")
             .delete()
             .eq("brand_id", brand.id)
-            .eq("alternative_type", "precomputed");
+            .in("alternative_type", ["precomputed", "better", "similar"]);
 
           const { error } = await sb.from("brand_alternatives").insert(altRows);
           if (error) {
@@ -212,7 +326,6 @@ Deno.serve(async (req) => {
         total_candidates: targetBrands.length,
         skippedNoScore,
         skippedNoPeers,
-        skippedNoFinal,
         candidatePoolSize: candidateBrands.length,
         scoresLoaded: Object.keys(scoreMap).length,
         errors: errors.slice(0, 5),
@@ -222,7 +335,10 @@ Deno.serve(async (req) => {
   } catch (err: any) {
     return new Response(
       JSON.stringify({ ok: false, error: err.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
 });
