@@ -52,10 +52,14 @@ Deno.serve(async (req) => {
     const errors: string[] = [];
     const targetBrands = sourceBrands.slice(0, Math.min(limit, sourceBrands.length));
 
+    let skippedNoScore = 0;
+    let skippedNoPeers = 0;
+    let skippedNoFinal = 0;
+
     for (const brand of targetBrands) {
       try {
         const brandScore = scoreMap[brand.id];
-        if (!brandScore?.score) continue;
+        if (!brandScore?.score) { skippedNoScore++; continue; }
 
         // Find peers: active-only candidates EXCEPT same parent company
         const peers = candidateBrands.filter((p: any) => {
