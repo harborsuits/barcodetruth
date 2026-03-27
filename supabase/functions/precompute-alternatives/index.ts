@@ -35,13 +35,11 @@ Deno.serve(async (req) => {
     // Candidate alternatives: active only (quality-gated)
     const candidateBrands = sourceBrands.filter((b: any) => b.status === "active");
 
-    const allBrandIds = sourceBrands.map((b: any) => b.id);
-
-    // Get all scores in one query
+    // Get all scores (avoid .in() with 800+ UUIDs which hits URL length limits)
     const { data: allScores } = await sb
       .from("brand_scores")
       .select("brand_id, score, score_labor, score_environment, score_politics, score_social")
-      .in("brand_id", allBrandIds);
+      .limit(2000);
 
     const scoreMap: Record<string, any> = {};
     for (const s of allScores || []) {
