@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
         // Cap at 8
         finalPeers = finalPeers.slice(0, 8);
 
-        if (finalPeers.length === 0) continue;
+        if (finalPeers.length === 0) { skippedNoFinal++; continue; }
 
         const altRows = finalPeers.map((peer: any) => {
           const reasons: string[] = [];
