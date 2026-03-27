@@ -196,14 +196,23 @@ Deno.serve(async (req) => {
       fallbackMap[row.source_subcategory].add(row.allowed_fallback_subcategory);
     }
 
-    // Source brands: ready + active
-    const { data: sourceBrands } = await sb
-      .from("brands")
-      .select(
-        "id, name, parent_company, company_type, category_slug, subcategory_slug, status"
-      )
-      .in("status", ["active", "ready"])
-      .limit(2000);
+    // Source brands: ready + active (batched to avoid 1000-row limit)
+    let sourceBrands: any[] = [];
+    let brandOffset = 0;
+    const brandBatchSize = 1000;
+    while (true) {
+      const { data: batch } = await sb
+        .from("brands")
+        .select(
+          "id, name, parent_company, company_type, category_slug, subcategory_slug, status"
+        )
+        .in("status", ["active", "ready"])
+        .range(brandOffset, brandOffset + brandBatchSize - 1);
+      if (!batch || batch.length === 0) break;
+      sourceBrands = sourceBrands.concat(batch);
+      if (batch.length < brandBatchSize) break;
+      brandOffset += brandBatchSize;
+    }
 
     if (!sourceBrands || sourceBrands.length === 0) {
       return new Response(
