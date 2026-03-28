@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,22 @@ const authSchema = z.object({
 
 export default function Auth() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Dev/test overrides via query params
+  const forceOnboarding = searchParams.get("onboarding") === "1";
+  const resetOnboarding = searchParams.get("resetOnboarding") === "1";
+
+  // Clear localStorage keys on ?resetOnboarding=1
+  useEffect(() => {
+    if (resetOnboarding) {
+      localStorage.removeItem("installGuideShown");
+      localStorage.removeItem("cinematicOnboardingSeen");
+      localStorage.removeItem("onboardingComplete");
+      window.location.replace("/auth?onboarding=1");
+    }
+  }, [resetOnboarding]);
+
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
@@ -26,11 +42,13 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [isCheckingSession, setIsCheckingSession] = useState(!forceOnboarding);
   const [showInstallGuide, setShowInstallGuide] = useState(() => {
+    if (forceOnboarding) return true;
     return !localStorage.getItem("installGuideShown");
   });
   const [showCinematicOnboarding, setShowCinematicOnboarding] = useState(() => {
+    if (forceOnboarding) return false; // will show after install guide
     return !localStorage.getItem("cinematicOnboardingSeen");
   });
 
@@ -63,6 +81,9 @@ export default function Auth() {
   };
 
   useEffect(() => {
+    // Skip auth redirect when in forced onboarding preview
+    if (forceOnboarding) return;
+
     let mounted = true;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -102,7 +123,7 @@ export default function Auth() {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, [navigate, forceOnboarding]);
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
@@ -233,11 +254,15 @@ export default function Auth() {
   }
 
   if (showInstallGuide) {
-    return <InstallGuide onContinue={() => setShowInstallGuide(false)} />;
+    return <InstallGuide isPreviewMode={forceOnboarding} onContinue={() => {
+      if (!forceOnboarding) localStorage.setItem("installGuideShown", "true");
+      setShowInstallGuide(false);
+      setShowCinematicOnboarding(true);
+    }} />;
   }
 
   if (showCinematicOnboarding) {
-    return <CinematicOnboarding onComplete={() => setShowCinematicOnboarding(false)} />;
+    return <CinematicOnboarding isPreviewMode={forceOnboarding} onComplete={() => setShowCinematicOnboarding(false)} />;
   }
 
   return (
