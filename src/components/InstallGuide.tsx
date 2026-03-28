@@ -187,7 +187,7 @@ export function InstallGuide({ onContinue, isPreviewMode = false }: InstallGuide
             </p>
             <p className="text-sm text-muted-foreground">
               Barcode works best on your phone so you can scan products in the store.
-              Visit <span className="text-primary font-medium">barcodetruth.lovable.app</span> on 
+              Visit <span className="text-primary font-medium">barcodetruth.com</span> on 
               your phone to install it.
             </p>
           </div>
