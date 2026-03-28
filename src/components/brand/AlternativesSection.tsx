@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Leaf, Building2, Info, ArrowRight, Loader2, Shield, Star, Repeat } from "lucide-react";
