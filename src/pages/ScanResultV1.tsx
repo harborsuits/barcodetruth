@@ -133,19 +133,46 @@ export default function ScanResultV1() {
     );
   }
 
-  // ─── Queries ───
+  // ─── Smart product lookup (internal DB → OpenFoodFacts → UPCitemdb) ───
   const { data: product, isLoading: productLoading, error: productError } = useQuery({
     queryKey: ["product-v1", barcode],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // First try internal DB (fast path)
+      const { data: cached } = await supabase
         .from("products")
         .select("id, barcode, name, brand_id, category")
-        .eq("barcode", barcode)
+        .eq("barcode", barcode!)
         .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (error) throw error;
-      return data;
+      
+      if (cached) return cached;
+
+      // Fallback: call smart-product-lookup (OpenFoodFacts + UPCitemdb)
+      console.log(`[ScanResult] No local product for ${barcode}, calling smart-product-lookup`);
+      const { data: lookupResult, error: lookupError } = await supabase.functions.invoke(
+        "smart-product-lookup",
+        { body: { barcode } }
+      );
+
+      if (lookupError) {
+        console.error("[ScanResult] smart-product-lookup error:", lookupError);
+        throw lookupError;
+      }
+
+      // If the API found the product, it's now cached in DB
+      if (lookupResult?.product) {
+        return {
+          id: lookupResult.product.id,
+          barcode: lookupResult.product.barcode,
+          name: lookupResult.product.name,
+          brand_id: lookupResult.product.brand_id,
+          category: lookupResult.product.category,
+        };
+      }
+
+      // Not found anywhere
+      return null;
     },
     enabled: !!barcode,
   });
