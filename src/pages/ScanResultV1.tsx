@@ -422,9 +422,11 @@ export default function ScanResultV1() {
   }
 
   // Detect if this is effectively an unknown/unrated brand
-  const isUnknownBrand = !product?.brand_id || (!brandLoading && !brandInfo?.name) || brandInfo?.name === "Unknown Brand" || brandInfo?.name === "Unknown";
+  // Use navigation state brand name as fallback display name
+  const displayBrandName = brandInfo?.name || navBrandName || null;
+  const isUnknownBrand = !product?.brand_id || (!brandLoading && !displayBrandName) || displayBrandName === "Unknown Brand" || displayBrandName === "Unknown";
   const isUnrated = overallScore === null;
-  const isDeadEnd = !brandLoading && isUnknownBrand && isUnrated;
+  const isDeadEnd = !brandLoading && isUnknownBrand && isUnrated && !navBrandName;
 
   // ═══════════════════════════════════════════════════
   // DEAD END STATE — Unknown brand, no scores
