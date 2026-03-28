@@ -395,7 +395,7 @@ export default function ScanResultV1() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Brand</p>
-                  <p className="font-medium">{brandInfo?.name || "Unknown"}</p>
+                  <p className="font-medium">{displayBrandName || "Resolving..."}</p>
                 </div>
               </div>
               <Button variant="outline" className="w-full" onClick={handleSaveScan} disabled={saved}>

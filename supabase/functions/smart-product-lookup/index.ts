@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { normalizeBrandLabel, capitalizeBrandName } from '../_shared/brandNormalization.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
