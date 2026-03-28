@@ -30,6 +30,9 @@ export default function Auth() {
   const [showInstallGuide, setShowInstallGuide] = useState(() => {
     return !localStorage.getItem("installGuideShown");
   });
+  const [showCinematicOnboarding, setShowCinematicOnboarding] = useState(() => {
+    return !localStorage.getItem("cinematicOnboardingSeen");
+  });
 
   // Check onboarding status from database
   const checkOnboardingStatus = async (userId: string): Promise<boolean> => {
