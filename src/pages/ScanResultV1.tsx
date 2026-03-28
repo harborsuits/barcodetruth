@@ -425,8 +425,6 @@ export default function ScanResultV1() {
   }
 
   // Detect if this is effectively an unknown/unrated brand
-  // Use navigation state brand name as fallback display name
-  const displayBrandName = brandInfo?.name || navBrandName || null;
   const isUnknownBrand = !product?.brand_id || (!brandLoading && !displayBrandName) || displayBrandName === "Unknown Brand" || displayBrandName === "Unknown";
   const isUnrated = overallScore === null;
   const isDeadEnd = !brandLoading && isUnknownBrand && isUnrated && !navBrandName;
