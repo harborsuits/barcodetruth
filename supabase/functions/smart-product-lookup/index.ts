@@ -23,13 +23,20 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { barcode } = await req.json();
+    let { barcode } = await req.json();
     
     if (!barcode) {
       return new Response(
         JSON.stringify({ error: 'Barcode is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Normalize: pad 12-digit UPC-A to 13-digit EAN-13
+    barcode = String(barcode).trim();
+    if (/^\d{12}$/.test(barcode)) {
+      barcode = '0' + barcode;
+      console.log(`[Normalize] Padded UPC-A to EAN-13: ${barcode}`);
     }
 
     const supabase = createClient(
