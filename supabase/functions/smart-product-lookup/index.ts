@@ -70,63 +70,102 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Tier 2: OpenFoodFacts (FREE)
-    try {
-      console.log(`[Tier 2] Trying OpenFoodFacts for ${barcode}`);
-      const offResponse = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, {
-        headers: { 'Accept': 'application/json' }
-      });
-      
-      // Check content-type to avoid parsing HTML error pages
-      const contentType = offResponse.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) {
-        console.log(`[Tier 2] OpenFoodFacts returned non-JSON: ${contentType}`);
-        throw new Error('Non-JSON response from OpenFoodFacts');
-      }
-      
-      const offText = await offResponse.text();
-      
-      // Safely parse JSON
-      let offData;
+    // Tier 2: OpenFoodFacts (FREE) — try both original and padded barcode
+    const offBarcodesToTry = [barcode];
+    // Also try the unpadded 12-digit version (OFF stores some products under UPC-A)
+    if (/^0\d{12}$/.test(barcode)) offBarcodesToTry.push(barcode.slice(1));
+    // Also try the padded version if we started with 12 digits
+    if (/^\d{12}$/.test(barcode)) offBarcodesToTry.push('0' + barcode);
+
+    for (const offBarcode of offBarcodesToTry) {
       try {
-        offData = JSON.parse(offText);
-      } catch (parseErr) {
-        console.error('[Tier 2] OpenFoodFacts JSON parse failed, response starts with:', offText.substring(0, 100));
-        throw new Error('Invalid JSON from OpenFoodFacts');
+        console.log(`[Tier 2] Trying OpenFoodFacts for ${offBarcode}`);
+        const offResponse = await fetch(`https://world.openfoodfacts.org/api/v0/product/${offBarcode}.json`, {
+          headers: { 'Accept': 'application/json' }
+        });
+        
+        const contentType = offResponse.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          console.log(`[Tier 2] OpenFoodFacts returned non-JSON: ${contentType}`);
+          await offResponse.text(); // consume body
+          continue;
+        }
+        
+        const offText = await offResponse.text();
+        let offData;
+        try {
+          offData = JSON.parse(offText);
+        } catch {
+          console.error('[Tier 2] OpenFoodFacts JSON parse failed');
+          continue;
+        }
+        
+        if (offData.status === 1 && offData.product) {
+          const product = offData.product;
+          const result = await saveToCache(supabase, {
+            barcode,
+            name: product.product_name || product.product_name_en,
+            brand_name: product.brands,
+            category: product.categories,
+            image_url: product.image_url,
+            data_source: 'openfoodfacts',
+            confidence_score: CONFIDENCE_SCORES['openfoodfacts'],
+            metadata: {
+              ingredients: product.ingredients_text,
+              nutrition: product.nutriments,
+            }
+          });
+          
+          return new Response(
+            JSON.stringify({ product: result, source: 'openfoodfacts', confidence: CONFIDENCE_SCORES['openfoodfacts'] }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } catch (error) {
+        console.error(`[Tier 2] OpenFoodFacts failed for ${offBarcode}:`, error);
       }
+    }
+
+    // Tier 2.5: UPCitemdb FREE trial (no key needed, rate-limited)
+    try {
+      const upcBarcode = /^0\d{12}$/.test(barcode) ? barcode.slice(1) : barcode;
+      console.log(`[Tier 2.5] Trying UPCitemdb trial for ${upcBarcode}`);
+      const upcResponse = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${upcBarcode}`);
+      const upcData = await upcResponse.json();
       
-      if (offData.status === 1 && offData.product) {
-        const product = offData.product;
+      if (upcData.items && upcData.items.length > 0) {
+        const item = upcData.items[0];
         const result = await saveToCache(supabase, {
           barcode,
-          name: product.product_name || product.product_name_en,
-          brand_name: product.brands,
-          category: product.categories,
-          image_url: product.image_url,
-          data_source: 'openfoodfacts',
-          confidence_score: CONFIDENCE_SCORES['openfoodfacts'],
-          metadata: {
-            ingredients: product.ingredients_text,
-            nutrition: product.nutriments,
-          }
+          name: item.title,
+          brand_name: item.brand,
+          category: item.category,
+          image_url: item.images?.[0],
+          data_source: 'upcitemdb',
+          confidence_score: CONFIDENCE_SCORES['upcitemdb'],
+          metadata: { description: item.description }
         });
         
         return new Response(
-          JSON.stringify({ product: result, source: 'openfoodfacts', confidence: CONFIDENCE_SCORES['openfoodfacts'] }),
+          JSON.stringify({ product: result, source: 'upcitemdb', confidence: CONFIDENCE_SCORES['upcitemdb'] }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     } catch (error) {
-      console.error('[Tier 2] OpenFoodFacts failed:', error);
+      console.error('[Tier 2.5] UPCitemdb trial failed:', error);
     }
 
-    // Tier 3: UPCitemdb ($10/mo)
+    // Tier 3: UPCitemdb PAID ($10/mo — much better US grocery coverage)
     const upcApiKey = Deno.env.get('UPCITEMDB_API_KEY');
     if (upcApiKey) {
       try {
-        console.log(`[Tier 3] Trying UPCitemdb for ${barcode}`);
-        const upcResponse = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`, {
-          headers: { 'Authorization': `Bearer ${upcApiKey}` }
+        const upcBarcode = /^0\d{12}$/.test(barcode) ? barcode.slice(1) : barcode;
+        console.log(`[Tier 3] Trying UPCitemdb paid for ${upcBarcode}`);
+        const upcResponse = await fetch(`https://api.upcitemdb.com/prod/v1/lookup?upc=${upcBarcode}`, {
+          headers: { 
+            'Content-Type': 'application/json',
+            'user_key': upcApiKey,
+          }
         });
         const upcData = await upcResponse.json();
         
@@ -140,9 +179,7 @@ Deno.serve(async (req) => {
             image_url: item.images?.[0],
             data_source: 'upcitemdb',
             confidence_score: CONFIDENCE_SCORES['upcitemdb'],
-            metadata: {
-              description: item.description,
-            }
+            metadata: { description: item.description }
           });
           
           return new Response(
@@ -151,7 +188,7 @@ Deno.serve(async (req) => {
           );
         }
       } catch (error) {
-        console.error('[Tier 3] UPCitemdb failed:', error);
+        console.error('[Tier 3] UPCitemdb paid failed:', error);
       }
     }
 
