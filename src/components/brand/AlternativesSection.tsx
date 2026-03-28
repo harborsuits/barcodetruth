@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { bt } from "@/lib/behaviorTracker";
 
 interface AlternativesSectionProps {
   brandId: string;
@@ -114,7 +115,18 @@ function AlternativeCard({ alt }: { alt: Alternative }) {
             variant="ghost"
             size="sm"
             className="w-full mt-2 h-7 text-xs"
-            onClick={() => navigate(`/brand/${alt.brand_id}`)}
+            onClick={() => {
+              bt.track("alternative_clicked", {
+                brand_id: alt.brand_id,
+                properties: {
+                  brand_name: alt.brand_name,
+                  alt_group: alt.alt_group,
+                  company_type: alt.company_type,
+                  score: alt.score,
+                },
+              });
+              navigate(`/brand/${alt.brand_id}`);
+            }}
           >
             View Profile
             <ArrowRight className="h-3 w-3 ml-1" />
@@ -130,6 +142,22 @@ export function AlternativesSection({ brandId, brandName }: AlternativesSectionP
 
   const betterOptions = alternatives?.filter(a => a.alt_group === "better" || a.alt_group === "independent") || [];
   const similarOptions = alternatives?.filter(a => a.alt_group === "similar" || a.alt_group === "mainstream") || [];
+
+  // Track when alternatives are shown
+  useEffect(() => {
+    if (alternatives && alternatives.length > 0) {
+      bt.track("alternatives_viewed", {
+        brand_id: brandId,
+        properties: {
+          brand_name: brandName,
+          better_count: betterOptions.length,
+          similar_count: similarOptions.length,
+          total: alternatives.length,
+        },
+      });
+    }
+  }, [alternatives?.length, brandId]);
+
 
   return (
     <Card>
