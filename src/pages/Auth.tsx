@@ -9,6 +9,7 @@ import { Loader2, Eye, EyeOff } from "lucide-react";
 import { z } from "zod";
 import { Separator } from "@/components/ui/separator";
 import { InstallGuide } from "@/components/InstallGuide";
+import { CinematicOnboarding } from "@/components/CinematicOnboarding";
 
 const authSchema = z.object({
   email: z.string().trim().email({ message: "Please enter a valid email address" }).max(255),
