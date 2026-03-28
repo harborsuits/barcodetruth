@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, Package, AlertCircle, Loader2, Check, Save, ExternalLink, Search, Users, TrendingUp, HelpCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -115,6 +115,8 @@ function getDimensionSummary(key: string, score: number | null, count: number): 
 export default function ScanResultV1() {
   const { barcode } = useParams<{ barcode: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const navState = location.state as { product?: any; brand?: any; source?: string } | null;
   const [showCorrection, setShowCorrection] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -136,9 +138,21 @@ export default function ScanResultV1() {
   // Normalize barcode: pad 12-digit UPC-A to 13-digit EAN-13
   const normalizedBarcode = barcode && /^\d{12}$/.test(barcode) ? '0' + barcode : barcode;
 
+  // Use navigation state as seed data to avoid re-query gaps
+  const navProduct = navState?.product ? {
+    id: navState.product.id,
+    barcode: navState.product.barcode,
+    name: navState.product.name,
+    brand_id: navState.product.brand_id,
+    category: navState.product.category,
+  } : null;
+
+  const navBrandName = navState?.brand?.name || navState?.product?.brands?.name || null;
+
   // ─── Smart product lookup (internal DB → OpenFoodFacts → UPCitemdb) ───
   const { data: product, isLoading: productLoading, error: productError } = useQuery({
     queryKey: ["product-v1", normalizedBarcode],
+    initialData: navProduct || undefined,
     queryFn: async () => {
       // First try internal DB (fast path) — try both normalized and original
       const barcodesToTry = normalizedBarcode !== barcode ? [normalizedBarcode!, barcode!] : [barcode!];
@@ -251,6 +265,9 @@ export default function ScanResultV1() {
       return counts;
     },
   });
+
+  // Use navigation state brand name as fallback display name
+  const displayBrandName = brandInfo?.name || navBrandName || null;
 
   // States
   const brandIsReady = brandInfo?.status === "ready";
@@ -381,7 +398,7 @@ export default function ScanResultV1() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Brand</p>
-                  <p className="font-medium">{brandInfo?.name || "Unknown"}</p>
+                  <p className="font-medium">{displayBrandName || "Resolving..."}</p>
                 </div>
               </div>
               <Button variant="outline" className="w-full" onClick={handleSaveScan} disabled={saved}>
@@ -408,9 +425,9 @@ export default function ScanResultV1() {
   }
 
   // Detect if this is effectively an unknown/unrated brand
-  const isUnknownBrand = !product?.brand_id || (!brandLoading && !brandInfo?.name) || brandInfo?.name === "Unknown Brand" || brandInfo?.name === "Unknown";
+  const isUnknownBrand = !product?.brand_id || (!brandLoading && !displayBrandName) || displayBrandName === "Unknown Brand" || displayBrandName === "Unknown";
   const isUnrated = overallScore === null;
-  const isDeadEnd = !brandLoading && isUnknownBrand && isUnrated;
+  const isDeadEnd = !brandLoading && isUnknownBrand && isUnrated && !navBrandName;
 
   // ═══════════════════════════════════════════════════
   // DEAD END STATE — Unknown brand, no scores
@@ -436,12 +453,12 @@ export default function ScanResultV1() {
             <img src={displayLogo} alt={brandInfo?.name || ""} className="w-14 h-14 border-2 border-border object-contain bg-muted flex-shrink-0 p-1.5" />
           ) : (
             <div className="w-14 h-14 border-2 border-border grid place-items-center text-xl font-bold bg-muted flex-shrink-0">
-              {brandInfo?.name?.[0]?.toUpperCase() ?? "?"}
+              {displayBrandName?.[0]?.toUpperCase() ?? "?"}
             </div>
           )}
           <div className="flex-1 min-w-0">
             <p className="text-xs text-muted-foreground truncate">{product.name}</p>
-            <h1 className="text-xl font-bold tracking-tight truncate">{brandInfo?.name || "Unknown Brand"}</h1>
+            <h1 className="text-xl font-bold tracking-tight truncate">{displayBrandName || "Resolving brand..."}</h1>
           </div>
         </div>
 

@@ -352,7 +352,7 @@ export const Scan = () => {
               product_name: product.name,
               source: smartLookup.source
             });
-            navigate(route);
+            navigate(route, { state: { product, brand, source: smartLookup.source } });
           } else {
             // Brand is building/stub/failed - go to scan result page
             const route = `/scan-result/${barcode}`;
@@ -364,7 +364,7 @@ export const Scan = () => {
               product_name: product.name,
               source: smartLookup.source
             });
-            navigate(route);
+            navigate(route, { state: { product, brand, source: smartLookup.source } });
           }
         } else {
           // Navigate to scan result page (product found but no brand profile yet)
@@ -375,7 +375,7 @@ export const Scan = () => {
             product_name: product.name,
             source: smartLookup.source
           });
-          navigate(route);
+          navigate(route, { state: { product, brand: null, source: smartLookup.source } });
         }
       }, 800);
       
