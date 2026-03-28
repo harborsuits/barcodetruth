@@ -17,6 +17,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { ValueSliders } from "@/components/ValueSliders";
 import { updateUserValues } from "@/lib/userPreferences";
+import BehaviorAnalytics from "@/components/admin/BehaviorAnalytics";
 
 type ValuePreset = "balanced" | "worker-first" | "green-first" | "politics-light" | "custom";
 
