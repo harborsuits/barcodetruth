@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Smartphone, Share, Plus, MoreVertical, Download, X } from "lucide-react";
+import { Smartphone, Share, Plus, MoreVertical, Download, ExternalLink } from "lucide-react";
 import { triggerA2HS, isA2HSAvailable } from "@/lib/a2hs";
 
 type Platform = "ios" | "android" | "desktop";
@@ -32,7 +32,6 @@ export function InstallGuide({ onContinue, isPreviewMode = false }: InstallGuide
     setCanPrompt(isA2HSAvailable());
   }, []);
 
-  // If already installed as standalone, skip (not in preview)
   useEffect(() => {
     if (!isPreviewMode && isStandalone()) {
       localStorage.setItem("installGuideShown", "true");
@@ -62,13 +61,13 @@ export function InstallGuide({ onContinue, isPreviewMode = false }: InstallGuide
             <Smartphone className="w-8 h-8 text-primary" />
           </div>
           <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            QUICK_SETUP
+            QUICK SETUP
           </p>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-            Scan faster next time
+            Scan instantly in-store
           </h1>
           <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-            Add Barcode to your home screen so you can open it instantly in the store
+            Add Barcode to your home screen so you can open it in one tap and scan products while shopping
           </p>
         </div>
 
@@ -81,7 +80,7 @@ export function InstallGuide({ onContinue, isPreviewMode = false }: InstallGuide
               className="w-full font-mono text-xs uppercase tracking-wider gap-2"
             >
               <Download className="w-4 h-4" />
-              Install Barcode App
+              Add to Home Screen
             </Button>
             <p className="text-[10px] text-center text-muted-foreground font-mono">
               Takes 5 seconds · No app store needed
@@ -92,22 +91,26 @@ export function InstallGuide({ onContinue, isPreviewMode = false }: InstallGuide
         {/* iOS instructions */}
         {platform === "ios" && !canPrompt && (
           <div className="space-y-4">
-            <div className="bg-card border border-border p-5 space-y-4">
+            <div className="bg-card border border-border p-5 space-y-5">
               <p className="font-mono text-[10px] uppercase tracking-widest text-primary/60">
-                2 QUICK STEPS
+                THIS ONLY TAKES 5 SECONDS
               </p>
 
               <div className="flex items-start gap-4">
                 <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm flex-shrink-0">
                   1
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <p className="font-semibold text-sm text-foreground">
-                    Tap the Share button
+                    Tap the Share icon
                   </p>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Share className="w-4 h-4" />
-                    <span className="text-xs">Bottom of your Safari screen</span>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                      <Share className="w-4 h-4 text-primary" />
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      Bottom of your Safari screen
+                    </span>
                   </div>
                 </div>
               </div>
@@ -116,20 +119,38 @@ export function InstallGuide({ onContinue, isPreviewMode = false }: InstallGuide
                 <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm flex-shrink-0">
                   2
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <p className="font-semibold text-sm text-foreground">
                     Tap "Add to Home Screen"
                   </p>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Plus className="w-4 h-4" />
-                    <span className="text-xs">Scroll down in the share menu</span>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                      <Plus className="w-4 h-4 text-primary" />
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      Scroll down in the share menu
+                    </span>
                   </div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm flex-shrink-0">
+                  3
+                </div>
+                <div className="space-y-1.5">
+                  <p className="font-semibold text-sm text-foreground">
+                    Open Barcode from your home screen
+                  </p>
+                  <span className="text-xs text-muted-foreground">
+                    Now you can scan products in one tap while shopping
+                  </span>
                 </div>
               </div>
             </div>
 
             <p className="text-[10px] text-center text-muted-foreground font-mono">
-              Opens instantly like a real app · No app store needed
+              Makes scanning way faster in-store · No app store needed
             </p>
           </div>
         )}
@@ -137,22 +158,26 @@ export function InstallGuide({ onContinue, isPreviewMode = false }: InstallGuide
         {/* Android fallback (no native prompt) */}
         {platform === "android" && !canPrompt && (
           <div className="space-y-4">
-            <div className="bg-card border border-border p-5 space-y-4">
+            <div className="bg-card border border-border p-5 space-y-5">
               <p className="font-mono text-[10px] uppercase tracking-widest text-primary/60">
-                2 QUICK STEPS
+                THIS ONLY TAKES 5 SECONDS
               </p>
 
               <div className="flex items-start gap-4">
                 <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm flex-shrink-0">
                   1
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <p className="font-semibold text-sm text-foreground">
                     Tap the menu button
                   </p>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <MoreVertical className="w-4 h-4" />
-                    <span className="text-xs">Top-right corner of Chrome</span>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                      <MoreVertical className="w-4 h-4 text-primary" />
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      Top-right corner of Chrome
+                    </span>
                   </div>
                 </div>
               </div>
@@ -161,35 +186,58 @@ export function InstallGuide({ onContinue, isPreviewMode = false }: InstallGuide
                 <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm flex-shrink-0">
                   2
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <p className="font-semibold text-sm text-foreground">
-                    Tap "Install app" or "Add to Home Screen"
+                    Tap "Add to Home Screen"
                   </p>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Download className="w-4 h-4" />
-                    <span className="text-xs">It'll appear on your home screen</span>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                      <Download className="w-4 h-4 text-primary" />
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      It'll appear on your home screen
+                    </span>
                   </div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm flex-shrink-0">
+                  3
+                </div>
+                <div className="space-y-1.5">
+                  <p className="font-semibold text-sm text-foreground">
+                    Open Barcode from your home screen
+                  </p>
+                  <span className="text-xs text-muted-foreground">
+                    Now you can scan products in one tap while shopping
+                  </span>
                 </div>
               </div>
             </div>
 
             <p className="text-[10px] text-center text-muted-foreground font-mono">
-              Opens instantly like a real app · No app store needed
+              Makes scanning way faster in-store · No app store needed
             </p>
           </div>
         )}
 
         {/* Desktop instructions */}
         {platform === "desktop" && !canPrompt && (
-          <div className="bg-card border border-border p-5 space-y-3">
+          <div className="bg-card border border-border p-5 space-y-4">
             <p className="font-mono text-[10px] uppercase tracking-widest text-primary/60">
-              BEST ON MOBILE
+              BEST EXPERIENCE ON MOBILE
             </p>
             <p className="text-sm text-muted-foreground">
-              Barcode works best on your phone so you can scan products in the store.
-              Visit <span className="text-primary font-medium">barcodetruth.com</span> on 
-              your phone to install it.
+              Barcode works best on your phone so you can scan products while shopping.
             </p>
+            <div className="flex items-center gap-3 bg-muted/50 border border-border rounded-lg p-3">
+              <ExternalLink className="w-4 h-4 text-primary flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-foreground">barcodetruth.com</p>
+                <p className="text-[10px] text-muted-foreground">Open on your phone → Add to Home Screen</p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -199,16 +247,14 @@ export function InstallGuide({ onContinue, isPreviewMode = false }: InstallGuide
             variant="outline"
             size="lg"
             onClick={handleSkip}
-            className="w-full font-mono text-xs uppercase tracking-wider gap-2"
+            className="w-full font-mono text-xs uppercase tracking-wider"
           >
-            {platform === "ios" || (platform === "android" && !canPrompt)
-              ? "I'll do this later"
-              : "Continue without installing"}
+            Continue without setup
           </Button>
         </div>
 
         <p className="text-[10px] text-center text-muted-foreground/50 font-mono uppercase tracking-wider">
-          You can always install later from Settings
+          You can always add to home screen later from Settings
         </p>
       </div>
     </div>
