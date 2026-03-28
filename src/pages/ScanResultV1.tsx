@@ -379,6 +379,108 @@ export default function ScanResultV1() {
     );
   }
 
+  // Detect if this is effectively an unknown/unrated brand
+  const isUnknownBrand = !brandInfo?.name || brandInfo.name === "Unknown Brand" || brandInfo.name === "Unknown";
+  const isUnrated = overallScore === null;
+  const isDeadEnd = isUnknownBrand && isUnrated;
+
+  // ═══════════════════════════════════════════════════
+  // DEAD END STATE — Unknown brand, no scores
+  // Turn failure into contribution opportunity
+  // ═══════════════════════════════════════════════════
+  if (isDeadEnd) {
+    return (
+      <div className="min-h-screen bg-background forensic-grid">
+        <ScanHeader onBack={() => navigate(-1)} />
+
+        <main className="container max-w-md mx-auto px-4 py-5 space-y-4">
+          {/* Product identity */}
+          <div className="flex items-center gap-3">
+            <div className="w-14 h-14 border-2 border-primary/30 grid place-items-center bg-primary/5 flex-shrink-0">
+              <Search className="h-6 w-6 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground truncate">{product.name || "Scanned Product"}</p>
+              <h1 className="text-xl font-bold tracking-tight">New to Barcode Truth</h1>
+            </div>
+          </div>
+
+          {/* Status card - not a dead end, it's an opportunity */}
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="pt-5 pb-5 space-y-3">
+              <div className="flex items-start gap-3">
+                <HelpCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-sm">We haven't profiled this brand yet</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    This is a common product — help us add it to our database so we can score it.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* What happens next */}
+          <div className="border border-border p-4 space-y-3">
+            <p className="label-forensic text-[10px] uppercase tracking-widest text-muted-foreground">What happens when you contribute</p>
+            <div className="space-y-2.5">
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-primary/10 grid place-items-center flex-shrink-0 mt-0.5">
+                  <span className="text-xs font-bold text-primary">1</span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">You identify the product & brand</p>
+                  <p className="text-xs text-muted-foreground">Takes ~15 seconds</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-primary/10 grid place-items-center flex-shrink-0 mt-0.5">
+                  <span className="text-xs font-bold text-primary">2</span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">We pull government records</p>
+                  <p className="text-xs text-muted-foreground">EPA, OSHA, FEC, FDA data</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-primary/10 grid place-items-center flex-shrink-0 mt-0.5">
+                  <span className="text-xs font-bold text-primary">3</span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">You get notified when it's ready</p>
+                  <p className="text-xs text-muted-foreground">Usually within minutes</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* CTA */}
+          <div className="space-y-2">
+            <Button className="w-full h-12 text-base font-semibold" onClick={() => navigate(`/unknown/${barcode}`)}>
+              <Users className="h-5 w-5 mr-2" />
+              Help Identify This Product
+            </Button>
+            <Button variant="outline" className="w-full" onClick={() => navigate("/search")}>
+              <Search className="h-4 w-4 mr-2" />
+              Search Brands Instead
+            </Button>
+            <Button variant="ghost" className="w-full" onClick={() => navigate("/scan")}>
+              Scan Another Product
+            </Button>
+          </div>
+
+          {/* Social proof */}
+          <div className="flex items-center justify-center gap-2 pt-2 pb-4">
+            <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">
+              Community contributions have added 1,600+ brands to our database
+            </p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   // ═══════════════════════════════════════════════════
   // READY STATE — The Yuka-inspired decision screen
   // ═══════════════════════════════════════════════════
