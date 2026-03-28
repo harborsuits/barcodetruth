@@ -78,7 +78,7 @@ export const ProtectedRoute = ({ children, requireOnboarding = true }: Protected
       }
     );
 
-    // THEN check for existing session
+    // THEN check for existing session (with small delay to let onAuthStateChange fire first)
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!mounted) return;
 
@@ -96,8 +96,17 @@ export const ProtectedRoute = ({ children, requireOnboarding = true }: Protected
           setIsChecking(false);
         }
       } else {
-        // No session - redirect to auth
-        navigate("/auth");
+        // Only redirect if we still don't have a user after a brief wait
+        // This prevents race conditions during in-app navigation
+        setTimeout(() => {
+          if (!mounted) return;
+          supabase.auth.getSession().then(({ data: { session: freshSession } }) => {
+            if (!mounted) return;
+            if (!freshSession?.user) {
+              navigate("/auth");
+            }
+          });
+        }, 500);
       }
     });
 
