@@ -26,6 +26,9 @@ export default function Auth() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [showInstallGuide, setShowInstallGuide] = useState(() => {
+    return !localStorage.getItem("installGuideShown");
+  });
 
   // Check onboarding status from database
   const checkOnboardingStatus = async (userId: string): Promise<boolean> => {
