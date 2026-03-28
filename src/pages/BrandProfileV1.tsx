@@ -19,6 +19,7 @@ import { useProfileState } from '@/hooks/useProfileState';
 import { BuildingProfile } from '@/components/brand/BuildingProfile';
 import { NeedsReviewProfile } from '@/components/brand/NeedsReviewProfile';
 import { deduplicateEvents } from '@/lib/deduplicateEvents';
+import { bt } from '@/lib/behaviorTracker';
 
 // V1 Consumer Contract - with 3 explicit states:
 // State A: Assessable (full profile) - identity verified + 3+ dimensions with evidence
@@ -435,6 +436,22 @@ export default function BrandProfileV1() {
 
   // Query profile state for state-based rendering
   const { data: profileState, isLoading: stateLoading } = useProfileState(resolvedBrandId);
+
+  // Track profile load (must be before early returns)
+  useEffect(() => {
+    if (resolvedBrandId && brand?.name) {
+      bt.track("profile_loaded", {
+        brand_id: resolvedBrandId,
+        properties: {
+          brand_name: brand.name,
+          company_type: (brand as any).company_type,
+          status: brandStatus,
+          has_score: !!scoreData,
+          logo_present: !!(brand as any).logo_url,
+        },
+      });
+    }
+  }, [resolvedBrandId]);
 
   // Admin action: Mark identity verified (server-side enforced)
   const markIdentityVerified = async () => {

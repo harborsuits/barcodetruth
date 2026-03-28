@@ -29,6 +29,74 @@ export type Database = {
         }
         Relationships: []
       }
+      analytics_events: {
+        Row: {
+          barcode: string | null
+          brand_id: string | null
+          created_at: string
+          event_name: string
+          id: string
+          properties: Json | null
+          session_id: string
+        }
+        Insert: {
+          barcode?: string | null
+          brand_id?: string | null
+          created_at?: string
+          event_name: string
+          id?: string
+          properties?: Json | null
+          session_id: string
+        }
+        Update: {
+          barcode?: string | null
+          brand_id?: string | null
+          created_at?: string
+          event_name?: string
+          id?: string
+          properties?: Json | null
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_sessions"
+            referencedColumns: ["session_id"]
+          },
+        ]
+      }
+      analytics_sessions: {
+        Row: {
+          device_type: string | null
+          ended_at: string | null
+          scan_count: number
+          session_id: string
+          source: string | null
+          started_at: string
+          user_id: string | null
+        }
+        Insert: {
+          device_type?: string | null
+          ended_at?: string | null
+          scan_count?: number
+          session_id: string
+          source?: string | null
+          started_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          device_type?: string | null
+          ended_at?: string | null
+          scan_count?: number
+          session_id?: string
+          source?: string | null
+          started_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       api_error_log: {
         Row: {
           id: number

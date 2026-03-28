@@ -17,6 +17,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { ValueSliders } from "@/components/ValueSliders";
 import { updateUserValues } from "@/lib/userPreferences";
+import BehaviorAnalytics from "@/components/admin/BehaviorAnalytics";
 
 type ValuePreset = "balanced" | "worker-first" | "green-first" | "politics-light" | "custom";
 
@@ -697,6 +698,15 @@ export const Settings = () => {
                   Brand Manager
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* User Behavior Analytics - Admin only */}
+        {isAdmin && (
+          <Card className="border-primary/20">
+            <CardContent className="pt-6">
+              <BehaviorAnalytics />
             </CardContent>
           </Card>
         )}

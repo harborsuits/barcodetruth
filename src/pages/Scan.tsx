@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useScanLimit } from "@/hooks/useScanLimit";
 import { lookupScanAndLog } from "@/lib/scannerLookup";
 import { analytics } from "@/lib/analytics";
+import { bt } from "@/lib/behaviorTracker";
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import {
   AlertDialog,
@@ -37,6 +38,7 @@ function isValidProductBarcode(barcode: string): boolean {
 
 export const Scan = () => {
   console.log('[Scanner] UI opened (first load)');
+  useEffect(() => { bt.track("scan_opened"); }, []);
   const navigate = useNavigate();
   const { can_scan, scans_remaining, is_subscribed, trackScan, checkLimit } = useScanLimit();
   const [scanResult, setScanResult] = useState<'idle' | 'scanning' | 'processing' | 'success' | 'not_found'>('idle');
@@ -301,6 +303,16 @@ export const Scan = () => {
         confidence: smartLookup.confidence,
         dur_ms: dur 
       });
+      bt.track("scan_success", {
+        barcode,
+        brand_id: brand?.id || undefined,
+        properties: {
+          brand_name: brand?.name,
+          product_name: product.name,
+          source: smartLookup.source,
+          dur_ms: dur,
+        },
+      });
       
       // Save to recent scans
       const recentScan = {
@@ -365,6 +377,7 @@ export const Scan = () => {
       
     } catch (error: any) {
       console.error('[Analytics] scan_error', error);
+      bt.track("scan_failed", { barcode, properties: { error: error?.message } });
       setScanResult('idle');
       toast({ 
         title: "Scan failed", 
