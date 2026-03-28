@@ -437,6 +437,22 @@ export default function BrandProfileV1() {
   // Query profile state for state-based rendering
   const { data: profileState, isLoading: stateLoading } = useProfileState(resolvedBrandId);
 
+  // Track profile load (must be before early returns)
+  useEffect(() => {
+    if (resolvedBrandId && brand?.name) {
+      bt.track("profile_loaded", {
+        brand_id: resolvedBrandId,
+        properties: {
+          brand_name: brand.name,
+          company_type: (brand as any).company_type,
+          status: brandStatus,
+          has_score: !!scoreData,
+          logo_present: !!(brand as any).logo_url,
+        },
+      });
+    }
+  }, [resolvedBrandId]);
+
   // Admin action: Mark identity verified (server-side enforced)
   const markIdentityVerified = async () => {
     if (!resolvedBrandId) return;
@@ -541,22 +557,6 @@ export default function BrandProfileV1() {
   }
 
   // State A: Assessable (full profile) — Consumer Decision Layout
-
-  // Track profile load
-  useEffect(() => {
-    if (resolvedBrandId && brand?.name) {
-      bt.track("profile_loaded", {
-        brand_id: resolvedBrandId,
-        properties: {
-          brand_name: brand.name,
-          company_type: (brand as any).company_type,
-          status: brandStatus,
-          has_score: !!scoreData,
-          logo_present: !!(brand as any).logo_url,
-        },
-      });
-    }
-  }, [resolvedBrandId]);
 
   const parsedScore = scoreData?.score ? (typeof scoreData.score === 'string' ? JSON.parse(scoreData.score) : scoreData.score) : null;
   const scoreValue = parsedScore?.overall != null ? Math.round(parsedScore.overall) : null;
