@@ -175,12 +175,16 @@ export const Scan = () => {
   }, [scanResult, pendingBarcode]);
 
   // Handle confirmed barcode lookup
-  const handleConfirmedLookup = useCallback(async (barcode: string) => {
+  const handleConfirmedLookup = useCallback(async (rawBarcode: string) => {
     if (!user) {
       console.log('[Scan] No user for lookup');
       setShowAuthModal(true);
       return;
     }
+
+    // Normalize: pad 12-digit UPC-A to 13-digit EAN-13
+    const barcode = /^\d{12}$/.test(rawBarcode) ? '0' + rawBarcode : rawBarcode;
+    console.log('[Scan] Normalized barcode:', rawBarcode, '->', barcode);
 
     setScannedBarcode(barcode);
     setScanResult('processing');
