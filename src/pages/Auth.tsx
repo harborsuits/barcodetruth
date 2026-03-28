@@ -8,6 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { z } from "zod";
 import { Separator } from "@/components/ui/separator";
+import { InstallGuide } from "@/components/InstallGuide";
 
 const authSchema = z.object({
   email: z.string().trim().email({ message: "Please enter a valid email address" }).max(255),
@@ -25,6 +26,9 @@ export default function Auth() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [showInstallGuide, setShowInstallGuide] = useState(() => {
+    return !localStorage.getItem("installGuideShown");
+  });
 
   // Check onboarding status from database
   const checkOnboardingStatus = async (userId: string): Promise<boolean> => {
@@ -222,6 +226,10 @@ export default function Auth() {
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
+  }
+
+  if (showInstallGuide) {
+    return <InstallGuide onContinue={() => setShowInstallGuide(false)} />;
   }
 
   return (
