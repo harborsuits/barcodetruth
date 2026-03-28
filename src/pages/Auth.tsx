@@ -254,11 +254,15 @@ export default function Auth() {
   }
 
   if (showInstallGuide) {
-    return <InstallGuide onContinue={() => setShowInstallGuide(false)} />;
+    return <InstallGuide onContinue={() => {
+      if (!forceOnboarding) localStorage.setItem("installGuideShown", "true");
+      setShowInstallGuide(false);
+      setShowCinematicOnboarding(true);
+    }} />;
   }
 
   if (showCinematicOnboarding) {
-    return <CinematicOnboarding onComplete={() => setShowCinematicOnboarding(false)} />;
+    return <CinematicOnboarding isPreviewMode={forceOnboarding} onComplete={() => setShowCinematicOnboarding(false)} />;
   }
 
   return (
