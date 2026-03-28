@@ -138,9 +138,21 @@ export default function ScanResultV1() {
   // Normalize barcode: pad 12-digit UPC-A to 13-digit EAN-13
   const normalizedBarcode = barcode && /^\d{12}$/.test(barcode) ? '0' + barcode : barcode;
 
+  // Use navigation state as seed data to avoid re-query gaps
+  const navProduct = navState?.product ? {
+    id: navState.product.id,
+    barcode: navState.product.barcode,
+    name: navState.product.name,
+    brand_id: navState.product.brand_id,
+    category: navState.product.category,
+  } : null;
+
+  const navBrandName = navState?.brand?.name || navState?.product?.brands?.name || null;
+
   // ─── Smart product lookup (internal DB → OpenFoodFacts → UPCitemdb) ───
   const { data: product, isLoading: productLoading, error: productError } = useQuery({
     queryKey: ["product-v1", normalizedBarcode],
+    initialData: navProduct || undefined,
     queryFn: async () => {
       // First try internal DB (fast path) — try both normalized and original
       const barcodesToTry = normalizedBarcode !== barcode ? [normalizedBarcode!, barcode!] : [barcode!];
