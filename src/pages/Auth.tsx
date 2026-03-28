@@ -236,6 +236,10 @@ export default function Auth() {
     return <InstallGuide onContinue={() => setShowInstallGuide(false)} />;
   }
 
+  if (showCinematicOnboarding) {
+    return <CinematicOnboarding onComplete={() => setShowCinematicOnboarding(false)} />;
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background forensic-grid p-4">
       <Card className="w-full max-w-md bg-elevated-1 border-border">
