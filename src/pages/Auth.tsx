@@ -9,6 +9,7 @@ import { Loader2, Eye, EyeOff } from "lucide-react";
 import { z } from "zod";
 import { Separator } from "@/components/ui/separator";
 import { InstallGuide } from "@/components/InstallGuide";
+import { CinematicOnboarding } from "@/components/CinematicOnboarding";
 
 const authSchema = z.object({
   email: z.string().trim().email({ message: "Please enter a valid email address" }).max(255),
@@ -28,6 +29,9 @@ export default function Auth() {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [showInstallGuide, setShowInstallGuide] = useState(() => {
     return !localStorage.getItem("installGuideShown");
+  });
+  const [showCinematicOnboarding, setShowCinematicOnboarding] = useState(() => {
+    return !localStorage.getItem("cinematicOnboardingSeen");
   });
 
   // Check onboarding status from database
@@ -230,6 +234,10 @@ export default function Auth() {
 
   if (showInstallGuide) {
     return <InstallGuide onContinue={() => setShowInstallGuide(false)} />;
+  }
+
+  if (showCinematicOnboarding) {
+    return <CinematicOnboarding onComplete={() => setShowCinematicOnboarding(false)} />;
   }
 
   return (
