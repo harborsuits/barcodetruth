@@ -133,26 +133,33 @@ export default function ScanResultV1() {
     );
   }
 
+  // Normalize barcode: pad 12-digit UPC-A to 13-digit EAN-13
+  const normalizedBarcode = barcode && /^\d{12}$/.test(barcode) ? '0' + barcode : barcode;
+
   // ─── Smart product lookup (internal DB → OpenFoodFacts → UPCitemdb) ───
   const { data: product, isLoading: productLoading, error: productError } = useQuery({
-    queryKey: ["product-v1", barcode],
+    queryKey: ["product-v1", normalizedBarcode],
     queryFn: async () => {
-      // First try internal DB (fast path)
-      const { data: cached } = await supabase
-        .from("products")
-        .select("id, barcode, name, brand_id, category")
-        .eq("barcode", barcode!)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // First try internal DB (fast path) — try both normalized and original
+      const barcodesToTry = normalizedBarcode !== barcode ? [normalizedBarcode!, barcode!] : [barcode!];
       
-      if (cached) return cached;
+      for (const bc of barcodesToTry) {
+        const { data: cached } = await supabase
+          .from("products")
+          .select("id, barcode, name, brand_id, category")
+          .eq("barcode", bc)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (cached) return cached;
+      }
+      
 
       // Fallback: call smart-product-lookup (OpenFoodFacts + UPCitemdb)
-      console.log(`[ScanResult] No local product for ${barcode}, calling smart-product-lookup`);
+      console.log(`[ScanResult] No local product for ${normalizedBarcode}, calling smart-product-lookup`);
       const { data: lookupResult, error: lookupError } = await supabase.functions.invoke(
         "smart-product-lookup",
-        { body: { barcode } }
+        { body: { barcode: normalizedBarcode } }
       );
 
       if (lookupError) {

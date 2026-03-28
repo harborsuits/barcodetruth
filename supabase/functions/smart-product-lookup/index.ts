@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { barcode } = await req.json();
+    let { barcode } = await req.json();
     
     if (!barcode) {
       return new Response(
@@ -32,30 +32,42 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Normalize: pad 12-digit UPC-A to 13-digit EAN-13
+    barcode = String(barcode).trim();
+    if (/^\d{12}$/.test(barcode)) {
+      barcode = '0' + barcode;
+      console.log(`[Normalize] Padded UPC-A to EAN-13: ${barcode}`);
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Tier 1: Check cache (left join so products without brands still return)
-    const { data: cached } = await supabase
-      .from('products')
-      .select('*, brands(id, name, logo_url)')
-      .eq('barcode', barcode)
-      .gte('cache_expires_at', new Date().toISOString())
-      .limit(1)
-      .maybeSingle();
+    // Tier 1: Check cache — try both original and padded/unpadded variants
+    const barcodesToCheck = [barcode];
+    if (/^\d{12}$/.test(barcode)) barcodesToCheck.push('0' + barcode);
+    else if (/^0\d{12}$/.test(barcode)) barcodesToCheck.push(barcode.slice(1));
 
-    if (cached) {
-      console.log(`[Tier 1] Cache hit for ${barcode}`);
-      return new Response(
-        JSON.stringify({ 
-          product: cached, 
-          source: 'cache',
-          confidence: cached.confidence_score || 100 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    for (const bc of barcodesToCheck) {
+      const { data: cached } = await supabase
+        .from('products')
+        .select('*, brands(id, name, logo_url)')
+        .eq('barcode', bc)
+        .limit(1)
+        .maybeSingle();
+
+      if (cached) {
+        console.log(`[Tier 1] Cache hit for ${bc}`);
+        return new Response(
+          JSON.stringify({ 
+            product: cached, 
+            source: 'cache',
+            confidence: cached.confidence_score || 100 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Tier 2: OpenFoodFacts (FREE)
@@ -231,6 +243,29 @@ async function saveToCache(supabase: any, productData: any) {
     .single();
 
   if (error) {
+    // If duplicate key (product already exists with normalized barcode), fetch existing
+    if (error.code === '23505') {
+      console.log('[smart-product-lookup] Duplicate detected, fetching existing product');
+      const { data: existing } = await supabase
+        .from('products')
+        .select('*, brands(id, name, logo_url)')
+        .eq('barcode', productData.barcode)
+        .limit(1)
+        .maybeSingle();
+      
+      if (existing) return existing;
+      
+      // Try with padded barcode
+      const padded = '0' + productData.barcode;
+      const { data: paddedExisting } = await supabase
+        .from('products')
+        .select('*, brands(id, name, logo_url)')
+        .eq('barcode', padded)
+        .limit(1)
+        .maybeSingle();
+      
+      if (paddedExisting) return paddedExisting;
+    }
     console.error('Cache save error:', error);
     throw error;
   }
