@@ -127,10 +127,61 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Tier 2.5: UPCitemdb FREE trial (no key needed, rate-limited)
+    // Tier 2.5: Barcode Lookup API (excellent US grocery coverage)
+    const blApiKey = Deno.env.get('BARCODELOOKUP_API_KEY');
+    if (blApiKey) {
+      try {
+        const blBarcode = /^0\d{12}$/.test(barcode) ? barcode.slice(1) : barcode;
+        console.log(`[Tier 2.5] Trying Barcode Lookup API for ${blBarcode}`);
+        const blResponse = await fetch(
+          `https://api.barcodelookup.com/v3/products?barcode=${blBarcode}&formatted=y&key=${blApiKey}`
+        );
+        
+        if (blResponse.status === 200) {
+          const blData = await blResponse.json();
+          if (blData.products && blData.products.length > 0) {
+            const item = blData.products[0];
+            const result = await saveToCache(supabase, {
+              barcode,
+              name: item.title || item.product_name,
+              brand_name: item.brand,
+              category: item.category,
+              image_url: item.images?.[0],
+              data_source: 'barcodelookup',
+              confidence_score: CONFIDENCE_SCORES['barcodelookup'],
+              metadata: { 
+                description: item.description,
+                manufacturer: item.manufacturer,
+                ingredients: item.ingredients,
+              }
+            });
+            
+            return new Response(
+              JSON.stringify({ product: result, source: 'barcodelookup', confidence: CONFIDENCE_SCORES['barcodelookup'] }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          } else {
+            console.log('[Tier 2.5] Barcode Lookup API returned empty products array');
+          }
+        } else if (blResponse.status === 429) {
+          console.warn('[Tier 2.5] Barcode Lookup API rate limited — skipping to next tier');
+          await blResponse.text();
+        } else if (blResponse.status === 404) {
+          console.log('[Tier 2.5] Barcode Lookup API: product not found');
+          await blResponse.text();
+        } else {
+          console.log(`[Tier 2.5] Barcode Lookup API returned ${blResponse.status}`);
+          await blResponse.text();
+        }
+      } catch (error) {
+        console.error('[Tier 2.5] Barcode Lookup API failed:', error);
+      }
+    }
+
+    // Tier 3: UPCitemdb FREE trial (no key needed, rate-limited)
     try {
       const upcBarcode = /^0\d{12}$/.test(barcode) ? barcode.slice(1) : barcode;
-      console.log(`[Tier 2.5] Trying UPCitemdb trial for ${upcBarcode}`);
+      console.log(`[Tier 3] Trying UPCitemdb trial for ${upcBarcode}`);
       const upcResponse = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${upcBarcode}`);
       const upcData = await upcResponse.json();
       
@@ -153,15 +204,15 @@ Deno.serve(async (req) => {
         );
       }
     } catch (error) {
-      console.error('[Tier 2.5] UPCitemdb trial failed:', error);
+      console.error('[Tier 3] UPCitemdb trial failed:', error);
     }
 
-    // Tier 3: UPCitemdb PAID ($10/mo — much better US grocery coverage)
+    // Tier 3.5: UPCitemdb PAID
     const upcApiKey = Deno.env.get('UPCITEMDB_API_KEY');
     if (upcApiKey) {
       try {
         const upcBarcode = /^0\d{12}$/.test(barcode) ? barcode.slice(1) : barcode;
-        console.log(`[Tier 3] Trying UPCitemdb paid for ${upcBarcode}`);
+        console.log(`[Tier 3.5] Trying UPCitemdb paid for ${upcBarcode}`);
         const upcResponse = await fetch(`https://api.upcitemdb.com/prod/v1/lookup?upc=${upcBarcode}`, {
           headers: { 
             'Content-Type': 'application/json',
@@ -189,7 +240,7 @@ Deno.serve(async (req) => {
           );
         }
       } catch (error) {
-        console.error('[Tier 3] UPCitemdb paid failed:', error);
+        console.error('[Tier 3.5] UPCitemdb paid failed:', error);
       }
     }
 
