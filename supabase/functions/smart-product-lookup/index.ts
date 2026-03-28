@@ -44,25 +44,30 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Tier 1: Check cache (left join so products without brands still return)
-    const { data: cached } = await supabase
-      .from('products')
-      .select('*, brands(id, name, logo_url)')
-      .eq('barcode', barcode)
-      .gte('cache_expires_at', new Date().toISOString())
-      .limit(1)
-      .maybeSingle();
+    // Tier 1: Check cache — try both original and padded/unpadded variants
+    const barcodesToCheck = [barcode];
+    if (/^\d{12}$/.test(barcode)) barcodesToCheck.push('0' + barcode);
+    else if (/^0\d{12}$/.test(barcode)) barcodesToCheck.push(barcode.slice(1));
 
-    if (cached) {
-      console.log(`[Tier 1] Cache hit for ${barcode}`);
-      return new Response(
-        JSON.stringify({ 
-          product: cached, 
-          source: 'cache',
-          confidence: cached.confidence_score || 100 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    for (const bc of barcodesToCheck) {
+      const { data: cached } = await supabase
+        .from('products')
+        .select('*, brands(id, name, logo_url)')
+        .eq('barcode', bc)
+        .limit(1)
+        .maybeSingle();
+
+      if (cached) {
+        console.log(`[Tier 1] Cache hit for ${bc}`);
+        return new Response(
+          JSON.stringify({ 
+            product: cached, 
+            source: 'cache',
+            confidence: cached.confidence_score || 100 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Tier 2: OpenFoodFacts (FREE)
