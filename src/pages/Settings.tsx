@@ -701,6 +701,15 @@ export const Settings = () => {
           </Card>
         )}
 
+        {/* User Behavior Analytics - Admin only */}
+        {isAdmin && (
+          <Card className="border-primary/20">
+            <CardContent className="pt-6">
+              <BehaviorAnalytics />
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="border-destructive/20">
           <CardHeader>
             <CardTitle className="text-destructive">Account</CardTitle>
