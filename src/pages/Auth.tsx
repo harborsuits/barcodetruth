@@ -254,7 +254,7 @@ export default function Auth() {
   }
 
   if (showInstallGuide) {
-    return <InstallGuide onContinue={() => {
+    return <InstallGuide isPreviewMode={forceOnboarding} onContinue={() => {
       if (!forceOnboarding) localStorage.setItem("installGuideShown", "true");
       setShowInstallGuide(false);
       setShowCinematicOnboarding(true);
