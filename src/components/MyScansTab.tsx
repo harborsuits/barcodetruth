@@ -11,6 +11,7 @@ type RecentScan = {
   product_name: string; 
   timestamp: number;
   brand_name?: string;
+  status?: string;
 };
 
 const MAX_SCANS = 20;
