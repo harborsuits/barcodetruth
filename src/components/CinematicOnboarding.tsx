@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 interface CinematicOnboardingProps {
   onComplete: () => void;
+  isPreviewMode?: boolean;
 }
 
 // ─── Slide 1: Scan ───────────────────────────────────────
@@ -369,41 +370,50 @@ const slides = [
   { id: "compare", title: "Find better options", Component: CompareSlide },
 ];
 
-export function CinematicOnboarding({ onComplete }: CinematicOnboardingProps) {
+export function CinematicOnboarding({ onComplete, isPreviewMode = false }: CinematicOnboardingProps) {
   const [current, setCurrent] = useState(0);
   const [autoplay, setAutoplay] = useState(true);
+  const [userInteracted, setUserInteracted] = useState(false);
 
-  // Autoplay: advance every 4s
+  // Autoplay: advance every 7.5s, pause after any manual interaction
   useEffect(() => {
-    if (!autoplay) return;
+    if (!autoplay || userInteracted) return;
     const timer = setTimeout(() => {
       if (current < slides.length - 1) {
         setCurrent(c => c + 1);
       } else {
         setAutoplay(false);
       }
-    }, 4000);
+    }, 7500);
     return () => clearTimeout(timer);
-  }, [current, autoplay]);
+  }, [current, autoplay, userInteracted]);
 
   const goNext = useCallback(() => {
     setAutoplay(false);
+    setUserInteracted(true);
     if (current < slides.length - 1) {
       setCurrent(c => c + 1);
     } else {
+      if (!isPreviewMode) {
+        localStorage.setItem("cinematicOnboardingSeen", "true");
+      }
       onComplete();
     }
-  }, [current, onComplete]);
+  }, [current, onComplete, isPreviewMode]);
 
   const skip = useCallback(() => {
-    localStorage.setItem("cinematicOnboardingSeen", "true");
+    if (!isPreviewMode) {
+      localStorage.setItem("cinematicOnboardingSeen", "true");
+    }
     onComplete();
-  }, [onComplete]);
+  }, [onComplete, isPreviewMode]);
 
   const handleComplete = useCallback(() => {
-    localStorage.setItem("cinematicOnboardingSeen", "true");
+    if (!isPreviewMode) {
+      localStorage.setItem("cinematicOnboardingSeen", "true");
+    }
     onComplete();
-  }, [onComplete]);
+  }, [onComplete, isPreviewMode]);
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col overflow-hidden">
@@ -457,7 +467,7 @@ export function CinematicOnboarding({ onComplete }: CinematicOnboardingProps) {
           {slides.map((_, i) => (
             <button
               key={i}
-              onClick={() => { setAutoplay(false); setCurrent(i); }}
+              onClick={() => { setAutoplay(false); setUserInteracted(true); setCurrent(i); }}
               className="p-1"
             >
               <div
