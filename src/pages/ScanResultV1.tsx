@@ -392,7 +392,6 @@ export default function ScanResultV1() {
     // Skip dead-end screen entirely — go straight to Add Product
     navigate(`/unknown/${barcode}`, { replace: true });
     return null;
-    );
   }
 
   // ═══════════════════════════════════════════════════
