@@ -322,29 +322,10 @@ export default function ScanResultV1() {
     );
   }
 
-  // ─── Not found ───
-  if (productError || !product) {
-    return (
-      <div className="min-h-screen bg-background">
-        <ScanHeader onBack={() => navigate(-1)} />
-        <main className="container max-w-md mx-auto px-4 py-6">
-          <Card className="border-primary/20 bg-primary/5">
-            <CardContent className="pt-6 space-y-4 text-center">
-              <Package className="h-12 w-12 mx-auto text-primary" />
-              <h2 className="text-lg font-semibold">Product under investigation</h2>
-              <p className="text-sm text-muted-foreground">
-                We don't recognize barcode <span className="font-mono">{barcode}</span> yet.
-              </p>
-              <div className="space-y-2 pt-2">
-                <Button className="w-full" onClick={() => navigate(`/unknown/${barcode}`)}>Add This Product</Button>
-                <Button variant="outline" className="w-full" onClick={() => navigate("/search")}>Search Brands</Button>
-                <Button variant="ghost" className="w-full" onClick={() => navigate("/scan")}>Scan Again</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </main>
-      </div>
-    );
+  // ─── Not found → redirect to Add Product ───
+  if (!productLoading && (productError || !product)) {
+    navigate(`/unknown/${barcode}`, { replace: true });
+    return null;
   }
 
   // ─── Building state ───
