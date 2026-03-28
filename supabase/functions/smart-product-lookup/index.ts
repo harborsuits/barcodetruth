@@ -279,8 +279,9 @@ async function saveToCache(supabase: any, productData: any) {
   // First, ensure brand exists
   let brandId = null;
   if (productData.brand_name && productData.brand_name.trim()) {
-    // Normalize brand name
-    const normalizedName = productData.brand_name.trim();
+    // Normalize brand name using shared logic
+    const normalized = normalizeBrandLabel(productData.brand_name);
+    const normalizedName = capitalizeBrandName(normalized) || productData.brand_name.trim();
     
     const { data: existingBrand } = await supabase
       .from('brands')
