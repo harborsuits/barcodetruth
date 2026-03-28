@@ -243,6 +243,29 @@ async function saveToCache(supabase: any, productData: any) {
     .single();
 
   if (error) {
+    // If duplicate key (product already exists with normalized barcode), fetch existing
+    if (error.code === '23505') {
+      console.log('[smart-product-lookup] Duplicate detected, fetching existing product');
+      const { data: existing } = await supabase
+        .from('products')
+        .select('*, brands(id, name, logo_url)')
+        .eq('barcode', productData.barcode)
+        .limit(1)
+        .maybeSingle();
+      
+      if (existing) return existing;
+      
+      // Try with padded barcode
+      const padded = '0' + productData.barcode;
+      const { data: paddedExisting } = await supabase
+        .from('products')
+        .select('*, brands(id, name, logo_url)')
+        .eq('barcode', padded)
+        .limit(1)
+        .maybeSingle();
+      
+      if (paddedExisting) return paddedExisting;
+    }
     console.error('Cache save error:', error);
     throw error;
   }
