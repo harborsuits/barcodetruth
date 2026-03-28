@@ -156,10 +156,10 @@ export default function ScanResultV1() {
       
 
       // Fallback: call smart-product-lookup (OpenFoodFacts + UPCitemdb)
-      console.log(`[ScanResult] No local product for ${barcode}, calling smart-product-lookup`);
+      console.log(`[ScanResult] No local product for ${normalizedBarcode}, calling smart-product-lookup`);
       const { data: lookupResult, error: lookupError } = await supabase.functions.invoke(
         "smart-product-lookup",
-        { body: { barcode } }
+        { body: { barcode: normalizedBarcode } }
       );
 
       if (lookupError) {
