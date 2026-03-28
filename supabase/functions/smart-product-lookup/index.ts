@@ -9,6 +9,7 @@ const corsHeaders = {
 const CONFIDENCE_SCORES = {
   'verified_db': 100,
   'user_verified': 95,
+  'barcodelookup': 92,
   'openfoodfacts': 90,
   'gs1': 85,
   'upcitemdb': 70,
