@@ -63,6 +63,24 @@ export default function UnknownProduct() {
     onSuccess: (data) => {
       setSubmitted(true);
 
+      // Save to localStorage scan history so it shows in My Scans
+      try {
+        const raw = localStorage.getItem("recent_scans");
+        const all = raw ? JSON.parse(raw) : [];
+        const entry = {
+          upc: barcode,
+          product_name: productName.trim(),
+          brand_name: brandName.trim() || undefined,
+          timestamp: Date.now(),
+          status: data?.status || 'pending',
+        };
+        // Avoid duplicates
+        const filtered = all.filter((s: any) => s.upc !== barcode);
+        localStorage.setItem("recent_scans", JSON.stringify([entry, ...filtered].slice(0, 50)));
+      } catch (e) {
+        console.warn('Failed to save to scan history:', e);
+      }
+
       if (data?.status === 'recognized' || data?.already_exists) {
         toast({
           title: "We already recognize this product",

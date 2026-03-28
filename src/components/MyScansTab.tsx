@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Package, Clock } from "lucide-react";
+import { Package, Clock, AlertCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { analytics } from "@/lib/analytics";
 
@@ -11,6 +11,7 @@ type RecentScan = {
   product_name: string; 
   timestamp: number;
   brand_name?: string;
+  status?: string;
 };
 
 const MAX_SCANS = 20;
@@ -78,9 +79,17 @@ export default function MyScansTab() {
                   </div>
                 ) : null}
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-medium truncate">
-                    {s.product_name || "Unknown product"}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium truncate">
+                      {s.product_name || "Unknown product"}
+                    </h3>
+                    {(s.status === 'pending' || s.status === 'under_investigation' || s.status === 'created') && (
+                      <span className="flex items-center gap-1 text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full flex-shrink-0">
+                        <AlertCircle className="w-3 h-3" />
+                        Pending
+                      </span>
+                    )}
+                  </div>
                   {s.brand_name && (
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {s.brand_name}

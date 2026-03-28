@@ -196,7 +196,6 @@ Deno.serve(async (req) => {
               slug: availableSlug,
               status: 'stub',
               identity_confidence: 'low',
-              data_source: 'user_submitted',
             })
             .select('id, slug')
             .single();
@@ -232,7 +231,6 @@ Deno.serve(async (req) => {
             slug: placeholderSlug,
             status: 'stub',
             identity_confidence: 'low',
-            data_source: 'user_submitted',
           })
           .select('id, slug')
           .single();
