@@ -452,12 +452,12 @@ export default function ScanResultV1() {
             <img src={displayLogo} alt={brandInfo?.name || ""} className="w-14 h-14 border-2 border-border object-contain bg-muted flex-shrink-0 p-1.5" />
           ) : (
             <div className="w-14 h-14 border-2 border-border grid place-items-center text-xl font-bold bg-muted flex-shrink-0">
-              {brandInfo?.name?.[0]?.toUpperCase() ?? "?"}
+              {displayBrandName?.[0]?.toUpperCase() ?? "?"}
             </div>
           )}
           <div className="flex-1 min-w-0">
             <p className="text-xs text-muted-foreground truncate">{product.name}</p>
-            <h1 className="text-xl font-bold tracking-tight truncate">{brandInfo?.name || "Unknown Brand"}</h1>
+            <h1 className="text-xl font-bold tracking-tight truncate">{displayBrandName || "Resolving brand..."}</h1>
           </div>
         </div>
 
