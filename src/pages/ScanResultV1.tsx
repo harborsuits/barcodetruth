@@ -266,6 +266,9 @@ export default function ScanResultV1() {
     },
   });
 
+  // Use navigation state brand name as fallback display name
+  const displayBrandName = brandInfo?.name || navBrandName || null;
+
   // States
   const brandIsReady = brandInfo?.status === "ready";
   const brandIsBuilding = brandInfo?.status === "stub" || brandInfo?.status === "building";
