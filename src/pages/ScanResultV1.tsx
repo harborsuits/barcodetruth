@@ -115,6 +115,8 @@ function getDimensionSummary(key: string, score: number | null, count: number): 
 export default function ScanResultV1() {
   const { barcode } = useParams<{ barcode: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const navState = location.state as { product?: any; brand?: any; source?: string } | null;
   const [showCorrection, setShowCorrection] = useState(false);
   const [saved, setSaved] = useState(false);
 
