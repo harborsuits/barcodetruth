@@ -21,9 +21,10 @@ function isStandalone(): boolean {
 
 interface InstallGuideProps {
   onContinue: () => void;
+  isPreviewMode?: boolean;
 }
 
-export function InstallGuide({ onContinue }: InstallGuideProps) {
+export function InstallGuide({ onContinue, isPreviewMode = false }: InstallGuideProps) {
   const [platform] = useState<Platform>(detectPlatform);
   const [canPrompt, setCanPrompt] = useState(false);
 
@@ -31,24 +32,24 @@ export function InstallGuide({ onContinue }: InstallGuideProps) {
     setCanPrompt(isA2HSAvailable());
   }, []);
 
-  // If already installed as standalone, skip
+  // If already installed as standalone, skip (not in preview)
   useEffect(() => {
-    if (isStandalone()) {
+    if (!isPreviewMode && isStandalone()) {
       localStorage.setItem("installGuideShown", "true");
       onContinue();
     }
-  }, [onContinue]);
+  }, [onContinue, isPreviewMode]);
 
   const handleNativeInstall = async () => {
     const accepted = await triggerA2HS();
     if (accepted) {
-      localStorage.setItem("installGuideShown", "true");
+      if (!isPreviewMode) localStorage.setItem("installGuideShown", "true");
       onContinue();
     }
   };
 
   const handleSkip = () => {
-    localStorage.setItem("installGuideShown", "true");
+    if (!isPreviewMode) localStorage.setItem("installGuideShown", "true");
     onContinue();
   };
 
