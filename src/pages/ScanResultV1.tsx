@@ -184,7 +184,7 @@ export default function ScanResultV1() {
     enabled: !!barcode,
   });
 
-  const { data: brandInfo, refetch: refetchBrand } = useQuery({
+  const { data: brandInfo, isLoading: brandLoading, refetch: refetchBrand } = useQuery({
     queryKey: ["brand-info-v1", product?.brand_id],
     enabled: !!product?.brand_id,
     refetchInterval: (query) => {
@@ -329,6 +329,19 @@ export default function ScanResultV1() {
     );
   }
 
+  if (product?.brand_id && brandLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <ScanHeader onBack={() => navigate(-1)} />
+        <main className="container max-w-md mx-auto px-4 py-6 space-y-4">
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </main>
+      </div>
+    );
+  }
+
   // ─── Not found → redirect to Add Product ───
   if (!productLoading && (productError || !product)) {
     navigate(`/unknown/${barcode}`, { replace: true });
@@ -395,9 +408,9 @@ export default function ScanResultV1() {
   }
 
   // Detect if this is effectively an unknown/unrated brand
-  const isUnknownBrand = !brandInfo?.name || brandInfo.name === "Unknown Brand" || brandInfo.name === "Unknown";
+  const isUnknownBrand = !product?.brand_id || (!brandLoading && !brandInfo?.name) || brandInfo?.name === "Unknown Brand" || brandInfo?.name === "Unknown";
   const isUnrated = overallScore === null;
-  const isDeadEnd = isUnknownBrand && isUnrated;
+  const isDeadEnd = !brandLoading && isUnknownBrand && isUnrated;
 
   // ═══════════════════════════════════════════════════
   // DEAD END STATE — Unknown brand, no scores
