@@ -18,7 +18,7 @@ interface TreeNode {
   type?: string;
 }
 
-export function CorporateFamilyTree({ brandId, brandName }: { brandId: string; brandName: string }) {
+export function CorporateFamilyTree({ brandId, brandName, scannedBrandId }: { brandId: string; brandName: string; scannedBrandId?: string }) {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -55,7 +55,7 @@ export function CorporateFamilyTree({ brandId, brandName }: { brandId: string; b
   const totalFamily = allSiblings.length + 1;
 
   const goToBrand = (id: string) => {
-    navigate(`/brand/${id}`, { state: { fromBrand: true } });
+    navigate(`/brand/${id}`, { state: { fromBrand: true, scannedBrandId: scannedBrandId || brandId, scannedBrandName: brandName } });
   };
 
   return (
@@ -137,6 +137,7 @@ export function CorporateFamilyTree({ brandId, brandName }: { brandId: string; b
                     <FamilyNodeCard
                       node={{ id: brandId, name: brandName, logo_url: chain[0]?.logo_url }}
                       variant="current"
+                      isScannedBrand={!scannedBrandId || scannedBrandId === brandId}
                     />
                   </motion.div>
 
@@ -203,10 +204,12 @@ function FamilyNodeCard({
   node,
   variant,
   onClick,
+  isScannedBrand,
 }: {
   node: TreeNode;
   variant: "parent" | "current" | "sibling";
   onClick?: () => void;
+  isScannedBrand?: boolean;
 }) {
   const isClickable = variant !== "current" && !!onClick;
 
@@ -272,7 +275,7 @@ function FamilyNodeCard({
         )}
         {variant === "current" && (
           <Badge className="text-[9px] mt-0.5 px-1.5 py-0 bg-primary/15 text-primary border-primary/20">
-            This brand
+            {isScannedBrand ? "You scanned this" : "Viewing"}
           </Badge>
         )}
       </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
@@ -137,7 +137,7 @@ function TreeNode({
       {/* Badge */}
       {isCurrent && (
         <Badge className="text-[9px] bg-primary/15 text-primary border-primary/20 px-1.5 py-0">
-          This brand
+          {isCurrent ? "Viewing" : "Related"}
         </Badge>
       )}
     </motion.div>
@@ -235,8 +235,11 @@ function ShareCard({
 export default function OwnershipTree() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const scannedBrandId = (location as any)?.state?.scannedBrandId as string | undefined;
+  const scannedBrandName = (location as any)?.state?.scannedBrandName as string | undefined;
   const [showShareCard, setShowShareCard] = useState(false);
-  const [phase, setPhase] = useState(0); // 0=brand, 1=parent reveal, 2=siblings
+  const [phase, setPhase] = useState(0);
 
   // Fetch brand
   const { data: brand, isLoading: brandLoading, error: brandError } = useQuery({
@@ -389,7 +392,9 @@ export default function OwnershipTree() {
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">You scanned</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                {(!scannedBrandId || scannedBrandId === brandId) ? "You scanned" : `Parent of ${scannedBrandName || "scanned brand"}`}
+              </p>
               <p className="text-lg font-bold truncate">{brand.name}</p>
             </div>
             <div className="flex items-center gap-2">
@@ -432,7 +437,7 @@ export default function OwnershipTree() {
                         borderColor: `${verdict.color}44`,
                         background: verdict.bg,
                       }}
-                      onClick={() => navigate(`/brand/${parentCompany!.id}`, { state: { fromBrand: true } })}
+                      onClick={() => navigate(`/brand/${parentCompany!.id}`, { state: { fromBrand: true, scannedBrandId: scannedBrandId || brandId, scannedBrandName: scannedBrandName || brand?.name } })}
                     >
                       <div className="w-16 h-16 rounded-lg overflow-hidden bg-card flex items-center justify-center">
                         {parentCompany!.logo_url ? (
@@ -483,7 +488,7 @@ export default function OwnershipTree() {
                           name={sib.name}
                           logoUrl={sib.logo_url}
                           delay={1.5 + i * 0.08}
-                          onClick={() => navigate(`/brand/${sib.id}`, { state: { fromBrand: true } })}
+                          onClick={() => navigate(`/brand/${sib.id}`, { state: { fromBrand: true, scannedBrandId: scannedBrandId || brandId, scannedBrandName: scannedBrandName || brand?.name } })}
                         />
                       ))}
                     </div>

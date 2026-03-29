@@ -119,7 +119,7 @@ function ScoreDisplay({ score }: { score: number | null }) {
   );
 }
 
-function OwnershipDisplay({ brandId, brandSlug }: { brandId: string; brandSlug?: string }) {
+function OwnershipDisplay({ brandId, brandSlug, scannedBrandId, scannedBrandName }: { brandId: string; brandSlug?: string; scannedBrandId?: string; scannedBrandName?: string }) {
   const navigate = useNavigate();
   const { data: ownership, isLoading } = useQuery({
     queryKey: ['brand-ownership-v1', brandId],
@@ -151,7 +151,7 @@ function OwnershipDisplay({ brandId, brandSlug }: { brandId: string; brandSlug?:
     return (
       <div
         className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted/70 transition-colors active:scale-[0.98]"
-        onClick={() => navigate(`/brand/${slug}/ownership`)}
+        onClick={() => navigate(`/brand/${slug}/ownership`, { state: { scannedBrandId, scannedBrandName } })}
         role="button"
       >
         <Building2 className="h-5 w-5 text-muted-foreground flex-shrink-0" />
@@ -169,7 +169,7 @@ function OwnershipDisplay({ brandId, brandSlug }: { brandId: string; brandSlug?:
     return (
       <div
         className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted/70 transition-colors"
-        onClick={() => navigate(`/brand/${slug}/ownership`)}
+        onClick={() => navigate(`/brand/${slug}/ownership`, { state: { scannedBrandId, scannedBrandName } })}
         role="button"
       >
         <Building2 className="h-5 w-5 text-muted-foreground flex-shrink-0" />
@@ -342,6 +342,8 @@ export default function BrandProfileV1() {
   
   const routerLocation = useLocation();
   const cameFromBrand = (routerLocation as any)?.state?.fromBrand;
+  const scannedBrandId = (routerLocation as any)?.state?.scannedBrandId as string | undefined;
+  const scannedBrandName = (routerLocation as any)?.state?.scannedBrandName as string | undefined;
 
   // Query brand info with alias fallback
   const { data: brand, isLoading: brandLoading, error: brandError } = useQuery({
@@ -689,12 +691,12 @@ export default function BrandProfileV1() {
 
         {/* ─── 2. OWNERSHIP REVEAL ─── */}
         {resolvedBrandId && (
-          <OwnershipDisplay brandId={resolvedBrandId} brandSlug={brand.slug} />
+          <OwnershipDisplay brandId={resolvedBrandId} brandSlug={brand.slug} scannedBrandId={scannedBrandId} scannedBrandName={scannedBrandName} />
         )}
 
         {/* ─── 2b. CORPORATE FAMILY TREE ─── */}
         {resolvedBrandId && (
-          <CorporateFamilyTree brandId={resolvedBrandId} brandName={brand.name} />
+          <CorporateFamilyTree brandId={resolvedBrandId} brandName={brand.name} scannedBrandId={scannedBrandId} />
         )}
 
         {/* ─── 3. SCORE BREAKDOWN ─── */}
