@@ -276,7 +276,7 @@ Deno.serve(async (req) => {
 async function saveToCache(supabase: any, productData: any) {
   const expiresAt = new Date(Date.now() + CACHE_DURATION_MS);
   
-  // First, ensure brand exists
+  // First, ensure brand exists and is display-ready
   let brandId = null;
   if (productData.brand_name && productData.brand_name.trim()) {
     // Normalize brand name using shared logic
@@ -285,22 +285,31 @@ async function saveToCache(supabase: any, productData: any) {
     
     const { data: existingBrand } = await supabase
       .from('brands')
-      .select('id')
+      .select('id, status, logo_url')
       .ilike('name', normalizedName)
       .limit(1)
       .maybeSingle();
     
     if (existingBrand) {
       brandId = existingBrand.id;
+      
+      // Auto-promote non-active brands so scan results are never empty shells
+      if (existingBrand.status !== 'active') {
+        console.log(`[smart-product-lookup] Auto-promoting brand "${normalizedName}" from "${existingBrand.status}" to "active"`);
+        await supabase
+          .from('brands')
+          .update({ status: 'active' })
+          .eq('id', existingBrand.id);
+      }
     } else {
-      // Create brand stub with explicit status
+      // Create brand as active immediately — scans should never hit empty shells
       const { data: newBrand, error: brandError } = await supabase
         .from('brands')
         .insert({
           name: normalizedName,
           website: null,
           description: 'Brand information pending enrichment',
-          status: 'stub',
+          status: 'active',
         })
         .select('id')
         .single();
@@ -309,7 +318,24 @@ async function saveToCache(supabase: any, productData: any) {
         console.error('[smart-product-lookup] Failed to create brand:', brandError);
       } else if (newBrand) {
         brandId = newBrand.id;
-        console.log(`[smart-product-lookup] Created brand stub: ${normalizedName} (${brandId})`);
+        console.log(`[smart-product-lookup] Created active brand: ${normalizedName} (${brandId})`);
+      }
+    }
+    
+    // Queue background enrichment for the brand (non-blocking)
+    if (brandId) {
+      try {
+        await supabase
+          .from('brand_enrichment_queue')
+          .upsert({
+            brand_id: brandId,
+            task: 'full_enrichment',
+            status: 'pending',
+            next_run_at: new Date().toISOString(),
+          }, { onConflict: 'brand_id,task' });
+        console.log(`[smart-product-lookup] Queued enrichment for brand ${brandId}`);
+      } catch (e) {
+        console.warn('[smart-product-lookup] Failed to queue enrichment:', e);
       }
     }
   }

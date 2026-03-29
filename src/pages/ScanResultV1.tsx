@@ -233,7 +233,7 @@ export default function ScanResultV1() {
   // Score data
   const { data: scoreData } = useQuery({
     queryKey: ["scan-score", brandInfo?.id],
-    enabled: !!brandInfo?.id && brandInfo?.status === "ready",
+    enabled: !!brandInfo?.id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("brand_scores")
@@ -250,7 +250,7 @@ export default function ScanResultV1() {
   // Evidence counts by category
   const { data: evidenceCounts } = useQuery({
     queryKey: ["scan-evidence-counts", brandInfo?.id],
-    enabled: !!brandInfo?.id && brandInfo?.status === "ready",
+    enabled: !!brandInfo?.id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("brand_events")
@@ -270,7 +270,7 @@ export default function ScanResultV1() {
   const displayBrandName = brandInfo?.name || navBrandName || null;
 
   // States
-  const brandIsReady = brandInfo?.status === "ready";
+  const brandIsReady = brandInfo?.status === "ready" || brandInfo?.status === "active";
   const brandIsBuilding = brandInfo?.status === "stub" || brandInfo?.status === "building";
   const brandIsFailed = brandInfo?.status === "failed";
   const brandExists = Boolean(brandInfo?.id);
