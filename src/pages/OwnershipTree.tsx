@@ -137,7 +137,7 @@ function TreeNode({
       {/* Badge */}
       {isCurrent && (
         <Badge className="text-[9px] bg-primary/15 text-primary border-primary/20 px-1.5 py-0">
-          {isCurrent ? "Viewing" : "Related"}
+          {isCurrent ? "Viewing" : "Related brand"}
         </Badge>
       )}
     </motion.div>
@@ -393,7 +393,7 @@ export default function OwnershipTree() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                {(!scannedBrandId || scannedBrandId === brandId) ? "You scanned" : `Parent of ${scannedBrandName || "scanned brand"}`}
+                {(!scannedBrandId || scannedBrandId === brandId) ? "You scanned this" : `Parent company of ${scannedBrandName || "scanned brand"}`}
               </p>
               <p className="text-lg font-bold truncate">{brand.name}</p>
             </div>
