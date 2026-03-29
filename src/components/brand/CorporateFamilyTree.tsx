@@ -18,7 +18,7 @@ interface TreeNode {
   type?: string;
 }
 
-export function CorporateFamilyTree({ brandId, brandName }: { brandId: string; brandName: string }) {
+export function CorporateFamilyTree({ brandId, brandName, scannedBrandId }: { brandId: string; brandName: string; scannedBrandId?: string }) {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -55,7 +55,7 @@ export function CorporateFamilyTree({ brandId, brandName }: { brandId: string; b
   const totalFamily = allSiblings.length + 1;
 
   const goToBrand = (id: string) => {
-    navigate(`/brand/${id}`, { state: { fromBrand: true } });
+    navigate(`/brand/${id}`, { state: { fromBrand: true, scannedBrandId: scannedBrandId || brandId, scannedBrandName: brandName } });
   };
 
   return (
