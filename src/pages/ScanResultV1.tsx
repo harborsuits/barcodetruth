@@ -270,7 +270,7 @@ export default function ScanResultV1() {
   const displayBrandName = brandInfo?.name || navBrandName || null;
 
   // States
-  const brandIsReady = brandInfo?.status === "ready";
+  const brandIsReady = brandInfo?.status === "ready" || brandInfo?.status === "active";
   const brandIsBuilding = brandInfo?.status === "stub" || brandInfo?.status === "building";
   const brandIsFailed = brandInfo?.status === "failed";
   const brandExists = Boolean(brandInfo?.id);
