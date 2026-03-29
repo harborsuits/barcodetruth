@@ -230,20 +230,26 @@ export default function ScanResultV1() {
     },
   });
 
-  // Score data
+  // Score data — fetch all dimension columns, not just `score`
   const { data: scoreData } = useQuery({
     queryKey: ["scan-score", brandInfo?.id],
     enabled: !!brandInfo?.id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("brand_scores")
-        .select("score")
+        .select("score, score_labor, score_environment, score_politics, score_social")
         .eq("brand_id", brandInfo!.id)
         .order("last_updated", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (error || !data) return null;
-      return typeof data.score === "string" ? JSON.parse(data.score) : data.score;
+      return {
+        overall: data.score ?? null,
+        score_labor: data.score_labor ?? null,
+        score_environment: data.score_environment ?? null,
+        score_politics: data.score_politics ?? null,
+        score_social: data.score_social ?? null,
+      };
     },
   });
 
