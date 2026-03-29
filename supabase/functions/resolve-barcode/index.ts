@@ -138,12 +138,58 @@ async function resolveOwnershipChain(
   
   console.log('[resolveOwnershipChain] START:', { brandName, parentCompanyHint, logoUrl });
   
-  // Step 1: Find or create the BRAND
+  // Step 1: Find the BRAND using multi-strategy matching
+  // Strategy 1: Exact ilike name match
   let { data: brand } = await supabase
     .from('brands')
     .select('id, name, logo_url')
     .ilike('name', brandName)
     .maybeSingle();
+  
+  // Strategy 2: Slug match (handles "coca-cola" vs "Coca Cola")
+  if (!brand) {
+    const slug = brandName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    console.log('[resolveOwnershipChain] ilike failed, trying slug:', slug);
+    const { data: slugBrand } = await supabase
+      .from('brands')
+      .select('id, name, logo_url')
+      .eq('slug', slug)
+      .maybeSingle();
+    if (slugBrand) brand = slugBrand;
+  }
+  
+  // Strategy 3: Alias table lookup
+  if (!brand) {
+    console.log('[resolveOwnershipChain] slug failed, trying aliases for:', brandName);
+    const { data: alias } = await supabase
+      .from('brand_aliases')
+      .select('canonical_brand_id')
+      .ilike('external_name', brandName)
+      .maybeSingle();
+    if (alias?.canonical_brand_id) {
+      const { data: aliasBrand } = await supabase
+        .from('brands')
+        .select('id, name, logo_url')
+        .eq('id', alias.canonical_brand_id)
+        .maybeSingle();
+      if (aliasBrand) brand = aliasBrand;
+    }
+  }
+  
+  // Strategy 4: Normalized match (strip suffixes, try without dashes/spaces)
+  if (!brand) {
+    const normalized = brandName.toLowerCase()
+      .replace(/[-_]/g, ' ')
+      .replace(/\s+(inc|llc|ltd|co|corp|company|group|plc)\.?$/i, '')
+      .trim();
+    console.log('[resolveOwnershipChain] trying normalized name:', normalized);
+    const { data: normBrand } = await supabase
+      .from('brands')
+      .select('id, name, logo_url')
+      .ilike('name', normalized)
+      .maybeSingle();
+    if (normBrand) brand = normBrand;
+  }
   
   let isNewBrand = false;
   if (!brand) {
@@ -455,6 +501,12 @@ Deno.serve(async (req) => {
       .or(`barcode.eq.${normalizedBarcode},barcode.eq.${barcode}`)
       .maybeSingle();
 
+    // Handle orphaned product (exists but no brand) — remember for later update
+    const orphanedProduct = product && !product.brands ? product : null;
+    if (orphanedProduct) {
+      console.log(`[${normalizedBarcode}] Product exists but orphaned (no brand_id), will attempt brand resolution via external APIs...`);
+    }
+
     if (product && product.brands) {
       // Find parent company
       const { data: ownership } = await supabase
@@ -695,16 +747,32 @@ Deno.serve(async (req) => {
           );
         }
           
-          // Insert product with resolved brand and image
-          const { error: insertError } = await supabase
-            .from('products')
-            .insert({
-              name: productName,
-              barcode: normalizedBarcode,
-              brand_id: ownershipResult.brand_id,
-              image_url: productImage || null,
-              source: 'openfoodfacts',
-            });
+          // Insert or update product with resolved brand and image
+          let insertError: any = null;
+          if (orphanedProduct) {
+            // Product already exists but was orphaned — update it with brand
+            console.log(`[${normalizedBarcode}] Updating orphaned product with brand_id: ${ownershipResult.brand_id}`);
+            const { error } = await supabase
+              .from('products')
+              .update({
+                brand_id: ownershipResult.brand_id,
+                image_url: productImage || orphanedProduct.image_url || null,
+                source: 'openfoodfacts',
+              })
+              .eq('id', orphanedProduct.id);
+            insertError = error;
+          } else {
+            const { error } = await supabase
+              .from('products')
+              .upsert({
+                name: productName,
+                barcode: normalizedBarcode,
+                brand_id: ownershipResult.brand_id,
+                image_url: productImage || null,
+                source: 'openfoodfacts',
+              }, { onConflict: 'barcode' });
+            insertError = error;
+          }
           
           if (!insertError) {
             const dur = Math.round(performance.now() - t0);
@@ -852,7 +920,92 @@ Deno.serve(async (req) => {
       }
     }
     
-    console.log(`[${normalizedBarcode}] Not found on OpenFoodFacts, trying GS1 fallback...`);
+    // 3. Fallback: UPCitemdb (free API, no key needed)
+    console.log(`[${normalizedBarcode}] Not found on OpenFoodFacts, trying UPCitemdb...`);
+    try {
+      // Try both EAN-13 and UPC-12 formats (UPCitemdb prefers 12-digit UPC)
+      const upcFormats = [normalizedBarcode];
+      if (normalizedBarcode.length === 13 && normalizedBarcode.startsWith('0')) {
+        upcFormats.push(normalizedBarcode.slice(1)); // Strip leading 0 for UPC-12
+      }
+      if (barcode !== normalizedBarcode) {
+        upcFormats.push(barcode); // Also try original input
+      }
+      
+      let upcDbData: any = null;
+      for (const fmt of upcFormats) {
+        const upcDbUrl = `https://api.upcitemdb.com/prod/trial/lookup?upc=${fmt}`;
+        const upcDbRes = await fetch(upcDbUrl, {
+          headers: { 'Accept': 'application/json' }
+        });
+        if (upcDbRes.ok) {
+          const data = await upcDbRes.json();
+          if (data.items && data.items.length > 0) {
+            upcDbData = data;
+            console.log(`[${normalizedBarcode}] UPCitemdb matched with format: ${fmt}`);
+            break;
+          }
+          await upcDbRes.text(); // consume body
+        } else {
+          const body = await upcDbRes.text();
+          console.log(`[${normalizedBarcode}] UPCitemdb format ${fmt} failed: ${upcDbRes.status}`);
+        }
+      }
+      
+      if (upcDbData && upcDbData.items && upcDbData.items.length > 0) {
+          const item = upcDbData.items[0];
+          const productName = item.title || 'Unknown Product';
+          const brandRaw = item.brand || '';
+          
+          console.log(`[${normalizedBarcode}] UPCitemdb found:`, { title: item.title, brand: item.brand, category: item.category });
+          
+          if (brandRaw) {
+            const mappedBrand = BRAND_OVERRIDES[brandRaw.toLowerCase()] || brandRaw;
+            const ownershipResult = await resolveOwnershipChain(supabase, mappedBrand, '', undefined);
+            
+            if (ownershipResult.brand_id) {
+              // Insert or update product
+              if (orphanedProduct) {
+                await supabase.from('products').update({
+                  brand_id: ownershipResult.brand_id,
+                  source: 'upcitemdb',
+                }).eq('id', orphanedProduct.id);
+              } else {
+                await supabase.from('products').upsert({
+                  name: productName,
+                  barcode: normalizedBarcode,
+                  brand_id: ownershipResult.brand_id,
+                  source: 'upcitemdb',
+                  category: item.category || null,
+                }, { onConflict: 'barcode' });
+              }
+              
+              const dur = Math.round(performance.now() - t0);
+              console.log(JSON.stringify({ level: "info", fn: "resolve-barcode", barcode: normalizedBarcode, source: "upcitemdb", brand_id: ownershipResult.brand_id, dur_ms: dur, ok: true }));
+              
+              return new Response(
+                JSON.stringify({
+                  success: true,
+                  brand_id: ownershipResult.brand_id,
+                  brand_name: mappedBrand,
+                  company_id: ownershipResult.company_id,
+                  company_name: ownershipResult.company_name,
+                  upc: normalizedBarcode,
+                  product_name: productName,
+                  product: { name: productName, barcode: normalizedBarcode },
+                  brand: { id: ownershipResult.brand_id, name: mappedBrand },
+                  source: 'upcitemdb',
+                }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+          }
+      }
+    } catch (e) {
+      console.log(`[${normalizedBarcode}] UPCitemdb fetch failed:`, e);
+    }
+
+    console.log(`[${normalizedBarcode}] Not found on UPCitemdb either, trying GS1 fallback...`);
     
     // 3. GS1 prefix fallback (Phase 1)
     const gs1Prefix = extractGS1Prefix(normalizedBarcode);
