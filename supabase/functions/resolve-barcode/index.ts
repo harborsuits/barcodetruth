@@ -952,9 +952,7 @@ Deno.serve(async (req) => {
         }
       }
       
-      if (upcDbRes.ok) {
-        const upcDbData = await upcDbRes.json();
-        if (upcDbData.items && upcDbData.items.length > 0) {
+      if (upcDbData && upcDbData.items && upcDbData.items.length > 0) {
           const item = upcDbData.items[0];
           const productName = item.title || 'Unknown Product';
           const brandRaw = item.brand || '';
@@ -1002,10 +1000,6 @@ Deno.serve(async (req) => {
               );
             }
           }
-        }
-      } else {
-        const body = await upcDbRes.text();
-        console.log(`[${normalizedBarcode}] UPCitemdb error: ${upcDbRes.status}`, body);
       }
     } catch (e) {
       console.log(`[${normalizedBarcode}] UPCitemdb fetch failed:`, e);
