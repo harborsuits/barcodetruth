@@ -10,12 +10,13 @@ interface ScanLimit {
 }
 
 export function useScanLimit() {
+  // PAYWALL DISABLED — free for all users during beta
   const [limit, setLimit] = useState<ScanLimit>({
     can_scan: true,
-    is_subscribed: false,
-    scans_remaining: 5,
+    is_subscribed: true,
+    scans_remaining: 999999,
     scans_used: 0,
-    loading: true,
+    loading: false,
   });
 
   const checkLimit = async () => {
