@@ -4,6 +4,7 @@ interface TrustVerdictProps {
   score: number | null;
   brandName: string;
   reasons: string[];
+  hasEvidence?: boolean;
 }
 
 type Verdict = {
@@ -13,9 +14,9 @@ type Verdict = {
   bgClassName: string;
 };
 
-function getVerdict(score: number | null): Verdict {
+function getVerdict(score: number | null, hasEvidence?: boolean): Verdict {
   if (score === null) return {
-    label: "Unrated",
+    label: hasEvidence ? "Score Pending" : "Unrated",
     icon: ShieldAlert,
     className: "text-muted-foreground",
     bgClassName: "bg-muted",
@@ -40,8 +41,8 @@ function getVerdict(score: number | null): Verdict {
   };
 }
 
-export function TrustVerdict({ score, brandName, reasons }: TrustVerdictProps) {
-  const verdict = getVerdict(score);
+export function TrustVerdict({ score, brandName, reasons, hasEvidence }: TrustVerdictProps) {
+  const verdict = getVerdict(score, hasEvidence);
   const Icon = verdict.icon;
 
   return (
