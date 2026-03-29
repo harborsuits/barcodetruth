@@ -504,7 +504,15 @@ export default function ScanResultV1() {
         </div>
 
         {/* ─── 1. INSTANT VERDICT ─── */}
-        <TrustVerdict score={effectiveScore} brandName={brandInfo?.name || ""} reasons={isBaselineScore ? ["Score analysis in progress — we'll update this automatically"] : reasons} hasEvidence={(counts.total || 0) > 0} />
+        <TrustVerdict
+          score={effectiveScore}
+          brandName={brandInfo?.name || ""}
+          reasons={isBaselineScore ? ["Score analysis in progress — we'll update this automatically"] : reasons}
+          hasEvidence={(counts.total || 0) > 0}
+          category={product?.category}
+          parentCompany={brandInfo?.parent_company}
+          website={brandInfo?.website}
+        />
 
         {/* ─── 4. OWNERSHIP REVEAL ─── */}
         {brandInfo?.id && (

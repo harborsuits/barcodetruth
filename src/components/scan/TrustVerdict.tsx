@@ -1,10 +1,13 @@
-import { ShieldCheck, ShieldAlert, ShieldX, Clock } from "lucide-react";
+import { ShieldCheck, ShieldAlert, ShieldX, Clock, Search, Database, FileCheck } from "lucide-react";
 
 interface TrustVerdictProps {
   score: number | null;
   brandName: string;
   reasons: string[];
   hasEvidence?: boolean;
+  category?: string | null;
+  parentCompany?: string | null;
+  website?: string | null;
 }
 
 type Verdict = {
@@ -41,10 +44,39 @@ function getVerdict(score: number | null, hasEvidence?: boolean): Verdict {
   };
 }
 
-export function TrustVerdict({ score, brandName, reasons, hasEvidence }: TrustVerdictProps) {
+function buildFallbackInsights(brandName: string, category?: string | null, parentCompany?: string | null, hasEvidence?: boolean): string[] {
+  const insights: string[] = [];
+  
+  if (hasEvidence) {
+    insights.push("We found evidence for this brand — analyzing it now");
+  } else {
+    insights.push("Checking public records, regulatory filings, and news sources");
+  }
+  
+  if (parentCompany && parentCompany !== brandName) {
+    insights.push(`Owned by ${parentCompany} — checking parent company records too`);
+  }
+  
+  if (category) {
+    insights.push(`Comparing against other ${category.toLowerCase()} brands`);
+  }
+  
+  if (insights.length < 2) {
+    insights.push("No major public issues found yet — analysis in progress");
+  }
+  
+  return insights.slice(0, 3);
+}
+
+export function TrustVerdict({ score, brandName, reasons, hasEvidence, category, parentCompany, website }: TrustVerdictProps) {
   const verdict = getVerdict(score, hasEvidence);
   const Icon = verdict.icon;
   const isAnalyzing = score === null;
+
+  // Use fallback insights when analyzing
+  const displayReasons = isAnalyzing && reasons.length <= 1
+    ? buildFallbackInsights(brandName, category, parentCompany, hasEvidence)
+    : reasons;
 
   return (
     <div className={`${verdict.bgClassName} border border-border p-5 space-y-4`}>
@@ -70,17 +102,25 @@ export function TrustVerdict({ score, brandName, reasons, hasEvidence }: TrustVe
         </div>
       </div>
 
-      {/* Top reasons */}
-      {reasons.length > 0 && (
+      {/* Top reasons / insights */}
+      {displayReasons.length > 0 && (
         <div className="space-y-1.5 pt-3 border-t border-border/50">
-          <p className="label-forensic text-[10px]">{isAnalyzing ? "Status" : "Why"}</p>
-          {reasons.slice(0, 3).map((reason, i) => (
+          <p className="label-forensic text-[10px]">{isAnalyzing ? "What we're doing" : "Why"}</p>
+          {displayReasons.slice(0, 3).map((reason, i) => (
             <div key={i} className="flex items-start gap-2">
               <span className="text-muted-foreground text-xs mt-0.5">{isAnalyzing ? "◌" : "⚠"}</span>
               <p className="text-sm text-foreground/80 leading-snug">{reason}</p>
             </div>
           ))}
         </div>
+      )}
+
+      {/* Auto-update promise for analyzing state */}
+      {isAnalyzing && (
+        <p className="text-[10px] text-muted-foreground font-mono pt-1 flex items-center gap-1.5">
+          <FileCheck className="h-3 w-3" />
+          This will update automatically as we verify sources
+        </p>
       )}
     </div>
   );
