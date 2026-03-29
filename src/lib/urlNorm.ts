@@ -98,7 +98,7 @@ export function textFingerprint(title: string, snippet?: string): string {
   
   // Simple 64-bit hash (FNV-1a variant)
   let h = BigInt('14695981039346656037');
-  for (const ch of Buffer.from(top)) {
+  for (const ch of new TextEncoder().encode(top)) {
     h ^= BigInt(ch);
     h *= BigInt('1099511628211');
   }

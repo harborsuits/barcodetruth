@@ -255,7 +255,7 @@ export const EventCard = ({ event, showFullDetails = false, compact = false }: E
   const additionalSources = sortedSources.slice(1);
   
   // Dev logging breadcrumbs (only in dev builds)
-  if (process.env.NODE_ENV === 'development' && event.event_id) {
+  if (import.meta.env.DEV && event.event_id) {
     const sourceCount = allSources.length;
     const hasOfficial = event.verification === 'official' || event.verification === 'corroborated';
     console.debug(`[EventCard] ${event.event_id}: ${sourceCount} sources, verified=${hasOfficial}`);
