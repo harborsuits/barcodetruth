@@ -284,11 +284,16 @@ export default function ScanResultV1() {
   const overallScore = scoreData?.overall ?? null;
   const counts = evidenceCounts || { labor: 0, environment: 0, politics: 0, social: 0, total: 0 };
 
+  const effectiveLabor = isBaselineScore ? null : (scoreData?.score_labor ?? null);
+  const effectiveEnv = isBaselineScore ? null : (scoreData?.score_environment ?? null);
+  const effectivePol = isBaselineScore ? null : (scoreData?.score_politics ?? null);
+  const effectiveSoc = isBaselineScore ? null : (scoreData?.score_social ?? null);
+
   const dimensions = [
-    { key: "labor", label: "Labor & Safety", score: scoreData?.score_labor ?? null, evidenceCount: counts.labor, summary: getDimensionSummary("labor", scoreData?.score_labor ?? null, counts.labor) },
-    { key: "environment", label: "Environment", score: scoreData?.score_environment ?? null, evidenceCount: counts.environment, summary: getDimensionSummary("environment", scoreData?.score_environment ?? null, counts.environment) },
-    { key: "politics", label: "Political Influence", score: scoreData?.score_politics ?? null, evidenceCount: counts.politics, summary: getDimensionSummary("politics", scoreData?.score_politics ?? null, counts.politics) },
-    { key: "social", label: "Social Impact", score: scoreData?.score_social ?? null, evidenceCount: counts.social, summary: getDimensionSummary("social", scoreData?.score_social ?? null, counts.social) },
+    { key: "labor", label: "Labor & Safety", score: effectiveLabor, evidenceCount: counts.labor, summary: getDimensionSummary("labor", effectiveLabor, counts.labor) },
+    { key: "environment", label: "Environment", score: effectiveEnv, evidenceCount: counts.environment, summary: getDimensionSummary("environment", effectiveEnv, counts.environment) },
+    { key: "politics", label: "Political Influence", score: effectivePol, evidenceCount: counts.politics, summary: getDimensionSummary("politics", effectivePol, counts.politics) },
+    { key: "social", label: "Social Impact", score: effectiveSoc, evidenceCount: counts.social, summary: getDimensionSummary("social", effectiveSoc, counts.social) },
   ];
 
   const reasons = buildReasons(scoreData, counts, brandInfo?.parent_company, brandInfo?.name);
