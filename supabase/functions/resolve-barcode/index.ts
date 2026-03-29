@@ -138,12 +138,58 @@ async function resolveOwnershipChain(
   
   console.log('[resolveOwnershipChain] START:', { brandName, parentCompanyHint, logoUrl });
   
-  // Step 1: Find or create the BRAND
+  // Step 1: Find the BRAND using multi-strategy matching
+  // Strategy 1: Exact ilike name match
   let { data: brand } = await supabase
     .from('brands')
     .select('id, name, logo_url')
     .ilike('name', brandName)
     .maybeSingle();
+  
+  // Strategy 2: Slug match (handles "coca-cola" vs "Coca Cola")
+  if (!brand) {
+    const slug = brandName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    console.log('[resolveOwnershipChain] ilike failed, trying slug:', slug);
+    const { data: slugBrand } = await supabase
+      .from('brands')
+      .select('id, name, logo_url')
+      .eq('slug', slug)
+      .maybeSingle();
+    if (slugBrand) brand = slugBrand;
+  }
+  
+  // Strategy 3: Alias table lookup
+  if (!brand) {
+    console.log('[resolveOwnershipChain] slug failed, trying aliases for:', brandName);
+    const { data: alias } = await supabase
+      .from('brand_aliases')
+      .select('canonical_brand_id')
+      .ilike('external_name', brandName)
+      .maybeSingle();
+    if (alias?.canonical_brand_id) {
+      const { data: aliasBrand } = await supabase
+        .from('brands')
+        .select('id, name, logo_url')
+        .eq('id', alias.canonical_brand_id)
+        .maybeSingle();
+      if (aliasBrand) brand = aliasBrand;
+    }
+  }
+  
+  // Strategy 4: Normalized match (strip suffixes, try without dashes/spaces)
+  if (!brand) {
+    const normalized = brandName.toLowerCase()
+      .replace(/[-_]/g, ' ')
+      .replace(/\s+(inc|llc|ltd|co|corp|company|group|plc)\.?$/i, '')
+      .trim();
+    console.log('[resolveOwnershipChain] trying normalized name:', normalized);
+    const { data: normBrand } = await supabase
+      .from('brands')
+      .select('id, name, logo_url')
+      .ilike('name', normalized)
+      .maybeSingle();
+    if (normBrand) brand = normBrand;
+  }
   
   let isNewBrand = false;
   if (!brand) {
