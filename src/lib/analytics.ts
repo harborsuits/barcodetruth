@@ -47,7 +47,7 @@ class Analytics {
     this.saveQueue();
 
     // Console log in development
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.log('[Analytics]', event, properties);
     }
 
