@@ -441,7 +441,7 @@ export default function ScanResultV1() {
 
   // Detect if this is effectively an unknown/unrated brand
   const isUnknownBrand = !product?.brand_id || (!brandLoading && !displayBrandName) || displayBrandName === "Unknown Brand" || displayBrandName === "Unknown";
-  const isUnrated = overallScore === null;
+  const isUnrated = effectiveScore === null;
   const isDeadEnd = !brandLoading && isUnknownBrand && isUnrated && !navBrandName;
 
   // ═══════════════════════════════════════════════════
@@ -478,7 +478,7 @@ export default function ScanResultV1() {
         </div>
 
         {/* ─── 1. INSTANT VERDICT ─── */}
-        <TrustVerdict score={overallScore} brandName={brandInfo?.name || ""} reasons={reasons} hasEvidence={(counts.total || 0) > 0} />
+        <TrustVerdict score={effectiveScore} brandName={brandInfo?.name || ""} reasons={isBaselineScore ? ["Score analysis in progress — we'll update this automatically"] : reasons} hasEvidence={(counts.total || 0) > 0} />
 
         {/* ─── 4. OWNERSHIP REVEAL ─── */}
         {brandInfo?.id && (
@@ -498,7 +498,7 @@ export default function ScanResultV1() {
         {/* ─── 5. SHARE ─── */}
         <ShareCard
           brandName={brandInfo?.name || ""}
-          score={overallScore}
+          score={effectiveScore}
           verdict={verdictLabel}
           dimensions={dimensions.map((d) => ({ label: d.label, grade: getLetterGrade(d.score) }))}
         />
