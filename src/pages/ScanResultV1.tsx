@@ -467,19 +467,40 @@ export default function ScanResultV1() {
       <ScanHeader onBack={() => navigate(-1)} />
 
       <main className="container max-w-md mx-auto px-4 py-5 space-y-4">
-        {/* ─── Product + Brand identity ─── */}
-        <div className="flex items-center gap-3">
-          {displayLogo ? (
-            <img src={displayLogo} alt={brandInfo?.name || ""} className="w-14 h-14 border-2 border-border object-contain bg-muted flex-shrink-0 p-1.5" />
-          ) : (
-            <div className="w-14 h-14 border-2 border-border grid place-items-center text-xl font-bold bg-muted flex-shrink-0">
-              {displayBrandName?.[0]?.toUpperCase() ?? "?"}
+        {/* ═══ PRODUCT LAYER — What you scanned ═══ */}
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="pt-5 pb-4">
+            <p className="text-[10px] font-mono uppercase tracking-widest text-primary mb-3 flex items-center gap-1.5">
+              <Package className="h-3 w-3" />
+              You scanned this
+            </p>
+            <div className="flex items-center gap-3">
+              {displayLogo ? (
+                <img src={displayLogo} alt={brandInfo?.name || ""} className="w-14 h-14 border-2 border-border object-contain bg-background flex-shrink-0 p-1.5 rounded" />
+              ) : (
+                <div className="w-14 h-14 border-2 border-border grid place-items-center text-xl font-bold bg-background flex-shrink-0 rounded">
+                  {displayBrandName?.[0]?.toUpperCase() ?? "?"}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <h1 className="text-lg font-bold tracking-tight leading-tight">{product.name}</h1>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  by <span className="font-medium text-foreground">{displayBrandName || "Resolving..."}</span>
+                </p>
+                {product.category && (
+                  <p className="text-xs text-muted-foreground mt-1">{product.category}</p>
+                )}
+              </div>
             </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <p className="text-xs text-muted-foreground truncate">{product.name}</p>
-            <h1 className="text-xl font-bold tracking-tight truncate">{displayBrandName || "Resolving brand..."}</h1>
-          </div>
+          </CardContent>
+        </Card>
+
+        {/* ═══ BRAND INTELLIGENCE LAYER — What we know about the company ═══ */}
+        <div className="pt-1">
+          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-1.5">
+            <Search className="h-3 w-3" />
+            Brand intelligence
+          </p>
         </div>
 
         {/* ─── 1. INSTANT VERDICT ─── */}
