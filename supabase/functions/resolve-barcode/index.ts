@@ -501,6 +501,12 @@ Deno.serve(async (req) => {
       .or(`barcode.eq.${normalizedBarcode},barcode.eq.${barcode}`)
       .maybeSingle();
 
+    // Handle orphaned product (exists but no brand) — remember for later update
+    const orphanedProduct = product && !product.brands ? product : null;
+    if (orphanedProduct) {
+      console.log(`[${normalizedBarcode}] Product exists but orphaned (no brand_id), will attempt brand resolution via external APIs...`);
+    }
+
     if (product && product.brands) {
       // Find parent company
       const { data: ownership } = await supabase
