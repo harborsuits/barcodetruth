@@ -284,6 +284,15 @@ export default function ScanResultV1() {
   const overallScore = scoreData?.overall ?? null;
   const counts = evidenceCounts || { labor: 0, environment: 0, politics: 0, social: 0, total: 0 };
 
+  // Detect baseline-50 scores (all dimensions exactly 50 = not yet scored)
+  const isBaselineScore = scoreData && 
+    scoreData.overall === 50 && 
+    scoreData.score_labor === 50 && 
+    scoreData.score_environment === 50 && 
+    scoreData.score_politics === 50 && 
+    scoreData.score_social === 50;
+
+  const effectiveScore = isBaselineScore ? null : overallScore;
   const effectiveLabor = isBaselineScore ? null : (scoreData?.score_labor ?? null);
   const effectiveEnv = isBaselineScore ? null : (scoreData?.score_environment ?? null);
   const effectivePol = isBaselineScore ? null : (scoreData?.score_politics ?? null);
@@ -298,16 +307,7 @@ export default function ScanResultV1() {
 
   const reasons = buildReasons(scoreData, counts, brandInfo?.parent_company, brandInfo?.name);
 
-  // Detect baseline-50 scores (all dimensions exactly 50 = not yet scored)
-  const isBaselineScore = scoreData && 
-    scoreData.overall === 50 && 
-    scoreData.score_labor === 50 && 
-    scoreData.score_environment === 50 && 
-    scoreData.score_politics === 50 && 
-    scoreData.score_social === 50;
-
-  const effectiveScore = isBaselineScore ? null : overallScore;
-  const verdictLabel = effectiveScore === null ? (counts.total > 0 ? "Analyzing" : "Analyzing") : effectiveScore >= 65 ? "Trust" : effectiveScore >= 40 ? "Caution" : "Avoid";
+  const verdictLabel = effectiveScore === null ? "Analyzing" : effectiveScore >= 65 ? "Trust" : effectiveScore >= 40 ? "Caution" : "Avoid";
 
   // Logo
   const displayLogo = useBrandLogo(brandInfo?.logo_url || null, brandInfo?.website || null);
