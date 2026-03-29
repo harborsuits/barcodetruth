@@ -747,16 +747,32 @@ Deno.serve(async (req) => {
           );
         }
           
-          // Insert product with resolved brand and image
-          const { error: insertError } = await supabase
-            .from('products')
-            .insert({
-              name: productName,
-              barcode: normalizedBarcode,
-              brand_id: ownershipResult.brand_id,
-              image_url: productImage || null,
-              source: 'openfoodfacts',
-            });
+          // Insert or update product with resolved brand and image
+          let insertError: any = null;
+          if (orphanedProduct) {
+            // Product already exists but was orphaned — update it with brand
+            console.log(`[${normalizedBarcode}] Updating orphaned product with brand_id: ${ownershipResult.brand_id}`);
+            const { error } = await supabase
+              .from('products')
+              .update({
+                brand_id: ownershipResult.brand_id,
+                image_url: productImage || orphanedProduct.image_url || null,
+                source: 'openfoodfacts',
+              })
+              .eq('id', orphanedProduct.id);
+            insertError = error;
+          } else {
+            const { error } = await supabase
+              .from('products')
+              .upsert({
+                name: productName,
+                barcode: normalizedBarcode,
+                brand_id: ownershipResult.brand_id,
+                image_url: productImage || null,
+                source: 'openfoodfacts',
+              }, { onConflict: 'barcode' });
+            insertError = error;
+          }
           
           if (!insertError) {
             const dur = Math.round(performance.now() - t0);
