@@ -392,7 +392,9 @@ export default function OwnershipTree() {
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">You scanned</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                {(!scannedBrandId || scannedBrandId === brandId) ? "You scanned" : `Parent of ${scannedBrandName || "scanned brand"}`}
+              </p>
               <p className="text-lg font-bold truncate">{brand.name}</p>
             </div>
             <div className="flex items-center gap-2">
