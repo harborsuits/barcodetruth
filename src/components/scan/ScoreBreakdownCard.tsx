@@ -27,23 +27,30 @@ function getLetterGrade(score: number | null): { grade: string; className: strin
 }
 
 export function ScoreBreakdownCard({ brandId, dimensions }: ScoreBreakdownCardProps) {
+  const allPending = dimensions.every(d => d.score === null);
+  
   return (
     <div className="bg-elevated-1 border border-border divide-y divide-border">
       <div className="p-4">
-        <h3 className="label-forensic">Why This Score</h3>
+        <h3 className="label-forensic">{allPending ? "What we're checking" : "Why This Score"}</h3>
       </div>
 
       {dimensions.map((dim) => {
         const { grade, className } = getLetterGrade(dim.score);
+        const isPending = dim.score === null;
         return (
           <Link
             key={dim.key}
             to={`/brands/${brandId}/proof#${dim.key}`}
             className="flex items-center gap-3 p-4 hover:bg-elevated-2 transition-colors"
           >
-            {/* Letter grade */}
+            {/* Letter grade or pending indicator */}
             <div className={`w-10 h-10 flex items-center justify-center font-bold text-lg font-mono ${className}`}>
-              {grade}
+              {isPending ? (
+                <span className="text-xs text-muted-foreground">···</span>
+              ) : (
+                grade
+              )}
             </div>
 
             {/* Details */}
@@ -54,7 +61,9 @@ export function ScoreBreakdownCard({ brandId, dimensions }: ScoreBreakdownCardPr
                   <span className="text-xs text-muted-foreground font-mono">{Math.round(dim.score)}/100</span>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{dim.summary}</p>
+              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                {isPending ? getPendingSummary(dim.key) : dim.summary}
+              </p>
               {dim.evidenceCount > 0 && (
                 <p className="text-[10px] text-muted-foreground font-mono mt-1">
                   {dim.evidenceCount} evidence item{dim.evidenceCount !== 1 ? "s" : ""}
@@ -68,4 +77,13 @@ export function ScoreBreakdownCard({ brandId, dimensions }: ScoreBreakdownCardPr
       })}
     </div>
   );
+}
+
+function getPendingSummary(key: string): string {
+  switch (key) {
+    case "labor": return "Checking OSHA records, workplace safety reports";
+    case "environment": return "Reviewing EPA filings, environmental compliance";
+    case "politics": return "Scanning FEC donations, lobbying disclosures";
+    default: return "Analyzing public records and news sources";
+  }
 }
