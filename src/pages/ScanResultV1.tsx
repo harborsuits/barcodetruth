@@ -533,7 +533,7 @@ export default function ScanResultV1() {
         <div className="space-y-2">
           {brandInfo?.slug && (
             <Button variant="outline" className="w-full font-mono text-[10px] uppercase tracking-widest" onClick={() => navigate(`/brand/${brandInfo.slug}`, { state: { scannedBrandId: brandInfo.id, scannedBrandName: brandInfo.name } })}>
-              View Brand Details →
+              View Full Company Profile →
             </Button>
           )}
           <Button variant="ghost" className="w-full" onClick={() => navigate("/scan")}>Scan Another Product</Button>

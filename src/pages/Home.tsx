@@ -65,7 +65,7 @@ export const Home = () => {
         <div className="container max-w-2xl mx-auto px-4">
           <div className="flex items-center justify-around py-2">
             {[
-              { icon: ScanLine, label: "Scanner", path: "/scan" },
+              { icon: ScanLine, label: "Scan", path: "/scan" },
               { icon: Search, label: "Search", path: "/search" },
               { icon: TrendingUp, label: "Trending", path: "/trending" },
               { icon: Settings, label: "Settings", path: "/settings" },

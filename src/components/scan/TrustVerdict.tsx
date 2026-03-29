@@ -1,4 +1,4 @@
-import { ShieldCheck, ShieldAlert, ShieldX } from "lucide-react";
+import { ShieldCheck, ShieldAlert, ShieldX, Clock } from "lucide-react";
 
 interface TrustVerdictProps {
   score: number | null;
@@ -16,8 +16,8 @@ type Verdict = {
 
 function getVerdict(score: number | null, hasEvidence?: boolean): Verdict {
   if (score === null) return {
-    label: hasEvidence ? "Analyzing" : "Unrated",
-    icon: ShieldAlert,
+    label: hasEvidence ? "Analyzing" : "Pending",
+    icon: Clock,
     className: "text-muted-foreground",
     bgClassName: "bg-muted",
   };
@@ -44,13 +44,14 @@ function getVerdict(score: number | null, hasEvidence?: boolean): Verdict {
 export function TrustVerdict({ score, brandName, reasons, hasEvidence }: TrustVerdictProps) {
   const verdict = getVerdict(score, hasEvidence);
   const Icon = verdict.icon;
+  const isAnalyzing = score === null;
 
   return (
     <div className={`${verdict.bgClassName} border border-border p-5 space-y-4`}>
       {/* Score + Verdict */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="label-forensic mb-1">Trust Score</p>
+          <p className="label-forensic mb-1">Score</p>
           <div className="flex items-baseline gap-2">
             <span
               className={`text-5xl font-extrabold tracking-tighter ${verdict.className}`}
@@ -72,10 +73,10 @@ export function TrustVerdict({ score, brandName, reasons, hasEvidence }: TrustVe
       {/* Top reasons */}
       {reasons.length > 0 && (
         <div className="space-y-1.5 pt-3 border-t border-border/50">
-          <p className="label-forensic text-[10px]">Why</p>
+          <p className="label-forensic text-[10px]">{isAnalyzing ? "Status" : "Why"}</p>
           {reasons.slice(0, 3).map((reason, i) => (
             <div key={i} className="flex items-start gap-2">
-              <span className="text-warning text-xs mt-0.5">⚠</span>
+              <span className="text-muted-foreground text-xs mt-0.5">{isAnalyzing ? "◌" : "⚠"}</span>
               <p className="text-sm text-foreground/80 leading-snug">{reason}</p>
             </div>
           ))}
