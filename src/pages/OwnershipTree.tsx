@@ -437,7 +437,7 @@ export default function OwnershipTree() {
                         borderColor: `${verdict.color}44`,
                         background: verdict.bg,
                       }}
-                      onClick={() => navigate(`/brand/${parentCompany!.id}`, { state: { fromBrand: true } })}
+                      onClick={() => navigate(`/brand/${parentCompany!.id}`, { state: { fromBrand: true, scannedBrandId: scannedBrandId || brandId, scannedBrandName: scannedBrandName || brand?.name } })}
                     >
                       <div className="w-16 h-16 rounded-lg overflow-hidden bg-card flex items-center justify-center">
                         {parentCompany!.logo_url ? (
