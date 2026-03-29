@@ -169,7 +169,7 @@ function OwnershipDisplay({ brandId, brandSlug, scannedBrandId, scannedBrandName
     return (
       <div
         className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted/70 transition-colors"
-        onClick={() => navigate(`/brand/${slug}/ownership`)}
+        onClick={() => navigate(`/brand/${slug}/ownership`, { state: { scannedBrandId, scannedBrandName } })}
         role="button"
       >
         <Building2 className="h-5 w-5 text-muted-foreground flex-shrink-0" />
