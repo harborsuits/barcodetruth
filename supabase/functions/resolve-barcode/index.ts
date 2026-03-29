@@ -923,10 +923,34 @@ Deno.serve(async (req) => {
     // 3. Fallback: UPCitemdb (free API, no key needed)
     console.log(`[${normalizedBarcode}] Not found on OpenFoodFacts, trying UPCitemdb...`);
     try {
-      const upcDbUrl = `https://api.upcitemdb.com/prod/trial/lookup?upc=${normalizedBarcode}`;
-      const upcDbRes = await fetch(upcDbUrl, {
-        headers: { 'Accept': 'application/json' }
-      });
+      // Try both EAN-13 and UPC-12 formats (UPCitemdb prefers 12-digit UPC)
+      const upcFormats = [normalizedBarcode];
+      if (normalizedBarcode.length === 13 && normalizedBarcode.startsWith('0')) {
+        upcFormats.push(normalizedBarcode.slice(1)); // Strip leading 0 for UPC-12
+      }
+      if (barcode !== normalizedBarcode) {
+        upcFormats.push(barcode); // Also try original input
+      }
+      
+      let upcDbData: any = null;
+      for (const fmt of upcFormats) {
+        const upcDbUrl = `https://api.upcitemdb.com/prod/trial/lookup?upc=${fmt}`;
+        const upcDbRes = await fetch(upcDbUrl, {
+          headers: { 'Accept': 'application/json' }
+        });
+        if (upcDbRes.ok) {
+          const data = await upcDbRes.json();
+          if (data.items && data.items.length > 0) {
+            upcDbData = data;
+            console.log(`[${normalizedBarcode}] UPCitemdb matched with format: ${fmt}`);
+            break;
+          }
+          await upcDbRes.text(); // consume body
+        } else {
+          const body = await upcDbRes.text();
+          console.log(`[${normalizedBarcode}] UPCitemdb format ${fmt} failed: ${upcDbRes.status}`);
+        }
+      }
       
       if (upcDbRes.ok) {
         const upcDbData = await upcDbRes.json();
