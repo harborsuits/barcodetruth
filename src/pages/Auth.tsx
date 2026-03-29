@@ -294,7 +294,7 @@ export default function Auth() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
-                className="bg-card border-border/30 font-mono text-sm"
+                className="bg-card border-border/30"
               />
             </div>
             <div className="space-y-2">
@@ -336,7 +336,7 @@ export default function Auth() {
                     required
                     disabled={isLoading}
                     minLength={6}
-                    className="pr-10 bg-card border-border/30 font-mono text-sm"
+                    className="pr-10 bg-card border-border/30"
                   />
                   <button
                     type="button"
