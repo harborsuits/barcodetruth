@@ -287,7 +287,7 @@ export default function ScanResultV1() {
 
   const reasons = buildReasons(scoreData, counts, brandInfo?.parent_company, brandInfo?.name);
 
-  const verdictLabel = overallScore === null ? (counts.total > 0 ? "Score Pending" : "Unrated") : overallScore >= 65 ? "Trust" : overallScore >= 40 ? "Caution" : "Avoid";
+  const verdictLabel = overallScore === null ? (counts.total > 0 ? "Analyzing" : "Unrated") : overallScore >= 65 ? "Trust" : overallScore >= 40 ? "Caution" : "Avoid";
 
   // Logo
   const displayLogo = useBrandLogo(brandInfo?.logo_url || null, brandInfo?.website || null);
@@ -492,7 +492,7 @@ export default function ScanResultV1() {
         <div className="space-y-2">
           {brandInfo?.slug && (
             <Button variant="outline" className="w-full font-mono text-[10px] uppercase tracking-widest" onClick={() => navigate(`/brand/${brandInfo.slug}`, { state: { scannedBrandId: brandInfo.id, scannedBrandName: brandInfo.name } })}>
-              View Full Brand Dossier →
+              View Brand Details →
             </Button>
           )}
           <Button variant="ghost" className="w-full" onClick={() => navigate("/scan")}>Scan Another Product</Button>

@@ -269,23 +269,22 @@ export default function Auth() {
         <div className="px-6 pt-6 pb-2 space-y-3">
           {/* Forensic header */}
           <div className="text-center space-y-2">
-            <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">BARCODE_TRUTH</p>
-            <p className="font-mono text-[10px] uppercase tracking-widest text-primary/60">SYSTEM_MANIFEST: THE DOSSIER</p>
+            <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">BARCODE TRUTH</p>
           </div>
           <h1 className="text-2xl font-bold text-center">
-            {isSignUp ? "Register Account" : "Authenticate Your Identity"}
+            {isSignUp ? "Create Account" : "Sign In"}
           </h1>
           <p className="text-sm text-muted-foreground text-center">
             {isSignUp
-              ? "Create your investigator credentials"
-              : "Enter your credentials to access the system"}
+              ? "Create a free account to start scanning"
+              : "Sign in to start scanning products"}
           </p>
         </div>
         <CardContent className="pt-4">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="email" className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                ACCESS_IDENTIFIER
+              <label htmlFor="email" className="text-sm font-medium text-muted-foreground">
+                Email
               </label>
               <Input
                 id="email"
@@ -295,12 +294,12 @@ export default function Auth() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
-                className="bg-card border-border/30 font-mono text-sm"
+                className="bg-card border-border/30"
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="password" className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                SECURITY_KEY
+              <label htmlFor="password" className="text-sm font-medium text-muted-foreground">
+                Password
               </label>
               <div className="relative">
                 <Input
@@ -311,7 +310,7 @@ export default function Auth() {
                   required
                   disabled={isLoading}
                   minLength={6}
-                  className="pr-10 bg-card border-border/30 font-mono text-sm"
+                    className="pr-10 bg-card border-border/30"
                 />
                 <button
                   type="button"
@@ -325,8 +324,8 @@ export default function Auth() {
             </div>
             {isSignUp && (
               <div className="space-y-2">
-                <label htmlFor="confirmPassword" className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                  CONFIRM_SECURITY_KEY
+                <label htmlFor="confirmPassword" className="text-sm font-medium text-muted-foreground">
+                  Confirm Password
                 </label>
                 <div className="relative">
                   <Input
@@ -337,7 +336,7 @@ export default function Auth() {
                     required
                     disabled={isLoading}
                     minLength={6}
-                    className="pr-10 bg-card border-border/30 font-mono text-sm"
+                    className="pr-10 bg-card border-border/30"
                   />
                   <button
                     type="button"
@@ -350,23 +349,23 @@ export default function Auth() {
                 </div>
               </div>
             )}
-            <Button type="submit" className="w-full font-mono text-xs uppercase tracking-wider" disabled={isLoading}>
+            <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isSignUp ? "CREATE ACCOUNT" : "INITIALIZE SESSION"}
+              {isSignUp ? "Create Account" : "Sign In"}
             </Button>
           </form>
 
           <div className="relative my-4">
             <Separator />
-            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-elevated-1 px-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-              OR CONTINUE WITH
+            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-elevated-1 px-2 text-xs text-muted-foreground">
+              or
             </span>
           </div>
 
           <Button
             type="button"
             variant="outline"
-            className="w-full font-mono text-xs uppercase tracking-wider"
+            className="w-full"
             onClick={handleGoogleSignIn}
             disabled={isLoading || isGoogleLoading}
           >
@@ -380,19 +379,19 @@ export default function Auth() {
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
               </svg>
             )}
-            GOOGLE VERIFICATION
+            Continue with Google
           </Button>
 
           <div className="mt-4 text-center text-sm">
             <button
               type="button"
               onClick={() => setIsSignUp(!isSignUp)}
-              className="text-primary hover:underline font-mono text-xs uppercase tracking-wider"
+              className="text-primary hover:underline text-sm"
               disabled={isLoading}
             >
               {isSignUp
                 ? "Already have an account? Sign in"
-                : "New Investigator? Register Account"}
+                : "Don't have an account? Sign up"}
             </button>
           </div>
         </CardContent>

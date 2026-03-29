@@ -83,7 +83,7 @@ export default function MyScansTab() {
 
   const handleRescan = (upc: string) => {
     analytics.trackMyScansClickRescan(upc);
-    navigate(`/scan?upc=${upc}`);
+    navigate(`/scan-result/${upc}`);
   };
 
   const activeList = showArchive ? archived : items;

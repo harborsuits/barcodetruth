@@ -586,7 +586,7 @@ export default function BrandProfileV1() {
   });
   const hasEvidence = (evidenceTotal || 0) > 0;
   const getVerdict = (s: number | null) => {
-    if (s === null) return { label: hasEvidence ? 'Score Pending' : 'Unrated', color: 'bg-muted text-muted-foreground', emoji: '—' };
+    if (s === null) return { label: hasEvidence ? 'Analyzing — we\'ll update this automatically' : 'Unrated', color: 'bg-muted text-muted-foreground', emoji: '—' };
     if (s >= 65) return { label: 'Trust', color: 'bg-success/15 text-success', emoji: '🟢' };
     if (s >= 40) return { label: 'Caution', color: 'bg-warning/15 text-warning', emoji: '🟡' };
     return { label: 'Avoid', color: 'bg-destructive/15 text-destructive', emoji: '🔴' };
