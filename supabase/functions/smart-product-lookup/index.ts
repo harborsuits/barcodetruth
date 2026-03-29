@@ -1,12 +1,11 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { normalizeBrandLabel, capitalizeBrandName } from '../_shared/brandNormalization.ts';
+import { normalizeBrandLabel, capitalizeBrandName, stripCorporateSuffixes, brandNameToSlug } from '../_shared/brandNormalization.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Confidence scoring
 const CONFIDENCE_SCORES = {
   'verified_db': 100,
   'user_verified': 95,
@@ -17,7 +16,7 @@ const CONFIDENCE_SCORES = {
   'user_submitted': 50,
 };
 
-const CACHE_DURATION_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
+const CACHE_DURATION_MS = 90 * 24 * 60 * 60 * 1000;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -34,7 +33,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Normalize: pad 12-digit UPC-A to 13-digit EAN-13
     barcode = String(barcode).trim();
     if (/^\d{12}$/.test(barcode)) {
       barcode = '0' + barcode;
@@ -46,7 +44,7 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Tier 1: Check cache — try both original and padded/unpadded variants
+    // Tier 1: Check cache
     const barcodesToCheck = [barcode];
     if (/^\d{12}$/.test(barcode)) barcodesToCheck.push('0' + barcode);
     else if (/^0\d{12}$/.test(barcode)) barcodesToCheck.push(barcode.slice(1));
@@ -62,21 +60,15 @@ Deno.serve(async (req) => {
       if (cached) {
         console.log(`[Tier 1] Cache hit for ${bc}`);
         return new Response(
-          JSON.stringify({ 
-            product: cached, 
-            source: 'cache',
-            confidence: cached.confidence_score || 100 
-          }),
+          JSON.stringify({ product: cached, source: 'cache', confidence: cached.confidence_score || 100 }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     }
 
-    // Tier 2: OpenFoodFacts (FREE) — try both original and padded barcode
+    // Tier 2: OpenFoodFacts
     const offBarcodesToTry = [barcode];
-    // Also try the unpadded 12-digit version (OFF stores some products under UPC-A)
     if (/^0\d{12}$/.test(barcode)) offBarcodesToTry.push(barcode.slice(1));
-    // Also try the padded version if we started with 12 digits
     if (/^\d{12}$/.test(barcode)) offBarcodesToTry.push('0' + barcode);
 
     for (const offBarcode of offBarcodesToTry) {
@@ -88,19 +80,13 @@ Deno.serve(async (req) => {
         
         const contentType = offResponse.headers.get('content-type') || '';
         if (!contentType.includes('application/json')) {
-          console.log(`[Tier 2] OpenFoodFacts returned non-JSON: ${contentType}`);
-          await offResponse.text(); // consume body
+          await offResponse.text();
           continue;
         }
         
         const offText = await offResponse.text();
         let offData;
-        try {
-          offData = JSON.parse(offText);
-        } catch {
-          console.error('[Tier 2] OpenFoodFacts JSON parse failed');
-          continue;
-        }
+        try { offData = JSON.parse(offText); } catch { continue; }
         
         if (offData.status === 1 && offData.product) {
           const product = offData.product;
@@ -112,12 +98,8 @@ Deno.serve(async (req) => {
             image_url: product.image_url,
             data_source: 'openfoodfacts',
             confidence_score: CONFIDENCE_SCORES['openfoodfacts'],
-            metadata: {
-              ingredients: product.ingredients_text,
-              nutrition: product.nutriments,
-            }
+            metadata: { ingredients: product.ingredients_text, nutrition: product.nutriments }
           });
-          
           return new Response(
             JSON.stringify({ product: result, source: 'openfoodfacts', confidence: CONFIDENCE_SCORES['openfoodfacts'] }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -128,7 +110,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Tier 2.5: Barcode Lookup API (excellent US grocery coverage)
+    // Tier 2.5: Barcode Lookup API
     const blApiKey = Deno.env.get('BARCODELOOKUP_API_KEY');
     if (blApiKey) {
       try {
@@ -150,28 +132,18 @@ Deno.serve(async (req) => {
               image_url: item.images?.[0],
               data_source: 'barcodelookup',
               confidence_score: CONFIDENCE_SCORES['barcodelookup'],
-              metadata: { 
-                description: item.description,
-                manufacturer: item.manufacturer,
-                ingredients: item.ingredients,
-              }
+              metadata: { description: item.description, manufacturer: item.manufacturer, ingredients: item.ingredients }
             });
-            
             return new Response(
               JSON.stringify({ product: result, source: 'barcodelookup', confidence: CONFIDENCE_SCORES['barcodelookup'] }),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
-          } else {
-            console.log('[Tier 2.5] Barcode Lookup API returned empty products array');
           }
         } else if (blResponse.status === 429) {
-          console.warn('[Tier 2.5] Barcode Lookup API rate limited — skipping to next tier');
-          await blResponse.text();
-        } else if (blResponse.status === 404) {
-          console.log('[Tier 2.5] Barcode Lookup API: product not found');
+          console.warn('[Tier 2.5] Rate limited');
           await blResponse.text();
         } else {
-          console.log(`[Tier 2.5] Barcode Lookup API returned ${blResponse.status}`);
+          console.log(`[Tier 2.5] Returned ${blResponse.status}`);
           await blResponse.text();
         }
       } catch (error) {
@@ -179,7 +151,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Tier 3: UPCitemdb FREE trial (no key needed, rate-limited)
+    // Tier 3: UPCitemdb FREE
     try {
       const upcBarcode = /^0\d{12}$/.test(barcode) ? barcode.slice(1) : barcode;
       console.log(`[Tier 3] Trying UPCitemdb trial for ${upcBarcode}`);
@@ -198,7 +170,6 @@ Deno.serve(async (req) => {
           confidence_score: CONFIDENCE_SCORES['upcitemdb'],
           metadata: { description: item.description }
         });
-        
         return new Response(
           JSON.stringify({ product: result, source: 'upcitemdb', confidence: CONFIDENCE_SCORES['upcitemdb'] }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -213,12 +184,8 @@ Deno.serve(async (req) => {
     if (upcApiKey) {
       try {
         const upcBarcode = /^0\d{12}$/.test(barcode) ? barcode.slice(1) : barcode;
-        console.log(`[Tier 3.5] Trying UPCitemdb paid for ${upcBarcode}`);
         const upcResponse = await fetch(`https://api.upcitemdb.com/prod/v1/lookup?upc=${upcBarcode}`, {
-          headers: { 
-            'Content-Type': 'application/json',
-            'user_key': upcApiKey,
-          }
+          headers: { 'Content-Type': 'application/json', 'user_key': upcApiKey }
         });
         const upcData = await upcResponse.json();
         
@@ -234,7 +201,6 @@ Deno.serve(async (req) => {
             confidence_score: CONFIDENCE_SCORES['upcitemdb'],
             metadata: { description: item.description }
           });
-          
           return new Response(
             JSON.stringify({ product: result, source: 'upcitemdb', confidence: CONFIDENCE_SCORES['upcitemdb'] }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -245,18 +211,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Tier 4: Not found - return manufacturer info from barcode
-    // IMPORTANT: Return 200 so supabase.functions.invoke doesn't treat as error
+    // Tier 4: Not found
     const manufacturerPrefix = barcode.substring(0, 3);
-    
-    console.log(`[Tier 4] Product not found for ${barcode}, manufacturer prefix: ${manufacturerPrefix}`);
+    console.log(`[Tier 4] Product not found for ${barcode}`);
     
     return new Response(
       JSON.stringify({ 
-        ok: true,
-        product: null,
-        source: 'not_found',
-        barcode,
+        ok: true, product: null, source: 'not_found', barcode,
         manufacturer_prefix: manufacturerPrefix,
         requires_submission: true,
         message: 'Product not found in any data source'
@@ -273,40 +234,136 @@ Deno.serve(async (req) => {
   }
 });
 
+// ─── Multi-strategy brand matching ───
+// deno-lint-ignore no-explicit-any
+async function findBrandMatch(supabase: any, rawBrandName: string): Promise<{ id: string; status: string; logo_url: string | null } | null> {
+  const normalized = normalizeBrandLabel(rawBrandName);
+  const displayName = capitalizeBrandName(normalized) || rawBrandName.trim();
+  const stripped = stripCorporateSuffixes(normalized);
+  const slug = brandNameToSlug(rawBrandName);
+
+  console.log(`[Brand Match] raw="${rawBrandName}" normalized="${normalized}" stripped="${stripped}" slug="${slug}"`);
+
+  // Strategy 1: Exact slug match
+  const { data: slugMatch } = await supabase
+    .from('brands')
+    .select('id, status, logo_url')
+    .eq('slug', slug)
+    .maybeSingle();
+  if (slugMatch) {
+    console.log(`[Brand Match] ✓ Slug match: ${slug}`);
+    return slugMatch;
+  }
+
+  // Strategy 2: Case-insensitive name match (exact)
+  const { data: exactMatch } = await supabase
+    .from('brands')
+    .select('id, status, logo_url')
+    .ilike('name', displayName)
+    .limit(1)
+    .maybeSingle();
+  if (exactMatch) {
+    console.log(`[Brand Match] ✓ Exact name match: ${displayName}`);
+    return exactMatch;
+  }
+
+  // Strategy 3: Alias table match
+  const { data: aliasMatch } = await supabase
+    .from('brand_aliases')
+    .select('canonical_brand_id, brands:canonical_brand_id(id, status, logo_url)')
+    .ilike('external_name', rawBrandName.trim())
+    .limit(1)
+    .maybeSingle();
+  if (aliasMatch?.brands) {
+    console.log(`[Brand Match] ✓ Alias match: "${rawBrandName}" → brand ${aliasMatch.canonical_brand_id}`);
+    return aliasMatch.brands as any;
+  }
+
+  // Strategy 4: Stripped suffix match — e.g. "The Kraft Heinz Company" matches "Kraft Heinz"
+  if (stripped !== normalized) {
+    const strippedDisplay = capitalizeBrandName(stripped);
+    const { data: strippedMatch } = await supabase
+      .from('brands')
+      .select('id, status, logo_url')
+      .ilike('name', strippedDisplay)
+      .limit(1)
+      .maybeSingle();
+    if (strippedMatch) {
+      console.log(`[Brand Match] ✓ Stripped suffix match: ${strippedDisplay}`);
+      return strippedMatch;
+    }
+  }
+
+  // Strategy 5: Contains match — "Kraft" matches a brand named "Kraft Heinz" or vice versa
+  // Only for brand names with 4+ chars to avoid false positives
+  if (stripped.length >= 4) {
+    // Check if any existing brand name starts with our query
+    const { data: containsMatch } = await supabase
+      .from('brands')
+      .select('id, status, logo_url, name')
+      .ilike('name', `${capitalizeBrandName(stripped)}%`)
+      .limit(5);
+    
+    if (containsMatch && containsMatch.length === 1) {
+      console.log(`[Brand Match] ✓ Prefix match: "${stripped}" → "${containsMatch[0].name}"`);
+      return containsMatch[0];
+    }
+
+    // Check if our name contains an existing brand
+    // e.g. input "Kraft Mac & Cheese" should match brand "Kraft"
+    const words = stripped.split(' ');
+    if (words.length > 1) {
+      // Try first word as brand (very common: "Kraft Mac & Cheese" → "Kraft")
+      const firstWord = capitalizeBrandName(words[0]);
+      if (words[0].length >= 4) {
+        const { data: firstWordMatch } = await supabase
+          .from('brands')
+          .select('id, status, logo_url')
+          .ilike('name', firstWord)
+          .limit(1)
+          .maybeSingle();
+        if (firstWordMatch) {
+          console.log(`[Brand Match] ✓ First-word match: "${firstWord}"`);
+          return firstWordMatch;
+        }
+      }
+    }
+  }
+
+  console.log(`[Brand Match] ✗ No match found for "${rawBrandName}"`);
+  return null;
+}
+
+// deno-lint-ignore no-explicit-any
 async function saveToCache(supabase: any, productData: any) {
   const expiresAt = new Date(Date.now() + CACHE_DURATION_MS);
   
-  // First, ensure brand exists and is display-ready
-  let brandId = null;
+  let brandId: string | null = null;
   if (productData.brand_name && productData.brand_name.trim()) {
-    // Normalize brand name using shared logic
-    const normalized = normalizeBrandLabel(productData.brand_name);
-    const normalizedName = capitalizeBrandName(normalized) || productData.brand_name.trim();
+    const rawBrandName = productData.brand_name.trim();
+
+    // Multi-strategy brand matching
+    const match = await findBrandMatch(supabase, rawBrandName);
     
-    const { data: existingBrand } = await supabase
-      .from('brands')
-      .select('id, status, logo_url')
-      .ilike('name', normalizedName)
-      .limit(1)
-      .maybeSingle();
-    
-    if (existingBrand) {
-      brandId = existingBrand.id;
+    if (match) {
+      brandId = match.id;
       
-      // Auto-promote non-active brands so scan results are never empty shells
-      if (existingBrand.status !== 'active') {
-        console.log(`[smart-product-lookup] Auto-promoting brand "${normalizedName}" from "${existingBrand.status}" to "active"`);
-        await supabase
-          .from('brands')
-          .update({ status: 'active' })
-          .eq('id', existingBrand.id);
+      // Auto-promote non-active brands
+      if (match.status !== 'active') {
+        console.log(`[saveToCache] Auto-promoting brand "${rawBrandName}" from "${match.status}" to "active"`);
+        await supabase.from('brands').update({ status: 'active' }).eq('id', match.id);
       }
     } else {
-      // Create brand as active immediately — scans should never hit empty shells
+      // Create brand as active immediately
+      const normalized = normalizeBrandLabel(rawBrandName);
+      const displayName = capitalizeBrandName(normalized) || rawBrandName.trim();
+      const slug = brandNameToSlug(rawBrandName);
+
       const { data: newBrand, error: brandError } = await supabase
         .from('brands')
         .insert({
-          name: normalizedName,
+          name: displayName,
+          slug,
           website: null,
           description: 'Brand information pending enrichment',
           status: 'active',
@@ -315,46 +372,55 @@ async function saveToCache(supabase: any, productData: any) {
         .single();
       
       if (brandError) {
-        console.error('[smart-product-lookup] Failed to create brand:', brandError);
+        // Slug collision — try with suffix
+        if (brandError.code === '23505') {
+          const { data: retryBrand } = await supabase
+            .from('brands')
+            .select('id')
+            .eq('slug', slug)
+            .maybeSingle();
+          if (retryBrand) {
+            brandId = retryBrand.id;
+            console.log(`[saveToCache] Slug collision resolved — matched existing brand ${brandId}`);
+          }
+        } else {
+          console.error('[saveToCache] Failed to create brand:', brandError);
+        }
       } else if (newBrand) {
         brandId = newBrand.id;
-        console.log(`[smart-product-lookup] Created active brand: ${normalizedName} (${brandId})`);
+        console.log(`[saveToCache] Created active brand: ${displayName} (${brandId})`);
+
+        // Also create an alias so future lookups with the raw name hit this brand
+        try {
+          await supabase.from('brand_aliases').insert({
+            canonical_brand_id: brandId,
+            external_name: rawBrandName,
+            source: productData.data_source || 'api_lookup',
+          });
+        } catch (e) {
+          console.warn('[saveToCache] Alias creation skipped:', e);
+        }
       }
     }
     
-    // Queue background enrichment + ensure baseline score exists
+    // Queue enrichment + ensure baseline score
     if (brandId) {
       try {
-        await supabase
-          .from('brand_enrichment_queue')
-          .upsert({
-            brand_id: brandId,
-            task: 'full_enrichment',
-            status: 'pending',
-            next_run_at: new Date().toISOString(),
-          }, { onConflict: 'brand_id,task' });
-        console.log(`[smart-product-lookup] Queued enrichment for brand ${brandId}`);
-      } catch (e) {
-        console.warn('[smart-product-lookup] Failed to queue enrichment:', e);
-      }
+        await supabase.from('brand_enrichment_queue').upsert({
+          brand_id: brandId, task: 'full_enrichment', status: 'pending',
+          next_run_at: new Date().toISOString(),
+        }, { onConflict: 'brand_id,task' });
+      } catch (e) { console.warn('[saveToCache] Enrichment queue failed:', e); }
 
-      // Ensure brand_scores row exists so scan result page never shows "Unrated"
+      // Ensure brand_scores row exists — mark as is_baseline so UI can distinguish
       try {
-        await supabase
-          .from('brand_scores')
-          .upsert({
-            brand_id: brandId,
-            score: 50,
-            score_labor: 50,
-            score_environment: 50,
-            score_politics: 50,
-            score_social: 50,
-            last_updated: new Date().toISOString(),
-          }, { onConflict: 'brand_id' });
-        console.log(`[smart-product-lookup] Ensured baseline score for brand ${brandId}`);
-      } catch (e) {
-        console.warn('[smart-product-lookup] Failed to ensure score:', e);
-      }
+        await supabase.from('brand_scores').upsert({
+          brand_id: brandId,
+          score: 50, score_labor: 50, score_environment: 50,
+          score_politics: 50, score_social: 50,
+          last_updated: new Date().toISOString(),
+        }, { onConflict: 'brand_id' });
+      } catch (e) { console.warn('[saveToCache] Score init failed:', e); }
     }
   }
 
@@ -371,26 +437,21 @@ async function saveToCache(supabase: any, productData: any) {
       confidence_score: productData.confidence_score,
       cache_expires_at: expiresAt.toISOString(),
       metadata: productData.metadata || {},
-    }, {
-      onConflict: 'barcode',
-    })
+    }, { onConflict: 'barcode' })
     .select('*, brands(id, name, logo_url)')
     .single();
 
   if (error) {
-    // If duplicate key (product already exists with normalized barcode), fetch existing
     if (error.code === '23505') {
-      console.log('[smart-product-lookup] Duplicate detected, fetching existing product');
+      console.log('[saveToCache] Duplicate detected, fetching existing');
       const { data: existing } = await supabase
         .from('products')
         .select('*, brands(id, name, logo_url)')
         .eq('barcode', productData.barcode)
         .limit(1)
         .maybeSingle();
-      
       if (existing) return existing;
-      
-      // Try with padded barcode
+
       const padded = '0' + productData.barcode;
       const { data: paddedExisting } = await supabase
         .from('products')
@@ -398,7 +459,6 @@ async function saveToCache(supabase: any, productData: any) {
         .eq('barcode', padded)
         .limit(1)
         .maybeSingle();
-      
       if (paddedExisting) return paddedExisting;
     }
     console.error('Cache save error:', error);

@@ -284,16 +284,30 @@ export default function ScanResultV1() {
   const overallScore = scoreData?.overall ?? null;
   const counts = evidenceCounts || { labor: 0, environment: 0, politics: 0, social: 0, total: 0 };
 
+  // Detect baseline-50 scores (all dimensions exactly 50 = not yet scored)
+  const isBaselineScore = scoreData && 
+    scoreData.overall === 50 && 
+    scoreData.score_labor === 50 && 
+    scoreData.score_environment === 50 && 
+    scoreData.score_politics === 50 && 
+    scoreData.score_social === 50;
+
+  const effectiveScore = isBaselineScore ? null : overallScore;
+  const effectiveLabor = isBaselineScore ? null : (scoreData?.score_labor ?? null);
+  const effectiveEnv = isBaselineScore ? null : (scoreData?.score_environment ?? null);
+  const effectivePol = isBaselineScore ? null : (scoreData?.score_politics ?? null);
+  const effectiveSoc = isBaselineScore ? null : (scoreData?.score_social ?? null);
+
   const dimensions = [
-    { key: "labor", label: "Labor & Safety", score: scoreData?.score_labor ?? null, evidenceCount: counts.labor, summary: getDimensionSummary("labor", scoreData?.score_labor ?? null, counts.labor) },
-    { key: "environment", label: "Environment", score: scoreData?.score_environment ?? null, evidenceCount: counts.environment, summary: getDimensionSummary("environment", scoreData?.score_environment ?? null, counts.environment) },
-    { key: "politics", label: "Political Influence", score: scoreData?.score_politics ?? null, evidenceCount: counts.politics, summary: getDimensionSummary("politics", scoreData?.score_politics ?? null, counts.politics) },
-    { key: "social", label: "Social Impact", score: scoreData?.score_social ?? null, evidenceCount: counts.social, summary: getDimensionSummary("social", scoreData?.score_social ?? null, counts.social) },
+    { key: "labor", label: "Labor & Safety", score: effectiveLabor, evidenceCount: counts.labor, summary: getDimensionSummary("labor", effectiveLabor, counts.labor) },
+    { key: "environment", label: "Environment", score: effectiveEnv, evidenceCount: counts.environment, summary: getDimensionSummary("environment", effectiveEnv, counts.environment) },
+    { key: "politics", label: "Political Influence", score: effectivePol, evidenceCount: counts.politics, summary: getDimensionSummary("politics", effectivePol, counts.politics) },
+    { key: "social", label: "Social Impact", score: effectiveSoc, evidenceCount: counts.social, summary: getDimensionSummary("social", effectiveSoc, counts.social) },
   ];
 
   const reasons = buildReasons(scoreData, counts, brandInfo?.parent_company, brandInfo?.name);
 
-  const verdictLabel = overallScore === null ? (counts.total > 0 ? "Analyzing" : "Unrated") : overallScore >= 65 ? "Trust" : overallScore >= 40 ? "Caution" : "Avoid";
+  const verdictLabel = effectiveScore === null ? "Analyzing" : effectiveScore >= 65 ? "Trust" : effectiveScore >= 40 ? "Caution" : "Avoid";
 
   // Logo
   const displayLogo = useBrandLogo(brandInfo?.logo_url || null, brandInfo?.website || null);
@@ -432,7 +446,7 @@ export default function ScanResultV1() {
 
   // Detect if this is effectively an unknown/unrated brand
   const isUnknownBrand = !product?.brand_id || (!brandLoading && !displayBrandName) || displayBrandName === "Unknown Brand" || displayBrandName === "Unknown";
-  const isUnrated = overallScore === null;
+  const isUnrated = effectiveScore === null;
   const isDeadEnd = !brandLoading && isUnknownBrand && isUnrated && !navBrandName;
 
   // ═══════════════════════════════════════════════════
@@ -469,7 +483,7 @@ export default function ScanResultV1() {
         </div>
 
         {/* ─── 1. INSTANT VERDICT ─── */}
-        <TrustVerdict score={overallScore} brandName={brandInfo?.name || ""} reasons={reasons} hasEvidence={(counts.total || 0) > 0} />
+        <TrustVerdict score={effectiveScore} brandName={brandInfo?.name || ""} reasons={isBaselineScore ? ["Score analysis in progress — we'll update this automatically"] : reasons} hasEvidence={(counts.total || 0) > 0} />
 
         {/* ─── 4. OWNERSHIP REVEAL ─── */}
         {brandInfo?.id && (
@@ -489,7 +503,7 @@ export default function ScanResultV1() {
         {/* ─── 5. SHARE ─── */}
         <ShareCard
           brandName={brandInfo?.name || ""}
-          score={overallScore}
+          score={effectiveScore}
           verdict={verdictLabel}
           dimensions={dimensions.map((d) => ({ label: d.label, grade: getLetterGrade(d.score) }))}
         />
