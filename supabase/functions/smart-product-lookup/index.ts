@@ -322,7 +322,7 @@ async function saveToCache(supabase: any, productData: any) {
       }
     }
     
-    // Queue background enrichment for the brand (non-blocking)
+    // Queue background enrichment + ensure baseline score exists
     if (brandId) {
       try {
         await supabase
@@ -336,6 +336,24 @@ async function saveToCache(supabase: any, productData: any) {
         console.log(`[smart-product-lookup] Queued enrichment for brand ${brandId}`);
       } catch (e) {
         console.warn('[smart-product-lookup] Failed to queue enrichment:', e);
+      }
+
+      // Ensure brand_scores row exists so scan result page never shows "Unrated"
+      try {
+        await supabase
+          .from('brand_scores')
+          .upsert({
+            brand_id: brandId,
+            score: 50,
+            score_labor: 50,
+            score_environment: 50,
+            score_politics: 50,
+            score_social: 50,
+            last_updated: new Date().toISOString(),
+          }, { onConflict: 'brand_id' });
+        console.log(`[smart-product-lookup] Ensured baseline score for brand ${brandId}`);
+      } catch (e) {
+        console.warn('[smart-product-lookup] Failed to ensure score:', e);
       }
     }
   }
