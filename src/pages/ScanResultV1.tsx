@@ -499,7 +499,7 @@ export default function ScanResultV1() {
         <div className="pt-1">
           <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-1.5">
             <Search className="h-3 w-3" />
-            Brand intelligence
+            Brand details
           </p>
         </div>
 
