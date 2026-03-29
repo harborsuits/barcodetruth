@@ -569,9 +569,22 @@ export default function BrandProfileV1() {
     social: parsedScore?.score_social ?? null,
   };
 
-  // Verdict
+  // Verdict — check evidence count to distinguish "Score Pending" from "Unrated"
+  const { data: evidenceTotal } = useQuery({
+    queryKey: ['brand-evidence-total', resolvedBrandId],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('brand_events')
+        .select('*', { count: 'exact', head: true })
+        .eq('brand_id', resolvedBrandId!)
+        .eq('is_irrelevant', false);
+      return count || 0;
+    },
+    enabled: !!resolvedBrandId,
+  });
+  const hasEvidence = (evidenceTotal || 0) > 0;
   const getVerdict = (s: number | null) => {
-    if (s === null) return { label: 'Unrated', color: 'bg-muted text-muted-foreground', emoji: '—' };
+    if (s === null) return { label: hasEvidence ? 'Score Pending' : 'Unrated', color: 'bg-muted text-muted-foreground', emoji: '—' };
     if (s >= 65) return { label: 'Trust', color: 'bg-success/15 text-success', emoji: '🟢' };
     if (s >= 40) return { label: 'Caution', color: 'bg-warning/15 text-warning', emoji: '🟡' };
     return { label: 'Avoid', color: 'bg-destructive/15 text-destructive', emoji: '🔴' };
