@@ -137,7 +137,7 @@ function TreeNode({
       {/* Badge */}
       {isCurrent && (
         <Badge className="text-[9px] bg-primary/15 text-primary border-primary/20 px-1.5 py-0">
-          This brand
+          {isCurrent ? "Viewing" : "Related"}
         </Badge>
       )}
     </motion.div>
@@ -488,7 +488,7 @@ export default function OwnershipTree() {
                           name={sib.name}
                           logoUrl={sib.logo_url}
                           delay={1.5 + i * 0.08}
-                          onClick={() => navigate(`/brand/${sib.id}`, { state: { fromBrand: true } })}
+                          onClick={() => navigate(`/brand/${sib.id}`, { state: { fromBrand: true, scannedBrandId: scannedBrandId || brandId, scannedBrandName: scannedBrandName || brand?.name } })}
                         />
                       ))}
                     </div>
