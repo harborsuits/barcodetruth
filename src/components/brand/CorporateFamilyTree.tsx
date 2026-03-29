@@ -137,6 +137,7 @@ export function CorporateFamilyTree({ brandId, brandName, scannedBrandId }: { br
                     <FamilyNodeCard
                       node={{ id: brandId, name: brandName, logo_url: chain[0]?.logo_url }}
                       variant="current"
+                      isScannedBrand={!scannedBrandId || scannedBrandId === brandId}
                     />
                   </motion.div>
 
