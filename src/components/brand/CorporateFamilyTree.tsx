@@ -204,10 +204,12 @@ function FamilyNodeCard({
   node,
   variant,
   onClick,
+  isScannedBrand,
 }: {
   node: TreeNode;
   variant: "parent" | "current" | "sibling";
   onClick?: () => void;
+  isScannedBrand?: boolean;
 }) {
   const isClickable = variant !== "current" && !!onClick;
 
@@ -273,7 +275,7 @@ function FamilyNodeCard({
         )}
         {variant === "current" && (
           <Badge className="text-[9px] mt-0.5 px-1.5 py-0 bg-primary/15 text-primary border-primary/20">
-            This brand
+            {isScannedBrand ? "You scanned this" : "Viewing"}
           </Badge>
         )}
       </div>
