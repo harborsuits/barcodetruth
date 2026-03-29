@@ -287,7 +287,7 @@ export default function ScanResultV1() {
 
   const reasons = buildReasons(scoreData, counts, brandInfo?.parent_company, brandInfo?.name);
 
-  const verdictLabel = overallScore === null ? "Unrated" : overallScore >= 65 ? "Trust" : overallScore >= 40 ? "Caution" : "Avoid";
+  const verdictLabel = overallScore === null ? (counts.total > 0 ? "Score Pending" : "Unrated") : overallScore >= 65 ? "Trust" : overallScore >= 40 ? "Caution" : "Avoid";
 
   // Logo
   const displayLogo = useBrandLogo(brandInfo?.logo_url || null, brandInfo?.website || null);
@@ -463,7 +463,7 @@ export default function ScanResultV1() {
         </div>
 
         {/* ─── 1. INSTANT VERDICT ─── */}
-        <TrustVerdict score={overallScore} brandName={brandInfo?.name || ""} reasons={reasons} />
+        <TrustVerdict score={overallScore} brandName={brandInfo?.name || ""} reasons={reasons} hasEvidence={(counts.total || 0) > 0} />
 
         {/* ─── 4. OWNERSHIP REVEAL ─── */}
         {brandInfo?.id && (

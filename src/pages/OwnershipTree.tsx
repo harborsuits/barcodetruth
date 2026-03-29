@@ -11,7 +11,7 @@ import { useBrandLogo } from "@/hooks/useBrandLogo";
 
 /* ── Verdict helpers ── */
 const getVerdict = (s: number | null) => {
-  if (s === null) return { label: "Unrated", color: "hsl(var(--muted-foreground))", bg: "hsl(var(--muted) / 0.4)" };
+  if (s === null) return { label: "Score Pending", color: "hsl(var(--muted-foreground))", bg: "hsl(var(--muted) / 0.4)" };
   if (s >= 65) return { label: "Trust", color: "hsl(var(--success))", bg: "hsl(var(--success-light))" };
   if (s >= 40) return { label: "Caution", color: "hsl(var(--warning))", bg: "hsl(var(--warning-light))" };
   return { label: "Avoid", color: "hsl(var(--danger))", bg: "hsl(var(--danger-light))" };
@@ -51,7 +51,7 @@ function ScoreRing({ score, verdict }: { score: number | null; verdict: string }
   if (score === null) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground text-sm">
-        <span>Unrated</span>
+        <span>Score Pending</span>
       </div>
     );
   }
@@ -137,7 +137,7 @@ function TreeNode({
       {/* Badge */}
       {isCurrent && (
         <Badge className="text-[9px] bg-primary/15 text-primary border-primary/20 px-1.5 py-0">
-          You scanned this
+          This brand
         </Badge>
       )}
     </motion.div>
