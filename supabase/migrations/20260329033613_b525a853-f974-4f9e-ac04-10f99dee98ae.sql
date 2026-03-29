@@ -1,0 +1,1 @@
+UPDATE brand_scores SET score = ROUND((COALESCE(score_labor,50) + COALESCE(score_environment,50) + COALESCE(score_politics,50) + COALESCE(score_social,50)) / 4.0) WHERE score IS NULL;
