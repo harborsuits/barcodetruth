@@ -119,7 +119,7 @@ function ScoreDisplay({ score }: { score: number | null }) {
   );
 }
 
-function OwnershipDisplay({ brandId, brandSlug }: { brandId: string; brandSlug?: string }) {
+function OwnershipDisplay({ brandId, brandSlug, scannedBrandId, scannedBrandName }: { brandId: string; brandSlug?: string; scannedBrandId?: string; scannedBrandName?: string }) {
   const navigate = useNavigate();
   const { data: ownership, isLoading } = useQuery({
     queryKey: ['brand-ownership-v1', brandId],
