@@ -11,7 +11,12 @@ const RECENCY_WEIGHTS = {
   '0-30': 1.0,
   '31-90': 0.7,
   '91-365': 0.4,
+  '366-730': 0.2,
+  '731+': 0.1,
 };
+
+// Per-brand event cap to prevent volume bias (top brands dominating scores)
+const MAX_SCORE_ELIGIBLE_EVENTS_PER_BRAND = 50;
 
 const VERIFICATION_WEIGHTS = {
   official: 1.0,
@@ -95,7 +100,8 @@ function getRecencyWeight(eventDate: Date, now: Date): number {
   if (daysDiff <= 30) return RECENCY_WEIGHTS['0-30'];
   if (daysDiff <= 90) return RECENCY_WEIGHTS['31-90'];
   if (daysDiff <= 365) return RECENCY_WEIGHTS['91-365'];
-  return 0;
+  if (daysDiff <= 730) return RECENCY_WEIGHTS['366-730'];
+  return RECENCY_WEIGHTS['731+'];
 }
 
 function getVerificationWeight(verification: string): number {
@@ -250,16 +256,16 @@ Deno.serve(async (req: Request) => {
     runId = runRecord?.id;
     
     const now = new Date();
-    const oneYearAgo = new Date(now);
-    oneYearAgo.setDate(now.getDate() - 365);
+    // Fetch ALL events (no date cutoff) — time decay handles recency weighting
+    // Events older than 2 years still contribute at 0.1x weight (background context)
 
-    // Fetch all events from last 365 days WITH category_impacts
+    // Fetch all score-eligible events WITH category_impacts
     // Uses brand_events_with_inheritance to include parent company events for subsidiaries
     const { data: events, error: eventsError } = await supabase
       .from('brand_events_with_inheritance')
       .select('event_id, brand_id, title, event_date, verification, category_impacts, category, credibility, source_tier, score_eligible, inherited_from_parent, parent_brand_name, scope_multiplier')
-      .gte('event_date', oneYearAgo.toISOString())
-      .order('event_date', { ascending: false });
+      .order('event_date', { ascending: false })
+      .limit(5000);
 
     if (eventsError) {
       console.error('Failed to fetch events:', eventsError);
@@ -280,8 +286,33 @@ Deno.serve(async (req: Request) => {
     const dedupedEvents = deduplicateForScoring(events as BrandEvent[]);
     console.log(`After dedup: ${dedupedEvents.length} unique events (${events.length - dedupedEvents.length} duplicates merged)`);
 
+    // PER-BRAND CAP: Limit to top N most recent score-eligible events per brand
+    // Prevents volume bias (Walmart 330 events vs median brand 5)
+    const cappedEvents: BrandEvent[] = [];
+    const brandEventCounts = new Map<string, number>();
+    
+    // Sort by date descending so we keep the most recent events
+    const sortedDeduped = [...dedupedEvents].sort((a, b) => 
+      new Date(b.event_date).getTime() - new Date(a.event_date).getTime()
+    );
+    
+    let cappedCount = 0;
+    for (const event of sortedDeduped) {
+      const count = brandEventCounts.get(event.brand_id) || 0;
+      if (count >= MAX_SCORE_ELIGIBLE_EVENTS_PER_BRAND) {
+        cappedCount++;
+        continue;
+      }
+      brandEventCounts.set(event.brand_id, count + 1);
+      cappedEvents.push(event);
+    }
+    
+    if (cappedCount > 0) {
+      console.log(`[Cap] Dropped ${cappedCount} excess events (>${MAX_SCORE_ELIGIBLE_EVENTS_PER_BRAND}/brand)`);
+    }
+
     // Fetch best source per event (prefer official, then earliest)
-    const eventIds = dedupedEvents.map((e: BrandEvent) => e.event_id);
+    const eventIds = cappedEvents.map((e: BrandEvent) => e.event_id);
     const { data: sources, error: sourcesError } = await supabase
       .from('event_sources')
       .select('event_id, canonical_url, source_name, registrable_domain, verification, source_date')
@@ -312,7 +343,7 @@ Deno.serve(async (req: Request) => {
     let eventsWithoutImpacts = 0;
     let eventsSkippedTier3 = 0;
 
-    for (const event of dedupedEvents) {
+    for (const event of cappedEvents) {
       const eventDate = new Date(event.event_date);
       const recencyWeight = getRecencyWeight(eventDate, now);
       const verificationWeight = getVerificationWeight(event.verification);
@@ -489,7 +520,7 @@ Deno.serve(async (req: Request) => {
       const reasonJson = {
         version: 2,
         window: {
-          from: oneYearAgo.toISOString().split('T')[0],
+          from: 'all-time',
           to: now.toISOString().split('T')[0],
         },
         coeffs: {
