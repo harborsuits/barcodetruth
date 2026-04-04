@@ -1,19 +1,16 @@
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, List, Settings, Search, Shield, ScanLine } from "lucide-react";
+import { TrendingUp, Settings, Search, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HeroSection } from "@/components/landing/HeroSection";
-import { QuickDemo } from "@/components/landing/QuickDemo";
 import { TrendingPreview } from "@/components/landing/TrendingPreview";
-import { TrustedSources } from "@/components/landing/TrustedSources";
-import { RecentVerifications } from "@/components/landing/RecentVerifications";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { AttributionFooter } from "@/components/AttributionFooter";
-import { SubscriptionBanner } from "@/components/SubscriptionBanner";
 import { WelcomeTour } from "@/components/WelcomeTour";
 import { useSnapshotPrewarm } from "@/hooks/useSnapshotPrewarm";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import MyScansTab from "@/components/MyScansTab";
+import { Shield } from "lucide-react";
 
 export const Home = () => {
   const navigate = useNavigate();
@@ -21,7 +18,7 @@ export const Home = () => {
   useSnapshotPrewarm();
 
   return (
-    <div className="min-h-screen bg-background forensic-grid">
+    <div className="min-h-screen bg-background">
       <WelcomeTour />
 
       <main className="max-w-screen-md mx-auto px-4 sm:px-6 pb-24">
@@ -30,13 +27,13 @@ export const Home = () => {
             <TabsList className="grid w-full grid-cols-2 bg-elevated-1 border border-border/10 p-0.5">
               <TabsTrigger 
                 value="discover"
-                className="font-mono text-xs uppercase tracking-widest data-[state=active]:bg-elevated-2 data-[state=active]:text-primary data-[state=active]:shadow-none"
+                className="text-xs font-medium uppercase tracking-wide data-[state=active]:bg-elevated-2 data-[state=active]:text-primary data-[state=active]:shadow-none"
               >
                 Discover
               </TabsTrigger>
               <TabsTrigger 
                 value="my-scans"
-                className="font-mono text-xs uppercase tracking-widest data-[state=active]:bg-elevated-2 data-[state=active]:text-primary data-[state=active]:shadow-none"
+                className="text-xs font-medium uppercase tracking-wide data-[state=active]:bg-elevated-2 data-[state=active]:text-primary data-[state=active]:shadow-none"
               >
                 My Scans
               </TabsTrigger>
@@ -45,12 +42,8 @@ export const Home = () => {
 
           <TabsContent value="discover" className="space-y-10 mt-0">
             <HeroSection />
-            <QuickDemo />
-            <TrendingPreview />
-            <RecentVerifications />
             <HowItWorks />
-            <TrustedSources />
-            <SubscriptionBanner />
+            <TrendingPreview />
             <AttributionFooter />
           </TabsContent>
 
@@ -60,7 +53,7 @@ export const Home = () => {
         </Tabs>
       </main>
 
-      {/* Bottom Nav — Forensic HUD */}
+      {/* Bottom Nav */}
       <nav className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-xl border-t border-border/10 z-50">
         <div className="container max-w-2xl mx-auto px-4">
           <div className="flex items-center justify-around py-2">
@@ -78,7 +71,7 @@ export const Home = () => {
                 onClick={() => navigate(path)}
               >
                 <Icon className="h-5 w-5" />
-                <span className="text-[10px] font-mono uppercase tracking-wider">{label}</span>
+                <span className="text-[10px] font-medium uppercase tracking-wider">{label}</span>
               </Button>
             ))}
             {isAdmin && (
@@ -89,7 +82,7 @@ export const Home = () => {
                 onClick={() => navigate("/admin/health")}
               >
                 <Shield className="h-5 w-5" />
-                <span className="text-[10px] font-mono uppercase tracking-wider">Admin</span>
+                <span className="text-[10px] font-medium uppercase tracking-wider">Admin</span>
               </Button>
             )}
           </div>
