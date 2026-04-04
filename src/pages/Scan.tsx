@@ -319,18 +319,31 @@ export const Scan = () => {
         },
       });
       
-      // Save to recent scans
-      const recentScan = {
+      // Save to recent scans with enough state to reopen the exact result later
+      upsertStoredScan({
         upc: barcode,
         product_name: product.name,
         brand_name: brand?.name || 'Unknown Brand',
-        timestamp: Date.now()
-      };
-      
-      const stored = localStorage.getItem('recent_scans');
-      const existing = stored ? JSON.parse(stored) : [];
-      const updated = [recentScan, ...existing.filter((s: any) => s.upc !== barcode)].slice(0, 20);
-      localStorage.setItem('recent_scans', JSON.stringify(updated));
+        timestamp: Date.now(),
+        product: {
+          id: product.id,
+          barcode: product.barcode,
+          name: product.name,
+          brand_id: brand?.id || null,
+          category: product.category || null,
+        },
+        brand: brand
+          ? {
+              id: brand.id,
+              name: brand.name,
+              slug: brand.slug || null,
+              status: brand.status || null,
+              logo_url: brand.logo_url || null,
+              website: brand.website || null,
+              parent_company: brand.parent_company || null,
+            }
+          : null,
+      });
       
       toast({ 
         title: "Product found!", 

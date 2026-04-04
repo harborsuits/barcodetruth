@@ -5,18 +5,17 @@ import { useNavigate } from "react-router-dom";
 import { Package, Clock, AlertCircle, Archive, FolderOpen } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { analytics } from "@/lib/analytics";
-
-type RecentScan = { 
-  upc: string; 
-  product_name: string; 
-  timestamp: number;
-  brand_name?: string;
-  status?: string;
-};
+import { supabase } from "@/integrations/supabase/client";
+import {
+  type RecentScan,
+  RECENT_SCANS_KEY,
+  ARCHIVED_SCANS_KEY,
+  readStoredScans,
+  writeStoredScans,
+  buildHistoryNavigationState,
+} from "@/lib/recentScans";
 
 const MAX_SCANS = 20;
-const STORAGE_KEY = "recent_scans";
-const ARCHIVE_KEY = "archived_scans";
 
 export default function MyScansTab() {
   const [items, setItems] = useState<RecentScan[]>([]);
@@ -25,75 +24,98 @@ export default function MyScansTab() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const all = raw ? JSON.parse(raw) : [];
+    const all = readStoredScans(RECENT_SCANS_KEY);
     setItems(all.slice(0, MAX_SCANS));
-
-    const archRaw = localStorage.getItem(ARCHIVE_KEY);
-    setArchived(archRaw ? JSON.parse(archRaw) : []);
-
+    setArchived(readStoredScans(ARCHIVED_SCANS_KEY));
     analytics.trackMyScansOpened(all.length);
   }, []);
 
   const handleArchive = (upc: string) => {
-    const item = items.find(s => s.upc === upc);
+    const item = items.find((s) => s.upc === upc);
     if (!item) return;
 
-    const newItems = items.filter(s => s.upc !== upc);
-    const newArchived = [item, ...archived.filter(s => s.upc !== upc)].slice(0, 50);
+    const newItems = items.filter((s) => s.upc !== upc);
+    const newArchived = [item, ...archived.filter((s) => s.upc !== upc)].slice(0, 50);
 
     setItems(newItems);
     setArchived(newArchived);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newItems));
-    localStorage.setItem(ARCHIVE_KEY, JSON.stringify(newArchived));
+    writeStoredScans(newItems, RECENT_SCANS_KEY);
+    writeStoredScans(newArchived, ARCHIVED_SCANS_KEY);
     analytics.track('scan_archived', { upc });
   };
 
   const handleArchiveAll = () => {
     const newArchived = [...items, ...archived].reduce((acc: RecentScan[], s) => {
-      if (!acc.find(a => a.upc === s.upc)) acc.push(s);
+      if (!acc.find((a) => a.upc === s.upc)) acc.push(s);
       return acc;
     }, []).slice(0, 50);
 
     setArchived(newArchived);
     setItems([]);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
-    localStorage.setItem(ARCHIVE_KEY, JSON.stringify(newArchived));
+    writeStoredScans([], RECENT_SCANS_KEY);
+    writeStoredScans(newArchived, ARCHIVED_SCANS_KEY);
     analytics.track('scans_archived_all', { count: items.length });
   };
 
   const handleRestore = (upc: string) => {
-    const item = archived.find(s => s.upc === upc);
+    const item = archived.find((s) => s.upc === upc);
     if (!item) return;
 
-    const newArchived = archived.filter(s => s.upc !== upc);
+    const newArchived = archived.filter((s) => s.upc !== upc);
     const newItems = [item, ...items].slice(0, MAX_SCANS);
 
     setArchived(newArchived);
     setItems(newItems);
-    localStorage.setItem(ARCHIVE_KEY, JSON.stringify(newArchived));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newItems));
+    writeStoredScans(newArchived, ARCHIVED_SCANS_KEY);
+    writeStoredScans(newItems, RECENT_SCANS_KEY);
   };
 
-  const handleClear = () => {
-    localStorage.removeItem(STORAGE_KEY);
-    setItems([]);
-    analytics.track('my_scans_cleared', { previous_count: items.length });
-  };
-
-  const handleRescan = (scan: RecentScan) => {
+  const handleRescan = async (scan: RecentScan) => {
     analytics.trackMyScansClickRescan(scan.upc);
-    // Pass cached scan data as navigation state so ScanResultV1 can use it
-    // as seed data, avoiding re-lookup failures for products already resolved
-    navigate(`/scan-result/${scan.upc}`, {
-      state: {
-        product: {
-          barcode: scan.upc,
-          name: scan.product_name,
+
+    const normalizedBarcode = /^\d{12}$/.test(scan.upc) ? `0${scan.upc}` : scan.upc;
+    const barcodes = Array.from(new Set([scan.upc, normalizedBarcode]));
+
+    const { data: product } = await supabase
+      .from("products")
+      .select("id, barcode, name, brand_id, category")
+      .in("barcode", barcodes)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let brand = scan.brand ?? null;
+
+    if (product?.brand_id) {
+      const { data: dbBrand } = await supabase
+        .from("brands")
+        .select("id, name, slug, status, logo_url, website, parent_company")
+        .eq("id", product.brand_id)
+        .maybeSingle();
+      if (dbBrand) brand = dbBrand;
+    }
+
+    const resolvedScan: RecentScan = {
+      ...scan,
+      product_name: product?.name || scan.product_name,
+      brand_name: brand?.name || scan.brand_name,
+      product: product || scan.product || { barcode: scan.upc, name: scan.product_name, brand_id: brand?.id ?? null },
+      brand,
+    };
+
+    if (brand?.id && (brand.status === "ready" || brand.status === "active")) {
+      navigate(`/brand/${brand.slug || brand.id}`, {
+        state: {
+          ...buildHistoryNavigationState(resolvedScan),
+          scannedBrandId: brand.id,
+          scannedBrandName: brand.name,
         },
-        brand: scan.brand_name ? { name: scan.brand_name } : undefined,
-        source: "history",
-      },
+      });
+      return;
+    }
+
+    navigate(`/scan-result/${scan.upc}`, {
+      state: buildHistoryNavigationState(resolvedScan),
     });
   };
 
@@ -116,7 +138,6 @@ export default function MyScansTab() {
 
   return (
     <div className="space-y-3">
-      {/* Tab toggle */}
       <div className="flex items-center gap-2 mb-4">
         <Button
           size="sm"
@@ -162,9 +183,7 @@ export default function MyScansTab() {
                 ) : null}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-medium truncate">
-                      {s.product_name || "Unknown product"}
-                    </h3>
+                    <h3 className="font-medium truncate">{s.product_name || "Unknown product"}</h3>
                     {(s.status === 'pending' || s.status === 'under_investigation' || s.status === 'created') && (
                       <span className="flex items-center gap-1 text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full flex-shrink-0">
                         <AlertCircle className="w-3 h-3" />
@@ -172,25 +191,17 @@ export default function MyScansTab() {
                       </span>
                     )}
                   </div>
-                  {s.brand_name && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {s.brand_name}
-                    </p>
-                  )}
+                  {s.brand_name && <p className="text-xs text-muted-foreground mt-0.5">{s.brand_name}</p>}
                 </div>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-shrink-0">
                 <Clock className="w-3.5 h-3.5" />
-                <span>
-                  {formatDistanceToNow(new Date(s.timestamp), { addSuffix: true })}
-                </span>
+                <span>{formatDistanceToNow(new Date(s.timestamp), { addSuffix: true })}</span>
               </div>
             </div>
           </CardHeader>
           <CardContent className="flex items-center justify-between pt-0 gap-2">
-            <code className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-              {s.upc}
-            </code>
+            <code className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{s.upc}</code>
             <div className="flex items-center gap-2">
               {showArchive ? (
                 <Button size="sm" variant="ghost" onClick={() => handleRestore(s.upc)} className="text-xs">
@@ -201,11 +212,7 @@ export default function MyScansTab() {
                   <Archive className="w-4 h-4" />
                 </Button>
               )}
-              <Button 
-                size="sm" 
-                variant="secondary" 
-                onClick={() => handleRescan(s)}
-              >
+              <Button size="sm" variant="secondary" onClick={() => handleRescan(s)}>
                 View Again
               </Button>
             </div>
