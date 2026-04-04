@@ -23,18 +23,18 @@ export function LaunchHero() {
           className="space-y-6 text-center md:text-left"
         >
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.1] tracking-tight text-foreground">
-            Shop with your values,{" "}
-            <span className="text-primary">not just your eyes</span>
+            Know what you're{" "}
+            <span className="text-primary">really buying</span>
           </h1>
 
           <p className="text-lg sm:text-xl text-muted-foreground max-w-lg mx-auto md:mx-0 leading-relaxed">
-            Scan any product. Instantly see who owns it, the biggest red flags, and better alternatives.
+            Scan any product. Instantly see who owns it, the biggest red flags, and better alternatives — before you checkout.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
             <Button asChild size="lg" className="rounded-xl text-base px-8 h-12">
               <Link to="/auth">
-                Try Barcode Truth
+                Try It Free
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
@@ -50,7 +50,7 @@ export function LaunchHero() {
           </div>
 
           <p className="text-sm text-muted-foreground/60">
-            Join 1,000+ conscious shoppers
+            Free to use · No credit card required
           </p>
         </motion.div>
 

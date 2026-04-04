@@ -14,10 +14,10 @@ export function LaunchCTA() {
         className="max-w-2xl mx-auto text-center space-y-6"
       >
         <h2 className="text-3xl sm:text-4xl font-bold text-foreground">
-          Start shopping smarter
+          Stop guessing. Start scanning.
         </h2>
         <p className="text-lg text-muted-foreground max-w-md mx-auto">
-          Join thousands of people who are making more informed choices — one scan at a time.
+          See who really owns the brands you buy — and find better alternatives in seconds.
         </p>
         <Button asChild size="lg" className="rounded-xl text-base px-10 h-12">
           <Link to="/auth">
@@ -25,6 +25,9 @@ export function LaunchCTA() {
             <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>
+        <p className="text-sm text-muted-foreground/50">
+          Free to use · Works on any phone · No app download needed
+        </p>
       </motion.div>
     </section>
   );

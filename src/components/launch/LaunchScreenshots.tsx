@@ -1,42 +1,41 @@
 import { motion } from "framer-motion";
-import { ScanLine, Shield, FileText, Building2, ArrowRightLeft, Layers } from "lucide-react";
+import screenshotScan from "@/assets/launch/screenshot-scan.jpg";
+import screenshotVerdict from "@/assets/launch/screenshot-verdict.jpg";
+import screenshotWhy from "@/assets/launch/screenshot-why.jpg";
+import screenshotOwnership from "@/assets/launch/screenshot-ownership.jpg";
+import screenshotAlternatives from "@/assets/launch/screenshot-alternatives.jpg";
+import screenshotEvidence from "@/assets/launch/screenshot-evidence.jpg";
 
 const screenshots = [
   {
     title: "Scan any product",
     caption: "Point your camera at a barcode — results appear instantly.",
-    icon: ScanLine,
-    gradient: "from-primary/20 to-primary/5",
+    image: screenshotScan,
   },
   {
     title: "Instant verdict",
-    caption: "Good, Mixed, or Avoid — know at a glance.",
-    icon: Shield,
-    gradient: "from-emerald-500/20 to-emerald-500/5",
+    caption: "Good, Mixed, or Avoid — know at a glance before you buy.",
+    image: screenshotVerdict,
   },
   {
     title: "See why it scored that way",
-    caption: "Top concerns based on real evidence, not opinions.",
-    icon: FileText,
-    gradient: "from-amber-500/20 to-amber-500/5",
+    caption: "Top concerns backed by real evidence, not opinions.",
+    image: screenshotWhy,
   },
   {
     title: "Who really owns it",
-    caption: "Follow the money to the parent company.",
-    icon: Building2,
-    gradient: "from-violet-500/20 to-violet-500/5",
+    caption: "Follow the money to the parent company behind the label.",
+    image: screenshotOwnership,
   },
   {
     title: "Better alternatives",
-    caption: "Discover higher-rated brands in the same category.",
-    icon: ArrowRightLeft,
-    gradient: "from-sky-500/20 to-sky-500/5",
+    caption: "Discover higher-rated brands in the same category, instantly.",
+    image: screenshotAlternatives,
   },
   {
     title: "Deeper evidence",
     caption: "Dive into the full breakdown when you want the details.",
-    icon: Layers,
-    gradient: "from-rose-500/20 to-rose-500/5",
+    image: screenshotEvidence,
   },
 ];
 
@@ -67,9 +66,16 @@ export function LaunchScreenshots() {
               transition={{ duration: 0.4, delay: i * 0.08 }}
               className="group bg-card border border-border/50 rounded-2xl overflow-hidden hover:border-primary/30 transition-colors"
             >
-              {/* Screenshot placeholder */}
-              <div className={`aspect-[4/3] bg-gradient-to-br ${item.gradient} flex items-center justify-center`}>
-                <item.icon className="h-10 w-10 text-foreground/30 group-hover:text-foreground/50 transition-colors" />
+              {/* Screenshot */}
+              <div className="aspect-[4/3] overflow-hidden bg-muted">
+                <img
+                  src={item.image}
+                  alt={item.title}
+                  loading="lazy"
+                  width={640}
+                  height={960}
+                  className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                />
               </div>
               {/* Caption */}
               <div className="p-4 space-y-1">
