@@ -72,7 +72,7 @@ export default function BrandEvents() {
     queryFn: async () => {
       const { data } = await supabase
         .from("brand_events")
-        .select("event_id, title, event_date, category, source_url, score_eligible, score_excluded_reason, decay_multiplier, weighted_impact_score, impact_labor, impact_environment, impact_social, impact_politics, disputed")
+        .select("event_id, title, event_date, category, source_url, score_eligible, score_excluded_reason, decay_multiplier, weighted_impact_score, impact_labor, impact_environment, impact_social, impact_politics, disputed, upvotes, downvotes")
         .eq("brand_id", id!)
         .eq("is_irrelevant", false)
         .order("event_date", { ascending: false })
