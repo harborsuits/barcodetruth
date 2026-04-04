@@ -286,6 +286,31 @@ Deno.serve(async (req: Request) => {
     const dedupedEvents = deduplicateForScoring(events as BrandEvent[]);
     console.log(`After dedup: ${dedupedEvents.length} unique events (${events.length - dedupedEvents.length} duplicates merged)`);
 
+    // PER-BRAND CAP: Limit to top N most recent score-eligible events per brand
+    // Prevents volume bias (Walmart 330 events vs median brand 5)
+    const cappedEvents: BrandEvent[] = [];
+    const brandEventCounts = new Map<string, number>();
+    
+    // Sort by date descending so we keep the most recent events
+    const sortedDeduped = [...dedupedEvents].sort((a, b) => 
+      new Date(b.event_date).getTime() - new Date(a.event_date).getTime()
+    );
+    
+    let cappedCount = 0;
+    for (const event of sortedDeduped) {
+      const count = brandEventCounts.get(event.brand_id) || 0;
+      if (count >= MAX_SCORE_ELIGIBLE_EVENTS_PER_BRAND) {
+        cappedCount++;
+        continue;
+      }
+      brandEventCounts.set(event.brand_id, count + 1);
+      cappedEvents.push(event);
+    }
+    
+    if (cappedCount > 0) {
+      console.log(`[Cap] Dropped ${cappedCount} excess events (>${MAX_SCORE_ELIGIBLE_EVENTS_PER_BRAND}/brand)`);
+    }
+
     // Fetch best source per event (prefer official, then earliest)
     const eventIds = dedupedEvents.map((e: BrandEvent) => e.event_id);
     const { data: sources, error: sourcesError } = await supabase
