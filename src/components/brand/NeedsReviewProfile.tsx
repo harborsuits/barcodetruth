@@ -37,35 +37,7 @@ interface NeedsReviewProfileProps {
   stateData: ProfileStateData;
 }
 
-function BrandLogo({ brand }: { brand: BrandData }) {
-  const displayLogo = useBrandLogo(brand.logo_url || null, brand.website);
-  const [imgError, setImgError] = useState(false);
 
-  if (displayLogo && !imgError) {
-    return (
-      <img
-        src={displayLogo}
-        alt={`${brand.name} logo`}
-        className="w-16 h-16 rounded-xl object-contain bg-muted border grayscale"
-        onError={() => setImgError(true)}
-      />
-    );
-  }
-
-  // Monogram fallback
-  const initials = brand.name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map(word => word[0])
-    .join('')
-    .toUpperCase();
-
-  return (
-    <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-muted to-muted-foreground/20 flex items-center justify-center border opacity-60">
-      <span className="text-xl font-bold text-muted-foreground">{initials}</span>
-    </div>
-  );
-}
 
 function MismatchDetails({ details }: { details: MismatchDetail[] }) {
   if (details.length === 0) return null;
