@@ -385,14 +385,17 @@ Deno.serve(async (req: Request) => {
       // Combined weight includes tier weight for source credibility gating
       const combinedWeight = recencyWeight * verificationWeight * credibilityWeight * tierWeight;
       
+      // Community multiplier from user votes
+      const commMult = communityMultiplier(event.upvotes ?? 0, event.downvotes ?? 0);
+      
       // Get scope multiplier (1.0 for direct events, 0.7 for inherited from parent)
       const scopeMultiplier = (event as BrandEvent).scope_multiplier ?? 1.0;
       
-      // Calculate weighted contribution per dimension WITH scope multiplier
-      const laborContrib = (impacts.labor || 0) * combinedWeight * scopeMultiplier;
-      const envContrib = (impacts.environment || 0) * combinedWeight * scopeMultiplier;
-      const politicsContrib = (impacts.politics || 0) * combinedWeight * scopeMultiplier;
-      const socialContrib = (impacts.social || 0) * combinedWeight * scopeMultiplier;
+      // Calculate weighted contribution per dimension WITH scope + community multiplier
+      const laborContrib = (impacts.labor || 0) * combinedWeight * scopeMultiplier * commMult;
+      const envContrib = (impacts.environment || 0) * combinedWeight * scopeMultiplier * commMult;
+      const politicsContrib = (impacts.politics || 0) * combinedWeight * scopeMultiplier * commMult;
+      const socialContrib = (impacts.social || 0) * combinedWeight * scopeMultiplier * commMult;
 
       if (!brandScoresMap.has(event.brand_id)) {
         brandScoresMap.set(event.brand_id, {
