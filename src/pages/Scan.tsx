@@ -27,6 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { upsertStoredScan } from "@/lib/recentScans";
 
 // Validate product barcode format
 function isValidProductBarcode(barcode: string): boolean {
