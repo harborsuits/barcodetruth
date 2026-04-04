@@ -120,7 +120,7 @@ export function NeedsReviewProfile({ brand, stateData }: NeedsReviewProfileProps
   }
 
   return (
-    <div className="container max-w-2xl mx-auto px-4 py-6 space-y-4">
+    <div className="container max-w-md mx-auto px-4 py-6 space-y-4">
       {/* Warning Banner */}
       <Alert variant="destructive" className="border-destructive/50 bg-destructive/5">
         <AlertTriangle className="h-5 w-5" />
