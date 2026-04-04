@@ -292,9 +292,9 @@ function classifyEvent(event: EventRow) {
   const dbSeverity: 'minor' | 'moderate' | 'severe' = severity === 'critical' ? 'severe' : severity;
 
   // Determine score eligibility: non-noise, has impact, confidence >= 0.35
+  const isNoiseCategory = primary === "noise";
   const hasNonZeroImpact = Object.values(categoryImpacts).some(v => v !== 0);
   const isScoreEligible = !isNoiseCategory && hasNonZeroImpact && confidence >= 0.35;
-  const isNoiseCategory = primary === "noise";
 
   return {
     category: simpleCategory,
