@@ -257,9 +257,11 @@ function classifyEvent(event: EventRow) {
     orientation = 'mixed';
     impactMagnitude = Math.round(SEVERITY_IMPACTS[severity].negative * 0.3);
   } else {
-    // NO SIGNALS MATCHED - truly neutral, don't assume negative
-    orientation = 'mixed';
-    impactMagnitude = 0; // Neutral until proven otherwise
+    // NO SIGNALS MATCHED - assign minor negative by default
+    // Most brand news events in our pipeline are issues/concerns;
+    // truly neutral events (earnings, partnerships) should have matched positive signals
+    orientation = 'negative';
+    impactMagnitude = SEVERITY_IMPACTS.minor.negative; // -1
   }
 
   // Build category impacts with whole numbers
@@ -289,14 +291,19 @@ function classifyEvent(event: EventRow) {
   // Map to DB severity enum
   const dbSeverity: 'minor' | 'moderate' | 'severe' = severity === 'critical' ? 'severe' : severity;
 
+  // Determine score eligibility: non-noise, has impact, confidence >= 0.35
+  const isNoiseCategory = primary === "noise";
+  const hasNonZeroImpact = Object.values(categoryImpacts).some(v => v !== 0);
+  const isScoreEligible = !isNoiseCategory && hasNonZeroImpact && confidence >= 0.35;
+
   return {
     category: simpleCategory,
     category_code: finalCategoryCode,
     category_confidence: confidence,
     secondary_categories: secondary,
     orientation,
-    is_irrelevant: primary === "noise",
-    noise_reason: primary === "noise" ? "Pure financial/stock analysis" : null,
+    is_irrelevant: isNoiseCategory,
+    noise_reason: isNoiseCategory ? "Pure financial/stock analysis" : null,
     severity: dbSeverity,
     credibility,
     verification_factor: 0.5,
@@ -305,6 +312,8 @@ function classifyEvent(event: EventRow) {
     impact_environment: categoryImpacts.environment || 0,
     impact_politics: categoryImpacts.politics || 0,
     impact_social: categoryImpacts.social || 0,
+    score_eligible: isScoreEligible,
+    feed_visible: !isNoiseCategory && confidence >= 0.35,
   };
 }
 
@@ -319,9 +328,9 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { batchSize = BATCH_SIZE, dryRun = false, forceAll = false } = await req.json().catch(() => ({}));
+    const { batchSize = BATCH_SIZE, dryRun = false, forceAll = false, zeroImpactOnly = false } = await req.json().catch(() => ({}));
 
-    console.log(`[backfill-event-impacts] Starting backfill (batch=${batchSize}, dryRun=${dryRun}, forceAll=${forceAll})`);
+    console.log(`[backfill-event-impacts] Starting backfill (batch=${batchSize}, dryRun=${dryRun}, forceAll=${forceAll}, zeroImpactOnly=${zeroImpactOnly})`);
 
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - LOOKBACK_DAYS);
@@ -332,7 +341,14 @@ Deno.serve(async (req) => {
       .select("event_id, brand_id, title, description, article_text, source_url")
       .gte("created_at", cutoffDate.toISOString());
     
-    if (!forceAll) {
+    if (zeroImpactOnly) {
+      // Events that were processed but got zero impact on all dimensions
+      query = query
+        .eq("impact_labor", 0)
+        .eq("impact_environment", 0)
+        .eq("impact_politics", 0)
+        .eq("impact_social", 0);
+    } else if (!forceAll) {
       // Only events with empty/null category_impacts
       query = query.or("category_impacts.is.null,category_impacts.eq.{}");
     }

@@ -7981,7 +7981,9 @@ export type Database = {
           relevance_score_raw: number | null
           resolved: boolean | null
           scope_multiplier: number | null
+          score_eligible: boolean | null
           severity: string | null
+          source_tier: string | null
           source_url: string | null
           title: string | null
           updated_at: string | null
