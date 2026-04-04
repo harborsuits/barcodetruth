@@ -322,10 +322,10 @@ function EvidenceList({ brandId }: { brandId: string }) {
         <div className="p-3">
           <Button 
             variant="ghost" 
-            className="w-full font-mono text-[10px] uppercase tracking-widest"
+            className="w-full text-xs text-muted-foreground"
             onClick={() => navigate(`/proof/${brandId}`)}
           >
-            LOAD FULL AUDIT TRAIL ({totalCount} items) →
+            View all evidence ({totalCount} items) →
           </Button>
         </div>
       )}
