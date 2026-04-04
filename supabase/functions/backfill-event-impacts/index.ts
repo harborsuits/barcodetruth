@@ -319,9 +319,9 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { batchSize = BATCH_SIZE, dryRun = false, forceAll = false } = await req.json().catch(() => ({}));
+    const { batchSize = BATCH_SIZE, dryRun = false, forceAll = false, zeroImpactOnly = false } = await req.json().catch(() => ({}));
 
-    console.log(`[backfill-event-impacts] Starting backfill (batch=${batchSize}, dryRun=${dryRun}, forceAll=${forceAll})`);
+    console.log(`[backfill-event-impacts] Starting backfill (batch=${batchSize}, dryRun=${dryRun}, forceAll=${forceAll}, zeroImpactOnly=${zeroImpactOnly})`);
 
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - LOOKBACK_DAYS);
@@ -332,7 +332,14 @@ Deno.serve(async (req) => {
       .select("event_id, brand_id, title, description, article_text, source_url")
       .gte("created_at", cutoffDate.toISOString());
     
-    if (!forceAll) {
+    if (zeroImpactOnly) {
+      // Events that were processed but got zero impact on all dimensions
+      query = query
+        .eq("impact_labor", 0)
+        .eq("impact_environment", 0)
+        .eq("impact_politics", 0)
+        .eq("impact_social", 0);
+    } else if (!forceAll) {
       // Only events with empty/null category_impacts
       query = query.or("category_impacts.is.null,category_impacts.eq.{}");
     }
