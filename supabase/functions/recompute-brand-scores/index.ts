@@ -100,7 +100,8 @@ function getRecencyWeight(eventDate: Date, now: Date): number {
   if (daysDiff <= 30) return RECENCY_WEIGHTS['0-30'];
   if (daysDiff <= 90) return RECENCY_WEIGHTS['31-90'];
   if (daysDiff <= 365) return RECENCY_WEIGHTS['91-365'];
-  return 0;
+  if (daysDiff <= 730) return RECENCY_WEIGHTS['366-730'];
+  return RECENCY_WEIGHTS['731+'];
 }
 
 function getVerificationWeight(verification: string): number {
