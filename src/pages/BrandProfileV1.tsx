@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ArrowLeft, ExternalLink, AlertCircle, Building2, Loader2, ShieldCheck, Clock, Network } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useBrandLogo } from '@/hooks/useBrandLogo';
+import { BrandIdentityHeader } from '@/components/brand/BrandIdentityHeader';
 import { useAutoEnrichment } from '@/hooks/useAutoEnrichment';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useToast } from '@/hooks/use-toast';
@@ -28,37 +28,7 @@ import { bt } from '@/lib/behaviorTracker';
 // State B: Building (in progress) - gathering evidence, show progress
 // State C: Needs Review (mismatch) - identity confidence low or name mismatch detected
 
-function BrandLogo({ 
-  logoUrl, 
-  website, 
-  brandName 
-}: { 
-  logoUrl?: string | null; 
-  website?: string | null; 
-  brandName: string;
-}) {
-  const displayLogo = useBrandLogo(logoUrl || null, website);
-  const monogram = brandName?.[0]?.toUpperCase() ?? 'B';
-  
-  if (displayLogo) {
-    return (
-      <img 
-        src={displayLogo} 
-        alt={`${brandName} logo`}
-        className="w-16 h-16 rounded-2xl border-2 object-contain bg-muted flex-shrink-0 p-2"
-        loading="lazy"
-      />
-    );
-  }
-  
-  return (
-    <div className="w-16 h-16 rounded-2xl border-2 grid place-items-center text-2xl font-bold bg-muted flex-shrink-0">
-      {monogram}
-    </div>
-  );
-}
-
-function EnrichmentProgress({ 
+function EnrichmentProgress({
   status, 
   message, 
   step, 
@@ -632,34 +602,7 @@ export default function BrandProfileV1() {
         )}
 
         {/* ─── Brand Identity ─── */}
-        <div className="flex items-center gap-3">
-          <BrandLogo 
-            logoUrl={brand.logo_url} 
-            website={brand.website}
-            brandName={brand.name}
-          />
-          <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold tracking-tight truncate">{brand.name}</h1>
-            {brand.website && (() => {
-              try {
-                const hostname = new URL(brand.website).hostname.replace('www.', '');
-                return (
-                  <a 
-                    href={brand.website} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-                  >
-                    {hostname}
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                );
-              } catch {
-                return null;
-              }
-            })()}
-          </div>
-        </div>
+        <BrandIdentityHeader brandName={brand.name} logoUrl={brand.logo_url} website={brand.website} />
 
         {/* ─── 1. INSTANT VERDICT ─── */}
         <div className={`${verdict.color} border border-border p-5`}>

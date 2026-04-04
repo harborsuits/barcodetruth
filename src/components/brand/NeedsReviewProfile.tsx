@@ -18,7 +18,7 @@ import { SuggestEvidenceDialog } from "@/components/SuggestEvidenceDialog";
 import { ReportIssueDialog } from "@/components/ReportIssueDialog";
 import { IdentityFixCard } from "@/components/brand/IdentityFixCard";
 import type { ProfileStateData, MismatchDetail } from "@/hooks/useProfileState";
-import { useBrandLogo } from "@/hooks/useBrandLogo";
+import { BrandIdentityHeader } from "@/components/brand/BrandIdentityHeader";
 
 interface BrandData {
   id: string;
@@ -37,35 +37,7 @@ interface NeedsReviewProfileProps {
   stateData: ProfileStateData;
 }
 
-function BrandLogo({ brand }: { brand: BrandData }) {
-  const displayLogo = useBrandLogo(brand.logo_url || null, brand.website);
-  const [imgError, setImgError] = useState(false);
 
-  if (displayLogo && !imgError) {
-    return (
-      <img
-        src={displayLogo}
-        alt={`${brand.name} logo`}
-        className="w-16 h-16 rounded-xl object-contain bg-muted border grayscale"
-        onError={() => setImgError(true)}
-      />
-    );
-  }
-
-  // Monogram fallback
-  const initials = brand.name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map(word => word[0])
-    .join('')
-    .toUpperCase();
-
-  return (
-    <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-muted to-muted-foreground/20 flex items-center justify-center border opacity-60">
-      <span className="text-xl font-bold text-muted-foreground">{initials}</span>
-    </div>
-  );
-}
 
 function MismatchDetails({ details }: { details: MismatchDetail[] }) {
   if (details.length === 0) return null;
@@ -120,7 +92,7 @@ export function NeedsReviewProfile({ brand, stateData }: NeedsReviewProfileProps
   }
 
   return (
-    <div className="container max-w-2xl mx-auto px-4 py-6 space-y-4">
+    <div className="container max-w-md mx-auto px-4 py-6 space-y-4">
       {/* Warning Banner */}
       <Alert variant="destructive" className="border-destructive/50 bg-destructive/5">
         <AlertTriangle className="h-5 w-5" />
@@ -136,22 +108,13 @@ export function NeedsReviewProfile({ brand, stateData }: NeedsReviewProfileProps
       {/* Header Card - Muted/Grayed out */}
       <Card className="opacity-80">
         <CardContent className="pt-6">
-          <div className="flex items-start gap-4">
-            <BrandLogo brand={brand} />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-2xl font-bold truncate">{brand.name}</h1>
-                <Badge variant="outline" className="text-xs border-destructive/50 text-destructive">
-                  <HelpCircle className="h-3 w-3 mr-1" />
-                  Unverified
-                </Badge>
-              </div>
-              {/* Don't show description - it's potentially wrong */}
-              <p className="text-sm text-muted-foreground/60 italic mt-2">
-                Description withheld pending verification
-              </p>
-            </div>
-          </div>
+          <BrandIdentityHeader
+            brandName={brand.name}
+            logoUrl={brand.logo_url}
+            website={brand.website}
+            badge={<Badge variant="outline" className="text-xs border-destructive/50 text-destructive"><HelpCircle className="h-3 w-3 mr-1" />Unverified</Badge>}
+            subtitle="Description withheld pending verification"
+          />
         </CardContent>
       </Card>
 

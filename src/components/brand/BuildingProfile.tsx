@@ -20,7 +20,7 @@ import { ReportIssueDialog } from "@/components/ReportIssueDialog";
 import type { ProfileStateData } from "@/hooks/useProfileState";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useBrandLogo } from "@/hooks/useBrandLogo";
+import { BrandIdentityHeader } from "@/components/brand/BrandIdentityHeader";
 import { PowerProfitCard } from "@/components/brand/PowerProfitCard";
 
 interface BrandData {
@@ -41,34 +41,6 @@ interface BuildingProfileProps {
   stateData: ProfileStateData;
 }
 
-function BrandLogo({ brand }: { brand: BrandData }) {
-  const displayLogo = useBrandLogo(brand.logo_url || null, brand.website);
-  const [imgError, setImgError] = useState(false);
-
-  if (displayLogo && !imgError) {
-    return (
-      <img
-        src={displayLogo}
-        alt={`${brand.name} logo`}
-        className="w-16 h-16 object-contain bg-muted border border-border flex-shrink-0 p-2"
-        onError={() => setImgError(true)}
-      />
-    );
-  }
-
-  const initials = brand.name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map(word => word[0])
-    .join('')
-    .toUpperCase();
-
-  return (
-    <div className="w-16 h-16 bg-muted flex items-center justify-center border border-border flex-shrink-0">
-      <span className="text-xl font-bold text-muted-foreground">{initials}</span>
-    </div>
-  );
-}
 
 // Human-readable source checklist instead of abstract "evidence domains"
 const SOURCES_CHECKED = [
@@ -138,23 +110,12 @@ export function BuildingProfile({ brand, stateData }: BuildingProfileProps) {
   return (
     <div className="container max-w-md mx-auto px-4 py-6 space-y-4">
       {/* ─── Brand Identity ─── */}
-      <div className="flex items-center gap-3">
-        <BrandLogo brand={brand} />
-        <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold tracking-tight truncate">{brand.name}</h1>
-          {brand.website && (
-            <a 
-              href={brand.website} 
-              target="_blank" 
-              rel="noreferrer"
-              className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-            >
-              {brand.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-              <ExternalLink className="h-3 w-3" />
-            </a>
-          )}
-        </div>
-      </div>
+      <BrandIdentityHeader
+        brandName={brand.name}
+        logoUrl={brand.logo_url}
+        website={brand.website}
+        badge={<Badge variant="outline" className="text-xs"><Loader2 className="h-3 w-3 mr-1 animate-spin" />Building</Badge>}
+      />
 
       {/* ─── Status: Consumer-friendly, not "rating withheld" ─── */}
       <Card className="border-primary/20 bg-primary/5">
