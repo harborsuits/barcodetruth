@@ -13,6 +13,7 @@ import {
   readStoredScans,
   writeStoredScans,
   buildHistoryNavigationState,
+  upsertStoredScan,
 } from "@/lib/recentScans";
 
 const MAX_SCANS = 20;
