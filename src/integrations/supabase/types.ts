@@ -3127,6 +3127,7 @@ export type Database = {
           is_active: boolean | null
           is_test: boolean
           last_build_error: string | null
+          last_enriched_at: string | null
           last_ingestion_status: string | null
           last_material_event_at: string | null
           last_news_check_at: string | null
@@ -3183,6 +3184,7 @@ export type Database = {
           is_active?: boolean | null
           is_test?: boolean
           last_build_error?: string | null
+          last_enriched_at?: string | null
           last_ingestion_status?: string | null
           last_material_event_at?: string | null
           last_news_check_at?: string | null
@@ -3239,6 +3241,7 @@ export type Database = {
           is_active?: boolean | null
           is_test?: boolean
           last_build_error?: string | null
+          last_enriched_at?: string | null
           last_ingestion_status?: string | null
           last_material_event_at?: string | null
           last_news_check_at?: string | null

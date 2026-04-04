@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
     const { data: brands, error: brandsError } = await supabase
       .from('brands')
       .select('id, name, wikidata_qid, last_enriched_at')
-      .eq('is_active', true)
+      .eq('status', 'active')
       .not('wikidata_qid', 'is', null)
       .order('last_enriched_at', { ascending: true, nullsFirst: true }); // Process unenriched first
 
