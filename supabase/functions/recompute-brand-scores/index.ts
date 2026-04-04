@@ -539,6 +539,7 @@ Deno.serve(async (req: Request) => {
             .update({
               decay_multiplier: pe.w_recency,
               weighted_impact_score: Math.round(totalContrib * 1000) / 1000,
+              community_multiplier: pe.w_comm ?? 1.0,
             })
             .eq('event_id', pe.event_id);
         } catch (e) {
