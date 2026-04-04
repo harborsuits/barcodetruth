@@ -1,80 +1,82 @@
 
 
-# Build Product Hunt Launch Page at /launch
+# Fix Brand Logos, Layout Consistency & "View Again" — Implementation Plan
 
 ## Overview
-Create a standalone, polished marketing page at `/launch` with no app chrome, no auth, and no bottom nav. Uses the existing dark design system but with warmer, more consumer-friendly styling (rounded-xl/2xl cards, gradient accents, no forensic styling).
+Three fixes across five files. No database changes needed.
 
-## Route Setup
-**File: `src/App.tsx`**
-- Add lazy import for Launch page
-- Add `/launch` route as a public route (no ProtectedRoute wrapper, no Header)
-- Update `HeaderWrapper` to hide header on `/launch`
+---
 
-## New Files
+## Fix 1: Wikimedia Thumb URL Normalization
 
-### `src/pages/Launch.tsx`
-- Composes all launch section components in order
-- Full-page layout with `max-w-5xl mx-auto`, no app shell
-- Smooth scroll behavior for anchor links
+**File:** `src/hooks/useBrandLogo.ts` — lines 11-18
 
-### `src/components/launch/LaunchHero.tsx`
-- Headline: "Shop with your values, not just your eyes"
-- Subheadline about scanning, ownership, red flags, alternatives
-- Primary CTA button → `/auth`, secondary → smooth scroll to how-it-works
-- Phone mockup frame (CSS bezel + notch) containing `ScannerIdleAnimation`
-- Social proof placeholder line
-- Fade-up motion on load
+Replace the thumb handler that blindly takes `parts[parts.length - 1]` (grabs resolution variants like `200px-Logo.svg.png`) with logic that filters out 1-2 char hash dirs and `/^\d+px-/` resolution segments to find the real filename.
 
-### `src/components/launch/LaunchHowItWorks.tsx`
-- 3-step horizontal (desktop) / vertical (mobile) layout
-- Scan → We Check → You Decide with icons and short descriptions
-- Config-driven data array for easy editing
+---
 
-### `src/components/launch/LaunchScreenshots.tsx`
-- 6-card responsive grid (2 cols mobile, 3 desktop)
-- Each card: gradient placeholder area + title + caption
-- Gradient backgrounds styled to look premium until real screenshots replace them
-- Staggered fade-in on scroll
+## Fix 2: "View Again" Navigation
 
-### `src/components/launch/LaunchJourney.tsx`
-- 4-stage horizontal timeline: Scan → Verdict → Ownership → Alternative
-- Connected by a line on desktop, vertical on mobile
-- Icon + title + one-liner per stage
+**File:** `src/components/MyScansTab.tsx`
 
-### `src/components/launch/LaunchDifferent.tsx`
-- 4 cards in a 2x2 grid
-- Beyond ingredients / Follow the money / Real trust scores / Better alternatives instantly
-- Icon + title + 2-line description per card
+- **Line 15:** Add `upsertStoredScan` to the import from `@/lib/recentScans`
+- **After line 104:** Add `upsertStoredScan(resolvedScan);` to persist enriched data
+- **Line 106:** Change `brand?.id && (brand.status === "ready" || brand.status === "active")` → `brand?.id`
 
-### `src/components/launch/LaunchAudience.tsx`
-- 4 audience cards: Conscious shoppers, Parents, Brand-skeptics, Alternative seekers
-- Short description per audience
+---
 
-### `src/components/launch/LaunchFAQ.tsx`
-- Uses existing `Accordion` component
-- 6 FAQs with drafted answers
-- Clean, quiet styling
+## Fix 3: Unify Brand Headers
 
-### `src/components/launch/LaunchCTA.tsx`
-- "Start shopping smarter" headline
-- Supporting line + CTA button
-- Optional email input placeholder for waitlist feel
+Replace local `BrandLogo` functions and inline headers with the shared `BrandIdentityHeader` component in three files.
 
-### `src/components/launch/LaunchFooter.tsx`
-- Minimal: Privacy, Terms, Methodology links
-- "Built with purpose" tagline
-- Copyright line
+### `src/pages/BrandProfileV1.tsx`
+- **Line 15:** Replace `useBrandLogo` import → `import { BrandIdentityHeader } from '@/components/brand/BrandIdentityHeader';`
+- **Lines 31-59:** Delete local `BrandLogo` function
+- **Lines 635-662:** Replace inline brand identity block with:
+  ```tsx
+  <BrandIdentityHeader brandName={brand.name} logoUrl={brand.logo_url} website={brand.website} />
+  ```
 
-## Design Decisions
-- Override the app's sharp `--radius: 0.125rem` with explicit `rounded-xl` / `rounded-2xl` on launch cards
-- Use `framer-motion` (already installed) for fade-up animations with `whileInView`
-- All repeated content (steps, cards, FAQs) driven by arrays for easy copy editing
-- No new dependencies needed
-- No database or backend changes
+### `src/components/brand/BuildingProfile.tsx`
+- **Line 23:** Replace `useBrandLogo` import → `import { BrandIdentityHeader } from '@/components/brand/BrandIdentityHeader';`
+- **Lines 44-71:** Delete local `BrandLogo` function
+- **Lines 141-157:** Replace with:
+  ```tsx
+  <BrandIdentityHeader
+    brandName={brand.name}
+    logoUrl={brand.logo_url}
+    website={brand.website}
+    badge={<Badge variant="outline" className="text-xs"><Loader2 className="h-3 w-3 mr-1 animate-spin" />Building</Badge>}
+  />
+  ```
+
+### `src/components/brand/NeedsReviewProfile.tsx`
+- **Line 21:** Replace `useBrandLogo` import → `import { BrandIdentityHeader } from '@/components/brand/BrandIdentityHeader';`
+- **Lines 40-68:** Delete local `BrandLogo` function
+- **Line 123:** Change `max-w-2xl` → `max-w-md`
+- **Lines 139-154:** Replace with:
+  ```tsx
+  <BrandIdentityHeader
+    brandName={brand.name}
+    logoUrl={brand.logo_url}
+    website={brand.website}
+    badge={<Badge variant="outline" className="text-xs border-destructive/50 text-destructive"><HelpCircle className="h-3 w-3 mr-1" />Unverified</Badge>}
+    subtitle="Description withheld pending verification"
+  />
+  ```
+  Keep the wrapping `<div className="flex items-start gap-4">` removed — `BrandIdentityHeader` already has its own flex layout.
+
+---
+
+## Import Cleanup Notes
+- Keep `ExternalLink` in all three profile files (used elsewhere: BrandProfileV1 line 293+, BuildingProfile line 227+, NeedsReviewProfile line 179+)
+- Keep `HelpCircle` in NeedsReviewProfile (used in badge)
+- Keep `Loader2` in BuildingProfile (used in badge)
 
 ## Implementation Order
-1. Create all 9 launch component files
-2. Create `Launch.tsx` page composing them
-3. Update `App.tsx` with route and header exclusion
+1. `useBrandLogo.ts` — fix thumb handler
+2. `MyScansTab.tsx` — add upsert + remove status gate
+3. `BrandProfileV1.tsx` — swap header
+4. `BuildingProfile.tsx` — swap header
+5. `NeedsReviewProfile.tsx` — swap header + fix width
 
