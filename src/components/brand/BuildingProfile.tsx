@@ -41,34 +41,6 @@ interface BuildingProfileProps {
   stateData: ProfileStateData;
 }
 
-function BrandLogo({ brand }: { brand: BrandData }) {
-  const displayLogo = useBrandLogo(brand.logo_url || null, brand.website);
-  const [imgError, setImgError] = useState(false);
-
-  if (displayLogo && !imgError) {
-    return (
-      <img
-        src={displayLogo}
-        alt={`${brand.name} logo`}
-        className="w-16 h-16 object-contain bg-muted border border-border flex-shrink-0 p-2"
-        onError={() => setImgError(true)}
-      />
-    );
-  }
-
-  const initials = brand.name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map(word => word[0])
-    .join('')
-    .toUpperCase();
-
-  return (
-    <div className="w-16 h-16 bg-muted flex items-center justify-center border border-border flex-shrink-0">
-      <span className="text-xl font-bold text-muted-foreground">{initials}</span>
-    </div>
-  );
-}
 
 // Human-readable source checklist instead of abstract "evidence domains"
 const SOURCES_CHECKED = [
