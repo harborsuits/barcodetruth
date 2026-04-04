@@ -183,9 +183,30 @@ export default function Methodology() {
           </CardContent>
         </Card>
 
-        {/* 8. Classifier prompt */}
+        {/* 8. Community validation */}
         <Card>
-          <CardHeader><CardTitle>8. Classifier prompt (published)</CardTitle></CardHeader>
+          <CardHeader><CardTitle>8. Community validation</CardTitle></CardHeader>
+          <CardContent className="prose prose-sm max-w-none dark:prose-invert">
+            <p>
+              Users can upvote or downvote any event that contributes to a score. Votes don't change
+              the AI-assigned impact score — they apply a <strong>community confidence multiplier</strong> that
+              adjusts how much weight that event carries.
+            </p>
+            <ul className="list-disc pl-6 space-y-1">
+              <li>An event confirmed by 80%+ of voters carries <strong>15% more weight</strong></li>
+              <li>An event questioned by 80%+ of voters carries <strong>50% less weight</strong></li>
+              <li>Events need at least <strong>5 votes</strong> before community signal applies</li>
+            </ul>
+            <p>
+              Vote counts are always public. We log vote velocity to detect coordinated
+              manipulation campaigns.
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* 9. Classifier prompt */}
+        <Card>
+          <CardHeader><CardTitle>9. Classifier prompt (published)</CardTitle></CardHeader>
           <CardContent>
             <div className="bg-muted p-4 rounded-lg text-xs font-mono leading-relaxed whitespace-pre-wrap">
 {`You are evaluating news events for an ethical consumer app.

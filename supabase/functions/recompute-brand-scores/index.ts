@@ -483,6 +483,7 @@ Deno.serve(async (req: Request) => {
         verification: event.verification,
         w_recency: Math.round(recencyWeight * 100) / 100,
         w_verif: Math.round(verificationWeight * 100) / 100,
+        w_comm: Math.round(commMult * 100) / 100,
         impacts: impacts,
         contrib: {
           labor: Math.round(laborContrib * 1000) / 1000,
