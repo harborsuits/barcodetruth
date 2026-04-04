@@ -29,6 +29,8 @@ interface ScoredEvent {
   impact_politics: number | null;
   score_excluded_reason: string | null;
   score_eligible: boolean | null;
+  upvotes: number | null;
+  downvotes: number | null;
 }
 
 function getSourceDomain(url: string | null): string | null {
