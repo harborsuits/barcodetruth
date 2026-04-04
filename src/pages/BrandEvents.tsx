@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, ExternalLink, Flag } from "lucide-react";
 import { DisputeForm } from "@/components/brand/DisputeForm";
+import { EventVoteButtons } from "@/components/brand/EventVoteButtons";
 
 type Filter = "all" | "scored" | "excluded";
 type DimFilter = "all" | "labor" | "environment" | "politics" | "social";
