@@ -11,7 +11,12 @@ const RECENCY_WEIGHTS = {
   '0-30': 1.0,
   '31-90': 0.7,
   '91-365': 0.4,
+  '366-730': 0.2,
+  '731+': 0.1,
 };
+
+// Per-brand event cap to prevent volume bias (top brands dominating scores)
+const MAX_SCORE_ELIGIBLE_EVENTS_PER_BRAND = 50;
 
 const VERIFICATION_WEIGHTS = {
   official: 1.0,
