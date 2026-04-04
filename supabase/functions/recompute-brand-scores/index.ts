@@ -480,7 +480,7 @@ Deno.serve(async (req: Request) => {
     console.log(`Events with impacts: ${eventsWithImpacts}, without: ${eventsWithoutImpacts}, tier3 skipped: ${eventsSkippedTier3}`);
     console.log(`Computed dimension sums for ${brandScoresMap.size} brands`);
 
-    // Upsert scores into brand_scores table
+    // Upsert scores into brand_scores table + write audit trail
     let updatedCount = 0;
     for (const [brandId, brandData] of brandScoresMap) {
       // Compute per-dimension scores (0-100) with normalization by event count + severity spike guard
@@ -496,7 +496,6 @@ Deno.serve(async (req: Request) => {
       const scoreSocial = applyScoreFloor(rawScoreSocial, brandData.dimensions.social_count);
       
       // Overall score is weighted average of dimensions with data
-      // Weight dimensions by how many events affected them
       const totalDimEvents = 
         brandData.dimensions.labor_count + 
         brandData.dimensions.environment_count + 
@@ -505,7 +504,6 @@ Deno.serve(async (req: Request) => {
       
       let overallScore: number;
       if (totalDimEvents > 0) {
-        // Weighted average by dimension event count
         overallScore = Math.round(
           (scoreLabor * brandData.dimensions.labor_count +
            scoreEnv * brandData.dimensions.environment_count +
@@ -513,8 +511,84 @@ Deno.serve(async (req: Request) => {
            scoreSocial * brandData.dimensions.social_count) / totalDimEvents
         );
       } else {
-        // No dimensional impacts - use simple average
         overallScore = Math.round((scoreLabor + scoreEnv + scorePolitics + scoreSocial) / 4);
+      }
+
+      // --- AUDIT TRAIL: Write per-event weights back to brand_events ---
+      for (const pe of brandData.per_event) {
+        const totalContrib = pe.contrib.labor + pe.contrib.environment + pe.contrib.politics + pe.contrib.social;
+        try {
+          await supabase
+            .from('brand_events')
+            .update({
+              decay_multiplier: pe.w_recency,
+              weighted_impact_score: Math.round(totalContrib * 1000) / 1000,
+            })
+            .eq('event_id', pe.event_id);
+        } catch (e) {
+          // Non-fatal: don't stop score computation for audit writes
+        }
+      }
+
+      // --- AUDIT TRAIL: Fetch previous score for delta ---
+      let previousScore: number | null = null;
+      try {
+        const { data: prevData } = await supabase
+          .from('brand_scores')
+          .select('score')
+          .eq('brand_id', brandId)
+          .maybeSingle();
+        if (prevData?.score != null) {
+          const parsed = typeof prevData.score === 'string' ? JSON.parse(prevData.score) : prevData.score;
+          previousScore = parsed?.overall ?? null;
+        }
+      } catch {}
+
+      // Find top positive and negative events
+      let topPositiveId: string | null = null;
+      let topNegativeId: string | null = null;
+      let maxPositive = 0;
+      let maxNegative = 0;
+      for (const pe of brandData.per_event) {
+        const total = pe.contrib.labor + pe.contrib.environment + pe.contrib.politics + pe.contrib.social;
+        if (total > maxPositive) { maxPositive = total; topPositiveId = pe.event_id; }
+        if (total < maxNegative) { maxNegative = total; topNegativeId = pe.event_id; }
+      }
+
+      // Date range
+      const dates = brandData.per_event.map(pe => new Date(pe.date).getTime()).filter(d => !isNaN(d));
+      const dateStart = dates.length > 0 ? new Date(Math.min(...dates)).toISOString().split('T')[0] : null;
+      const dateEnd = dates.length > 0 ? new Date(Math.max(...dates)).toISOString().split('T')[0] : null;
+
+      // Events that actually moved score (non-zero contrib)
+      const eventsThatMoved = brandData.per_event.filter(pe => {
+        const total = pe.contrib.labor + pe.contrib.environment + pe.contrib.politics + pe.contrib.social;
+        return Math.abs(total) > 0.01;
+      }).length;
+
+      // --- AUDIT TRAIL: Write audit row ---
+      try {
+        await supabase.from('brand_score_audit').insert({
+          brand_id: brandId,
+          classifier_version: 'v2-llm-classify',
+          score_labor: scoreLabor,
+          score_environment: scoreEnv,
+          score_social: scoreSocial,
+          score_politics: scorePolitics,
+          score_overall: overallScore,
+          previous_score_overall: previousScore != null ? Math.round(previousScore) : null,
+          score_delta: previousScore != null ? overallScore - Math.round(previousScore) : null,
+          events_considered: events.length,
+          events_after_dedup: dedupedEvents.length,
+          events_after_cap: cappedEvents.length,
+          events_that_moved_score: eventsThatMoved,
+          date_range_start: dateStart,
+          date_range_end: dateEnd,
+          top_positive_event_id: topPositiveId,
+          top_negative_event_id: topNegativeId,
+        });
+      } catch (auditErr) {
+        console.error(`[Audit] Failed to write audit for ${brandId}:`, auditErr);
       }
       
       const reasonJson = {
@@ -549,23 +623,20 @@ Deno.serve(async (req: Request) => {
         event_count: brandData.event_count,
         recent_events_30d: brandData.recent_events,
         computed_at: now.toISOString(),
-        per_event: brandData.per_event.slice(0, 50), // Limit to 50 most recent for storage
+        per_event: brandData.per_event.slice(0, 50),
       };
 
       const { error: upsertError } = await supabase
         .from('brand_scores')
         .upsert({
           brand_id: brandId,
-          // Canonical fields for UI/RPC
           score: overallScore,
           updated_at: now.toISOString(),
           reason_json: reasonJson,
-          // Per-dimension scores - NOW DIFFERENTIATED
           score_labor: scoreLabor,
           score_environment: scoreEnv,
           score_politics: scorePolitics,
           score_social: scoreSocial,
-          // Legacy fields
           breakdown: reasonJson,
           last_updated: now.toISOString(),
         }, {
