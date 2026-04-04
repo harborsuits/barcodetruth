@@ -11,6 +11,7 @@ import { ServiceWorkerUpdate } from "@/components/ServiceWorkerUpdate";
 import { DebugFlagsBadge } from "@/components/DebugFlagsBadge";
 import { FEATURES } from "@/lib/featureFlags";
 import { lazyNamed } from "@/lib/lazyNamed";
+import BrandProfile from "./pages/BrandProfileV1";
 import { Onboarding } from "./pages/Onboarding";
 import { NotFound } from "./pages/NotFound";
 import { AdminRoute } from "@/components/routes/AdminRoute";
@@ -27,7 +28,6 @@ const Home = lazyNamed(() => import("./pages/Home"), "Home");
 const Search = lazyNamed(() => import("./pages/Search"), "default");
 const Discover = lazyNamed(() => import("./pages/Discover"), "default");
 // V1 Consumer Contract - simplified pages
-const BrandProfile = lazyNamed(() => import("./pages/BrandProfileV1"), "default");
 const BrandProof = lazyNamed(() => import("./pages/BrandProof"), "default");
 const Scan = lazyNamed(() => import("./pages/Scan"), "Scan");
 const ScanResult = lazyNamed(() => import("./pages/ScanResultV1"), "default");
