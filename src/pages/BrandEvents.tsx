@@ -27,6 +27,8 @@ interface EventRow {
   impact_social: number | null;
   impact_politics: number | null;
   disputed: boolean | null;
+  upvotes: number | null;
+  downvotes: number | null;
 }
 
 function getDomain(url: string | null) {
