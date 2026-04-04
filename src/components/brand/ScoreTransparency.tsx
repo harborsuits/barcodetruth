@@ -66,7 +66,7 @@ export function ScoreTransparency({ brandId, brandName }: ScoreTransparencyProps
     queryFn: async () => {
       const { data } = await supabase
         .from("brand_events")
-        .select("event_id, title, event_date, category, source_url, ai_summary, decay_multiplier, weighted_impact_score, impact_labor, impact_environment, impact_social, impact_politics, score_excluded_reason, score_eligible")
+        .select("event_id, title, event_date, category, source_url, ai_summary, decay_multiplier, weighted_impact_score, impact_labor, impact_environment, impact_social, impact_politics, score_excluded_reason, score_eligible, upvotes, downvotes")
         .eq("brand_id", brandId)
         .eq("is_irrelevant", false)
         .order("event_date", { ascending: false })
