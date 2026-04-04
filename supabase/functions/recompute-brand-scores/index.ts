@@ -312,7 +312,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Fetch best source per event (prefer official, then earliest)
-    const eventIds = dedupedEvents.map((e: BrandEvent) => e.event_id);
+    const eventIds = cappedEvents.map((e: BrandEvent) => e.event_id);
     const { data: sources, error: sourcesError } = await supabase
       .from('event_sources')
       .select('event_id, canonical_url, source_name, registrable_domain, verification, source_date')
