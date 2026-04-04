@@ -52,6 +52,7 @@ const AdminRSSMonitor = lazyNamed(() => import("./pages/AdminRSSMonitor"), "defa
 const AdminEnrichmentMonitor = lazyNamed(() => import("./pages/AdminEnrichmentMonitor"), "default");
 const AdminCommunityRatings = lazyNamed(() => import("./pages/AdminCommunityRatings"), "default");
 const AdminBatchEnrich = lazyNamed(() => import("./pages/AdminBatchEnrich"), "default");
+const AdminDisputes = lazyNamed(() => import("./pages/AdminDisputes"), "default");
 const AdminBulkEnrichFortune500 = lazyNamed(() => import("./pages/AdminBulkEnrichFortune500"), "default");
 const AdminSeeding = lazyNamed(() => import("./pages/AdminSeeding"), "default");
 const AdminUsers = lazyNamed(() => import("./pages/AdminUsers"), "default");
@@ -66,6 +67,7 @@ const BootstrapAdmin = lazyNamed(() => import("./pages/BootstrapAdmin"), "defaul
 const Privacy = lazyNamed(() => import("./pages/Privacy"), "default");
 const Terms = lazyNamed(() => import("./pages/Terms"), "default");
 const Methodology = lazyNamed(() => import("./pages/Methodology"), "default");
+const BrandEvents = lazyNamed(() => import("./pages/BrandEvents"), "default");
 const ResponsibleUse = lazyNamed(() => import("./pages/ResponsibleUse"), "default");
 const InvestorProfile = lazyNamed(() => import("./pages/InvestorProfile"), "default");
 const PersonProfile = lazyNamed(() => import("./pages/PersonProfile"), "default");
@@ -627,6 +629,20 @@ const App = () => {
             }
           />
           <Route
+            path="/admin/disputes"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading disputes…" />}>
+                      <AdminDisputes />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/bootstrap-admin"
             element={
               <Suspense fallback={<RouteFallback label="Loading…" />}>
@@ -706,6 +722,16 @@ const App = () => {
               <RouteErrorBoundary>
                 <Suspense fallback={<RouteFallback label="Loading ownership tree…" />}>
                   <OwnershipTree />
+                </Suspense>
+              </RouteErrorBoundary>
+            }
+          />
+          <Route
+            path="/brand/:id/events"
+            element={
+              <RouteErrorBoundary>
+                <Suspense fallback={<RouteFallback label="Loading events…" />}>
+                  <BrandEvents />
                 </Suspense>
               </RouteErrorBoundary>
             }

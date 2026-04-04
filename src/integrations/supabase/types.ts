@@ -1599,8 +1599,11 @@ export type Database = {
           company_response_url: string | null
           created_at: string
           credibility: number | null
+          decay_multiplier: number | null
           description: string
           disambiguation_reason: string | null
+          disputed: boolean | null
+          duplicate_of: string | null
           event_date: string | null
           event_id: string
           feed_visible: boolean
@@ -1624,6 +1627,7 @@ export type Database = {
           relevance_score_raw: number
           resolved: boolean | null
           score_eligible: boolean | null
+          score_excluded_reason: string | null
           secondary_categories: string[] | null
           secondary_category: string | null
           severity: string | null
@@ -1635,6 +1639,7 @@ export type Database = {
           verification: Database["public"]["Enums"]["verification_level"] | null
           verification_factor: number | null
           verified: boolean | null
+          weighted_impact_score: number | null
         }
         Insert: {
           ai_model_version?: string | null
@@ -1651,8 +1656,11 @@ export type Database = {
           company_response_url?: string | null
           created_at?: string
           credibility?: number | null
+          decay_multiplier?: number | null
           description: string
           disambiguation_reason?: string | null
+          disputed?: boolean | null
+          duplicate_of?: string | null
           event_date?: string | null
           event_id?: string
           feed_visible?: boolean
@@ -1676,6 +1684,7 @@ export type Database = {
           relevance_score_raw?: number
           resolved?: boolean | null
           score_eligible?: boolean | null
+          score_excluded_reason?: string | null
           secondary_categories?: string[] | null
           secondary_category?: string | null
           severity?: string | null
@@ -1689,6 +1698,7 @@ export type Database = {
             | null
           verification_factor?: number | null
           verified?: boolean | null
+          weighted_impact_score?: number | null
         }
         Update: {
           ai_model_version?: string | null
@@ -1705,8 +1715,11 @@ export type Database = {
           company_response_url?: string | null
           created_at?: string
           credibility?: number | null
+          decay_multiplier?: number | null
           description?: string
           disambiguation_reason?: string | null
+          disputed?: boolean | null
+          duplicate_of?: string | null
           event_date?: string | null
           event_id?: string
           feed_visible?: boolean
@@ -1730,6 +1743,7 @@ export type Database = {
           relevance_score_raw?: number
           resolved?: boolean | null
           score_eligible?: boolean | null
+          score_excluded_reason?: string | null
           secondary_categories?: string[] | null
           secondary_category?: string | null
           severity?: string | null
@@ -1743,6 +1757,7 @@ export type Database = {
             | null
           verification_factor?: number | null
           verified?: boolean | null
+          weighted_impact_score?: number | null
         }
         Relationships: [
           {
@@ -1849,6 +1864,48 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_brands_needing_logos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_events_duplicate_of_fkey"
+            columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "brand_events"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "brand_events_duplicate_of_fkey"
+            columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "brand_evidence_view_base"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "brand_events_duplicate_of_fkey"
+            columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "brand_latest_verified_event"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "brand_events_duplicate_of_fkey"
+            columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "company_feed_grouped"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "brand_events_duplicate_of_fkey"
+            columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "company_profile_feed"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "brand_events_duplicate_of_fkey"
+            columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "v_brand_sources_inline"
+            referencedColumns: ["event_id"]
           },
         ]
       }
@@ -2498,6 +2555,178 @@ export type Database = {
           {
             foreignKeyName: "brand_ownerships_parent_brand_id_fkey"
             columns: ["parent_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brand_score_audit: {
+        Row: {
+          audit_id: string
+          brand_id: string | null
+          classifier_version: string | null
+          computed_at: string | null
+          date_range_end: string | null
+          date_range_start: string | null
+          events_after_cap: number | null
+          events_after_dedup: number | null
+          events_considered: number | null
+          events_that_moved_score: number | null
+          previous_score_overall: number | null
+          score_delta: number | null
+          score_environment: number | null
+          score_labor: number | null
+          score_overall: number | null
+          score_politics: number | null
+          score_social: number | null
+          top_negative_event_id: string | null
+          top_positive_event_id: string | null
+        }
+        Insert: {
+          audit_id?: string
+          brand_id?: string | null
+          classifier_version?: string | null
+          computed_at?: string | null
+          date_range_end?: string | null
+          date_range_start?: string | null
+          events_after_cap?: number | null
+          events_after_dedup?: number | null
+          events_considered?: number | null
+          events_that_moved_score?: number | null
+          previous_score_overall?: number | null
+          score_delta?: number | null
+          score_environment?: number | null
+          score_labor?: number | null
+          score_overall?: number | null
+          score_politics?: number | null
+          score_social?: number | null
+          top_negative_event_id?: string | null
+          top_positive_event_id?: string | null
+        }
+        Update: {
+          audit_id?: string
+          brand_id?: string | null
+          classifier_version?: string | null
+          computed_at?: string | null
+          date_range_end?: string | null
+          date_range_start?: string | null
+          events_after_cap?: number | null
+          events_after_dedup?: number | null
+          events_considered?: number | null
+          events_that_moved_score?: number | null
+          previous_score_overall?: number | null
+          score_delta?: number | null
+          score_environment?: number | null
+          score_labor?: number | null
+          score_overall?: number | null
+          score_politics?: number | null
+          score_social?: number | null
+          top_negative_event_id?: string | null
+          top_positive_event_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_score_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_alias_suggestions"
+            referencedColumns: ["suggested_brand_id"]
+          },
+          {
+            foreignKeyName: "brand_score_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_score_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_monitoring_status"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_score_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_profile_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_score_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_standings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_score_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_trending"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_score_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_score_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "digest_events_last_24h"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_score_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "product_alternatives"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_score_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "product_brand_profile"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_score_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_score_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_score_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brand_completeness"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_score_audit_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brand_confidence_pivot"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "brand_score_audit_brand_id_fkey"
+            columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "v_brands_needing_logos"
             referencedColumns: ["id"]
@@ -4754,6 +4983,196 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_brands_needing_logos"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_disputes: {
+        Row: {
+          admin_notes: string | null
+          brand_id: string
+          created_at: string | null
+          description: string | null
+          dispute_type: string
+          email: string | null
+          event_id: string
+          id: string
+          resolved_at: string | null
+          status: string | null
+          supporting_url: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          brand_id: string
+          created_at?: string | null
+          description?: string | null
+          dispute_type: string
+          email?: string | null
+          event_id: string
+          id?: string
+          resolved_at?: string | null
+          status?: string | null
+          supporting_url?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          brand_id?: string
+          created_at?: string | null
+          description?: string | null
+          dispute_type?: string
+          email?: string | null
+          event_id?: string
+          id?: string
+          resolved_at?: string | null
+          status?: string | null
+          supporting_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_disputes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_alias_suggestions"
+            referencedColumns: ["suggested_brand_id"]
+          },
+          {
+            foreignKeyName: "event_disputes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_data_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "event_disputes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_monitoring_status"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "event_disputes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_profile_coverage"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "event_disputes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_standings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_disputes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_trending"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "event_disputes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_disputes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "digest_events_last_24h"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "event_disputes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "product_alternatives"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "event_disputes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "product_brand_profile"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "event_disputes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_24m"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "event_disputes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_baseline_inputs_90d"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "event_disputes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brand_completeness"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_disputes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brand_confidence_pivot"
+            referencedColumns: ["brand_id"]
+          },
+          {
+            foreignKeyName: "event_disputes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_brands_needing_logos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_disputes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_events"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_disputes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_evidence_view_base"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_disputes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_latest_verified_event"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_disputes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_feed_grouped"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_disputes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_profile_feed"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_disputes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "v_brand_sources_inline"
+            referencedColumns: ["event_id"]
           },
         ]
       }

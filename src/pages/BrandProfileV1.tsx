@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { AlternativesSection } from '@/components/brand/AlternativesSection';
 import { CorporateFamilyTree } from '@/components/brand/CorporateFamilyTree';
+import { ScoreTransparency } from '@/components/brand/ScoreTransparency';
+import { ConfidenceBadge } from '@/components/brand/ConfidenceBadge';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -669,15 +671,23 @@ export default function BrandProfileV1() {
                 <span className="text-lg font-normal text-muted-foreground ml-1">/ 100</span>
               </div>
             </div>
-            <div className="text-right">
+            <div className="text-right space-y-1">
               <span className="text-2xl">{verdict.emoji}</span>
               <p className="text-lg font-bold mt-1">{verdict.label}</p>
+              {resolvedBrandId && <ConfidenceBadge brandId={resolvedBrandId} />}
             </div>
           </div>
 
           {/* Top reasons */}
           {resolvedBrandId && (
             <TopReasons brandId={resolvedBrandId} parentCompany={brand.parent_company} brandName={brand.name} dimScores={dimScores} />
+          )}
+
+          {/* Score transparency */}
+          {resolvedBrandId && scoreValue !== null && (
+            <div className="mt-3 border-t border-border/50 pt-1">
+              <ScoreTransparency brandId={resolvedBrandId} brandName={brand.name} />
+            </div>
           )}
         </div>
 
