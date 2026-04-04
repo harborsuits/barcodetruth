@@ -81,9 +81,20 @@ export default function MyScansTab() {
     analytics.track('my_scans_cleared', { previous_count: items.length });
   };
 
-  const handleRescan = (upc: string) => {
-    analytics.trackMyScansClickRescan(upc);
-    navigate(`/scan-result/${upc}`);
+  const handleRescan = (scan: RecentScan) => {
+    analytics.trackMyScansClickRescan(scan.upc);
+    // Pass cached scan data as navigation state so ScanResultV1 can use it
+    // as seed data, avoiding re-lookup failures for products already resolved
+    navigate(`/scan-result/${scan.upc}`, {
+      state: {
+        product: {
+          barcode: scan.upc,
+          name: scan.product_name,
+        },
+        brand: scan.brand_name ? { name: scan.brand_name } : undefined,
+        source: "history",
+      },
+    });
   };
 
   const activeList = showArchive ? archived : items;
@@ -193,7 +204,7 @@ export default function MyScansTab() {
               <Button 
                 size="sm" 
                 variant="secondary" 
-                onClick={() => handleRescan(s.upc)}
+                onClick={() => handleRescan(s)}
               >
                 View Again
               </Button>
