@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { AlternativesSection } from '@/components/brand/AlternativesSection';
 import { CorporateFamilyTree } from '@/components/brand/CorporateFamilyTree';
+import { ScoreTransparency } from '@/components/brand/ScoreTransparency';
+import { ConfidenceBadge } from '@/components/brand/ConfidenceBadge';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
