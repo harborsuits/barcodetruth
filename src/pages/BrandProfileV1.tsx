@@ -439,6 +439,20 @@ export default function BrandProfileV1() {
   // Query profile state for state-based rendering
   const { data: profileState, isLoading: stateLoading } = useProfileState(resolvedBrandId);
 
+  // Evidence count — must be before early returns (hooks ordering)
+  const { data: evidenceTotal } = useQuery({
+    queryKey: ['brand-evidence-total', resolvedBrandId],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('brand_events')
+        .select('*', { count: 'exact', head: true })
+        .eq('brand_id', resolvedBrandId!)
+        .eq('is_irrelevant', false);
+      return count || 0;
+    },
+    enabled: !!resolvedBrandId,
+  });
+
   // Track profile load (must be before early returns)
   useEffect(() => {
     if (resolvedBrandId && brand?.name) {
