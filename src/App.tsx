@@ -111,6 +111,14 @@ const App = () => {
             } 
           />
           <Route
+            path="/launch"
+            element={
+              <Suspense fallback={<RouteFallback label="Loading…" />}>
+                <Launch />
+              </Suspense>
+            }
+          />
+          <Route
             path="/"
             element={
               <ProtectedRoute>
