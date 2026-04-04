@@ -662,9 +662,9 @@ export default function BrandProfileV1() {
 
         {/* ─── 1. INSTANT VERDICT ─── */}
         <div className={`${verdict.color} border border-border p-5`}>
-          <div className="flex items-center justify-between mb-3">
+           <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Trust Score</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Rating</p>
               <div className="text-5xl font-extrabold tracking-tighter mt-1" style={{ fontFamily: "'Public Sans', sans-serif" }}>
                 {scoreValue !== null ? scoreValue : '—'}
                 <span className="text-lg font-normal text-muted-foreground ml-1">/ 100</span>
