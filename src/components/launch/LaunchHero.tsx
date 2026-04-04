@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ScannerIdleAnimation } from "@/components/scanner/ScannerIdleAnimation";
+import { ScannerIdleAnimation } from "@/components/ScannerIdleAnimation";
 
 export function LaunchHero() {
   const scrollToHowItWorks = () => {
