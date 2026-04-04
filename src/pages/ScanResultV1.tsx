@@ -495,9 +495,9 @@ export default function ScanResultV1() {
           </CardContent>
         </Card>
 
-        {/* ═══ BRAND INTELLIGENCE LAYER — What we know about the company ═══ */}
+        {/* ═══ RATING ═══ */}
         <div className="pt-1">
-          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-1.5">
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-3 flex items-center gap-1.5">
             <Search className="h-3 w-3" />
             Who makes this?
           </p>
@@ -514,19 +514,27 @@ export default function ScanResultV1() {
           website={brandInfo?.website}
         />
 
-        {/* ─── 4. OWNERSHIP REVEAL ─── */}
+        {/* ─── 2. OWNERSHIP ─── */}
         {brandInfo?.id && (
           <OwnershipReveal brandId={brandInfo.id} brandName={brandInfo.name} parentCompany={brandInfo.parent_company} />
-        )}
-
-        {/* ─── 2. SCORE BREAKDOWN ─── */}
-        {brandInfo?.id && (
-          <ScoreBreakdownCard brandId={brandInfo.id} dimensions={dimensions} />
         )}
 
         {/* ─── 3. BETTER ALTERNATIVES ─── */}
         {brandInfo?.id && (
           <AlternativesSection brandId={brandInfo.id} brandName={brandInfo.name || "this brand"} />
+        )}
+
+        {/* ─── 4. DETAILED BREAKDOWN (collapsible) ─── */}
+        {brandInfo?.id && (
+          <details className="group">
+            <summary className="flex items-center justify-between cursor-pointer p-4 bg-elevated-1 border border-border rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              See detailed breakdown
+              <span className="text-xs group-open:rotate-180 transition-transform">▼</span>
+            </summary>
+            <div className="mt-2">
+              <ScoreBreakdownCard brandId={brandInfo.id} dimensions={dimensions} />
+            </div>
+          </details>
         )}
 
         {/* ─── 5. SHARE ─── */}
@@ -537,19 +545,19 @@ export default function ScanResultV1() {
           dimensions={dimensions.map((d) => ({ label: d.label, grade: getLetterGrade(d.score) }))}
         />
 
-        {/* ─── Deep link to full profile ─── */}
+        {/* Actions */}
         <div className="space-y-2">
           {brandInfo?.slug && (
-            <Button variant="outline" className="w-full font-mono text-[10px] uppercase tracking-widest" onClick={() => navigate(`/brand/${brandInfo.slug}`, { state: { scannedBrandId: brandInfo.id, scannedBrandName: brandInfo.name } })}>
-              View Full Company Profile →
+            <Button variant="ghost" className="w-full text-sm text-muted-foreground" onClick={() => navigate(`/brand/${brandInfo.slug}`, { state: { scannedBrandId: brandInfo.id, scannedBrandName: brandInfo.name } })}>
+              More about this company →
             </Button>
           )}
-          <Button variant="ghost" className="w-full" onClick={() => navigate("/scan")}>Scan Another Product</Button>
+          <Button variant="outline" className="w-full" onClick={() => navigate("/scan")}>Scan Another Product</Button>
         </div>
 
         {/* Beta */}
         <p className="text-xs text-center text-muted-foreground px-4 pb-4">
-          Scores based on verified government records (EPA, OSHA, FEC, FDA). Coverage expands weekly.
+          Based on verified public records. Coverage expands weekly.
         </p>
       </main>
     </div>
