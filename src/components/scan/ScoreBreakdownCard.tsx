@@ -32,7 +32,7 @@ export function ScoreBreakdownCard({ brandId, dimensions }: ScoreBreakdownCardPr
   return (
     <div className="bg-elevated-1 border border-border divide-y divide-border">
       <div className="p-4">
-        <h3 className="label-forensic">{allPending ? "What we're checking" : "Why This Score"}</h3>
+        <h3 className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{allPending ? "What we're checking" : "Score Breakdown"}</h3>
       </div>
 
       {dimensions.map((dim) => {
