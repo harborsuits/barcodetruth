@@ -18,6 +18,17 @@ const RECENCY_WEIGHTS = {
 // Per-brand event cap to prevent volume bias (top brands dominating scores)
 const MAX_SCORE_ELIGIBLE_EVENTS_PER_BRAND = 50;
 
+function communityMultiplier(upvotes = 0, downvotes = 0): number {
+  const total = upvotes + downvotes;
+  if (total < 5) return 1.0;
+  const ratio = upvotes / total;
+  if (ratio >= 0.8) return 1.15;
+  if (ratio >= 0.6) return 1.0;
+  if (ratio <= 0.2) return 0.5;
+  if (ratio <= 0.4) return 0.75;
+  return 1.0;
+}
+
 const VERIFICATION_WEIGHTS = {
   official: 1.0,
   corroborated: 0.8,
@@ -42,6 +53,8 @@ interface BrandEvent {
   credibility: number | null;
   source_tier: SourceTier | null;
   score_eligible: boolean | null;
+  upvotes: number | null;
+  downvotes: number | null;
   // Inheritance fields for parent-child brand relationships
   inherited_from_parent?: boolean;
   parent_brand_name?: string | null;
@@ -263,7 +276,7 @@ Deno.serve(async (req: Request) => {
     // Uses brand_events_with_inheritance to include parent company events for subsidiaries
     const { data: events, error: eventsError } = await supabase
       .from('brand_events_with_inheritance')
-      .select('event_id, brand_id, title, event_date, verification, category_impacts, category, credibility, source_tier, score_eligible, inherited_from_parent, parent_brand_name, scope_multiplier')
+      .select('event_id, brand_id, title, event_date, verification, category_impacts, category, credibility, source_tier, score_eligible, inherited_from_parent, parent_brand_name, scope_multiplier, upvotes, downvotes')
       .order('event_date', { ascending: false })
       .limit(5000);
 
@@ -372,14 +385,17 @@ Deno.serve(async (req: Request) => {
       // Combined weight includes tier weight for source credibility gating
       const combinedWeight = recencyWeight * verificationWeight * credibilityWeight * tierWeight;
       
+      // Community multiplier from user votes
+      const commMult = communityMultiplier(event.upvotes ?? 0, event.downvotes ?? 0);
+      
       // Get scope multiplier (1.0 for direct events, 0.7 for inherited from parent)
       const scopeMultiplier = (event as BrandEvent).scope_multiplier ?? 1.0;
       
-      // Calculate weighted contribution per dimension WITH scope multiplier
-      const laborContrib = (impacts.labor || 0) * combinedWeight * scopeMultiplier;
-      const envContrib = (impacts.environment || 0) * combinedWeight * scopeMultiplier;
-      const politicsContrib = (impacts.politics || 0) * combinedWeight * scopeMultiplier;
-      const socialContrib = (impacts.social || 0) * combinedWeight * scopeMultiplier;
+      // Calculate weighted contribution per dimension WITH scope + community multiplier
+      const laborContrib = (impacts.labor || 0) * combinedWeight * scopeMultiplier * commMult;
+      const envContrib = (impacts.environment || 0) * combinedWeight * scopeMultiplier * commMult;
+      const politicsContrib = (impacts.politics || 0) * combinedWeight * scopeMultiplier * commMult;
+      const socialContrib = (impacts.social || 0) * combinedWeight * scopeMultiplier * commMult;
 
       if (!brandScoresMap.has(event.brand_id)) {
         brandScoresMap.set(event.brand_id, {
@@ -467,6 +483,7 @@ Deno.serve(async (req: Request) => {
         verification: event.verification,
         w_recency: Math.round(recencyWeight * 100) / 100,
         w_verif: Math.round(verificationWeight * 100) / 100,
+        w_comm: Math.round(commMult * 100) / 100,
         impacts: impacts,
         contrib: {
           labor: Math.round(laborContrib * 1000) / 1000,
@@ -523,6 +540,7 @@ Deno.serve(async (req: Request) => {
             .update({
               decay_multiplier: pe.w_recency,
               weighted_impact_score: Math.round(totalContrib * 1000) / 1000,
+              community_multiplier: pe.w_comm ?? 1.0,
             })
             .eq('event_id', pe.event_id);
         } catch (e) {

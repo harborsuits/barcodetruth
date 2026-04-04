@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, ExternalLink, Flag } from "lucide-react";
 import { DisputeForm } from "@/components/brand/DisputeForm";
+import { EventVoteButtons } from "@/components/brand/EventVoteButtons";
 
 type Filter = "all" | "scored" | "excluded";
 type DimFilter = "all" | "labor" | "environment" | "politics" | "social";
@@ -26,6 +27,8 @@ interface EventRow {
   impact_social: number | null;
   impact_politics: number | null;
   disputed: boolean | null;
+  upvotes: number | null;
+  downvotes: number | null;
 }
 
 function getDomain(url: string | null) {
@@ -69,7 +72,7 @@ export default function BrandEvents() {
     queryFn: async () => {
       const { data } = await supabase
         .from("brand_events")
-        .select("event_id, title, event_date, category, source_url, score_eligible, score_excluded_reason, decay_multiplier, weighted_impact_score, impact_labor, impact_environment, impact_social, impact_politics, disputed")
+        .select("event_id, title, event_date, category, source_url, score_eligible, score_excluded_reason, decay_multiplier, weighted_impact_score, impact_labor, impact_environment, impact_social, impact_politics, disputed, upvotes, downvotes")
         .eq("brand_id", id!)
         .eq("is_irrelevant", false)
         .order("event_date", { ascending: false })
@@ -184,23 +187,30 @@ export default function BrandEvents() {
                       <Badge variant="outline" className="text-[10px] text-warning border-warning/30">Under review</Badge>
                     )}
 
-                    {disputingId === ev.event_id ? (
-                      <DisputeForm
+                    <div className="flex items-center justify-between gap-2">
+                      <EventVoteButtons
                         eventId={ev.event_id}
-                        brandId={id!}
-                        eventTitle={ev.title}
-                        onClose={() => setDisputingId(null)}
+                        upvotes={ev.upvotes ?? 0}
+                        downvotes={ev.downvotes ?? 0}
                       />
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs text-muted-foreground h-6 px-2"
-                        onClick={() => setDisputingId(ev.event_id)}
-                      >
-                        <Flag className="h-3 w-3 mr-1" /> Dispute
-                      </Button>
-                    )}
+                      {disputingId === ev.event_id ? (
+                        <DisputeForm
+                          eventId={ev.event_id}
+                          brandId={id!}
+                          eventTitle={ev.title}
+                          onClose={() => setDisputingId(null)}
+                        />
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs text-muted-foreground h-6 px-2"
+                          onClick={() => setDisputingId(ev.event_id)}
+                        >
+                          <Flag className="h-3 w-3 mr-1" /> Dispute
+                        </Button>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               );

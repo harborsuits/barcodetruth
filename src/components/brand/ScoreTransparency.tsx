@@ -6,6 +6,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ExternalLink, ChevronDown, ChevronUp, Info } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { EventVoteButtons } from "./EventVoteButtons";
+import { CommunityVoteSummary } from "./CommunityVoteSummary";
 
 interface ScoreTransparencyProps {
   brandId: string;
@@ -27,6 +29,8 @@ interface ScoredEvent {
   impact_politics: number | null;
   score_excluded_reason: string | null;
   score_eligible: boolean | null;
+  upvotes: number | null;
+  downvotes: number | null;
 }
 
 function getSourceDomain(url: string | null): string | null {
@@ -62,7 +66,7 @@ export function ScoreTransparency({ brandId, brandName }: ScoreTransparencyProps
     queryFn: async () => {
       const { data } = await supabase
         .from("brand_events")
-        .select("event_id, title, event_date, category, source_url, ai_summary, decay_multiplier, weighted_impact_score, impact_labor, impact_environment, impact_social, impact_politics, score_excluded_reason, score_eligible")
+        .select("event_id, title, event_date, category, source_url, ai_summary, decay_multiplier, weighted_impact_score, impact_labor, impact_environment, impact_social, impact_politics, score_excluded_reason, score_eligible, upvotes, downvotes")
         .eq("brand_id", brandId)
         .eq("is_irrelevant", false)
         .order("event_date", { ascending: false })
@@ -149,6 +153,9 @@ export function ScoreTransparency({ brandId, brandName }: ScoreTransparencyProps
             <p className="text-muted-foreground text-center py-4">No scored events yet — analysis in progress.</p>
           )}
 
+          {/* Community summary */}
+          <CommunityVoteSummary brandId={brandId} />
+
           {/* Footer actions */}
           <div className="flex gap-2 pt-2 border-t border-border">
             <Button
@@ -182,6 +189,12 @@ function EventRow({ event }: { event: ScoredEvent }) {
           {decay < 1.0 && `${decay.toFixed(1)}× weight`}
         </span>
       </div>
+      <EventVoteButtons
+        eventId={event.event_id}
+        upvotes={event.upvotes ?? 0}
+        downvotes={event.downvotes ?? 0}
+        compact
+      />
       <p className="text-sm font-medium leading-snug">{event.title || "Untitled event"}</p>
       {event.ai_summary && (
         <p className="text-xs text-muted-foreground leading-snug italic">"{event.ai_summary}"</p>

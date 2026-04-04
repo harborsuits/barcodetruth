@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, Check, X } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ExternalLink, Check, X, AlertTriangle } from "lucide-react";
 
 export default function AdminDisputes() {
   const queryClient = useQueryClient();
@@ -38,16 +39,34 @@ export default function AdminDisputes() {
     enabled: !!disputes && disputes.length > 0,
   });
 
+  // Vote integrity: controversial events (close to 50/50 split with 10+ votes)
+  const { data: controversial } = useQuery({
+    queryKey: ["admin-controversial"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("brand_events")
+        .select("event_id, title, upvotes, downvotes, brand_id")
+        .gt("upvotes", 0)
+        .gt("downvotes", 0)
+        .order("downvotes", { ascending: false })
+        .limit(20);
+      return (data || []).filter(e => {
+        const total = (e.upvotes || 0) + (e.downvotes || 0);
+        if (total < 10) return false;
+        const ratio = (e.upvotes || 0) / total;
+        return ratio >= 0.3 && ratio <= 0.7;
+      });
+    },
+  });
+
   const handleResolve = async (disputeId: string, action: "approved" | "rejected") => {
     setProcessing(disputeId);
     try {
-      // Update dispute status
       await supabase
         .from("event_disputes")
         .update({ status: action, resolved_at: new Date().toISOString() } as any)
         .eq("id", disputeId);
 
-      // If approved, mark event as disputed and exclude from scoring
       if (action === "approved") {
         const dispute = disputes?.find(d => (d as any).id === disputeId);
         if (dispute) {
@@ -72,89 +91,108 @@ export default function AdminDisputes() {
   return (
     <div className="min-h-screen bg-background">
       <main className="container max-w-3xl mx-auto px-4 py-6 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Disputed Events</h1>
-          <p className="text-sm text-muted-foreground">
-            {pending.length} pending · {resolved.length} resolved
-          </p>
-        </div>
+        <h1 className="text-2xl font-bold">Content Review</h1>
 
-        {isLoading && <p className="text-muted-foreground text-center py-8">Loading…</p>}
+        <Tabs defaultValue="disputes">
+          <TabsList>
+            <TabsTrigger value="disputes">Disputes ({pending.length})</TabsTrigger>
+            <TabsTrigger value="votes">Vote Integrity ({controversial?.length || 0})</TabsTrigger>
+          </TabsList>
 
-        {pending.length === 0 && !isLoading && (
-          <p className="text-muted-foreground text-center py-8">No pending disputes 🎉</p>
-        )}
+          <TabsContent value="disputes" className="space-y-4 mt-4">
+            {isLoading && <p className="text-muted-foreground text-center py-8">Loading…</p>}
+            {pending.length === 0 && !isLoading && (
+              <p className="text-muted-foreground text-center py-8">No pending disputes 🎉</p>
+            )}
 
-        {pending.map((d: any) => {
-          const event = events?.[d.event_id];
-          return (
-            <Card key={d.id}>
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-sm">{event?.title || "Unknown event"}</CardTitle>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Disputed: {d.dispute_type} · {new Date(d.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <Badge variant="outline" className="text-warning border-warning/30">Pending</Badge>
+            {pending.map((d: any) => {
+              const event = events?.[d.event_id];
+              return (
+                <Card key={d.id}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-sm">{event?.title || "Unknown event"}</CardTitle>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Disputed: {d.dispute_type} · {new Date(d.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-warning border-warning/30">Pending</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {d.description && <p className="text-sm">{d.description}</p>}
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      {d.email && <span>From: {d.email}</span>}
+                      {d.supporting_url && (
+                        <a href={d.supporting_url} target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
+                          Supporting link <ExternalLink className="h-2.5 w-2.5" />
+                        </a>
+                      )}
+                      {event?.source_url && (
+                        <a href={event.source_url} target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
+                          Original article <ExternalLink className="h-2.5 w-2.5" />
+                        </a>
+                      )}
+                    </div>
+                    <div className="flex gap-2 pt-2">
+                      <Button size="sm" variant="destructive" onClick={() => handleResolve(d.id, "approved")} disabled={processing === d.id}>
+                        <Check className="h-3.5 w-3.5 mr-1" /> Remove from score
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => handleResolve(d.id, "rejected")} disabled={processing === d.id}>
+                        <X className="h-3.5 w-3.5 mr-1" /> Keep event
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+
+            {resolved.length > 0 && (
+              <details className="pt-4">
+                <summary className="text-sm text-muted-foreground cursor-pointer">Resolved disputes ({resolved.length})</summary>
+                <div className="space-y-2 mt-2">
+                  {resolved.map((d: any) => (
+                    <div key={d.id} className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-lg flex justify-between">
+                      <span>{d.dispute_type} — {events?.[d.event_id]?.title || d.event_id}</span>
+                      <Badge variant="outline" className="text-[10px]">{d.status}</Badge>
+                    </div>
+                  ))}
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {d.description && <p className="text-sm">{d.description}</p>}
-                
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  {d.email && <span>From: {d.email}</span>}
-                  {d.supporting_url && (
-                    <a href={d.supporting_url} target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
-                      Supporting link <ExternalLink className="h-2.5 w-2.5" />
-                    </a>
-                  )}
-                  {event?.source_url && (
-                    <a href={event.source_url} target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
-                      Original article <ExternalLink className="h-2.5 w-2.5" />
-                    </a>
-                  )}
-                </div>
+              </details>
+            )}
+          </TabsContent>
 
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => handleResolve(d.id, "approved")}
-                    disabled={processing === d.id}
-                  >
-                    <Check className="h-3.5 w-3.5 mr-1" />
-                    Remove from score
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleResolve(d.id, "rejected")}
-                    disabled={processing === d.id}
-                  >
-                    <X className="h-3.5 w-3.5 mr-1" />
-                    Keep event
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-
-        {resolved.length > 0 && (
-          <details className="pt-4">
-            <summary className="text-sm text-muted-foreground cursor-pointer">Resolved disputes ({resolved.length})</summary>
-            <div className="space-y-2 mt-2">
-              {resolved.map((d: any) => (
-                <div key={d.id} className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-lg flex justify-between">
-                  <span>{d.dispute_type} — {events?.[d.event_id]?.title || d.event_id}</span>
-                  <Badge variant="outline" className="text-[10px]">{d.status}</Badge>
-                </div>
-              ))}
-            </div>
-          </details>
-        )}
+          <TabsContent value="votes" className="space-y-4 mt-4">
+            <p className="text-sm text-muted-foreground">
+              Events with close to 50/50 vote splits (10+ total votes) that may need human review.
+            </p>
+            {(!controversial || controversial.length === 0) ? (
+              <p className="text-muted-foreground text-center py-8">No controversial events yet</p>
+            ) : (
+              controversial.map((ev: any) => {
+                const total = (ev.upvotes || 0) + (ev.downvotes || 0);
+                const ratio = Math.round(((ev.upvotes || 0) / total) * 100);
+                return (
+                  <Card key={ev.event_id}>
+                    <CardContent className="py-3 px-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">{ev.title || "Untitled"}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <AlertTriangle className="h-3 w-3 text-warning" />
+                            <span>{ratio}% agree · {total} votes</span>
+                            <span>↑{ev.upvotes} ↓{ev.downvotes}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
