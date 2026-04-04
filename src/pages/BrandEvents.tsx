@@ -187,23 +187,30 @@ export default function BrandEvents() {
                       <Badge variant="outline" className="text-[10px] text-warning border-warning/30">Under review</Badge>
                     )}
 
-                    {disputingId === ev.event_id ? (
-                      <DisputeForm
+                    <div className="flex items-center justify-between gap-2">
+                      <EventVoteButtons
                         eventId={ev.event_id}
-                        brandId={id!}
-                        eventTitle={ev.title}
-                        onClose={() => setDisputingId(null)}
+                        upvotes={ev.upvotes ?? 0}
+                        downvotes={ev.downvotes ?? 0}
                       />
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs text-muted-foreground h-6 px-2"
-                        onClick={() => setDisputingId(ev.event_id)}
-                      >
-                        <Flag className="h-3 w-3 mr-1" /> Dispute
-                      </Button>
-                    )}
+                      {disputingId === ev.event_id ? (
+                        <DisputeForm
+                          eventId={ev.event_id}
+                          brandId={id!}
+                          eventTitle={ev.title}
+                          onClose={() => setDisputingId(null)}
+                        />
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs text-muted-foreground h-6 px-2"
+                          onClick={() => setDisputingId(ev.event_id)}
+                        >
+                          <Flag className="h-3 w-3 mr-1" /> Dispute
+                        </Button>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               );
