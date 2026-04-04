@@ -204,7 +204,7 @@ export default function MyScansTab() {
               <Button 
                 size="sm" 
                 variant="secondary" 
-                onClick={() => handleRescan(s.upc)}
+                onClick={() => handleRescan(s)}
               >
                 View Again
               </Button>
