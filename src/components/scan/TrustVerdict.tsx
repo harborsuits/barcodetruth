@@ -19,7 +19,7 @@ type Verdict = {
 
 function getVerdict(score: number | null, hasEvidence?: boolean): Verdict {
   if (score === null) return {
-    label: hasEvidence ? "Checking..." : "Checking...",
+    label: "Score coming soon",
     icon: Clock,
     className: "text-muted-foreground",
     bgClassName: "bg-muted",
