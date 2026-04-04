@@ -5,22 +5,22 @@ const cards = [
   {
     icon: Leaf,
     title: "Beyond ingredients",
-    description: "We look at the company, not just the label. Ethics, labor, environment — the stuff that matters.",
+    description: "Other apps scan labels. We investigate the company — ethics, labor, environment, politics.",
   },
   {
     icon: DollarSign,
     title: "Follow the money",
-    description: "See who really owns the brand. Parent companies, investors, and corporate connections revealed.",
+    description: "See who really owns the brand. Parent companies, investors, and corporate connections — revealed.",
   },
   {
     icon: ShieldCheck,
     title: "Real trust scores",
-    description: "Ratings based on verified public data — not sponsored reviews or paid certifications.",
+    description: "Ratings built on verified public data — not sponsored reviews, paid badges, or influencer deals.",
   },
   {
     icon: ArrowRightLeft,
     title: "Better alternatives, instantly",
-    description: "Don't just avoid bad brands. Discover better options in the same category, right away.",
+    description: "Don't just avoid bad brands. Discover better options in the same category, right in the store.",
   },
 ];
 
@@ -36,10 +36,10 @@ export function LaunchDifferent() {
           className="text-center space-y-3"
         >
           <h2 className="text-3xl sm:text-4xl font-bold text-foreground">
-            Why Barcode Truth Is Different
+            Not another ingredient scanner
           </h2>
           <p className="text-muted-foreground text-lg max-w-lg mx-auto">
-            Not another ingredient scanner. A window into who you're really buying from.
+            Barcode Truth shows you what's behind the brand — not just what's on the label.
           </p>
         </motion.div>
 
