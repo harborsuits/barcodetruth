@@ -697,72 +697,66 @@ export default function BrandProfileV1() {
 
 
 
-        {/* ─── 3. SCORE BREAKDOWN ─── */}
-        <Card>
-          <CardContent className="pt-5 pb-5 space-y-3">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Score Breakdown</p>
-            {dimensions.map(dim => (
-              <div key={dim.key} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                <span className="text-sm font-medium">{dim.label}</span>
-                <div className="flex items-center gap-2">
-                  <span className={`text-lg font-bold ${getGradeColor(dim.score)}`}>
-                    {getGrade(dim.score)}
-                  </span>
-                  <span className="text-xs text-muted-foreground w-8 text-right">
-                    {dim.score != null ? Math.round(dim.score) : '—'}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        {/* ─── 4. BETTER ALTERNATIVES ─── */}
+        {/* ─── 3. BETTER ALTERNATIVES (moved up) ─── */}
         {resolvedBrandId && (
           <AlternativesSection brandId={resolvedBrandId} brandName={brand.name} />
         )}
 
-        {/* ─── 5. EVIDENCE (collapsed, secondary) ─── */}
-        <Card>
-          <CardContent className="pt-5 pb-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Evidence</p>
-              {resolvedBrandId && (
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  className="text-xs"
-                  onClick={() => navigate(`/proof/${resolvedBrandId}`)}
-                >
-                  View all →
-                </Button>
-              )}
-            </div>
-            {resolvedBrandId && <EvidenceList brandId={resolvedBrandId} />}
-          </CardContent>
-        </Card>
+        {/* ─── 4. DETAILS (collapsible) ─── */}
+        <details className="group">
+          <summary className="flex items-center justify-between cursor-pointer p-4 bg-elevated-1 border border-border rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            View detailed breakdown & evidence
+            <span className="text-xs group-open:rotate-180 transition-transform">▼</span>
+          </summary>
+          <div className="mt-2 space-y-4">
+            <Card>
+              <CardContent className="pt-5 pb-5 space-y-3">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Score Breakdown</p>
+                {dimensions.map(dim => (
+                  <div key={dim.key} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                    <span className="text-sm font-medium">{dim.label}</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-lg font-bold ${getGradeColor(dim.score)}`}>
+                        {getGrade(dim.score)}
+                      </span>
+                      <span className="text-xs text-muted-foreground w-8 text-right">
+                        {dim.score != null ? Math.round(dim.score) : '—'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
 
-        {/* ─── Description (secondary) ─── */}
+            <Card>
+              <CardContent className="pt-5 pb-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Evidence</p>
+                  {resolvedBrandId && (
+                    <Button variant="ghost" size="sm" className="text-xs" onClick={() => navigate(`/proof/${resolvedBrandId}`)}>
+                      View all →
+                    </Button>
+                  )}
+                </div>
+                {resolvedBrandId && <EvidenceList brandId={resolvedBrandId} />}
+              </CardContent>
+            </Card>
+          </div>
+        </details>
+
+        {/* Description */}
         {brand.description && brand.identity_confidence !== 'low' && (
           <Card>
             <CardContent className="pt-5 pb-5">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-2">About</p>
-              <p className="text-sm text-foreground/80 leading-relaxed">
-                {brand.description}
-              </p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-2">About</p>
+              <p className="text-sm text-foreground/80 leading-relaxed">{brand.description}</p>
             </CardContent>
           </Card>
         )}
 
         {/* Admin verify */}
         {isAdmin && brand.identity_confidence === 'low' && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full"
-            onClick={markIdentityVerified}
-            disabled={verifying}
-          >
+          <Button variant="outline" size="sm" className="w-full" onClick={markIdentityVerified} disabled={verifying}>
             {verifying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
             Mark Identity Verified
           </Button>
@@ -770,7 +764,7 @@ export default function BrandProfileV1() {
 
         {/* Beta */}
         <p className="text-xs text-center text-muted-foreground px-4 pb-4">
-          Scores based on verified government records (EPA, OSHA, FEC, FDA). Coverage expands weekly.
+          Based on verified public records. Coverage expands weekly.
         </p>
       </main>
     </div>
