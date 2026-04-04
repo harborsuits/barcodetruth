@@ -380,9 +380,33 @@ export default function ScanResultV1() {
   }
 
   // ─── Not found → redirect to Add Product ───
-  if (!productLoading && (productError || !product)) {
+  // Only redirect if we genuinely have no product data from any source
+  if (!productLoading && (productError || !product) && !navProduct && !navBrandName) {
     navigate(`/unknown/${barcode}`, { replace: true });
     return null;
+  }
+
+  // If we have nav state (from history) but DB lookup failed, show what we have
+  // instead of immediately redirecting to unknown
+  if (!productLoading && !product && (navProduct || navBrandName)) {
+    // The product may have been removed from DB but we still have cached info
+    // Show a minimal result with the cached brand name
+    return (
+      <div className="min-h-screen bg-background">
+        <ScanHeader onBack={() => navigate(-1)} />
+        <main className="container max-w-md mx-auto px-4 py-6 space-y-4">
+          <Card>
+            <CardContent className="pt-6 space-y-3 text-center">
+              <Package className="h-10 w-10 mx-auto text-muted-foreground" />
+              <h2 className="text-lg font-semibold">{navProduct?.name || "Product"}</h2>
+              {navBrandName && <p className="text-sm text-muted-foreground">by {navBrandName}</p>}
+              <p className="text-xs text-muted-foreground">This product's data is being refreshed. Try scanning again.</p>
+              <Button onClick={() => navigate("/scan")} className="w-full mt-2">Scan Again</Button>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
   }
 
   // ─── Building state ───
