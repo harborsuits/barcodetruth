@@ -463,14 +463,14 @@ export default function ScanResultV1() {
   // READY STATE — The Yuka-inspired decision screen
   // ═══════════════════════════════════════════════════
   return (
-    <div className="min-h-screen bg-background forensic-grid">
+      <div className="min-h-screen bg-background">
       <ScanHeader onBack={() => navigate(-1)} />
 
       <main className="container max-w-md mx-auto px-4 py-5 space-y-4">
         {/* ═══ PRODUCT LAYER — What you scanned ═══ */}
         <Card className="border-primary/20 bg-primary/5">
           <CardContent className="pt-5 pb-4">
-            <p className="text-[10px] font-mono uppercase tracking-widest text-primary mb-3 flex items-center gap-1.5">
+            <p className="text-xs text-primary font-medium uppercase tracking-wide mb-3 flex items-center gap-1.5">
               <Package className="h-3 w-3" />
               You scanned this
             </p>
