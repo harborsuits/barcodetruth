@@ -136,22 +136,13 @@ export function NeedsReviewProfile({ brand, stateData }: NeedsReviewProfileProps
       {/* Header Card - Muted/Grayed out */}
       <Card className="opacity-80">
         <CardContent className="pt-6">
-          <div className="flex items-start gap-4">
-            <BrandLogo brand={brand} />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-2xl font-bold truncate">{brand.name}</h1>
-                <Badge variant="outline" className="text-xs border-destructive/50 text-destructive">
-                  <HelpCircle className="h-3 w-3 mr-1" />
-                  Unverified
-                </Badge>
-              </div>
-              {/* Don't show description - it's potentially wrong */}
-              <p className="text-sm text-muted-foreground/60 italic mt-2">
-                Description withheld pending verification
-              </p>
-            </div>
-          </div>
+          <BrandIdentityHeader
+            brandName={brand.name}
+            logoUrl={brand.logo_url}
+            website={brand.website}
+            badge={<Badge variant="outline" className="text-xs border-destructive/50 text-destructive"><HelpCircle className="h-3 w-3 mr-1" />Unverified</Badge>}
+            subtitle="Description withheld pending verification"
+          />
         </CardContent>
       </Card>
 

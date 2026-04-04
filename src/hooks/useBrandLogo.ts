@@ -11,7 +11,8 @@ function normalizeStoredLogoUrl(logoUrl: string | null) {
     if (url.hostname.includes('upload.wikimedia.org') && url.pathname.includes('/thumb/')) {
       const remainder = url.pathname.split('/thumb/')[1] || '';
       const parts = remainder.split('/').filter(Boolean);
-      const filename = parts[parts.length - 1];
+      // Skip hash dirs (1-2 chars) and resolution variants (e.g. 200px-Logo.svg.png)
+      const filename = parts.find(p => p.length > 2 && !/^\d+px-/.test(p));
       if (filename) {
         const normalizedFilename = encodeURIComponent(decodeURIComponent(filename).replace(/ /g, '_'));
         return `https://commons.wikimedia.org/wiki/Special:FilePath/${normalizedFilename}`;

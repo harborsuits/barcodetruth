@@ -138,23 +138,12 @@ export function BuildingProfile({ brand, stateData }: BuildingProfileProps) {
   return (
     <div className="container max-w-md mx-auto px-4 py-6 space-y-4">
       {/* ─── Brand Identity ─── */}
-      <div className="flex items-center gap-3">
-        <BrandLogo brand={brand} />
-        <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold tracking-tight truncate">{brand.name}</h1>
-          {brand.website && (
-            <a 
-              href={brand.website} 
-              target="_blank" 
-              rel="noreferrer"
-              className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-            >
-              {brand.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-              <ExternalLink className="h-3 w-3" />
-            </a>
-          )}
-        </div>
-      </div>
+      <BrandIdentityHeader
+        brandName={brand.name}
+        logoUrl={brand.logo_url}
+        website={brand.website}
+        badge={<Badge variant="outline" className="text-xs"><Loader2 className="h-3 w-3 mr-1 animate-spin" />Building</Badge>}
+      />
 
       {/* ─── Status: Consumer-friendly, not "rating withheld" ─── */}
       <Card className="border-primary/20 bg-primary/5">

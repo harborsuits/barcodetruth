@@ -602,34 +602,7 @@ export default function BrandProfileV1() {
         )}
 
         {/* ─── Brand Identity ─── */}
-        <div className="flex items-center gap-3">
-          <BrandLogo 
-            logoUrl={brand.logo_url} 
-            website={brand.website}
-            brandName={brand.name}
-          />
-          <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold tracking-tight truncate">{brand.name}</h1>
-            {brand.website && (() => {
-              try {
-                const hostname = new URL(brand.website).hostname.replace('www.', '');
-                return (
-                  <a 
-                    href={brand.website} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-                  >
-                    {hostname}
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                );
-              } catch {
-                return null;
-              }
-            })()}
-          </div>
-        </div>
+        <BrandIdentityHeader brandName={brand.name} logoUrl={brand.logo_url} website={brand.website} />
 
         {/* ─── 1. INSTANT VERDICT ─── */}
         <div className={`${verdict.color} border border-border p-5`}>

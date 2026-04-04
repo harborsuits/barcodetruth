@@ -104,7 +104,9 @@ export default function MyScansTab() {
       brand,
     };
 
-    if (brand?.id && (brand.status === "ready" || brand.status === "active")) {
+    upsertStoredScan(resolvedScan);
+
+    if (brand?.id) {
       navigate(`/brand/${brand.slug || brand.id}`, {
         state: {
           ...buildHistoryNavigationState(resolvedScan),
