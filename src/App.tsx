@@ -629,6 +629,20 @@ const App = () => {
             }
           />
           <Route
+            path="/admin/disputes"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading disputes…" />}>
+                      <AdminDisputes />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/bootstrap-admin"
             element={
               <Suspense fallback={<RouteFallback label="Loading…" />}>
