@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ArrowLeft, ExternalLink, AlertCircle, Building2, Loader2, ShieldCheck, Clock, Network } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useBrandLogo } from '@/hooks/useBrandLogo';
+import { BrandIdentityHeader } from '@/components/brand/BrandIdentityHeader';
 import { useAutoEnrichment } from '@/hooks/useAutoEnrichment';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useToast } from '@/hooks/use-toast';
