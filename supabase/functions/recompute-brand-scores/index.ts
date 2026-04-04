@@ -520,7 +520,7 @@ Deno.serve(async (req: Request) => {
       const reasonJson = {
         version: 2,
         window: {
-          from: oneYearAgo.toISOString().split('T')[0],
+          from: 'all-time',
           to: now.toISOString().split('T')[0],
         },
         coeffs: {
