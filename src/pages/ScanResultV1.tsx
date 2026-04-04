@@ -307,7 +307,7 @@ export default function ScanResultV1() {
 
   const reasons = buildReasons(scoreData, counts, brandInfo?.parent_company, brandInfo?.name);
 
-  const verdictLabel = effectiveScore === null ? "Analyzing" : effectiveScore >= 65 ? "Trust" : effectiveScore >= 40 ? "Caution" : "Avoid";
+  const verdictLabel = effectiveScore === null ? "Checking..." : effectiveScore >= 65 ? "Good" : effectiveScore >= 40 ? "Mixed" : "Avoid";
 
   // Logo
   const displayLogo = useBrandLogo(brandInfo?.logo_url || null, brandInfo?.website || null);
