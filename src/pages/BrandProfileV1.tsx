@@ -28,37 +28,7 @@ import { bt } from '@/lib/behaviorTracker';
 // State B: Building (in progress) - gathering evidence, show progress
 // State C: Needs Review (mismatch) - identity confidence low or name mismatch detected
 
-function BrandLogo({ 
-  logoUrl, 
-  website, 
-  brandName 
-}: { 
-  logoUrl?: string | null; 
-  website?: string | null; 
-  brandName: string;
-}) {
-  const displayLogo = useBrandLogo(logoUrl || null, website);
-  const monogram = brandName?.[0]?.toUpperCase() ?? 'B';
-  
-  if (displayLogo) {
-    return (
-      <img 
-        src={displayLogo} 
-        alt={`${brandName} logo`}
-        className="w-16 h-16 rounded-2xl border-2 object-contain bg-muted flex-shrink-0 p-2"
-        loading="lazy"
-      />
-    );
-  }
-  
-  return (
-    <div className="w-16 h-16 rounded-2xl border-2 grid place-items-center text-2xl font-bold bg-muted flex-shrink-0">
-      {monogram}
-    </div>
-  );
-}
-
-function EnrichmentProgress({ 
+function EnrichmentProgress({
   status, 
   message, 
   step, 
