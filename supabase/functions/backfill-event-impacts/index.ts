@@ -291,14 +291,19 @@ function classifyEvent(event: EventRow) {
   // Map to DB severity enum
   const dbSeverity: 'minor' | 'moderate' | 'severe' = severity === 'critical' ? 'severe' : severity;
 
+  // Determine score eligibility: non-noise, has impact, confidence >= 0.35
+  const hasNonZeroImpact = Object.values(categoryImpacts).some(v => v !== 0);
+  const isScoreEligible = !isNoiseCategory && hasNonZeroImpact && confidence >= 0.35;
+  const isNoiseCategory = primary === "noise";
+
   return {
     category: simpleCategory,
     category_code: finalCategoryCode,
     category_confidence: confidence,
     secondary_categories: secondary,
     orientation,
-    is_irrelevant: primary === "noise",
-    noise_reason: primary === "noise" ? "Pure financial/stock analysis" : null,
+    is_irrelevant: isNoiseCategory,
+    noise_reason: isNoiseCategory ? "Pure financial/stock analysis" : null,
     severity: dbSeverity,
     credibility,
     verification_factor: 0.5,
@@ -307,6 +312,8 @@ function classifyEvent(event: EventRow) {
     impact_environment: categoryImpacts.environment || 0,
     impact_politics: categoryImpacts.politics || 0,
     impact_social: categoryImpacts.social || 0,
+    score_eligible: isScoreEligible,
+    feed_visible: !isNoiseCategory && confidence >= 0.35,
   };
 }
 
