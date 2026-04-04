@@ -18,6 +18,17 @@ const RECENCY_WEIGHTS = {
 // Per-brand event cap to prevent volume bias (top brands dominating scores)
 const MAX_SCORE_ELIGIBLE_EVENTS_PER_BRAND = 50;
 
+function communityMultiplier(upvotes = 0, downvotes = 0): number {
+  const total = upvotes + downvotes;
+  if (total < 5) return 1.0;
+  const ratio = upvotes / total;
+  if (ratio >= 0.8) return 1.15;
+  if (ratio >= 0.6) return 1.0;
+  if (ratio <= 0.2) return 0.5;
+  if (ratio <= 0.4) return 0.75;
+  return 1.0;
+}
+
 const VERIFICATION_WEIGHTS = {
   official: 1.0,
   corroborated: 0.8,
