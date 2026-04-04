@@ -6,6 +6,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ExternalLink, ChevronDown, ChevronUp, Info } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { EventVoteButtons } from "./EventVoteButtons";
+import { CommunityVoteSummary } from "./CommunityVoteSummary";
 
 interface ScoreTransparencyProps {
   brandId: string;
