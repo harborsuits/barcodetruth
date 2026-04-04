@@ -153,6 +153,9 @@ export function ScoreTransparency({ brandId, brandName }: ScoreTransparencyProps
             <p className="text-muted-foreground text-center py-4">No scored events yet — analysis in progress.</p>
           )}
 
+          {/* Community summary */}
+          <CommunityVoteSummary brandId={brandId} />
+
           {/* Footer actions */}
           <div className="flex gap-2 pt-2 border-t border-border">
             <Button
