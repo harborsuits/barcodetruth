@@ -20,7 +20,7 @@ import { ReportIssueDialog } from "@/components/ReportIssueDialog";
 import type { ProfileStateData } from "@/hooks/useProfileState";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useBrandLogo } from "@/hooks/useBrandLogo";
+import { BrandIdentityHeader } from "@/components/brand/BrandIdentityHeader";
 import { PowerProfitCard } from "@/components/brand/PowerProfitCard";
 
 interface BrandData {
