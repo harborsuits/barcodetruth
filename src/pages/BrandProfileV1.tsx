@@ -439,6 +439,20 @@ export default function BrandProfileV1() {
   // Query profile state for state-based rendering
   const { data: profileState, isLoading: stateLoading } = useProfileState(resolvedBrandId);
 
+  // Evidence count — must be before early returns (hooks ordering)
+  const { data: evidenceTotal } = useQuery({
+    queryKey: ['brand-evidence-total', resolvedBrandId],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('brand_events')
+        .select('*', { count: 'exact', head: true })
+        .eq('brand_id', resolvedBrandId!)
+        .eq('is_irrelevant', false);
+      return count || 0;
+    },
+    enabled: !!resolvedBrandId,
+  });
+
   // Track profile load (must be before early returns)
   useEffect(() => {
     if (resolvedBrandId && brand?.name) {
@@ -571,19 +585,7 @@ export default function BrandProfileV1() {
     social: parsedScore?.score_social ?? null,
   };
 
-  // Verdict — check evidence count to distinguish "Score Pending" from "Unrated"
-  const { data: evidenceTotal } = useQuery({
-    queryKey: ['brand-evidence-total', resolvedBrandId],
-    queryFn: async () => {
-      const { count } = await supabase
-        .from('brand_events')
-        .select('*', { count: 'exact', head: true })
-        .eq('brand_id', resolvedBrandId!)
-        .eq('is_irrelevant', false);
-      return count || 0;
-    },
-    enabled: !!resolvedBrandId,
-  });
+  // Verdict — use evidence count from hook above
   const hasEvidence = (evidenceTotal || 0) > 0;
   const getVerdict = (s: number | null) => {
     if (s === null) return { label: hasEvidence ? 'Checking...' : 'Not yet rated', color: 'bg-muted text-muted-foreground', emoji: '—' };
