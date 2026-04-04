@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { TrendingUp, ArrowRight, Shield, Clock } from "lucide-react";
+import { TrendingUp, ArrowRight, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useBrandLogo } from "@/hooks/useBrandLogo";
 import { FEATURES } from "@/config/features";
@@ -15,8 +14,6 @@ interface TrendingBrand {
   website?: string;
   overall_score: number | null;
   event_count?: number;
-  verified_rate?: number;
-  independent_sources?: number;
   last_event_at?: string;
 }
 
@@ -45,11 +42,12 @@ function BrandLogoIcon({ logoUrl, website, brandName }: {
   );
 }
 
-const getScoreColor = (score: number) => {
-  if (score >= 70) return "text-success";
-  if (score >= 40) return "text-warning";
-  return "text-danger";
-};
+function getScoreBadge(score: number | null): { label: string; className: string } {
+  if (score === null) return { label: "—", className: "text-muted-foreground" };
+  if (score >= 65) return { label: "Good", className: "text-success" };
+  if (score >= 40) return { label: "Mixed", className: "text-warning" };
+  return { label: "Avoid", className: "text-destructive" };
+}
 
 export function TrendingPreview() {
   const navigate = useNavigate();
@@ -88,7 +86,7 @@ export function TrendingPreview() {
 
     const { data: trendingData } = await supabase
       .from('brand_trending')
-      .select('brand_id, name, score, events_7d, events_30d, verified_rate, independent_sources, last_event_at, trend_score')
+      .select('brand_id, name, score, events_7d, events_30d, last_event_at, trend_score')
       .limit(5);
 
     if (trendingData && trendingData.length) {
@@ -113,8 +111,6 @@ export function TrendingPreview() {
         website: brandDataMap[b.brand_id]?.website,
         event_count: b.events_30d || 0,
         overall_score: b.score ?? null,
-        verified_rate: b.verified_rate || 0,
-        independent_sources: b.independent_sources || 0,
         last_event_at: b.last_event_at
       })));
       setLoading(false);
@@ -128,7 +124,7 @@ export function TrendingPreview() {
   if (loading) {
     return (
       <section className="space-y-3">
-        <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">TRENDING INVESTIGATIONS</div>
+        <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Popular Brands</div>
         <Skeleton className="h-20 w-full" />
         <Skeleton className="h-20 w-full" />
         <Skeleton className="h-20 w-full" />
@@ -141,65 +137,58 @@ export function TrendingPreview() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-primary" />
-          <h2 className="font-mono text-xs uppercase tracking-widest text-muted-foreground">TRENDING INVESTIGATIONS</h2>
+          <h2 className="text-sm font-semibold text-foreground">Popular Brands</h2>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => navigate('/trending')} className="font-mono text-xs uppercase tracking-wider">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/trending')} className="text-xs text-muted-foreground">
           View All
-          <ArrowRight className="ml-2 h-3.5 w-3.5" />
+          <ArrowRight className="ml-1 h-3.5 w-3.5" />
         </Button>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {!trending.length ? (
-          <div className="text-center py-8 px-4 bg-elevated-1 border border-border">
+          <div className="text-center py-8 px-4 bg-elevated-1 border border-border rounded-lg">
             <Clock className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
-            <h3 className="font-semibold text-sm mb-1">Building Trending Data</h3>
+            <h3 className="font-semibold text-sm mb-1">Building trending data</h3>
             <p className="text-xs text-muted-foreground">
-              Brand scores and events are being processed. Check back soon.
+              Brand scores are being processed. Check back soon.
             </p>
           </div>
-        ) : trending.map((brand) => (
-          <div
-            key={brand.brand_id}
-            className="group bg-elevated-1 border border-border p-4 cursor-pointer transition-all duration-150 hover:border-primary/30"
-            onClick={() => navigate(`/brand/${brand.brand_id}`)}
-          >
-            <div className="flex items-center gap-3">
-              {/* Score badge */}
-              {FEATURES.companyScore && brand.overall_score != null ? (
-                <div className={`text-2xl font-bold font-mono min-w-[3ch] text-right ${getScoreColor(brand.overall_score)}`}>
-                  {brand.overall_score}
-                </div>
-              ) : (
-                <div className="text-2xl font-bold font-mono min-w-[3ch] text-right text-muted-foreground">—</div>
-              )}
+        ) : trending.map((brand) => {
+          const badge = getScoreBadge(brand.overall_score);
+          return (
+            <div
+              key={brand.brand_id}
+              className="group bg-elevated-1 border border-border p-4 rounded-lg cursor-pointer transition-all duration-150 hover:border-primary/30"
+              onClick={() => navigate(`/brand/${brand.brand_id}`)}
+            >
+              <div className="flex items-center gap-3">
+                <BrandLogoIcon 
+                  logoUrl={brand.logo_url} 
+                  website={brand.website}
+                  brandName={brand.brand_name}
+                />
 
-              <BrandLogoIcon 
-                logoUrl={brand.logo_url} 
-                website={brand.website}
-                brandName={brand.brand_name}
-              />
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-sm truncate">{brand.brand_name}</h3>
-                  <Shield className="h-3.5 w-3.5 text-primary/50 flex-shrink-0" />
-                </div>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">TRUST_SCORE</span>
                   {brand.last_event_at && (
-                    <>
-                      <span className="text-border">·</span>
-                      <span className="text-[10px] text-muted-foreground">
-                        {new Date(brand.last_event_at).toLocaleDateString()}
-                      </span>
-                    </>
+                    <span className="text-[11px] text-muted-foreground">
+                      Updated {new Date(brand.last_event_at).toLocaleDateString()}
+                    </span>
                   )}
                 </div>
+
+                {FEATURES.companyScore && brand.overall_score != null ? (
+                  <span className={`text-sm font-bold ${badge.className}`}>
+                    {badge.label}
+                  </span>
+                ) : (
+                  <span className="text-sm text-muted-foreground">—</span>
+                )}
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

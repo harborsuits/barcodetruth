@@ -287,8 +287,8 @@ function EvidenceList({ brandId }: { brandId: string }) {
             </div>
             <p className="text-sm font-medium leading-snug">{ev.title}</p>
             {hasUrl && (
-              <span className="font-mono text-[10px] uppercase tracking-widest text-primary inline-flex items-center gap-1">
-                SOURCE_DATA <ExternalLink className="h-2.5 w-2.5" /> →
+              <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                Source <ExternalLink className="h-2.5 w-2.5" />
               </span>
             )}
           </div>
@@ -319,10 +319,10 @@ function EvidenceList({ brandId }: { brandId: string }) {
         <div className="p-3">
           <Button 
             variant="ghost" 
-            className="w-full font-mono text-[10px] uppercase tracking-widest"
+            className="w-full text-xs text-muted-foreground"
             onClick={() => navigate(`/proof/${brandId}`)}
           >
-            LOAD FULL AUDIT TRAIL ({totalCount} items) →
+            View all evidence ({totalCount} items) →
           </Button>
         </div>
       )}
@@ -586,9 +586,9 @@ export default function BrandProfileV1() {
   });
   const hasEvidence = (evidenceTotal || 0) > 0;
   const getVerdict = (s: number | null) => {
-    if (s === null) return { label: hasEvidence ? 'Analyzing — we\'ll update this automatically' : 'Unrated', color: 'bg-muted text-muted-foreground', emoji: '—' };
-    if (s >= 65) return { label: 'Trust', color: 'bg-success/15 text-success', emoji: '🟢' };
-    if (s >= 40) return { label: 'Caution', color: 'bg-warning/15 text-warning', emoji: '🟡' };
+    if (s === null) return { label: hasEvidence ? 'Checking...' : 'Not yet rated', color: 'bg-muted text-muted-foreground', emoji: '—' };
+    if (s >= 65) return { label: 'Good', color: 'bg-success/15 text-success', emoji: '🟢' };
+    if (s >= 40) return { label: 'Mixed', color: 'bg-warning/15 text-warning', emoji: '🟡' };
     return { label: 'Avoid', color: 'bg-destructive/15 text-destructive', emoji: '🔴' };
   };
   const verdict = getVerdict(scoreValue);
@@ -659,9 +659,9 @@ export default function BrandProfileV1() {
 
         {/* ─── 1. INSTANT VERDICT ─── */}
         <div className={`${verdict.color} border border-border p-5`}>
-          <div className="flex items-center justify-between mb-3">
+           <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Trust Score</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Rating</p>
               <div className="text-5xl font-extrabold tracking-tighter mt-1" style={{ fontFamily: "'Public Sans', sans-serif" }}>
                 {scoreValue !== null ? scoreValue : '—'}
                 <span className="text-lg font-normal text-muted-foreground ml-1">/ 100</span>
@@ -694,77 +694,69 @@ export default function BrandProfileV1() {
           <OwnershipDisplay brandId={resolvedBrandId} brandSlug={brand.slug} scannedBrandId={scannedBrandId} scannedBrandName={scannedBrandName} />
         )}
 
-        {/* ─── 2b. CORPORATE FAMILY TREE ─── */}
-        {resolvedBrandId && (
-          <CorporateFamilyTree brandId={resolvedBrandId} brandName={brand.name} scannedBrandId={scannedBrandId} />
-        )}
 
-        {/* ─── 3. SCORE BREAKDOWN ─── */}
-        <Card>
-          <CardContent className="pt-5 pb-5 space-y-3">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Score Breakdown</p>
-            {dimensions.map(dim => (
-              <div key={dim.key} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                <span className="text-sm font-medium">{dim.label}</span>
-                <div className="flex items-center gap-2">
-                  <span className={`text-lg font-bold ${getGradeColor(dim.score)}`}>
-                    {getGrade(dim.score)}
-                  </span>
-                  <span className="text-xs text-muted-foreground w-8 text-right">
-                    {dim.score != null ? Math.round(dim.score) : '—'}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
 
-        {/* ─── 4. BETTER ALTERNATIVES ─── */}
+
+        {/* ─── 3. BETTER ALTERNATIVES (moved up) ─── */}
         {resolvedBrandId && (
           <AlternativesSection brandId={resolvedBrandId} brandName={brand.name} />
         )}
 
-        {/* ─── 5. EVIDENCE (collapsed, secondary) ─── */}
-        <Card>
-          <CardContent className="pt-5 pb-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Evidence</p>
-              {resolvedBrandId && (
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  className="text-xs"
-                  onClick={() => navigate(`/proof/${resolvedBrandId}`)}
-                >
-                  View all →
-                </Button>
-              )}
-            </div>
-            {resolvedBrandId && <EvidenceList brandId={resolvedBrandId} />}
-          </CardContent>
-        </Card>
+        {/* ─── 4. DETAILS (collapsible) ─── */}
+        <details className="group">
+          <summary className="flex items-center justify-between cursor-pointer p-4 bg-elevated-1 border border-border rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            View detailed breakdown & evidence
+            <span className="text-xs group-open:rotate-180 transition-transform">▼</span>
+          </summary>
+          <div className="mt-2 space-y-4">
+            <Card>
+              <CardContent className="pt-5 pb-5 space-y-3">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Score Breakdown</p>
+                {dimensions.map(dim => (
+                  <div key={dim.key} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                    <span className="text-sm font-medium">{dim.label}</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-lg font-bold ${getGradeColor(dim.score)}`}>
+                        {getGrade(dim.score)}
+                      </span>
+                      <span className="text-xs text-muted-foreground w-8 text-right">
+                        {dim.score != null ? Math.round(dim.score) : '—'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
 
-        {/* ─── Description (secondary) ─── */}
+            <Card>
+              <CardContent className="pt-5 pb-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Evidence</p>
+                  {resolvedBrandId && (
+                    <Button variant="ghost" size="sm" className="text-xs" onClick={() => navigate(`/proof/${resolvedBrandId}`)}>
+                      View all →
+                    </Button>
+                  )}
+                </div>
+                {resolvedBrandId && <EvidenceList brandId={resolvedBrandId} />}
+              </CardContent>
+            </Card>
+          </div>
+        </details>
+
+        {/* Description */}
         {brand.description && brand.identity_confidence !== 'low' && (
           <Card>
             <CardContent className="pt-5 pb-5">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-2">About</p>
-              <p className="text-sm text-foreground/80 leading-relaxed">
-                {brand.description}
-              </p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-2">About</p>
+              <p className="text-sm text-foreground/80 leading-relaxed">{brand.description}</p>
             </CardContent>
           </Card>
         )}
 
         {/* Admin verify */}
         {isAdmin && brand.identity_confidence === 'low' && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full"
-            onClick={markIdentityVerified}
-            disabled={verifying}
-          >
+          <Button variant="outline" size="sm" className="w-full" onClick={markIdentityVerified} disabled={verifying}>
             {verifying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
             Mark Identity Verified
           </Button>
@@ -772,7 +764,7 @@ export default function BrandProfileV1() {
 
         {/* Beta */}
         <p className="text-xs text-center text-muted-foreground px-4 pb-4">
-          Scores based on verified government records (EPA, OSHA, FEC, FDA). Coverage expands weekly.
+          Based on verified public records. Coverage expands weekly.
         </p>
       </main>
     </div>
