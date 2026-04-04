@@ -711,6 +711,16 @@ const App = () => {
               </RouteErrorBoundary>
             }
           />
+          <Route
+            path="/brand/:id/events"
+            element={
+              <RouteErrorBoundary>
+                <Suspense fallback={<RouteFallback label="Loading events…" />}>
+                  <BrandEvents />
+                </Suspense>
+              </RouteErrorBoundary>
+            }
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
