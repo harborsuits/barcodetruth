@@ -189,6 +189,12 @@ function EventRow({ event }: { event: ScoredEvent }) {
           {decay < 1.0 && `${decay.toFixed(1)}× weight`}
         </span>
       </div>
+      <EventVoteButtons
+        eventId={event.event_id}
+        upvotes={event.upvotes ?? 0}
+        downvotes={event.downvotes ?? 0}
+        compact
+      />
       <p className="text-sm font-medium leading-snug">{event.title || "Untitled event"}</p>
       {event.ai_summary && (
         <p className="text-xs text-muted-foreground leading-snug italic">"{event.ai_summary}"</p>
