@@ -343,7 +343,7 @@ Deno.serve(async (req: Request) => {
     let eventsWithoutImpacts = 0;
     let eventsSkippedTier3 = 0;
 
-    for (const event of dedupedEvents) {
+    for (const event of cappedEvents) {
       const eventDate = new Date(event.event_date);
       const recencyWeight = getRecencyWeight(eventDate, now);
       const verificationWeight = getVerificationWeight(event.verification);
