@@ -257,9 +257,11 @@ function classifyEvent(event: EventRow) {
     orientation = 'mixed';
     impactMagnitude = Math.round(SEVERITY_IMPACTS[severity].negative * 0.3);
   } else {
-    // NO SIGNALS MATCHED - truly neutral, don't assume negative
-    orientation = 'mixed';
-    impactMagnitude = 0; // Neutral until proven otherwise
+    // NO SIGNALS MATCHED - assign minor negative by default
+    // Most brand news events in our pipeline are issues/concerns;
+    // truly neutral events (earnings, partnerships) should have matched positive signals
+    orientation = 'negative';
+    impactMagnitude = SEVERITY_IMPACTS.minor.negative; // -1
   }
 
   // Build category impacts with whole numbers
