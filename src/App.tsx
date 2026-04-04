@@ -52,6 +52,7 @@ const AdminRSSMonitor = lazyNamed(() => import("./pages/AdminRSSMonitor"), "defa
 const AdminEnrichmentMonitor = lazyNamed(() => import("./pages/AdminEnrichmentMonitor"), "default");
 const AdminCommunityRatings = lazyNamed(() => import("./pages/AdminCommunityRatings"), "default");
 const AdminBatchEnrich = lazyNamed(() => import("./pages/AdminBatchEnrich"), "default");
+const AdminDisputes = lazyNamed(() => import("./pages/AdminDisputes"), "default");
 const AdminBulkEnrichFortune500 = lazyNamed(() => import("./pages/AdminBulkEnrichFortune500"), "default");
 const AdminSeeding = lazyNamed(() => import("./pages/AdminSeeding"), "default");
 const AdminUsers = lazyNamed(() => import("./pages/AdminUsers"), "default");
