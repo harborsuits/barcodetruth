@@ -287,11 +287,8 @@ function EvidenceList({ brandId }: { brandId: string }) {
             </div>
             <p className="text-sm font-medium leading-snug">{ev.title}</p>
             {hasUrl && (
-              <span className="text-xs text-muted-foreground">
-                Source
-              </span>
               <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
-                View <ExternalLink className="h-2.5 w-2.5" />
+                Source <ExternalLink className="h-2.5 w-2.5" />
               </span>
             )}
           </div>
