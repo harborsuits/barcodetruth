@@ -1594,6 +1594,7 @@ export type Database = {
           category_confidence: number | null
           category_impacts: Json | null
           category_score: number | null
+          community_multiplier: number | null
           company_response_date: string | null
           company_response_summary: string | null
           company_response_url: string | null
@@ -1603,6 +1604,7 @@ export type Database = {
           description: string
           disambiguation_reason: string | null
           disputed: boolean | null
+          downvotes: number | null
           duplicate_of: string | null
           event_date: string | null
           event_id: string
@@ -1636,6 +1638,7 @@ export type Database = {
           source_url_sha256: string | null
           title: string | null
           updated_at: string
+          upvotes: number | null
           verification: Database["public"]["Enums"]["verification_level"] | null
           verification_factor: number | null
           verified: boolean | null
@@ -1651,6 +1654,7 @@ export type Database = {
           category_confidence?: number | null
           category_impacts?: Json | null
           category_score?: number | null
+          community_multiplier?: number | null
           company_response_date?: string | null
           company_response_summary?: string | null
           company_response_url?: string | null
@@ -1660,6 +1664,7 @@ export type Database = {
           description: string
           disambiguation_reason?: string | null
           disputed?: boolean | null
+          downvotes?: number | null
           duplicate_of?: string | null
           event_date?: string | null
           event_id?: string
@@ -1693,6 +1698,7 @@ export type Database = {
           source_url_sha256?: string | null
           title?: string | null
           updated_at?: string
+          upvotes?: number | null
           verification?:
             | Database["public"]["Enums"]["verification_level"]
             | null
@@ -1710,6 +1716,7 @@ export type Database = {
           category_confidence?: number | null
           category_impacts?: Json | null
           category_score?: number | null
+          community_multiplier?: number | null
           company_response_date?: string | null
           company_response_summary?: string | null
           company_response_url?: string | null
@@ -1719,6 +1726,7 @@ export type Database = {
           description?: string
           disambiguation_reason?: string | null
           disputed?: boolean | null
+          downvotes?: number | null
           duplicate_of?: string | null
           event_date?: string | null
           event_id?: string
@@ -1752,6 +1760,7 @@ export type Database = {
           source_url_sha256?: string | null
           title?: string | null
           updated_at?: string
+          upvotes?: number | null
           verification?:
             | Database["public"]["Enums"]["verification_level"]
             | null
@@ -5405,6 +5414,76 @@ export type Database = {
           },
           {
             foreignKeyName: "fk_event"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "v_brand_sources_inline"
+            referencedColumns: ["event_id"]
+          },
+        ]
+      }
+      event_votes: {
+        Row: {
+          created_at: string | null
+          event_id: string
+          user_id: string
+          vote: number
+          vote_id: string
+          vote_reason: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_id: string
+          user_id: string
+          vote: number
+          vote_id?: string
+          vote_reason?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_id?: string
+          user_id?: string
+          vote?: number
+          vote_id?: string
+          vote_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_votes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_events"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_votes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_evidence_view_base"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_votes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "brand_latest_verified_event"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_votes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_feed_grouped"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_votes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_profile_feed"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "event_votes_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "v_brand_sources_inline"
