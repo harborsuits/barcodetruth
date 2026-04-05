@@ -468,7 +468,7 @@ export default function ScanResultV1() {
             </CardContent>
           </Card>
           <div className="space-y-2">
-            <Button variant="outline" className="w-full" onClick={() => brandInfo?.slug && navigate(`/brand/${brandInfo.slug}`, { state: { scannedBrandId: brandInfo?.id, scannedBrandName: brandInfo?.name } })}>
+            <Button variant="outline" className="w-full" onClick={() => brandInfo?.slug && navigate(`/brand/${brandInfo.slug}`, { state: { scannedBrandId: brandInfo?.id, scannedBrandName: displayBrandName || brandInfo?.name } })}>
               <ExternalLink className="h-4 w-4 mr-2" />View Profile Anyway
             </Button>
             <Button variant="ghost" className="w-full" onClick={() => navigate("/scan")}>Scan Another Product</Button>
