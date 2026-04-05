@@ -547,20 +547,31 @@ export default function BrandProfileV1() {
   // State A: Assessable (full profile) — Consumer Decision Layout
 
   const parsedScore = scoreData?.score ? (typeof scoreData.score === 'string' ? JSON.parse(scoreData.score) : scoreData.score) : null;
-  const scoreValue = parsedScore?.overall != null ? Math.round(parsedScore.overall) : null;
+  
+  // Baseline detection — suppress flat-50 scores that haven't been computed yet
+  const _rawDims = {
+    overall: parsedScore?.overall ?? null,
+    score_labor: parsedScore?.score_labor ?? null,
+    score_environment: parsedScore?.score_environment ?? null,
+    score_politics: parsedScore?.score_politics ?? null,
+    score_social: parsedScore?.score_social ?? null,
+  };
+  const _isBaseline = isBaselineScore(_rawDims);
+  
+  const scoreValue = _isBaseline ? null : (parsedScore?.overall != null ? Math.round(parsedScore.overall) : null);
   
   // Dimension scores for breakdown
   const dimScores = {
-    labor: parsedScore?.score_labor ?? null,
-    environment: parsedScore?.score_environment ?? null,
-    politics: parsedScore?.score_politics ?? null,
-    social: parsedScore?.score_social ?? null,
+    labor: _isBaseline ? null : (parsedScore?.score_labor ?? null),
+    environment: _isBaseline ? null : (parsedScore?.score_environment ?? null),
+    politics: _isBaseline ? null : (parsedScore?.score_politics ?? null),
+    social: _isBaseline ? null : (parsedScore?.score_social ?? null),
   };
 
   // Verdict — use evidence count from hook above
   const hasEvidence = (evidenceTotal || 0) > 0;
   const getVerdict = (s: number | null) => {
-    if (s === null) return { label: hasEvidence ? 'Checking...' : 'Not yet rated', color: 'bg-muted text-muted-foreground', emoji: '—' };
+    if (s === null) return { label: hasEvidence ? 'Analyzing' : 'Not yet rated', color: 'bg-muted text-muted-foreground', emoji: '—' };
     if (s >= 65) return { label: 'Good', color: 'bg-success/15 text-success', emoji: '🟢' };
     if (s >= 40) return { label: 'Mixed', color: 'bg-warning/15 text-warning', emoji: '🟡' };
     return { label: 'Avoid', color: 'bg-destructive/15 text-destructive', emoji: '🔴' };
