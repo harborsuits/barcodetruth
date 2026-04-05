@@ -208,7 +208,7 @@ Deno.serve(async (req) => {
 
     for (const brand of brands) {
       const scores = scoresMap.get(brand.id);
-      const parentName = brand.parent_brand_id ? (parentsMap.get(brand.parent_brand_id) || null) : null;
+      const parentName = brand.parent_company || null;
       const eventCount = eventCountMap.get(brand.id) || 0;
       const logoInfo = classifyLogo(brand.logo_url);
       const scoreState = computeScoreState(scores);
