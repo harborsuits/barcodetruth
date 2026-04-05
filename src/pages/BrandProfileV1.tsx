@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { isBaselineScore } from '@/lib/isBaselineScore';
 import { AlternativesSection } from '@/components/brand/AlternativesSection';
 import { CorporateFamilyTree } from '@/components/brand/CorporateFamilyTree';
 import { ScoreTransparency } from '@/components/brand/ScoreTransparency';
