@@ -19,9 +19,11 @@ function normalizeName(raw: string): string {
     const parts = name.split(',').map(s => s.trim()).filter(Boolean);
     name = parts[0]; // Take the brand part, not the parent corp
   }
-  // Title case
-  name = name.replace(/\b\w+/g, w => {
+  // Title case — preserve accented characters and non-ASCII
+  name = name.replace(/\S+/g, w => {
     if (['and', 'or', 'the', 'of', 'in', 'for'].includes(w.toLowerCase())) return w.toLowerCase();
+    // Preserve words that already have intentional casing (e.g. "Estée", "née")
+    if (/[À-ÿ]/.test(w)) return w; // Contains accented chars — leave as-is
     return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
   });
   // Fix known brand stylings
@@ -33,26 +35,34 @@ function normalizeName(raw: string): string {
 }
 
 // ─── Category normalization ───
-const CATEGORY_MAP: Record<string, string> = {
-  'oral care': 'Oral Care', 'mouthwash': 'Mouthwash', 'toothpaste': 'Toothpaste',
-  'shampoo': 'Shampoo', 'conditioner': 'Conditioner', 'deodorant': 'Deodorant',
-  'soap': 'Soap', 'body wash': 'Body Wash', 'skin care': 'Skin Care',
-  'snacks': 'Snacks', 'chips': 'Chips', 'cookies': 'Cookies', 'crackers': 'Crackers',
-  'candy': 'Candy', 'chocolate': 'Chocolate', 'gum': 'Gum',
-  'cereal': 'Cereal', 'granola': 'Granola', 'oatmeal': 'Oatmeal',
-  'pasta': 'Pasta', 'sauce': 'Sauces', 'condiment': 'Condiments',
-  'frozen': 'Frozen Foods', 'ice cream': 'Ice Cream', 'pizza': 'Frozen Pizza',
-  'beverages': 'Beverages', 'soda': 'Soft Drinks', 'juice': 'Juice', 'water': 'Water',
-  'coffee': 'Coffee', 'tea': 'Tea', 'energy drink': 'Energy Drinks',
-  'dairy': 'Dairy', 'milk': 'Milk', 'cheese': 'Cheese', 'yogurt': 'Yogurt',
-  'bread': 'Bread & Bakery', 'cleaning': 'Cleaning Products', 'laundry': 'Laundry',
-  'detergent': 'Detergent', 'dish': 'Dish Care', 'pet food': 'Pet Food',
-  'baby': 'Baby Care', 'diaper': 'Diapers', 'paper towel': 'Paper Products',
-  'toilet paper': 'Paper Products', 'tissue': 'Paper Products',
-  'plant-based': 'Plant-Based Foods', 'meat': 'Meat & Poultry',
-  'seafood': 'Seafood', 'produce': 'Fresh Produce',
-  'cosmetic': 'Cosmetics', 'makeup': 'Makeup', 'personal care': 'Personal Care',
-};
+// Ordered from most-specific to least-specific to prevent greedy matches
+const CATEGORY_MAP: [string, string][] = [
+  // Compound categories first (prevent "food-beverages" → "Beverages")
+  ['food-beverages', 'Food & Beverages'], ['food-beverage', 'Food & Beverages'],
+  ['food & beverage', 'Food & Beverages'], ['food and beverage', 'Food & Beverages'],
+  ['personal-care', 'Personal Care'], ['personal care', 'Personal Care'],
+  ['household-products', 'Household Products'], ['household products', 'Household Products'],
+  // Specific sub-categories
+  ['oral care', 'Oral Care'], ['mouthwash', 'Mouthwash'], ['toothpaste', 'Toothpaste'],
+  ['shampoo', 'Shampoo'], ['conditioner', 'Conditioner'], ['deodorant', 'Deodorant'],
+  ['soap', 'Soap'], ['body wash', 'Body Wash'], ['skin care', 'Skin Care'],
+  ['snacks', 'Snacks'], ['chips', 'Chips'], ['cookies', 'Cookies'], ['crackers', 'Crackers'],
+  ['candy', 'Candy'], ['chocolate', 'Chocolate'], ['gum', 'Gum'],
+  ['cereal', 'Cereal'], ['granola', 'Granola'], ['oatmeal', 'Oatmeal'],
+  ['pasta', 'Pasta'], ['sauce', 'Sauces'], ['condiment', 'Condiments'],
+  ['frozen', 'Frozen Foods'], ['ice cream', 'Ice Cream'], ['pizza', 'Frozen Pizza'],
+  ['energy drink', 'Energy Drinks'], ['soda', 'Soft Drinks'],
+  ['juice', 'Juice'], ['water', 'Water'], ['coffee', 'Coffee'], ['tea', 'Tea'],
+  ['beverages', 'Beverages'],  // General "beverages" AFTER specific drink types
+  ['dairy', 'Dairy'], ['milk', 'Milk'], ['cheese', 'Cheese'], ['yogurt', 'Yogurt'],
+  ['bread', 'Bread & Bakery'], ['cleaning', 'Cleaning Products'], ['laundry', 'Laundry'],
+  ['detergent', 'Detergent'], ['dish', 'Dish Care'], ['pet food', 'Pet Food'],
+  ['baby', 'Baby Care'], ['diaper', 'Diapers'], ['paper towel', 'Paper Products'],
+  ['toilet paper', 'Paper Products'], ['tissue', 'Paper Products'],
+  ['plant-based', 'Plant-Based Foods'], ['meat', 'Meat & Poultry'],
+  ['seafood', 'Seafood'], ['produce', 'Fresh Produce'],
+  ['cosmetic', 'Cosmetics'], ['makeup', 'Makeup'],
+];
 
 function normalizeCategory(raw: string | null): string | null {
   if (!raw || raw === 'undefined' || raw === 'null') return null;
@@ -71,8 +81,8 @@ function normalizeCategory(raw: string | null): string | null {
   }
 
   const lower = cleaned.toLowerCase();
-  // Try exact map match
-  for (const [key, label] of Object.entries(CATEGORY_MAP)) {
+  // Try ordered map match (most-specific first)
+  for (const [key, label] of CATEGORY_MAP) {
     if (lower.includes(key)) return label;
   }
   // Fallback: title case the cleaned string, max 35 chars
