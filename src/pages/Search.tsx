@@ -9,6 +9,7 @@ import { searchCatalog, type ProductSearchResult, type BrandSearchResult } from 
 import { supabase } from "@/integrations/supabase/client";
 import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
+import { formatCategory } from "@/lib/formatCategory";
 
 interface CompanySearchResult {
   id: string;
@@ -170,9 +171,9 @@ export default function Search() {
                             className="font-medium" 
                             dangerouslySetInnerHTML={{ __html: highlightMatch(product.name, query) }}
                           />
-                          {product.category && (
+                          {formatCategory(product.category) && (
                             <div className="text-sm text-muted-foreground mt-1">
-                              {product.category}
+                              {formatCategory(product.category)}
                             </div>
                           )}
                           <div className="text-xs text-muted-foreground mt-1 font-mono">

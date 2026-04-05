@@ -13,6 +13,7 @@ import { AlternativesSection } from "@/components/brand/AlternativesSection";
 import { EnrichmentStageProgress } from "@/components/brand/EnrichmentStageProgress";
 import { TrustVerdict } from "@/components/scan/TrustVerdict";
 import { ScoreBreakdownCard } from "@/components/scan/ScoreBreakdownCard";
+import { formatCategory } from "@/lib/formatCategory";
 import { OwnershipReveal } from "@/components/scan/OwnershipReveal";
 import { ShareCard, getGrade } from "@/components/scan/ShareCard";
 import { useBrandLogo } from "@/hooks/useBrandLogo";
@@ -511,8 +512,8 @@ export default function ScanResultV1() {
                 <p className="text-sm text-muted-foreground mt-0.5">
                   by <span className="font-medium text-foreground">{displayBrandName || "Resolving..."}</span>
                 </p>
-                {product.category && (
-                  <p className="text-xs text-muted-foreground mt-1">{product.category}</p>
+                {formatCategory(product.category) && (
+                  <p className="text-xs text-muted-foreground mt-1">{formatCategory(product.category)}</p>
                 )}
               </div>
             </div>
