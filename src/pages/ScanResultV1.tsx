@@ -510,7 +510,7 @@ export default function ScanResultV1() {
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <h1 className="text-lg font-bold tracking-tight leading-tight">{product.name}</h1>
+                <h1 className="text-lg font-bold tracking-tight leading-tight">{displayProductName}</h1>
                 <p className="text-sm text-muted-foreground mt-0.5">
                   by <span className="font-medium text-foreground">{displayBrandName || "Resolving..."}</span>
                 </p>
