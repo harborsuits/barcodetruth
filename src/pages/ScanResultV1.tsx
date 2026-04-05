@@ -13,6 +13,7 @@ import { AlternativesSection } from "@/components/brand/AlternativesSection";
 import { EnrichmentStageProgress } from "@/components/brand/EnrichmentStageProgress";
 import { TrustVerdict } from "@/components/scan/TrustVerdict";
 import { ScoreBreakdownCard } from "@/components/scan/ScoreBreakdownCard";
+import { formatCategory } from "@/lib/formatCategory";
 import { OwnershipReveal } from "@/components/scan/OwnershipReveal";
 import { ShareCard, getGrade } from "@/components/scan/ShareCard";
 import { useBrandLogo } from "@/hooks/useBrandLogo";

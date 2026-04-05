@@ -9,6 +9,7 @@ import { searchCatalog, type ProductSearchResult, type BrandSearchResult } from 
 import { supabase } from "@/integrations/supabase/client";
 import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
+import { formatCategory } from "@/lib/formatCategory";
 
 interface CompanySearchResult {
   id: string;
