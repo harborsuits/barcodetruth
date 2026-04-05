@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
     // Fetch brands — either specific IDs or paginated batch
     let query = supabase
       .from('brands')
-      .select('id, name, slug, logo_url, website, description, parent_brand_id, category_slug, is_conglomerate, needs_review')
+      .select('id, name, slug, logo_url, website, description, parent_company, category_slug, needs_review')
       .order('created_at', { ascending: false });
 
     if (brand_ids?.length) {
