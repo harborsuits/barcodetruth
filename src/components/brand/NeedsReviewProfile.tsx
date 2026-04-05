@@ -19,6 +19,7 @@ import { ReportIssueDialog } from "@/components/ReportIssueDialog";
 import { IdentityFixCard } from "@/components/brand/IdentityFixCard";
 import type { ProfileStateData, MismatchDetail } from "@/hooks/useProfileState";
 import { BrandIdentityHeader } from "@/components/brand/BrandIdentityHeader";
+import { useDisplayProfile } from "@/hooks/useDisplayProfile";
 
 interface BrandData {
   id: string;
@@ -69,17 +70,21 @@ function MismatchDetails({ details }: { details: MismatchDetail[] }) {
 export function NeedsReviewProfile({ brand, stateData }: NeedsReviewProfileProps) {
   const [reportOpen, setReportOpen] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
+  const { data: displayProfile } = useDisplayProfile(brand.id);
+
+  const displayName = displayProfile?.display_name || brand.name;
+  const displayWebsite = displayProfile?.website || brand.website;
 
   // Build what we DO know (only confident data)
   const knownFacts: { icon: typeof Building2; label: string; value: string; link?: string }[] = [];
 
-  if (brand.website) {
-    const domain = brand.website.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  if (displayWebsite) {
+    const domain = displayWebsite.replace(/^https?:\/\//, '').replace(/\/$/, '');
     knownFacts.push({
       icon: Globe,
       label: 'Website',
       value: domain,
-      link: brand.website,
+      link: displayWebsite,
     });
   }
 
@@ -109,9 +114,9 @@ export function NeedsReviewProfile({ brand, stateData }: NeedsReviewProfileProps
       <Card className="opacity-80">
         <CardContent className="pt-6">
           <BrandIdentityHeader
-            brandName={brand.name}
-            logoUrl={brand.logo_url}
-            website={brand.website}
+            brandName={displayName}
+            logoUrl={displayProfile?.logo_url || brand.logo_url}
+            website={displayWebsite}
             badge={<Badge variant="outline" className="text-xs border-destructive/50 text-destructive"><HelpCircle className="h-3 w-3 mr-1" />Unverified</Badge>}
             subtitle="Description withheld pending verification"
           />
@@ -190,7 +195,7 @@ export function NeedsReviewProfile({ brand, stateData }: NeedsReviewProfileProps
       </Card>
 
       {/* Interactive Identity Fix */}
-      <IdentityFixCard brandId={brand.id} brandName={brand.name} />
+      <IdentityFixCard brandId={brand.id} brandName={displayName} />
 
       {/* Manual Help Options */}
       <Card className="bg-muted/30">
@@ -246,13 +251,13 @@ export function NeedsReviewProfile({ brand, stateData }: NeedsReviewProfileProps
         open={suggestOpen} 
         onOpenChange={setSuggestOpen}
         brandId={brand.id}
-        brandName={brand.name}
+        brandName={displayName}
       />
       <ReportIssueDialog
         open={reportOpen}
         onOpenChange={setReportOpen}
         brandId={brand.id}
-        brandName={brand.name}
+        brandName={displayName}
       />
     </div>
   );

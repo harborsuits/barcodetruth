@@ -468,7 +468,7 @@ export default function ScanResultV1() {
             </CardContent>
           </Card>
           <div className="space-y-2">
-            <Button variant="outline" className="w-full" onClick={() => brandInfo?.slug && navigate(`/brand/${brandInfo.slug}`, { state: { scannedBrandId: brandInfo?.id, scannedBrandName: brandInfo?.name } })}>
+            <Button variant="outline" className="w-full" onClick={() => brandInfo?.slug && navigate(`/brand/${brandInfo.slug}`, { state: { scannedBrandId: brandInfo?.id, scannedBrandName: displayBrandName || brandInfo?.name } })}>
               <ExternalLink className="h-4 w-4 mr-2" />View Profile Anyway
             </Button>
             <Button variant="ghost" className="w-full" onClick={() => navigate("/scan")}>Scan Another Product</Button>
@@ -553,12 +553,12 @@ export default function ScanResultV1() {
 
         {/* ─── 2. OWNERSHIP ─── */}
         {brandInfo?.id && (
-          <OwnershipReveal brandId={brandInfo.id} brandName={brandInfo.name} parentCompany={brandInfo.parent_company} />
+          <OwnershipReveal brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name} parentCompany={displayParent || brandInfo.parent_company} />
         )}
 
         {/* ─── 3. BETTER ALTERNATIVES ─── */}
         {brandInfo?.id && (
-          <AlternativesSection brandId={brandInfo.id} brandName={brandInfo.name || "this brand"} />
+          <AlternativesSection brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name || "this brand"} />
         )}
 
         {/* ─── 4. DETAILED BREAKDOWN (collapsible) ─── */}
@@ -576,7 +576,7 @@ export default function ScanResultV1() {
 
         {/* ─── 5. SHARE ─── */}
         <ShareCard
-          brandName={brandInfo?.name || ""}
+          brandName={displayBrandName || brandInfo?.name || ""}
           score={effectiveScore}
           verdict={verdictLabel}
           dimensions={dimensions.map((d) => ({ label: d.label, grade: getLetterGrade(d.score) }))}
@@ -585,7 +585,7 @@ export default function ScanResultV1() {
         {/* Actions */}
         <div className="space-y-2">
           {brandInfo?.slug && (
-            <Button variant="ghost" className="w-full text-sm text-muted-foreground" onClick={() => navigate(`/brand/${brandInfo.slug}`, { state: { scannedBrandId: brandInfo.id, scannedBrandName: brandInfo.name } })}>
+            <Button variant="ghost" className="w-full text-sm text-muted-foreground" onClick={() => navigate(`/brand/${brandInfo.slug}`, { state: { scannedBrandId: brandInfo.id, scannedBrandName: displayBrandName || brandInfo.name } })}>
               More about this company →
             </Button>
           )}

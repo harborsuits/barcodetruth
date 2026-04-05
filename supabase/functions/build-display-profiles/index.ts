@@ -256,6 +256,42 @@ Deno.serve(async (req) => {
       if (completeness < 30) {
         issues.push({ brand_id: brand.id, issue_type: 'low_completeness', severity: 'medium', detected_value: String(completeness) });
       }
+
+      // Bad-entity detection: description suggests non-consumer-brand entity
+      const desc = (brand.description || '').toLowerCase();
+      const NON_BRAND_PATTERNS = [
+        'shopping center', 'shopping mall', 'outlet mall', 'retail complex',
+        'is a city', 'is a town', 'is a county', 'is a state', 'is a province',
+        'is a municipality', 'is a district', 'is a village',
+        'is a river', 'is a lake', 'is a mountain',
+        'is a university', 'is a college', 'is a school',
+        'is a hospital', 'is a church', 'is a museum',
+        'is an airport', 'is a stadium', 'is a park',
+        'film directed by', 'is a television', 'is a song', 'is an album',
+        'census-designated place', 'unincorporated community',
+      ];
+      const matchedPattern = NON_BRAND_PATTERNS.find(p => desc.includes(p));
+      if (matchedPattern) {
+        issues.push({
+          brand_id: brand.id,
+          issue_type: 'entity_mismatch',
+          severity: 'critical',
+          detected_value: `Description contains "${matchedPattern}" — likely not a consumer brand`,
+          proposed_fix: 'Review entity identity and description source',
+        });
+      }
+
+      // Generic name detection — single common word with low identity confidence
+      const GENERIC_NAMES = ['louisiana', 'california', 'georgia', 'montana', 'dakota', 'florida', 'texas', 'carolina', 'virginia', 'michigan', 'indiana', 'alaska', 'hawaii', 'arizona', 'colorado', 'nevada', 'oregon', 'maryland', 'ohio', 'maine'];
+      if (GENERIC_NAMES.includes((brand.name || '').toLowerCase()) && !brand.website) {
+        issues.push({
+          brand_id: brand.id,
+          issue_type: 'generic_name',
+          severity: 'high',
+          detected_value: brand.name,
+          proposed_fix: 'Verify this maps to a consumer brand, not a geographic entity',
+        });
+      }
     }
 
     // Upsert display profiles
