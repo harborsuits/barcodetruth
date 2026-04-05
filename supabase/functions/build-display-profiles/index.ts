@@ -189,7 +189,7 @@ Deno.serve(async (req) => {
     // Batch fetch scores, parents, event counts
     const [scoresRes, parentsRes, eventsRes] = await Promise.all([
       supabase.from('brand_scores').select('brand_id, overall_score, labor_score, environment_score, governance_score').in('brand_id', ids),
-      supabase.from('brands').select('id, name').in('id', brands.filter(b => b.parent_brand_id).map(b => b.parent_brand_id!)),
+      supabase.from('brands').select('id, name').in('id', brands.filter(b => b.parent_company).map(b => b.parent_company!)),
       supabase.rpc('get_brand_event_counts', { brand_ids: ids }).catch(() => ({ data: null })),
     ]);
 
