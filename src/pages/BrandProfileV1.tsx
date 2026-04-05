@@ -616,7 +616,12 @@ export default function BrandProfileV1() {
         )}
 
         {/* ─── Brand Identity ─── */}
-        <BrandIdentityHeader brandName={brand.name} logoUrl={brand.logo_url} website={brand.website} />
+        <BrandIdentityHeader 
+          brandName={displayProfile?.display_name || brand.name} 
+          logoUrl={displayProfile?.logo_url || brand.logo_url} 
+          website={brand.website}
+          subtitle={displayProfile?.category_label || undefined}
+        />
 
         {/* ─── 1. INSTANT VERDICT ─── */}
         <div className={`${verdict.color} border border-border p-5`}>
