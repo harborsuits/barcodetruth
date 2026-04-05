@@ -125,12 +125,24 @@ export function TrustVerdict({ score, brandName, reasons, hasEvidence, category,
         </div>
       )}
 
-      {/* Auto-update message */}
+      {/* Enriched context for unscored brands */}
       {isAnalyzing && (
-        <p className="text-[11px] text-muted-foreground pt-1 flex items-center gap-1.5">
-          <FileCheck className="h-3 w-3" />
-          This will update automatically as we verify sources
-        </p>
+        <div className="space-y-2 pt-2 border-t border-border/50">
+          {parentCompany && parentCompany !== brandName && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <span className="font-medium text-foreground/70">Parent company:</span> {parentCompany}
+            </p>
+          )}
+          {website && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <span className="font-medium text-foreground/70">Website:</span> {website.replace(/^https?:\/\/(www\.)?/, '')}
+            </p>
+          )}
+          <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+            <FileCheck className="h-3 w-3" />
+            Profile building — this updates automatically as we verify sources
+          </p>
+        </div>
       )}
     </div>
   );

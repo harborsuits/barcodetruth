@@ -14,6 +14,7 @@ import { EnrichmentStageProgress } from "@/components/brand/EnrichmentStageProgr
 import { TrustVerdict } from "@/components/scan/TrustVerdict";
 import { ScoreBreakdownCard } from "@/components/scan/ScoreBreakdownCard";
 import { formatCategory } from "@/lib/formatCategory";
+import { formatBrandName, formatProductName } from "@/lib/formatBrandName";
 import { OwnershipReveal } from "@/components/scan/OwnershipReveal";
 import { ShareCard, getGrade } from "@/components/scan/ShareCard";
 import { useBrandLogo } from "@/hooks/useBrandLogo";
@@ -274,7 +275,8 @@ export default function ScanResultV1() {
   });
 
   // Use navigation state brand name as fallback display name
-  const displayBrandName = brandInfo?.name || navBrandName || null;
+  const displayBrandName = formatBrandName(brandInfo?.name || navBrandName) || null;
+  const displayProductName = formatProductName(product?.name) || product?.name || "Product";
 
   // States
   const brandIsReady = brandInfo?.status === "ready" || brandInfo?.status === "active";
@@ -508,7 +510,7 @@ export default function ScanResultV1() {
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <h1 className="text-lg font-bold tracking-tight leading-tight">{product.name}</h1>
+                <h1 className="text-lg font-bold tracking-tight leading-tight">{displayProductName}</h1>
                 <p className="text-sm text-muted-foreground mt-0.5">
                   by <span className="font-medium text-foreground">{displayBrandName || "Resolving..."}</span>
                 </p>
