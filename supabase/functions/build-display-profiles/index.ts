@@ -115,7 +115,7 @@ function computeCompleteness(brand: any, scores: any, eventCount: number): numbe
   if (brand.name) points++;
   if (brand.logo_url) points++;
   if (brand.website) points++;
-  if (brand.parent_brand_id) points++;
+  if (brand.parent_company) points++;
   if (scores && computeScoreState(scores) === 'scored') points++;
   if (eventCount > 0) points++;
   if (brand.category_slug) points++;
