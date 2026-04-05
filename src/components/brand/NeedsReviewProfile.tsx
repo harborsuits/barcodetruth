@@ -195,7 +195,7 @@ export function NeedsReviewProfile({ brand, stateData }: NeedsReviewProfileProps
       </Card>
 
       {/* Interactive Identity Fix */}
-      <IdentityFixCard brandId={brand.id} brandName={brand.name} />
+      <IdentityFixCard brandId={brand.id} brandName={displayName} />
 
       {/* Manual Help Options */}
       <Card className="bg-muted/30">
