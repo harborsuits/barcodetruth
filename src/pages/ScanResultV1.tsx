@@ -541,12 +541,14 @@ export default function ScanResultV1() {
         {/* ─── 1. INSTANT VERDICT ─── */}
         <TrustVerdict
           score={effectiveScore}
-          brandName={brandInfo?.name || ""}
+          brandName={displayBrandName || ""}
           reasons={isBaselineScore ? ["Score analysis in progress — we'll update this automatically"] : reasons}
           hasEvidence={(counts.total || 0) > 0}
-          category={product?.category}
-          parentCompany={brandInfo?.parent_company}
+          category={displayCategory || product?.category}
+          parentCompany={displayParent || brandInfo?.parent_company}
           website={brandInfo?.website}
+          profileSummary={displayProfile?.summary}
+          profileCompleteness={displayProfile?.profile_completeness}
         />
 
         {/* ─── 2. OWNERSHIP ─── */}
