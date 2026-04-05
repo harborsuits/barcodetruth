@@ -576,7 +576,7 @@ export default function ScanResultV1() {
 
         {/* ─── 5. SHARE ─── */}
         <ShareCard
-          brandName={brandInfo?.name || ""}
+          brandName={displayBrandName || brandInfo?.name || ""}
           score={effectiveScore}
           verdict={verdictLabel}
           dimensions={dimensions.map((d) => ({ label: d.label, grade: getLetterGrade(d.score) }))}
