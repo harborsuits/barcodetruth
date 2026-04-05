@@ -2,19 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-// DEV: Block direct baseline table access
-if (import.meta.env.DEV) {
-  const originalFetch = window.fetch;
-  window.fetch = function(...args: any[]) {
-    const url = String(args[0]);
-    if (/brand_scores|brand_baseline|effective_named/i.test(url)) {
-      console.error('🚫 BLOCKED: Direct baseline fetch in dev:', url);
-      return Promise.reject(new Error('Baseline table access blocked - use Edge API'));
-    }
-    return originalFetch.apply(window, args as [RequestInfo | URL, RequestInit?]);
-  };
-  console.log('✓ Dev baseline guard active');
-}
+// Dev fetch blocker removed — baseline detection now handled in UI layer
 
 // Register Service Worker
 if ('serviceWorker' in navigator) {

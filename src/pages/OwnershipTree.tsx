@@ -11,7 +11,7 @@ import { useBrandLogo } from "@/hooks/useBrandLogo";
 
 /* ── Verdict helpers ── */
 const getVerdict = (s: number | null) => {
-  if (s === null) return { label: "Analyzing", color: "hsl(var(--muted-foreground))", bg: "hsl(var(--muted) / 0.4)" };
+  if (s === null || s === 50) return { label: "Analyzing", color: "hsl(var(--muted-foreground))", bg: "hsl(var(--muted) / 0.4)" };
   if (s >= 65) return { label: "Trust", color: "hsl(var(--success))", bg: "hsl(var(--success-light))" };
   if (s >= 40) return { label: "Caution", color: "hsl(var(--warning))", bg: "hsl(var(--warning-light))" };
   return { label: "Avoid", color: "hsl(var(--danger))", bg: "hsl(var(--danger-light))" };

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { isBaselineScore } from '@/lib/isBaselineScore';
 import { AlternativesSection } from '@/components/brand/AlternativesSection';
 import { CorporateFamilyTree } from '@/components/brand/CorporateFamilyTree';
 import { ScoreTransparency } from '@/components/brand/ScoreTransparency';
@@ -56,18 +57,18 @@ function ScoreDisplay({ score }: { score: number | null }) {
   if (score === null || score === undefined) {
     return (
       <div className="text-center p-4 bg-muted/50 rounded-lg">
-        <p className="text-sm text-muted-foreground">Score coming soon</p>
+        <p className="text-sm font-medium text-muted-foreground">Analyzing</p>
         <p className="text-xs text-muted-foreground mt-1">
-          Monitoring in progress — score will appear once enough verified events are collected.
+          We're still processing public records for this brand. Score will appear once verified data is reviewed.
         </p>
       </div>
     );
   }
   
   const getScoreColor = (s: number) => {
-    if (s >= 70) return 'text-green-600';
-    if (s >= 40) return 'text-yellow-600';
-    return 'text-red-600';
+    if (s >= 70) return 'text-success';
+    if (s >= 40) return 'text-warning';
+    return 'text-destructive';
   };
   
   const getScoreLabel = (s: number) => {
@@ -547,20 +548,31 @@ export default function BrandProfileV1() {
   // State A: Assessable (full profile) — Consumer Decision Layout
 
   const parsedScore = scoreData?.score ? (typeof scoreData.score === 'string' ? JSON.parse(scoreData.score) : scoreData.score) : null;
-  const scoreValue = parsedScore?.overall != null ? Math.round(parsedScore.overall) : null;
+  
+  // Baseline detection — suppress flat-50 scores that haven't been computed yet
+  const _rawDims = {
+    overall: parsedScore?.overall ?? null,
+    score_labor: parsedScore?.score_labor ?? null,
+    score_environment: parsedScore?.score_environment ?? null,
+    score_politics: parsedScore?.score_politics ?? null,
+    score_social: parsedScore?.score_social ?? null,
+  };
+  const _isBaseline = isBaselineScore(_rawDims);
+  
+  const scoreValue = _isBaseline ? null : (parsedScore?.overall != null ? Math.round(parsedScore.overall) : null);
   
   // Dimension scores for breakdown
   const dimScores = {
-    labor: parsedScore?.score_labor ?? null,
-    environment: parsedScore?.score_environment ?? null,
-    politics: parsedScore?.score_politics ?? null,
-    social: parsedScore?.score_social ?? null,
+    labor: _isBaseline ? null : (parsedScore?.score_labor ?? null),
+    environment: _isBaseline ? null : (parsedScore?.score_environment ?? null),
+    politics: _isBaseline ? null : (parsedScore?.score_politics ?? null),
+    social: _isBaseline ? null : (parsedScore?.score_social ?? null),
   };
 
   // Verdict — use evidence count from hook above
   const hasEvidence = (evidenceTotal || 0) > 0;
   const getVerdict = (s: number | null) => {
-    if (s === null) return { label: hasEvidence ? 'Checking...' : 'Not yet rated', color: 'bg-muted text-muted-foreground', emoji: '—' };
+    if (s === null) return { label: hasEvidence ? 'Analyzing' : 'Not yet rated', color: 'bg-muted text-muted-foreground', emoji: '—' };
     if (s >= 65) return { label: 'Good', color: 'bg-success/15 text-success', emoji: '🟢' };
     if (s >= 40) return { label: 'Mixed', color: 'bg-warning/15 text-warning', emoji: '🟡' };
     return { label: 'Avoid', color: 'bg-destructive/15 text-destructive', emoji: '🔴' };
@@ -764,9 +776,13 @@ function TopReasons({ brandId, parentCompany, brandName, dimScores }: { brandId:
   }
   if (reasons.length === 0) {
     const overall = Object.values(dimScores).filter(v => v != null);
-    const avg = overall.length > 0 ? overall.reduce((a, b) => a! + b!, 0)! / overall.length : 50;
-    if (avg >= 65) reasons.push('No major issues found in checked sources');
-    else reasons.push('Mixed record across categories');
+    if (overall.length === 0) {
+      reasons.push('We\'re still processing public records for this brand');
+    } else {
+      const avg = overall.reduce((a, b) => a! + b!, 0)! / overall.length;
+      if (avg >= 65) reasons.push('No major issues found in checked sources');
+      else reasons.push('Mixed record across categories');
+    }
   }
 
   if (reasons.length === 0) return null;
