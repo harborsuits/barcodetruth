@@ -1,6 +1,6 @@
 import { ShieldCheck, ShieldAlert, ShieldX, Clock, FileCheck } from "lucide-react";
 
-interface TrustVerdictProps {
+export interface TrustVerdictProps {
   score: number | null;
   brandName: string;
   reasons: string[];
@@ -8,6 +8,8 @@ interface TrustVerdictProps {
   category?: string | null;
   parentCompany?: string | null;
   website?: string | null;
+  profileSummary?: string | null;
+  profileCompleteness?: number | null;
 }
 
 type Verdict = {
