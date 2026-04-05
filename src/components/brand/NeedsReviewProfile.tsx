@@ -19,6 +19,7 @@ import { ReportIssueDialog } from "@/components/ReportIssueDialog";
 import { IdentityFixCard } from "@/components/brand/IdentityFixCard";
 import type { ProfileStateData, MismatchDetail } from "@/hooks/useProfileState";
 import { BrandIdentityHeader } from "@/components/brand/BrandIdentityHeader";
+import { useDisplayProfile } from "@/hooks/useDisplayProfile";
 
 interface BrandData {
   id: string;
