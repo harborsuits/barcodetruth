@@ -275,7 +275,8 @@ export default function ScanResultV1() {
   });
 
   // Use navigation state brand name as fallback display name
-  const displayBrandName = brandInfo?.name || navBrandName || null;
+  const displayBrandName = formatBrandName(brandInfo?.name || navBrandName) || null;
+  const displayProductName = formatProductName(product?.name) || product?.name || "Product";
 
   // States
   const brandIsReady = brandInfo?.status === "ready" || brandInfo?.status === "active";
