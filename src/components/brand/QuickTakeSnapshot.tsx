@@ -33,7 +33,15 @@ export function QuickTakeSnapshot({ brandId }: QuickTakeSnapshotProps) {
 
   if (!data) return null;
 
-  const comp = data.composite_score ?? 50;
+  // Detect baseline: all scores at 50 or null means no real data
+  const _isBaseline = 
+    (data.composite_score === null || data.composite_score === 50) &&
+    (data.labor_score === null || data.labor_score === 50) &&
+    (data.environment_score === null || data.environment_score === 50) &&
+    (data.politics_score === null || data.politics_score === 50) &&
+    (data.social_score === null || data.social_score === 50);
+
+  const comp = _isBaseline ? null : data.composite_score;
   
   // Helper to render mini metric pills
   const MetricPill = ({ label, value }: { label: string; value?: number | null }) => (
@@ -48,18 +56,32 @@ export function QuickTakeSnapshot({ brandId }: QuickTakeSnapshotProps) {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <div className="text-sm text-muted-foreground mb-1">Quick Take</div>
-          <div className="text-4xl font-bold text-foreground">{comp}</div>
-          <div className="text-xs text-muted-foreground mt-1">Overall Rating</div>
+          {comp !== null ? (
+            <>
+              <div className="text-4xl font-bold text-foreground">{comp}</div>
+              <div className="text-xs text-muted-foreground mt-1">Overall Rating</div>
+            </>
+          ) : (
+            <>
+              <div className="text-xl font-semibold text-muted-foreground">Analyzing</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                We're processing public records for this brand
+              </div>
+            </>
+          )}
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <MetricPill label="Labor" value={data.labor_score} />
-          <MetricPill label="Environment" value={data.environment_score} />
-        </div>
+        {!_isBaseline && (
+          <div className="flex gap-2 flex-wrap">
+            <MetricPill label="Labor" value={data.labor_score} />
+            <MetricPill label="Environment" value={data.environment_score} />
+          </div>
+        )}
       </div>
       <div className="mt-4 text-xs text-muted-foreground">
-        Snapshot based on current verified data •{" "}
-        Updated {data.last_updated ? new Date(data.last_updated).toLocaleDateString() : "—"}
-        {data.composite_score === null && " • Baseline until more events arrive"}
+        {_isBaseline
+          ? "Profile building as more verified data is reviewed"
+          : <>Snapshot based on current verified data • Updated {data.last_updated ? new Date(data.last_updated).toLocaleDateString() : "—"}</>
+        }
       </div>
     </div>
   );

@@ -56,18 +56,18 @@ function ScoreDisplay({ score }: { score: number | null }) {
   if (score === null || score === undefined) {
     return (
       <div className="text-center p-4 bg-muted/50 rounded-lg">
-        <p className="text-sm text-muted-foreground">Score coming soon</p>
+        <p className="text-sm font-medium text-muted-foreground">Analyzing</p>
         <p className="text-xs text-muted-foreground mt-1">
-          Monitoring in progress — score will appear once enough verified events are collected.
+          We're still processing public records for this brand. Score will appear once verified data is reviewed.
         </p>
       </div>
     );
   }
   
   const getScoreColor = (s: number) => {
-    if (s >= 70) return 'text-green-600';
-    if (s >= 40) return 'text-yellow-600';
-    return 'text-red-600';
+    if (s >= 70) return 'text-success';
+    if (s >= 40) return 'text-warning';
+    return 'text-destructive';
   };
   
   const getScoreLabel = (s: number) => {
