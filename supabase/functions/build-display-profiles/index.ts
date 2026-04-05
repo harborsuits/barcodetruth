@@ -101,10 +101,10 @@ function classifyLogo(url: string | null): { status: string; source: string | nu
 function computeScoreState(scores: any): string {
   if (!scores) return 'unseen';
   const s = scores;
-  const isBaseline = s.overall_score === 50 && s.labor_score === 50 &&
-    s.environment_score === 50 && s.governance_score === 50;
+  const isBaseline = s.score === 50 && s.score_labor === 50 &&
+    s.score_environment === 50 && s.score_politics === 50;
   if (isBaseline) return 'building';
-  if (s.overall_score != null) return 'scored';
+  if (s.score != null) return 'scored';
   return 'building';
 }
 
