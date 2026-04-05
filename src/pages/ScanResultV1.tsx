@@ -14,6 +14,7 @@ import { EnrichmentStageProgress } from "@/components/brand/EnrichmentStageProgr
 import { TrustVerdict } from "@/components/scan/TrustVerdict";
 import { ScoreBreakdownCard } from "@/components/scan/ScoreBreakdownCard";
 import { formatCategory } from "@/lib/formatCategory";
+import { formatBrandName, formatProductName } from "@/lib/formatBrandName";
 import { OwnershipReveal } from "@/components/scan/OwnershipReveal";
 import { ShareCard, getGrade } from "@/components/scan/ShareCard";
 import { useBrandLogo } from "@/hooks/useBrandLogo";
