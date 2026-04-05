@@ -18,6 +18,7 @@ import { formatBrandName, formatProductName } from "@/lib/formatBrandName";
 import { OwnershipReveal } from "@/components/scan/OwnershipReveal";
 import { ShareCard, getGrade } from "@/components/scan/ShareCard";
 import { useBrandLogo } from "@/hooks/useBrandLogo";
+import { useDisplayProfile } from "@/hooks/useDisplayProfile";
 
 // ─── Correction form (unchanged) ───
 function CorrectionForm({ brandName, onSubmit }: { brandName: string; onSubmit: (data: { name?: string; website?: string }) => void }) {
