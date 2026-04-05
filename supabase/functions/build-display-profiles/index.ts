@@ -215,7 +215,7 @@ Deno.serve(async (req) => {
       const categoryLabel = normalizeCategory(brand.category_slug);
       const displayName = normalizeName(brand.name || '');
       const completeness = computeCompleteness(brand, scores, eventCount);
-      const profileStatus = computeProfileStatus(completeness, scoreState, brand.needs_review || false);
+      const profileStatus = computeProfileStatus(completeness, scoreState, brand.status === 'needs_review');
       const summary = generateSummary(brand, scoreState, parentName ? normalizeName(parentName) : null, categoryLabel);
 
       profiles.push({
