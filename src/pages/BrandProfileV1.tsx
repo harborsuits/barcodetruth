@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDisplayProfile } from '@/hooks/useDisplayProfile';
 import { isBaselineScore } from '@/lib/isBaselineScore';
 import { AlternativesSection } from '@/components/brand/AlternativesSection';
 import { CorporateFamilyTree } from '@/components/brand/CorporateFamilyTree';
@@ -411,6 +412,7 @@ export default function BrandProfileV1() {
 
   // Query profile state for state-based rendering
   const { data: profileState, isLoading: stateLoading } = useProfileState(resolvedBrandId);
+  const { data: displayProfile } = useDisplayProfile(resolvedBrandId);
 
   // Evidence count — must be before early returns (hooks ordering)
   const { data: evidenceTotal } = useQuery({
@@ -614,7 +616,12 @@ export default function BrandProfileV1() {
         )}
 
         {/* ─── Brand Identity ─── */}
-        <BrandIdentityHeader brandName={brand.name} logoUrl={brand.logo_url} website={brand.website} />
+        <BrandIdentityHeader 
+          brandName={displayProfile?.display_name || brand.name} 
+          logoUrl={displayProfile?.logo_url || brand.logo_url} 
+          website={brand.website}
+          subtitle={displayProfile?.category_label || undefined}
+        />
 
         {/* ─── 1. INSTANT VERDICT ─── */}
         <div className={`${verdict.color} border border-border p-5`}>
