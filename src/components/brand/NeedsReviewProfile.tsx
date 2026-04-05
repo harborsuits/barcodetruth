@@ -251,13 +251,13 @@ export function NeedsReviewProfile({ brand, stateData }: NeedsReviewProfileProps
         open={suggestOpen} 
         onOpenChange={setSuggestOpen}
         brandId={brand.id}
-        brandName={brand.name}
+        brandName={displayName}
       />
       <ReportIssueDialog
         open={reportOpen}
         onOpenChange={setReportOpen}
         brandId={brand.id}
-        brandName={brand.name}
+        brandName={displayName}
       />
     </div>
   );
