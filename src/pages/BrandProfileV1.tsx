@@ -776,9 +776,13 @@ function TopReasons({ brandId, parentCompany, brandName, dimScores }: { brandId:
   }
   if (reasons.length === 0) {
     const overall = Object.values(dimScores).filter(v => v != null);
-    const avg = overall.length > 0 ? overall.reduce((a, b) => a! + b!, 0)! / overall.length : 50;
-    if (avg >= 65) reasons.push('No major issues found in checked sources');
-    else reasons.push('Mixed record across categories');
+    if (overall.length === 0) {
+      reasons.push('We\'re still processing public records for this brand');
+    } else {
+      const avg = overall.reduce((a, b) => a! + b!, 0)! / overall.length;
+      if (avg >= 65) reasons.push('No major issues found in checked sources');
+      else reasons.push('Mixed record across categories');
+    }
   }
 
   if (reasons.length === 0) return null;
