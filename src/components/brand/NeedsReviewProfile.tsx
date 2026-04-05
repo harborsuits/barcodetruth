@@ -70,17 +70,21 @@ function MismatchDetails({ details }: { details: MismatchDetail[] }) {
 export function NeedsReviewProfile({ brand, stateData }: NeedsReviewProfileProps) {
   const [reportOpen, setReportOpen] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
+  const { data: displayProfile } = useDisplayProfile(brand.id);
+
+  const displayName = displayProfile?.display_name || brand.name;
+  const displayWebsite = displayProfile?.website || brand.website;
 
   // Build what we DO know (only confident data)
   const knownFacts: { icon: typeof Building2; label: string; value: string; link?: string }[] = [];
 
-  if (brand.website) {
-    const domain = brand.website.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  if (displayWebsite) {
+    const domain = displayWebsite.replace(/^https?:\/\//, '').replace(/\/$/, '');
     knownFacts.push({
       icon: Globe,
       label: 'Website',
       value: domain,
-      link: brand.website,
+      link: displayWebsite,
     });
   }
 
