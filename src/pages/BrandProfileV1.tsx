@@ -412,6 +412,7 @@ export default function BrandProfileV1() {
 
   // Query profile state for state-based rendering
   const { data: profileState, isLoading: stateLoading } = useProfileState(resolvedBrandId);
+  const { data: displayProfile } = useDisplayProfile(resolvedBrandId);
 
   // Evidence count — must be before early returns (hooks ordering)
   const { data: evidenceTotal } = useQuery({
