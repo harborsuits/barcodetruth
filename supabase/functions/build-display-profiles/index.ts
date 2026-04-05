@@ -186,20 +186,27 @@ Deno.serve(async (req) => {
 
     const ids = brands.map(b => b.id);
 
-    // Batch fetch scores, parents, event counts
-    const [scoresRes, parentsRes, eventsRes] = await Promise.all([
+    // Batch fetch scores and parent names
+    const [scoresRes, parentsRes] = await Promise.all([
       supabase.from('brand_scores').select('brand_id, score, score_labor, score_environment, score_politics, score_social').in('brand_id', ids),
-      supabase.from('brands').select('id, name').in('id', brands.filter(b => b.parent_company).map(b => b.parent_company!)),
-      supabase.rpc('get_brand_event_counts', { brand_ids: ids }).catch(() => ({ data: null })),
+      supabase.from('brands').select('id, name').in('id', brands.filter(b => b.parent_company).map(b => b.parent_company!).filter(Boolean)),
     ]);
 
     const scoresMap = new Map((scoresRes.data || []).map(s => [s.brand_id, s]));
     const parentsMap = new Map((parentsRes.data || []).map(p => [p.id, p.name]));
 
-    // Event counts fallback — if RPC doesn't exist, query directly
-    let eventCountMap = new Map<string, number>();
-    if (eventsRes.data && Array.isArray(eventsRes.data)) {
-      eventCountMap = new Map(eventsRes.data.map((e: any) => [e.brand_id, e.count]));
+    // Event counts — simple count query per brand batch
+    const eventCountMap = new Map<string, number>();
+    const { data: eventData } = await supabase
+      .from('brand_events')
+      .select('brand_id')
+      .in('brand_id', ids)
+      .eq('is_irrelevant', false)
+      .limit(1000);
+    if (eventData) {
+      for (const e of eventData) {
+        eventCountMap.set(e.brand_id, (eventCountMap.get(e.brand_id) || 0) + 1);
+      }
     }
 
     // Build display profiles
