@@ -512,8 +512,8 @@ export default function ScanResultV1() {
                 <p className="text-sm text-muted-foreground mt-0.5">
                   by <span className="font-medium text-foreground">{displayBrandName || "Resolving..."}</span>
                 </p>
-                {product.category && (
-                  <p className="text-xs text-muted-foreground mt-1">{product.category}</p>
+                {formatCategory(product.category) && (
+                  <p className="text-xs text-muted-foreground mt-1">{formatCategory(product.category)}</p>
                 )}
               </div>
             </div>

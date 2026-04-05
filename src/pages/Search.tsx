@@ -171,9 +171,9 @@ export default function Search() {
                             className="font-medium" 
                             dangerouslySetInnerHTML={{ __html: highlightMatch(product.name, query) }}
                           />
-                          {product.category && (
+                          {formatCategory(product.category) && (
                             <div className="text-sm text-muted-foreground mt-1">
-                              {product.category}
+                              {formatCategory(product.category)}
                             </div>
                           )}
                           <div className="text-xs text-muted-foreground mt-1 font-mono">
