@@ -275,9 +275,15 @@ export default function ScanResultV1() {
     },
   });
 
+  // Display profile — canonical enriched data layer
+  const { data: displayProfile } = useDisplayProfile(product?.brand_id);
+
   // Use navigation state brand name as fallback display name
-  const displayBrandName = formatBrandName(brandInfo?.name || navBrandName) || null;
+  // Priority: display profile > formatted raw name > nav state
+  const displayBrandName = displayProfile?.display_name || formatBrandName(brandInfo?.name || navBrandName) || null;
   const displayProductName = formatProductName(product?.name) || product?.name || "Product";
+  const displayCategory = displayProfile?.category_label || formatCategory(product?.category);
+  const displayParent = displayProfile?.parent_display_name || (brandInfo?.parent_company ? formatBrandName(brandInfo.parent_company) : null);
 
   // States
   const brandIsReady = brandInfo?.status === "ready" || brandInfo?.status === "active";
