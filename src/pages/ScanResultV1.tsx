@@ -18,6 +18,7 @@ import { formatBrandName, formatProductName } from "@/lib/formatBrandName";
 import { OwnershipReveal } from "@/components/scan/OwnershipReveal";
 import { ShareCard, getGrade } from "@/components/scan/ShareCard";
 import { useBrandLogo } from "@/hooks/useBrandLogo";
+import { useDisplayProfile } from "@/hooks/useDisplayProfile";
 
 // ─── Correction form (unchanged) ───
 function CorrectionForm({ brandName, onSubmit }: { brandName: string; onSubmit: (data: { name?: string; website?: string }) => void }) {
@@ -274,9 +275,15 @@ export default function ScanResultV1() {
     },
   });
 
+  // Display profile — canonical enriched data layer
+  const { data: displayProfile } = useDisplayProfile(product?.brand_id);
+
   // Use navigation state brand name as fallback display name
-  const displayBrandName = formatBrandName(brandInfo?.name || navBrandName) || null;
+  // Priority: display profile > formatted raw name > nav state
+  const displayBrandName = displayProfile?.display_name || formatBrandName(brandInfo?.name || navBrandName) || null;
   const displayProductName = formatProductName(product?.name) || product?.name || "Product";
+  const displayCategory = displayProfile?.category_label || formatCategory(product?.category);
+  const displayParent = displayProfile?.parent_display_name || (brandInfo?.parent_company ? formatBrandName(brandInfo.parent_company) : null);
 
   // States
   const brandIsReady = brandInfo?.status === "ready" || brandInfo?.status === "active";
@@ -502,8 +509,9 @@ export default function ScanResultV1() {
               You scanned this
             </p>
             <div className="flex items-center gap-3">
-              {displayLogo ? (
-                <img src={displayLogo} alt={brandInfo?.name || ""} className="w-14 h-14 border-2 border-border object-contain bg-background flex-shrink-0 p-1.5 rounded" />
+              {/* Use display profile logo, then useBrandLogo fallback */}
+              {(displayProfile?.logo_url || displayLogo) ? (
+                <img src={displayProfile?.logo_url || displayLogo!} alt={displayBrandName || ""} className="w-14 h-14 border-2 border-border object-contain bg-background flex-shrink-0 p-1.5 rounded" />
               ) : (
                 <div className="w-14 h-14 border-2 border-border grid place-items-center text-xl font-bold bg-background flex-shrink-0 rounded">
                   {displayBrandName?.[0]?.toUpperCase() ?? "?"}
@@ -514,8 +522,8 @@ export default function ScanResultV1() {
                 <p className="text-sm text-muted-foreground mt-0.5">
                   by <span className="font-medium text-foreground">{displayBrandName || "Resolving..."}</span>
                 </p>
-                {formatCategory(product.category) && (
-                  <p className="text-xs text-muted-foreground mt-1">{formatCategory(product.category)}</p>
+                {displayCategory && (
+                  <p className="text-xs text-muted-foreground mt-1">{displayCategory}</p>
                 )}
               </div>
             </div>
@@ -533,12 +541,14 @@ export default function ScanResultV1() {
         {/* ─── 1. INSTANT VERDICT ─── */}
         <TrustVerdict
           score={effectiveScore}
-          brandName={brandInfo?.name || ""}
+          brandName={displayBrandName || ""}
           reasons={isBaselineScore ? ["Score analysis in progress — we'll update this automatically"] : reasons}
           hasEvidence={(counts.total || 0) > 0}
-          category={product?.category}
-          parentCompany={brandInfo?.parent_company}
+          category={displayCategory || product?.category}
+          parentCompany={displayParent || brandInfo?.parent_company}
           website={brandInfo?.website}
+          profileSummary={displayProfile?.summary}
+          profileCompleteness={displayProfile?.profile_completeness}
         />
 
         {/* ─── 2. OWNERSHIP ─── */}

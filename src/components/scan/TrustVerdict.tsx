@@ -1,6 +1,6 @@
 import { ShieldCheck, ShieldAlert, ShieldX, Clock, FileCheck } from "lucide-react";
 
-interface TrustVerdictProps {
+export interface TrustVerdictProps {
   score: number | null;
   brandName: string;
   reasons: string[];
@@ -8,6 +8,8 @@ interface TrustVerdictProps {
   category?: string | null;
   parentCompany?: string | null;
   website?: string | null;
+  profileSummary?: string | null;
+  profileCompleteness?: number | null;
 }
 
 type Verdict = {
@@ -78,7 +80,7 @@ function buildFallbackInsights(brandName: string, category?: string | null, pare
   return insights.slice(0, 3);
 }
 
-export function TrustVerdict({ score, brandName, reasons, hasEvidence, category, parentCompany, website }: TrustVerdictProps) {
+export function TrustVerdict({ score, brandName, reasons, hasEvidence, category, parentCompany, website, profileSummary, profileCompleteness }: TrustVerdictProps) {
   const verdict = getVerdict(score, hasEvidence);
   const Icon = verdict.icon;
   const isAnalyzing = score === null;
@@ -128,15 +130,26 @@ export function TrustVerdict({ score, brandName, reasons, hasEvidence, category,
       {/* Enriched context for unscored brands */}
       {isAnalyzing && (
         <div className="space-y-2 pt-2 border-t border-border/50">
-          {parentCompany && parentCompany !== brandName && (
+          {profileSummary && (
+            <p className="text-xs text-foreground/70 leading-relaxed">{profileSummary}</p>
+          )}
+          {parentCompany && parentCompany !== brandName && !profileSummary && (
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
               <span className="font-medium text-foreground/70">Parent company:</span> {parentCompany}
             </p>
           )}
-          {website && (
+          {website && !profileSummary && (
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
               <span className="font-medium text-foreground/70">Website:</span> {website.replace(/^https?:\/\/(www\.)?/, '')}
             </p>
+          )}
+          {profileCompleteness != null && profileCompleteness > 0 && (
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-1 bg-border rounded-full overflow-hidden">
+                <div className="h-full bg-primary/50 rounded-full transition-all" style={{ width: `${Math.min(profileCompleteness, 100)}%` }} />
+              </div>
+              <span className="text-[10px] text-muted-foreground">{profileCompleteness}% researched</span>
+            </div>
           )}
           <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
             <FileCheck className="h-3 w-3" />
