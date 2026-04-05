@@ -509,8 +509,9 @@ export default function ScanResultV1() {
               You scanned this
             </p>
             <div className="flex items-center gap-3">
-              {displayLogo ? (
-                <img src={displayLogo} alt={brandInfo?.name || ""} className="w-14 h-14 border-2 border-border object-contain bg-background flex-shrink-0 p-1.5 rounded" />
+              {/* Use display profile logo, then useBrandLogo fallback */}
+              {(displayProfile?.logo_url || displayLogo) ? (
+                <img src={displayProfile?.logo_url || displayLogo!} alt={displayBrandName || ""} className="w-14 h-14 border-2 border-border object-contain bg-background flex-shrink-0 p-1.5 rounded" />
               ) : (
                 <div className="w-14 h-14 border-2 border-border grid place-items-center text-xl font-bold bg-background flex-shrink-0 rounded">
                   {displayBrandName?.[0]?.toUpperCase() ?? "?"}
@@ -521,8 +522,8 @@ export default function ScanResultV1() {
                 <p className="text-sm text-muted-foreground mt-0.5">
                   by <span className="font-medium text-foreground">{displayBrandName || "Resolving..."}</span>
                 </p>
-                {formatCategory(product.category) && (
-                  <p className="text-xs text-muted-foreground mt-1">{formatCategory(product.category)}</p>
+                {displayCategory && (
+                  <p className="text-xs text-muted-foreground mt-1">{displayCategory}</p>
                 )}
               </div>
             </div>
