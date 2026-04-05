@@ -44,25 +44,35 @@ function getVerdict(score: number | null, hasEvidence?: boolean): Verdict {
   };
 }
 
-function buildFallbackInsights(brandName: string, category?: string | null, parentCompany?: string | null, hasEvidence?: boolean): string[] {
+function buildFallbackInsights(brandName: string, category?: string | null, parentCompany?: string | null, hasEvidence?: boolean, website?: string | null): string[] {
   const insights: string[] = [];
   
-  if (hasEvidence) {
-    insights.push("We found data for this brand — analyzing it now");
-  } else {
-    insights.push("Checking public records and news sources");
-  }
-  
   if (parentCompany && parentCompany !== brandName) {
-    insights.push(`Owned by ${parentCompany} — checking parent company too`);
+    insights.push(`Owned by ${parentCompany} — reviewing parent company record`);
   }
   
+  if (hasEvidence) {
+    insights.push("Found relevant data — verifying sources now");
+  }
+  
+  // Category-specific agency checks
   if (category) {
-    insights.push(`Comparing against other ${category.toLowerCase()} brands`);
+    const cat = category.toLowerCase();
+    if (cat.includes('food') || cat.includes('snack') || cat.includes('beverage') || cat.includes('cereal')) {
+      insights.push("Checking FDA records and supply chain reports");
+    } else if (cat.includes('clean') || cat.includes('household') || cat.includes('detergent')) {
+      insights.push("Reviewing EPA compliance and safety data");
+    } else if (cat.includes('beauty') || cat.includes('personal care') || cat.includes('hygiene') || cat.includes('skin')) {
+      insights.push("Checking ingredient safety and labor practices");
+    } else {
+      insights.push("Searching regulatory databases and public records");
+    }
+  } else {
+    insights.push("Searching public records and regulatory databases");
   }
   
   if (insights.length < 2) {
-    insights.push("No major issues found yet — analysis in progress");
+    insights.push("No major issues found yet — verification in progress");
   }
   
   return insights.slice(0, 3);
