@@ -114,9 +114,9 @@ export function NeedsReviewProfile({ brand, stateData }: NeedsReviewProfileProps
       <Card className="opacity-80">
         <CardContent className="pt-6">
           <BrandIdentityHeader
-            brandName={brand.name}
-            logoUrl={brand.logo_url}
-            website={brand.website}
+            brandName={displayName}
+            logoUrl={displayProfile?.logo_url || brand.logo_url}
+            website={displayWebsite}
             badge={<Badge variant="outline" className="text-xs border-destructive/50 text-destructive"><HelpCircle className="h-3 w-3 mr-1" />Unverified</Badge>}
             subtitle="Description withheld pending verification"
           />
