@@ -551,13 +551,14 @@ export default function ScanResultV1() {
         <TrustVerdict
           score={effectiveScore}
           brandName={displayBrandName || ""}
-          reasons={isBaselineScore ? ["Score analysis in progress — we'll update this automatically"] : reasons}
+          reasons={(isBaselineScore || isInsufficientEvidence) ? ["Limited data — score requires at least 5 verified events"] : reasons}
           hasEvidence={(counts.total || 0) > 0}
           category={displayCategory || product?.category}
           parentCompany={displayParent || brandInfo?.parent_company}
           website={brandInfo?.website}
           profileSummary={displayProfile?.summary}
           profileCompleteness={displayProfile?.profile_completeness}
+          eventCount={counts.total || 0}
         />
 
         {/* ─── 2. OWNERSHIP ─── */}
