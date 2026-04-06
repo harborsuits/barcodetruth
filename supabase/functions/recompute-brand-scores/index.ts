@@ -234,18 +234,29 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── STEP 2: Add inherited parent events for child brands ──
-    // Instead of the heavy view, do a targeted lookup
+    // Resolve parent_company (text name) → parent brand ID, then inherit events
     const { data: childBrands } = await supabase
       .from('brands')
-      .select('id, parent_brand_id')
-      .not('parent_brand_id', 'is', null);
+      .select('id, parent_company')
+      .not('parent_company', 'is', null)
+      .neq('parent_company', '');
 
     if (childBrands && childBrands.length > 0) {
-      const parentIds = [...new Set(childBrands.map(b => b.parent_brand_id))];
-      // Find parent events already fetched
+      // Build a name→id lookup for all brands (case-insensitive)
+      const parentNames = [...new Set(childBrands.map(b => b.parent_company))];
+      const { data: parentBrands } = await supabase
+        .from('brands')
+        .select('id, name')
+        .in('name', parentNames);
+
+      const nameToId = new Map<string, string>();
+      (parentBrands || []).forEach(p => nameToId.set(p.name, p.id));
+
+      // Build parent event map from already-fetched events
+      const parentIds = new Set([...nameToId.values()]);
       const parentEventMap = new Map<string, BrandEvent[]>();
       for (const e of allEvents) {
-        if (parentIds.includes(e.brand_id)) {
+        if (parentIds.has(e.brand_id)) {
           if (!parentEventMap.has(e.brand_id)) parentEventMap.set(e.brand_id, []);
           parentEventMap.get(e.brand_id)!.push(e);
         }
@@ -253,7 +264,9 @@ Deno.serve(async (req: Request) => {
 
       let inheritedCount = 0;
       for (const child of childBrands) {
-        const parentEvents = parentEventMap.get(child.parent_brand_id) || [];
+        const parentId = nameToId.get(child.parent_company);
+        if (!parentId) continue;
+        const parentEvents = parentEventMap.get(parentId) || [];
         for (const pe of parentEvents) {
           allEvents.push({
             ...pe,
@@ -263,7 +276,7 @@ Deno.serve(async (req: Request) => {
           inheritedCount++;
         }
       }
-      console.log(`Added ${inheritedCount} inherited events for ${childBrands.length} child brands`);
+      console.log(`Added ${inheritedCount} inherited events for ${childBrands.length} child brands (resolved via parent_company name)`);
     }
 
     console.log(`Total events (with inheritance): ${allEvents.length}`);
