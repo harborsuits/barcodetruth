@@ -551,7 +551,8 @@ export default function BrandProfileV1() {
 
   const parsedScore = scoreData?.score ? (typeof scoreData.score === 'string' ? JSON.parse(scoreData.score) : scoreData.score) : null;
   
-  // Baseline detection — suppress flat-50 scores that haven't been computed yet
+  // Baseline detection — suppress near-baseline scores (47-53 range with low evidence)
+  // that result from weak impact data providing no meaningful differentiation
   const _rawDims = {
     overall: parsedScore?.overall ?? null,
     score_labor: parsedScore?.score_labor ?? null,
@@ -559,7 +560,16 @@ export default function BrandProfileV1() {
     score_politics: parsedScore?.score_politics ?? null,
     score_social: parsedScore?.score_social ?? null,
   };
-  const _isBaseline = isBaselineScore(_rawDims);
+  const _isBaselineFlat = isBaselineScore(_rawDims);
+  const _isNearBaseline = (
+    (_rawDims.overall === null || (_rawDims.overall >= 47 && _rawDims.overall <= 53)) &&
+    (_rawDims.score_labor === null || (_rawDims.score_labor >= 47 && _rawDims.score_labor <= 53)) &&
+    (_rawDims.score_environment === null || (_rawDims.score_environment >= 47 && _rawDims.score_environment <= 53)) &&
+    (_rawDims.score_politics === null || (_rawDims.score_politics >= 47 && _rawDims.score_politics <= 53)) &&
+    (_rawDims.score_social === null || (_rawDims.score_social >= 47 && _rawDims.score_social <= 53))
+  );
+  const _hasMinimalEvidence = (evidenceTotal || 0) < 5;
+  const _isBaseline = _isBaselineFlat || (_isNearBaseline && _hasMinimalEvidence);
   
   const scoreValue = _isBaseline ? null : (parsedScore?.overall != null ? Math.round(parsedScore.overall) : null);
   
