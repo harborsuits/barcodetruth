@@ -288,9 +288,14 @@ Deno.serve(async (req: Request) => {
 
     const cappedEvents: BrandEvent[] = [];
     const brandEventCounts = new Map<string, number>();
-    const sortedDeduped = [...dedupedEvents].sort((a, b) =>
-      new Date(b.event_date).getTime() - new Date(a.event_date).getTime()
-    );
+    // Sort: direct events first (scope_multiplier=1.0), then inherited, then by recency
+    const sortedDeduped = [...dedupedEvents].sort((a, b) => {
+      if (a.brand_id !== b.brand_id) return 0; // stable within brand
+      const aDirect = a.scope_multiplier >= 1.0 ? 0 : 1;
+      const bDirect = b.scope_multiplier >= 1.0 ? 0 : 1;
+      if (aDirect !== bDirect) return aDirect - bDirect; // direct first
+      return new Date(b.event_date).getTime() - new Date(a.event_date).getTime();
+    });
 
     let cappedCount = 0;
     for (const event of sortedDeduped) {
