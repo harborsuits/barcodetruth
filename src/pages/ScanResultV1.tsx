@@ -294,13 +294,19 @@ export default function ScanResultV1() {
   const overallScore = scoreData?.overall ?? null;
   const counts = evidenceCounts || { labor: 0, environment: 0, politics: 0, social: 0, total: 0 };
 
-  // Detect baseline-50 scores (all dimensions exactly 50 = not yet scored)
-  const isBaselineScore = scoreData && 
-    scoreData.overall === 50 && 
-    scoreData.score_labor === 50 && 
-    scoreData.score_environment === 50 && 
-    scoreData.score_politics === 50 && 
-    scoreData.score_social === 50;
+  // Detect near-baseline scores: all dimensions within ±3 of 50 with minimal evidence
+  // This catches both flat-50 baselines AND weakly-differentiated scores (47-53)
+  // that result from low-impact events providing no meaningful signal
+  const isNearBaseline = scoreData && (
+    (scoreData.overall === null || (scoreData.overall >= 47 && scoreData.overall <= 53)) &&
+    (scoreData.score_labor === null || (scoreData.score_labor >= 47 && scoreData.score_labor <= 53)) &&
+    (scoreData.score_environment === null || (scoreData.score_environment >= 47 && scoreData.score_environment <= 53)) &&
+    (scoreData.score_politics === null || (scoreData.score_politics >= 47 && scoreData.score_politics <= 53)) &&
+    (scoreData.score_social === null || (scoreData.score_social >= 47 && scoreData.score_social <= 53))
+  );
+  // Suppress verdict if near-baseline AND low evidence count
+  const hasMinimalEvidence = (counts.total || 0) < 5;
+  const isBaselineScore = isNearBaseline && hasMinimalEvidence;
 
   const effectiveScore = isBaselineScore ? null : overallScore;
   const effectiveLabor = isBaselineScore ? null : (scoreData?.score_labor ?? null);
