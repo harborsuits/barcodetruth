@@ -154,8 +154,9 @@ function deduplicateForScoring(events: BrandEvent[]): BrandEvent[] {
 }
 
 function computeDimensionScore(sum: number, eventCount: number, worstImpact: number): number {
-  const SCALE = 2.5;
-  const normFactor = eventCount > 0 ? Math.sqrt(eventCount) : 1;
+  const SCALE = 5.0;
+  // Use cube root instead of square root so high-event brands don't get flattened
+  const normFactor = eventCount > 0 ? Math.cbrt(eventCount) : 1;
   let normalized = sum / normFactor;
 
   const MIN_INFLUENCE = 0.6;
