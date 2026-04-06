@@ -81,7 +81,7 @@ function buildFallbackInsights(brandName: string, category?: string | null, pare
   return insights.slice(0, 3);
 }
 
-export function TrustVerdict({ score, brandName, reasons, hasEvidence, category, parentCompany, website, profileSummary, profileCompleteness }: TrustVerdictProps) {
+export function TrustVerdict({ score, brandName, reasons, hasEvidence, category, parentCompany, website, profileSummary, profileCompleteness, eventCount }: TrustVerdictProps) {
   const verdict = getVerdict(score, hasEvidence);
   const Icon = verdict.icon;
   const isAnalyzing = score === null;
