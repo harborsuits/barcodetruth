@@ -72,8 +72,8 @@ export function classifySourceTier(domain: string): SourceTier {
  */
 export const TIER_SCORE_WEIGHTS: Record<SourceTier, number> = {
   tier_1: 1.0,
-  tier_2: 0.6,
-  tier_3: 0.1, // Context only - minimal score contribution
+  tier_2: 0.8,
+  tier_3: 0.7, // LLM-classified events still contribute substantially
 };
 
 /**
