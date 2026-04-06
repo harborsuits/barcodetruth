@@ -346,7 +346,7 @@ Deno.serve(async (req: Request) => {
       const tierWeight = TIER_SCORE_WEIGHTS[(event.source_tier as SourceTier) ?? 'tier_3'];
 
       const impacts: CategoryImpacts = event.category_impacts || {};
-      const hasImpacts = Object.values(impacts).some(v => v !== 0 && v !== undefined);
+      const hasImpacts = Object.values(impacts).some(v => v !== 0 && v !== undefined && Math.abs(v as number) >= 2);
       if (hasImpacts) eventsWithImpacts++; else eventsWithoutImpacts++;
 
       const combinedWeight = recencyWeight * verificationWeight * tierWeight;
@@ -376,22 +376,25 @@ Deno.serve(async (req: Request) => {
       bs.dimensions.politics_sum += politicsContrib;
       bs.dimensions.social_sum += socialContrib;
 
-      if (impacts.labor) {
+      // Minimum impact threshold: abs(impact) >= 2 to count as signal
+      // This prevents ±1 "noise" events from diluting the denominator
+      const MIN_IMPACT_THRESHOLD = 2;
+      if (impacts.labor && Math.abs(impacts.labor) >= MIN_IMPACT_THRESHOLD) {
         bs.dimensions.labor_count++;
         if (laborContrib < bs.dimensions.labor_worst) bs.dimensions.labor_worst = laborContrib;
         else if (laborContrib > 0 && laborContrib > bs.dimensions.labor_worst) bs.dimensions.labor_worst = laborContrib;
       }
-      if (impacts.environment) {
+      if (impacts.environment && Math.abs(impacts.environment) >= MIN_IMPACT_THRESHOLD) {
         bs.dimensions.environment_count++;
         if (envContrib < bs.dimensions.environment_worst) bs.dimensions.environment_worst = envContrib;
         else if (envContrib > 0 && envContrib > bs.dimensions.environment_worst) bs.dimensions.environment_worst = envContrib;
       }
-      if (impacts.politics) {
+      if (impacts.politics && Math.abs(impacts.politics) >= MIN_IMPACT_THRESHOLD) {
         bs.dimensions.politics_count++;
         if (politicsContrib < bs.dimensions.politics_worst) bs.dimensions.politics_worst = politicsContrib;
         else if (politicsContrib > 0 && politicsContrib > bs.dimensions.politics_worst) bs.dimensions.politics_worst = politicsContrib;
       }
-      if (impacts.social) {
+      if (impacts.social && Math.abs(impacts.social) >= MIN_IMPACT_THRESHOLD) {
         bs.dimensions.social_count++;
         if (socialContrib < bs.dimensions.social_worst) bs.dimensions.social_worst = socialContrib;
         else if (socialContrib > 0 && socialContrib > bs.dimensions.social_worst) bs.dimensions.social_worst = socialContrib;
