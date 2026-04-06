@@ -304,15 +304,18 @@ export default function ScanResultV1() {
     (scoreData.score_politics === null || (scoreData.score_politics >= 47 && scoreData.score_politics <= 53)) &&
     (scoreData.score_social === null || (scoreData.score_social >= 47 && scoreData.score_social <= 53))
   );
-  // Suppress verdict if near-baseline AND low evidence count
+  // MINIMUM SIGNAL THRESHOLD: suppress verdict if fewer than 5 direct events
+  // regardless of score value — a single event shouldn't drive a verdict
   const hasMinimalEvidence = (counts.total || 0) < 5;
   const isBaselineScore = isNearBaseline && hasMinimalEvidence;
+  // Also suppress any score backed by < 5 events even if outside baseline range
+  const isInsufficientEvidence = hasMinimalEvidence && !isNearBaseline;
 
-  const effectiveScore = isBaselineScore ? null : overallScore;
-  const effectiveLabor = isBaselineScore ? null : (scoreData?.score_labor ?? null);
-  const effectiveEnv = isBaselineScore ? null : (scoreData?.score_environment ?? null);
-  const effectivePol = isBaselineScore ? null : (scoreData?.score_politics ?? null);
-  const effectiveSoc = isBaselineScore ? null : (scoreData?.score_social ?? null);
+  const effectiveScore = (isBaselineScore || isInsufficientEvidence) ? null : overallScore;
+  const effectiveLabor = (isBaselineScore || isInsufficientEvidence) ? null : (scoreData?.score_labor ?? null);
+  const effectiveEnv = (isBaselineScore || isInsufficientEvidence) ? null : (scoreData?.score_environment ?? null);
+  const effectivePol = (isBaselineScore || isInsufficientEvidence) ? null : (scoreData?.score_politics ?? null);
+  const effectiveSoc = (isBaselineScore || isInsufficientEvidence) ? null : (scoreData?.score_social ?? null);
 
   const dimensions = [
     { key: "labor", label: "Labor & Safety", score: effectiveLabor, evidenceCount: counts.labor, summary: getDimensionSummary("labor", effectiveLabor, counts.labor) },
@@ -548,13 +551,14 @@ export default function ScanResultV1() {
         <TrustVerdict
           score={effectiveScore}
           brandName={displayBrandName || ""}
-          reasons={isBaselineScore ? ["Score analysis in progress — we'll update this automatically"] : reasons}
+          reasons={(isBaselineScore || isInsufficientEvidence) ? ["Limited data — score requires at least 5 verified events"] : reasons}
           hasEvidence={(counts.total || 0) > 0}
           category={displayCategory || product?.category}
           parentCompany={displayParent || brandInfo?.parent_company}
           website={brandInfo?.website}
           profileSummary={displayProfile?.summary}
           profileCompleteness={displayProfile?.profile_completeness}
+          eventCount={counts.total || 0}
         />
 
         {/* ─── 2. OWNERSHIP ─── */}

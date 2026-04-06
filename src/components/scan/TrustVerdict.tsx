@@ -10,6 +10,7 @@ export interface TrustVerdictProps {
   website?: string | null;
   profileSummary?: string | null;
   profileCompleteness?: number | null;
+  eventCount?: number;
 }
 
 type Verdict = {
@@ -80,7 +81,7 @@ function buildFallbackInsights(brandName: string, category?: string | null, pare
   return insights.slice(0, 3);
 }
 
-export function TrustVerdict({ score, brandName, reasons, hasEvidence, category, parentCompany, website, profileSummary, profileCompleteness }: TrustVerdictProps) {
+export function TrustVerdict({ score, brandName, reasons, hasEvidence, category, parentCompany, website, profileSummary, profileCompleteness, eventCount }: TrustVerdictProps) {
   const verdict = getVerdict(score, hasEvidence);
   const Icon = verdict.icon;
   const isAnalyzing = score === null;
@@ -109,6 +110,11 @@ export function TrustVerdict({ score, brandName, reasons, hasEvidence, category,
             </span>
             <span className="text-sm text-muted-foreground ml-1">/100</span>
           </div>
+        )}
+        {score !== null && eventCount != null && eventCount > 0 && (
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Based on {eventCount} verified event{eventCount !== 1 ? "s" : ""}
+          </p>
         )}
       </div>
 
