@@ -336,14 +336,15 @@ Deno.serve(async (req: Request) => {
       const eventDate = new Date(event.event_date);
       const recencyWeight = getRecencyWeight(eventDate, now);
       const verificationWeight = getVerificationWeight(event.verification);
-      const credibilityWeight = event.credibility ?? 0.6;
+      // Removed credibility as separate multiplier — it was redundant with verification+tier
+      // and caused compound weight to crush all signals to near-zero
       const tierWeight = TIER_SCORE_WEIGHTS[(event.source_tier as SourceTier) ?? 'tier_3'];
 
       const impacts: CategoryImpacts = event.category_impacts || {};
       const hasImpacts = Object.values(impacts).some(v => v !== 0 && v !== undefined);
       if (hasImpacts) eventsWithImpacts++; else eventsWithoutImpacts++;
 
-      const combinedWeight = recencyWeight * verificationWeight * credibilityWeight * tierWeight;
+      const combinedWeight = recencyWeight * verificationWeight * tierWeight;
       const commMult = communityMultiplier(event.upvotes ?? 0, event.downvotes ?? 0);
       const scopeMultiplier = event.scope_multiplier ?? 1.0;
 
