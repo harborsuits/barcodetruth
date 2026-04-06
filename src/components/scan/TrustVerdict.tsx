@@ -10,6 +10,7 @@ export interface TrustVerdictProps {
   website?: string | null;
   profileSummary?: string | null;
   profileCompleteness?: number | null;
+  eventCount?: number;
 }
 
 type Verdict = {
