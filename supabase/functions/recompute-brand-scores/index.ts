@@ -346,7 +346,7 @@ Deno.serve(async (req: Request) => {
       const tierWeight = TIER_SCORE_WEIGHTS[(event.source_tier as SourceTier) ?? 'tier_3'];
 
       const impacts: CategoryImpacts = event.category_impacts || {};
-      const hasImpacts = Object.values(impacts).some(v => v !== 0 && v !== undefined);
+      const hasImpacts = Object.values(impacts).some(v => v !== 0 && v !== undefined && Math.abs(v as number) >= 2);
       if (hasImpacts) eventsWithImpacts++; else eventsWithoutImpacts++;
 
       const combinedWeight = recencyWeight * verificationWeight * tierWeight;
