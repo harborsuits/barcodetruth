@@ -111,6 +111,11 @@ export function TrustVerdict({ score, brandName, reasons, hasEvidence, category,
             <span className="text-sm text-muted-foreground ml-1">/100</span>
           </div>
         )}
+        {score !== null && eventCount != null && eventCount > 0 && (
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Based on {eventCount} verified event{eventCount !== 1 ? "s" : ""}
+          </p>
+        )}
       </div>
 
       {/* Top reasons */}
