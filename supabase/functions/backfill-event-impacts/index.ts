@@ -138,11 +138,9 @@ Deno.serve(async (req) => {
     if (brandId) query = query.eq('brand_id', brandId);
 
     if (mode === "weak") {
-      // Events where labor+env+politics are all 0 (only social was classified, or nothing)
+      // Events not yet processed by the backfill pipeline
       query = query
-        .eq('impact_labor', 0)
-        .eq('impact_environment', 0)
-        .eq('impact_politics', 0);
+        .or('ai_model_version.is.null,ai_model_version.not.ilike.%backfill%');
     }
 
     const { data: events, error: fetchError } = await query;
