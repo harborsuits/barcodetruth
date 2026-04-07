@@ -294,7 +294,34 @@ export function WhyThisScore({ brandId, brandName, score, scoreDimensions }: Why
               )}
             </div>
 
-            {/* 4. Integrity note */}
+            {/* 4. Learning signals (reservoir) */}
+            {reservoirAdj && reservoirAdj.adjustment !== 0 && (
+              <div className="p-4 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                  <Brain className="h-3 w-3" />
+                  Learning signals
+                </p>
+                {(reservoirAdj.signals_used as any[])?.map((sig: any, i: number) => {
+                  let label = '';
+                  if (sig.signal_type === 'recall_pattern') label = 'System detected repeated recall/safety patterns';
+                  else if (sig.signal_type === 'violation_pattern') label = 'System detected repeated regulatory violation patterns';
+                  else if (sig.signal_type === 'certification_signal') label = 'Certified sustainability credentials recognized';
+                  return (
+                    <div key={i} className="flex items-start gap-2">
+                      <span className={`text-xs mt-0.5 ${sig.adjustment < 0 ? 'text-destructive' : 'text-success'}`}>
+                        {sig.adjustment < 0 ? '▼' : '▲'}
+                      </span>
+                      <p className="text-sm text-foreground/80 leading-snug">{label}</p>
+                    </div>
+                  );
+                })}
+                <p className="text-xs text-muted-foreground mt-1">
+                  Score adjusted by {reservoirAdj.adjustment > 0 ? '+' : ''}{reservoirAdj.adjustment.toFixed(1)} based on behavioral patterns
+                </p>
+              </div>
+            )}
+
+            {/* 5. Integrity note */}
             <div className="p-3 bg-muted/30">
               <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
                 <ShieldCheck className="h-3 w-3 flex-shrink-0" />
