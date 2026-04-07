@@ -158,6 +158,7 @@ Deno.serve(async (req) => {
 
     let totalScanned = 0;
     let totalSkipped = 0;
+    let totalMismatched = 0;
     const allEvents: any[] = [];
     const maxPerEndpoint = 30;
 
