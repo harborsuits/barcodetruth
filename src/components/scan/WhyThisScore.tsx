@@ -123,10 +123,9 @@ export function WhyThisScore({ brandId, brandName, score, scoreDimensions }: Why
 
   const { data: stats } = useQuery({
     queryKey: ["why-this-score", brandId],
-    enabled: !!brandId && isOpen, // lazy load on expand
+    enabled: !!brandId && isOpen,
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      // Fetch all events for this brand to compute stats
       const { data: events, error } = await supabase
         .from("brand_events")
         .select("score_eligible, brand_relevance_score, is_marketing_noise, duplicate_of, category, verification, impact_labor, impact_environment, impact_politics, impact_social, is_irrelevant, event_date")
@@ -137,36 +136,21 @@ export function WhyThisScore({ brandId, brandName, score, scoreDimensions }: Why
 
       const result: FilterStats = {
         totalEvents: events.length,
-        eligibleEvents: 0,
-        excludedEvents: 0,
-        directBrandEvents: 0,
-        parentOnlyEvents: 0,
-        marketingNoiseEvents: 0,
-        duplicateEvents: 0,
-        categoryBreakdown: {},
-        verificationBreakdown: {},
+        eligibleEvents: 0, excludedEvents: 0,
+        directBrandEvents: 0, parentOnlyEvents: 0,
+        marketingNoiseEvents: 0, duplicateEvents: 0,
+        categoryBreakdown: {}, verificationBreakdown: {},
         topImpactDimensions: [],
-        recencyLabel: "Unknown",
-        latestEventDate: null,
-        recencyBullet: "",
+        recencyLabel: "Unknown", latestEventDate: null, recencyBullet: "",
       };
 
-      const dimImpacts: Record<string, number[]> = {
-        labor: [], environment: [], politics: [], social: [],
-      };
+      const dimImpacts: Record<string, number[]> = { labor: [], environment: [], politics: [], social: [] };
 
       for (const ev of events as any[]) {
         if (ev.score_eligible) {
           result.eligibleEvents++;
-          // Category
-          if (ev.category) {
-            result.categoryBreakdown[ev.category] = (result.categoryBreakdown[ev.category] || 0) + 1;
-          }
-          // Verification
-          if (ev.verification) {
-            result.verificationBreakdown[ev.verification] = (result.verificationBreakdown[ev.verification] || 0) + 1;
-          }
-          // Impacts
+          if (ev.category) result.categoryBreakdown[ev.category] = (result.categoryBreakdown[ev.category] || 0) + 1;
+          if (ev.verification) result.verificationBreakdown[ev.verification] = (result.verificationBreakdown[ev.verification] || 0) + 1;
           if (ev.impact_labor) dimImpacts.labor.push(ev.impact_labor);
           if (ev.impact_environment) dimImpacts.environment.push(ev.impact_environment);
           if (ev.impact_politics) dimImpacts.politics.push(ev.impact_politics);
@@ -174,28 +158,18 @@ export function WhyThisScore({ brandId, brandName, score, scoreDimensions }: Why
         } else {
           result.excludedEvents++;
         }
-
-        // Attribution breakdown
         const relScore = ev.brand_relevance_score ?? 3;
-        if (relScore >= 2) {
-          result.directBrandEvents++;
-        } else if (relScore === 1) {
-          result.parentOnlyEvents++;
-        }
+        if (relScore >= 2) result.directBrandEvents++;
+        else if (relScore === 1) result.parentOnlyEvents++;
         if (ev.is_marketing_noise) result.marketingNoiseEvents++;
         if (ev.duplicate_of) result.duplicateEvents++;
       }
 
-      // Top impact dimensions
       result.topImpactDimensions = Object.entries(dimImpacts)
         .filter(([_, vals]) => vals.length > 0)
-        .map(([dim, vals]) => ({
-          dimension: dim,
-          avgImpact: vals.reduce((s, v) => s + v, 0) / vals.length,
-        }))
+        .map(([dim, vals]) => ({ dimension: dim, avgImpact: vals.reduce((s, v) => s + v, 0) / vals.length }))
         .sort((a, b) => Math.abs(b.avgImpact) - Math.abs(a.avgImpact));
 
-      // Recency computation from eligible events
       const eligibleDates = (events as any[])
         .filter(ev => ev.score_eligible && ev.event_date)
         .map(ev => new Date(ev.event_date).getTime())
@@ -203,19 +177,10 @@ export function WhyThisScore({ brandId, brandName, score, scoreDimensions }: Why
 
       if (eligibleDates.length > 0) {
         const latest = Math.max(...eligibleDates);
-        const now = Date.now();
-        const monthsAgo = (now - latest) / (1000 * 60 * 60 * 24 * 30);
+        const monthsAgo = (Date.now() - latest) / (1000 * 60 * 60 * 24 * 30);
         result.latestEventDate = new Date(latest).toISOString();
+        result.recencyLabel = monthsAgo <= 12 ? "Recent" : monthsAgo <= 36 ? "Moderate" : "Older";
 
-        if (monthsAgo <= 12) {
-          result.recencyLabel = "Recent";
-        } else if (monthsAgo <= 36) {
-          result.recencyLabel = "Moderate";
-        } else {
-          result.recencyLabel = "Older";
-        }
-
-        // Build recency bullet combining recency + impact
         const hasHighImpact = result.topImpactDimensions.some(d => Math.abs(d.avgImpact) >= 3);
         const hasNegative = result.topImpactDimensions.some(d => d.avgImpact < -1);
 
@@ -233,6 +198,25 @@ export function WhyThisScore({ brandId, brandName, score, scoreDimensions }: Why
       }
 
       return result;
+    },
+  });
+
+  // Fetch reservoir adjustment for this brand
+  const { data: reservoirAdj } = useQuery({
+    queryKey: ["reservoir-adjustment", brandId],
+    enabled: !!brandId && isOpen,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("reservoir_adjustments")
+        .select("adjustment, signals_used, computed_at")
+        .eq("brand_id", brandId)
+        .order("computed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error || !data) return null;
+      return data as { adjustment: number; signals_used: any[]; computed_at: string };
     },
   });
 
