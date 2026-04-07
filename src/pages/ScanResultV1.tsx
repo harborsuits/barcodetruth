@@ -567,7 +567,12 @@ export default function ScanResultV1() {
           <OwnershipReveal brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name} parentCompany={displayParent || brandInfo.parent_company} />
         )}
 
-        {/* ─── 3. BETTER ALTERNATIVES ─── */}
+        {/* ─── 3. EVIDENCE / NEWS ─── */}
+        {brandInfo?.id && (
+          <EvidenceSection brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name} />
+        )}
+
+        {/* ─── 4. BETTER ALTERNATIVES ─── */}
         {brandInfo?.id && (
           <AlternativesSection brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name || "this brand"} />
         )}
