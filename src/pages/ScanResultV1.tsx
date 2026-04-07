@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { AlternativesSection } from "@/components/brand/AlternativesSection";
 import { EnrichmentStageProgress } from "@/components/brand/EnrichmentStageProgress";
+import { EvidenceSection } from "@/components/scan/EvidenceSection";
 import { TrustVerdict } from "@/components/scan/TrustVerdict";
 import { ScoreBreakdownCard } from "@/components/scan/ScoreBreakdownCard";
 import { formatCategory } from "@/lib/formatCategory";
@@ -566,12 +567,17 @@ export default function ScanResultV1() {
           <OwnershipReveal brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name} parentCompany={displayParent || brandInfo.parent_company} />
         )}
 
-        {/* ─── 3. BETTER ALTERNATIVES ─── */}
+        {/* ─── 3. EVIDENCE / NEWS ─── */}
+        {brandInfo?.id && (
+          <EvidenceSection brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name} />
+        )}
+
+        {/* ─── 4. BETTER ALTERNATIVES ─── */}
         {brandInfo?.id && (
           <AlternativesSection brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name || "this brand"} />
         )}
 
-        {/* ─── 4. DETAILED BREAKDOWN (collapsible) ─── */}
+        {/* ─── 5. DETAILED BREAKDOWN (collapsible) ─── */}
         {brandInfo?.id && (
           <details className="group">
             <summary className="flex items-center justify-between cursor-pointer p-4 bg-elevated-1 border border-border rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
@@ -584,7 +590,7 @@ export default function ScanResultV1() {
           </details>
         )}
 
-        {/* ─── 5. SHARE ─── */}
+        {/* ─── 6. SHARE ─── */}
         <ShareCard
           brandName={displayBrandName || brandInfo?.name || ""}
           score={effectiveScore}

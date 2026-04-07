@@ -1,4 +1,4 @@
-import { ShieldCheck, ShieldAlert, ShieldX, Clock, FileCheck } from "lucide-react";
+import { ShieldCheck, ShieldAlert, ShieldX, Clock, FileCheck, Building2, Globe, BarChart3 } from "lucide-react";
 
 export interface TrustVerdictProps {
   score: number | null;
@@ -47,7 +47,7 @@ function getVerdict(score: number | null, hasEvidence?: boolean): Verdict {
   };
 }
 
-function buildFallbackInsights(brandName: string, category?: string | null, parentCompany?: string | null, hasEvidence?: boolean, website?: string | null): string[] {
+function buildFallbackInsights(brandName: string, category?: string | null, parentCompany?: string | null, hasEvidence?: boolean): string[] {
   const insights: string[] = [];
   
   if (parentCompany && parentCompany !== brandName) {
@@ -58,7 +58,6 @@ function buildFallbackInsights(brandName: string, category?: string | null, pare
     insights.push("Found relevant data — verifying sources now");
   }
   
-  // Category-specific agency checks
   if (category) {
     const cat = category.toLowerCase();
     if (cat.includes('food') || cat.includes('snack') || cat.includes('beverage') || cat.includes('cereal')) {
@@ -109,12 +108,12 @@ export function TrustVerdict({ score, brandName, reasons, hasEvidence, category,
               {Math.round(score)}
             </span>
             <span className="text-sm text-muted-foreground ml-1">/100</span>
+            {eventCount != null && eventCount > 0 && (
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Based on {eventCount} verified event{eventCount !== 1 ? "s" : ""}
+              </p>
+            )}
           </div>
-        )}
-        {score !== null && eventCount != null && eventCount > 0 && (
-          <p className="text-[10px] text-muted-foreground mt-1">
-            Based on {eventCount} verified event{eventCount !== 1 ? "s" : ""}
-          </p>
         )}
       </div>
 
@@ -133,22 +132,30 @@ export function TrustVerdict({ score, brandName, reasons, hasEvidence, category,
         </div>
       )}
 
-      {/* Enriched context for unscored brands */}
-      {isAnalyzing && (
+      {/* Brand intelligence context — shown for BOTH scored and analyzing states */}
+      {(profileSummary || (parentCompany && parentCompany !== brandName) || (website && !isAnalyzing)) && (
         <div className="space-y-2 pt-2 border-t border-border/50">
           {profileSummary && (
             <p className="text-xs text-foreground/70 leading-relaxed">{profileSummary}</p>
           )}
-          {parentCompany && parentCompany !== brandName && !profileSummary && (
+          {parentCompany && parentCompany !== brandName && (
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Building2 className="h-3 w-3 flex-shrink-0" />
               <span className="font-medium text-foreground/70">Parent company:</span> {parentCompany}
             </p>
           )}
-          {website && !profileSummary && (
+          {website && (
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Globe className="h-3 w-3 flex-shrink-0" />
               <span className="font-medium text-foreground/70">Website:</span> {website.replace(/^https?:\/\/(www\.)?/, '')}
             </p>
           )}
+        </div>
+      )}
+
+      {/* Progress indicator — only for analyzing state */}
+      {isAnalyzing && (
+        <div className="space-y-2 pt-2 border-t border-border/50">
           {profileCompleteness != null && profileCompleteness > 0 && (
             <div className="flex items-center gap-2">
               <div className="flex-1 h-1 bg-border rounded-full overflow-hidden">
