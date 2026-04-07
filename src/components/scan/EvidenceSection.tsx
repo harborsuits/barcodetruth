@@ -11,6 +11,10 @@ interface EvidenceItem {
   source_url: string | null;
   source_name: string | null;
   verification: string | null;
+  impact_labor: number | null;
+  impact_environment: number | null;
+  impact_politics: number | null;
+  impact_social: number | null;
 }
 
 interface EvidenceSectionProps {
