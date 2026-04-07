@@ -823,7 +823,7 @@ Deno.serve(async (req) => {
       console.log("[Orchestrator] Fetching active brands (no specific brand_id)");
       const { data, error: brandsError } = await supabase
         .from("brands")
-        .select("id,name,aliases,ticker,newsroom_domains,monitoring_config")
+        .select("id,name,aliases,ticker,newsroom_domains,monitoring_config,parent_company")
         .eq("is_active", true)
         .limit(10);
       if (brandsError) {
@@ -837,7 +837,8 @@ Deno.serve(async (req) => {
         ticker: b.ticker || null,
         newsroom_domains: b.newsroom_domains || [],
         monitoring_config: (b as any).monitoring_config || null,
-        match_policy: policyMap.get(b.id) || undefined
+        match_policy: policyMap.get(b.id) || undefined,
+        parent_company: b.parent_company || null
       }));
       console.log(`[Orchestrator] Found ${brands.length} active brands`);
     }
