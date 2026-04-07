@@ -1,4 +1,4 @@
-import { ShieldCheck, ShieldAlert, ShieldX, Clock, FileCheck, Building2, Globe, BarChart3 } from "lucide-react";
+import { ShieldCheck, ShieldAlert, ShieldX, Clock, FileCheck, Building2, Globe, BarChart3, Signal } from "lucide-react";
 
 export interface TrustVerdictProps {
   score: number | null;
