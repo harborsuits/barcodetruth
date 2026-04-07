@@ -5,6 +5,7 @@ import { compareTwoStrings } from "https://esm.sh/string-similarity@4.0.4";
 import { RELEVANCE_MIN_ACCEPTED, RELEVANCE_MAX_SCORE } from "../_shared/scoringConstants.ts";
 import { enabledSources, getApiKey, SourceId } from "../_shared/sourceRegistry.ts";
 import { fetchBudgeted } from "../_shared/fetchBudgeted.ts";
+import { applyEventFilters } from "../_shared/eventFilters.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
