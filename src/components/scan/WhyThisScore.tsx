@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { HelpCircle, ChevronDown, ChevronUp, ShieldCheck, Filter, BarChart3, Signal } from "lucide-react";
+import { HelpCircle, ChevronDown, ChevronUp, ShieldCheck, Filter, BarChart3, Signal, Clock } from "lucide-react";
 import { useState } from "react";
 
 interface WhyThisScoreProps {
@@ -27,6 +27,9 @@ interface FilterStats {
   categoryBreakdown: Record<string, number>;
   verificationBreakdown: Record<string, number>;
   topImpactDimensions: { dimension: string; avgImpact: number }[];
+  recencyLabel: "Recent" | "Moderate" | "Older" | "Unknown";
+  latestEventDate: string | null;
+  recencyBullet: string;
 }
 
 const DIMENSION_LABELS: Record<string, string> = {
@@ -126,7 +129,7 @@ export function WhyThisScore({ brandId, brandName, score, scoreDimensions }: Why
       // Fetch all events for this brand to compute stats
       const { data: events, error } = await supabase
         .from("brand_events")
-        .select("score_eligible, brand_relevance_score, is_marketing_noise, duplicate_of, category, verification, impact_labor, impact_environment, impact_politics, impact_social, is_irrelevant")
+        .select("score_eligible, brand_relevance_score, is_marketing_noise, duplicate_of, category, verification, impact_labor, impact_environment, impact_politics, impact_social, is_irrelevant, event_date")
         .eq("brand_id", brandId)
         .eq("is_irrelevant", false);
 
@@ -143,6 +146,9 @@ export function WhyThisScore({ brandId, brandName, score, scoreDimensions }: Why
         categoryBreakdown: {},
         verificationBreakdown: {},
         topImpactDimensions: [],
+        recencyLabel: "Unknown",
+        latestEventDate: null,
+        recencyBullet: "",
       };
 
       const dimImpacts: Record<string, number[]> = {
@@ -188,6 +194,43 @@ export function WhyThisScore({ brandId, brandName, score, scoreDimensions }: Why
           avgImpact: vals.reduce((s, v) => s + v, 0) / vals.length,
         }))
         .sort((a, b) => Math.abs(b.avgImpact) - Math.abs(a.avgImpact));
+
+      // Recency computation from eligible events
+      const eligibleDates = (events as any[])
+        .filter(ev => ev.score_eligible && ev.event_date)
+        .map(ev => new Date(ev.event_date).getTime())
+        .filter(t => !isNaN(t));
+
+      if (eligibleDates.length > 0) {
+        const latest = Math.max(...eligibleDates);
+        const now = Date.now();
+        const monthsAgo = (now - latest) / (1000 * 60 * 60 * 24 * 30);
+        result.latestEventDate = new Date(latest).toISOString();
+
+        if (monthsAgo <= 12) {
+          result.recencyLabel = "Recent";
+        } else if (monthsAgo <= 36) {
+          result.recencyLabel = "Moderate";
+        } else {
+          result.recencyLabel = "Older";
+        }
+
+        // Build recency bullet combining recency + impact
+        const hasHighImpact = result.topImpactDimensions.some(d => Math.abs(d.avgImpact) >= 3);
+        const hasNegative = result.topImpactDimensions.some(d => d.avgImpact < -1);
+
+        if (result.recencyLabel === "Recent" && hasHighImpact && hasNegative) {
+          result.recencyBullet = "Recent high-impact issues detected";
+        } else if (result.recencyLabel === "Recent" && hasNegative) {
+          result.recencyBullet = "Recent moderate issues on record";
+        } else if (result.recencyLabel === "Recent") {
+          result.recencyBullet = "Recent activity — score reflects current behavior";
+        } else if (result.recencyLabel === "Moderate") {
+          result.recencyBullet = "Most evidence is 1–3 years old — no recent major incidents";
+        } else {
+          result.recencyBullet = "Evidence is mostly older — recent record is unclear";
+        }
+      }
 
       return result;
     },
@@ -240,8 +283,8 @@ export function WhyThisScore({ brandId, brandName, score, scoreDimensions }: Why
               </div>
             )}
 
-            {/* 3. Data confidence */}
-            <div className="p-4 space-y-2">
+            {/* 3. Recency + Data confidence */}
+            <div className="p-4 space-y-3">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
                 <Signal className="h-3 w-3" />
                 Data confidence
@@ -254,6 +297,12 @@ export function WhyThisScore({ brandId, brandName, score, scoreDimensions }: Why
                   · {stats.eligibleEvents} verified event{stats.eligibleEvents !== 1 ? "s" : ""} included
                 </span>
               </div>
+              {stats.recencyLabel !== "Unknown" && (
+                <div className="flex items-center gap-2">
+                  <Clock className={`h-3.5 w-3.5 ${stats.recencyLabel === "Recent" ? "text-success" : stats.recencyLabel === "Moderate" ? "text-warning" : "text-muted-foreground"}`} />
+                  <span className="text-sm text-foreground/80">{stats.recencyBullet}</span>
+                </div>
+              )}
               {stats.eligibleEvents < 5 && (
                 <p className="text-xs text-muted-foreground">
                   Score may shift as more evidence is verified. We need at least 5 events for a confident rating.
