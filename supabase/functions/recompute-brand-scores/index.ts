@@ -453,6 +453,7 @@ Deno.serve(async (req: Request) => {
     const auditRows: any[] = [];
     const scoreUpserts: any[] = [];
     const eventUpdates: Array<{ event_id: string; decay_multiplier: number; weighted_impact_score: number; community_multiplier: number }> = [];
+    const reservoirAuditRows: Array<{ brand_id: string; adjustment: number; signals_used: any[] }> = [];
 
     for (const [brandId, brandData] of brandScoresMap) {
       const scoreLabor = applyScoreFloor(computeDimensionScore(brandData.dimensions.labor_sum, brandData.dimensions.labor_count, brandData.dimensions.labor_worst), brandData.dimensions.labor_count);
@@ -469,6 +470,56 @@ Deno.serve(async (req: Request) => {
         );
       } else {
         overallScore = Math.round((scoreLabor + scoreEnv + scorePolitics + scoreSocial) / 4);
+      }
+
+      // ── Reservoir adjustment (±5 max, grouped ±2 per type) ──
+      let reservoirAdj = 0;
+      const reservoirSignalsUsed: Array<{ signal_type: string; weight: number; confidence: number; adjustment: number }> = [];
+      try {
+        const { data: rSignals } = await supabase
+          .from('reservoir_signals')
+          .select('signal_type, weight, confidence, dimension, category')
+          .or(`brand_id.eq.${brandId},brand_id.is.null`)
+          .gt('weight', 0.05);
+
+        if (rSignals && rSignals.length > 0) {
+          console.log(`[Reservoir] Brand ${brandId}: found ${rSignals.length} signals`);
+          // Group by signal_type, take top 5 per group
+          const grouped: Record<string, typeof rSignals> = {};
+          for (const sig of rSignals) {
+            if (sig.weight * sig.confidence < 0.1) continue; // noise floor
+            if (!grouped[sig.signal_type]) grouped[sig.signal_type] = [];
+            grouped[sig.signal_type].push(sig);
+          }
+
+          for (const [sType, sigs] of Object.entries(grouped)) {
+            const topSigs = sigs
+              .sort((a, b) => (b.weight * b.confidence) - (a.weight * a.confidence))
+              .slice(0, 5);
+            const modifier = sType === 'certification_signal' ? 1.5 : -1.5;
+            let groupAdj = 0;
+            for (const s of topSigs) {
+              const contrib = s.weight * s.confidence * modifier;
+              groupAdj += contrib;
+              reservoirSignalsUsed.push({ signal_type: s.signal_type, weight: s.weight, confidence: s.confidence, adjustment: Math.round(contrib * 100) / 100 });
+            }
+            reservoirAdj += Math.max(-2, Math.min(2, groupAdj)); // clamp per group
+          }
+          reservoirAdj = Math.max(-5, Math.min(5, Math.round(reservoirAdj * 10) / 10)); // clamp total
+        }
+      } catch (resErr) {
+        console.error('Reservoir fetch error (graceful skip):', resErr);
+        reservoirAdj = 0;
+      }
+
+      if (reservoirAdj !== 0) {
+        overallScore = Math.max(0, Math.min(100, Math.round(overallScore + reservoirAdj)));
+        // Log adjustment
+        reservoirAuditRows.push({
+          brand_id: brandId,
+          adjustment: reservoirAdj,
+          signals_used: reservoirSignalsUsed,
+        });
       }
 
       // Collect event audit updates
@@ -571,7 +622,18 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Batch update event audit trail (fire-and-forget, non-blocking)
+    // Batch insert reservoir adjustment audit trail
+    if (reservoirAuditRows.length > 0) {
+      for (const raChunk of chunk(reservoirAuditRows, 50)) {
+        try {
+          await supabase.from('reservoir_adjustments').insert(raChunk);
+        } catch (e) {
+          console.error('[Reservoir Audit] batch insert error:', e);
+        }
+      }
+      console.log(`Logged ${reservoirAuditRows.length} reservoir adjustments`);
+    }
+
     // Only update unique event_ids (inherited events may duplicate)
     const uniqueUpdates = new Map<string, typeof eventUpdates[0]>();
     for (const u of eventUpdates) {
