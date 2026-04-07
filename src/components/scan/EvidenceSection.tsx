@@ -57,7 +57,7 @@ export function EvidenceSection({ brandId, brandName, limit = 5 }: EvidenceSecti
     queryFn: async () => {
       const { data, error } = await supabase
         .from("brand_events")
-        .select("event_id, description, category, event_date, source_url, source_name, verification")
+        .select("event_id, description, category, event_date, source_url, verification")
         .eq("brand_id", brandId)
         .eq("score_eligible", true)
         .order("event_date", { ascending: false })
@@ -67,7 +67,7 @@ export function EvidenceSection({ brandId, brandName, limit = 5 }: EvidenceSecti
         console.warn("[EvidenceSection] Query error:", error.message);
         return [];
       }
-      return (data || []) as EvidenceItem[];
+      return (data || []) as unknown as EvidenceItem[];
     },
   });
 
