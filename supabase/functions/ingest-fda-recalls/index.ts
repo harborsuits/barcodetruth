@@ -31,6 +31,46 @@ function sanitizeDate(dateStr: string | null | undefined): string {
   }
 }
 
+// ── Brand-specific entity mismatch guards ──────────────────────────────
+// These patterns indicate a recall is NOT about the target brand
+const BRAND_EXCLUSION_PATTERNS: Record<string, RegExp[]> = {
+  'Crest': [/cedar\s*crest/i, /royal\s*crest/i, /crest\s*foods/i, /crest\s*dairy/i, /gold\s*crest/i, /sun\s*crest/i],
+  'Dove': [/dove\s*(bar|chocolate|ice\s*cream)/i, /dove\s*promises/i],
+  'Pampers': [/\b(secret|old\s*spice|vicks|nyquil|dayquil|gillette|oral-b|bounce|downy|febreze|swiffer|charmin|bounty|dawn|cascade|mr\.\s*clean|gain|dreft|align|meta|zzzquil)\b/i],
+};
+
+// These patterns MUST appear in the product description for sub-brand attribution
+const BRAND_REQUIRED_PATTERNS: Record<string, RegExp> = {
+  'Crest': /\bcrest\b/i,
+  'Pampers': /\bpampers\b/i,
+  'Dove': /\bdove\b/i,
+  'Oreo': /\boreo\b/i,
+  'Cheerios': /\bcheerios\b/i,
+};
+
+function isEntityMismatch(brandName: string, recall: any): boolean {
+  const productDesc = (recall.product_description || '').toLowerCase();
+  const reasonStr = (recall.reason_for_recall || '').toLowerCase();
+  const combined = `${productDesc} ${reasonStr}`;
+
+  // Check exclusion patterns
+  const exclusions = BRAND_EXCLUSION_PATTERNS[brandName];
+  if (exclusions) {
+    for (const pattern of exclusions) {
+      if (pattern.test(combined)) return true;
+    }
+  }
+
+  // Check required patterns: if brand has a required pattern,
+  // the product/reason must mention it
+  const required = BRAND_REQUIRED_PATTERNS[brandName];
+  if (required) {
+    if (!required.test(combined)) return true;
+  }
+
+  return false;
+}
+
 function classificationToImpact(classification: string): number {
   if (classification === 'Class I') return -5;
   if (classification === 'Class II') return -3;
