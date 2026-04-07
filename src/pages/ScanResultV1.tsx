@@ -13,6 +13,7 @@ import { AlternativesSection } from "@/components/brand/AlternativesSection";
 import { EnrichmentStageProgress } from "@/components/brand/EnrichmentStageProgress";
 import { EvidenceSection } from "@/components/scan/EvidenceSection";
 import { TrustVerdict } from "@/components/scan/TrustVerdict";
+import { WhyThisScore } from "@/components/scan/WhyThisScore";
 import { ScoreBreakdownCard } from "@/components/scan/ScoreBreakdownCard";
 import { formatCategory } from "@/lib/formatCategory";
 import { formatBrandName, formatProductName } from "@/lib/formatBrandName";
@@ -560,6 +561,21 @@ export default function ScanResultV1() {
           profileCompleteness={displayProfile?.profile_completeness}
           eventCount={counts.total || 0}
         />
+
+        {/* ─── 1b. WHY THIS SCORE ─── */}
+        {brandInfo?.id && effectiveScore !== null && (
+          <WhyThisScore
+            brandId={brandInfo.id}
+            brandName={displayBrandName || brandInfo.name}
+            score={effectiveScore}
+            scoreDimensions={scoreData ? {
+              score_labor: effectiveLabor,
+              score_environment: effectiveEnv,
+              score_politics: effectivePol,
+              score_social: effectiveSoc,
+            } : undefined}
+          />
+        )}
 
         {/* ─── 2. OWNERSHIP ─── */}
         {brandInfo?.id && (
