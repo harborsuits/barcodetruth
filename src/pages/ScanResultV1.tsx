@@ -227,7 +227,6 @@ export default function ScanResultV1() {
         enrichment_stage: string | null;
         enrichment_stage_updated_at: string | null;
         enrichment_started_at: string | null;
-        parent_company_id: string | null;
         parent_company: string | null;
         website: string | null;
       } | null;
