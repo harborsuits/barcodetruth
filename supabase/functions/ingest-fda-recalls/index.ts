@@ -163,13 +163,16 @@ Deno.serve(async (req) => {
     const maxPerEndpoint = 30;
 
     // Search all three FDA endpoints with all queries
+    // Search BOTH recalling_firm AND product_description for better sub-brand coverage
+    const searchFields = ['recalling_firm', 'product_description'];
     for (const ep of FDA_ENDPOINTS) {
       for (const searchQuery of searchQueries) {
-        if (totalScanned >= 100) break; // Global cap
+        for (const searchField of searchFields) {
+        if (totalScanned >= 150) break; // Global cap
 
         try {
-          const fdaUrl = `https://api.fda.gov/${ep.endpoint}?search=${ep.firmField}:"${encodeURIComponent(searchQuery)}"&limit=${maxPerEndpoint}`;
-          console.log(`[ingest-fda] [${ep.label}] Fetching for "${searchQuery}"`);
+          const fdaUrl = `https://api.fda.gov/${ep.endpoint}?search=${searchField}:"${encodeURIComponent(searchQuery)}"&limit=${maxPerEndpoint}`;
+          console.log(`[ingest-fda] [${ep.label}] Fetching ${searchField} for "${searchQuery}"`);
 
           const fdaResponse = await fetch(fdaUrl);
 
