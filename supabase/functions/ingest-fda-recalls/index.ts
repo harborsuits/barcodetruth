@@ -31,6 +31,46 @@ function sanitizeDate(dateStr: string | null | undefined): string {
   }
 }
 
+// ── Brand-specific entity mismatch guards ──────────────────────────────
+// These patterns indicate a recall is NOT about the target brand
+const BRAND_EXCLUSION_PATTERNS: Record<string, RegExp[]> = {
+  'Crest': [/cedar\s*crest/i, /royal\s*crest/i, /crest\s*foods/i, /crest\s*dairy/i, /gold\s*crest/i, /sun\s*crest/i],
+  'Dove': [/dove\s*(bar|chocolate|ice\s*cream)/i, /dove\s*promises/i],
+  'Pampers': [/\b(secret|old\s*spice|vicks|nyquil|dayquil|gillette|oral-b|bounce|downy|febreze|swiffer|charmin|bounty|dawn|cascade|mr\.\s*clean|gain|dreft|align|meta|zzzquil)\b/i],
+};
+
+// These patterns MUST appear in the product description for sub-brand attribution
+const BRAND_REQUIRED_PATTERNS: Record<string, RegExp> = {
+  'Crest': /\bcrest\b(?!.*\b(ice cream|dairy|specialties|bone marrow|iliac|aspiration|canyon|hood-crest|sun-crest|gold crest)\b)/i,
+  'Pampers': /\bpampers\b/i,
+  'Dove': /\bdove\b/i,
+  'Oreo': /\boreo\b/i,
+  'Cheerios': /\bcheerios\b/i,
+};
+
+function isEntityMismatch(brandName: string, recall: any): boolean {
+  const productDesc = (recall.product_description || '').toLowerCase();
+  const reasonStr = (recall.reason_for_recall || '').toLowerCase();
+  const combined = `${productDesc} ${reasonStr}`;
+
+  // Check exclusion patterns
+  const exclusions = BRAND_EXCLUSION_PATTERNS[brandName];
+  if (exclusions) {
+    for (const pattern of exclusions) {
+      if (pattern.test(combined)) return true;
+    }
+  }
+
+  // Check required patterns: if brand has a required pattern,
+  // the product/reason must mention it
+  const required = BRAND_REQUIRED_PATTERNS[brandName];
+  if (required) {
+    if (!required.test(combined)) return true;
+  }
+
+  return false;
+}
+
 function classificationToImpact(classification: string): number {
   if (classification === 'Class I') return -5;
   if (classification === 'Class II') return -3;
@@ -118,17 +158,21 @@ Deno.serve(async (req) => {
 
     let totalScanned = 0;
     let totalSkipped = 0;
+    let totalMismatched = 0;
     const allEvents: any[] = [];
     const maxPerEndpoint = 30;
 
     // Search all three FDA endpoints with all queries
+    // Search BOTH recalling_firm AND product_description for better sub-brand coverage
+    const searchFields = ['recalling_firm', 'product_description'];
     for (const ep of FDA_ENDPOINTS) {
       for (const searchQuery of searchQueries) {
-        if (totalScanned >= 100) break; // Global cap
+        for (const searchField of searchFields) {
+        if (totalScanned >= 150) break; // Global cap
 
         try {
-          const fdaUrl = `https://api.fda.gov/${ep.endpoint}?search=${ep.firmField}:"${encodeURIComponent(searchQuery)}"&limit=${maxPerEndpoint}`;
-          console.log(`[ingest-fda] [${ep.label}] Fetching for "${searchQuery}"`);
+          const fdaUrl = `https://api.fda.gov/${ep.endpoint}?search=${searchField}:"${encodeURIComponent(searchQuery)}"&limit=${maxPerEndpoint}`;
+          console.log(`[ingest-fda] [${ep.label}] Fetching ${searchField} for "${searchQuery}"`);
 
           const fdaResponse = await fetch(fdaUrl);
 
@@ -151,6 +195,13 @@ Deno.serve(async (req) => {
 
             const recallNumber = recall.recall_number;
             if (!recallNumber) { totalSkipped++; continue; }
+
+            // Entity mismatch guard: reject recalls that don't actually mention this brand
+            if (isEntityMismatch(brand.name, recall)) {
+              totalMismatched++;
+              console.log(`[ingest-fda] ⛔ Mismatch rejected: "${(recall.product_description || '').substring(0, 60)}" is not ${brand.name}`);
+              continue;
+            }
 
             const sourceUrl = `https://www.fda.gov/safety/recalls-market-withdrawals-safety-alerts`;
             const uniqueUrl = `${sourceUrl}#${recallNumber}`;
@@ -187,6 +238,9 @@ Deno.serve(async (req) => {
                 is_irrelevant: false,
                 event_date: occurredAt,
                 impact_social: impactSocial,
+                category_impacts: { labor: 0, environment: 0, politics: 0, social: impactSocial },
+                score_eligible: true,
+                source_tier: 'tier_1',
                 raw_data: JSON.parse(JSON.stringify(recall)),
               })
               .select('event_id')
@@ -231,10 +285,11 @@ Deno.serve(async (req) => {
 
         // Rate limit between queries
         await new Promise(resolve => setTimeout(resolve, 200));
+        } // end searchFields loop
       }
     }
 
-    console.log(`[ingest-fda] Done: scanned=${totalScanned}, inserted=${allEvents.length}, skipped=${totalSkipped}`);
+    console.log(`[ingest-fda] Done: scanned=${totalScanned}, inserted=${allEvents.length}, skipped=${totalSkipped}, mismatched=${totalMismatched}`);
 
     // Enqueue coalesced push if events were created
     if (allEvents.length > 0) {
@@ -262,6 +317,7 @@ Deno.serve(async (req) => {
         scanned: totalScanned,
         inserted: allEvents.length,
         skipped: totalSkipped,
+        mismatched: totalMismatched,
         endpoints_searched: FDA_ENDPOINTS.map(e => e.label),
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
