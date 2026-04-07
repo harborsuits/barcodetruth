@@ -41,7 +41,7 @@ const BRAND_EXCLUSION_PATTERNS: Record<string, RegExp[]> = {
 
 // These patterns MUST appear in the product description for sub-brand attribution
 const BRAND_REQUIRED_PATTERNS: Record<string, RegExp> = {
-  'Crest': /\bcrest\b/i,
+  'Crest': /\bcrest\b(?!.*\b(ice cream|dairy|specialties|bone marrow|iliac|aspiration|canyon|hood-crest|sun-crest|gold crest)\b)/i,
   'Pampers': /\bpampers\b/i,
   'Dove': /\bdove\b/i,
   'Oreo': /\boreo\b/i,
@@ -238,6 +238,9 @@ Deno.serve(async (req) => {
                 is_irrelevant: false,
                 event_date: occurredAt,
                 impact_social: impactSocial,
+                category_impacts: { labor: 0, environment: 0, politics: 0, social: impactSocial },
+                score_eligible: true,
+                source_tier: 'tier_1',
                 raw_data: JSON.parse(JSON.stringify(recall)),
               })
               .select('event_id')
