@@ -562,6 +562,21 @@ export default function ScanResultV1() {
           eventCount={counts.total || 0}
         />
 
+        {/* ─── 1b. WHY THIS SCORE ─── */}
+        {brandInfo?.id && effectiveScore !== null && (
+          <WhyThisScore
+            brandId={brandInfo.id}
+            brandName={displayBrandName || brandInfo.name}
+            score={effectiveScore}
+            scoreDimensions={scoreData ? {
+              score_labor: effectiveLabor,
+              score_environment: effectiveEnv,
+              score_politics: effectivePol,
+              score_social: effectiveSoc,
+            } : undefined}
+          />
+        )}
+
         {/* ─── 2. OWNERSHIP ─── */}
         {brandInfo?.id && (
           <OwnershipReveal brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name} parentCompany={displayParent || brandInfo.parent_company} />
