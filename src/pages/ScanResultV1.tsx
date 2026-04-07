@@ -577,7 +577,7 @@ export default function ScanResultV1() {
           <AlternativesSection brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name || "this brand"} />
         )}
 
-        {/* ─── 4. DETAILED BREAKDOWN (collapsible) ─── */}
+        {/* ─── 5. DETAILED BREAKDOWN (collapsible) ─── */}
         {brandInfo?.id && (
           <details className="group">
             <summary className="flex items-center justify-between cursor-pointer p-4 bg-elevated-1 border border-border rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
@@ -590,7 +590,7 @@ export default function ScanResultV1() {
           </details>
         )}
 
-        {/* ─── 5. SHARE ─── */}
+        {/* ─── 6. SHARE ─── */}
         <ShareCard
           brandName={displayBrandName || brandInfo?.name || ""}
           score={effectiveScore}
