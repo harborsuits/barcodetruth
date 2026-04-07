@@ -206,7 +206,7 @@ Deno.serve(async (req: Request) => {
     while (true) {
       const { data: batch, error } = await supabase
         .from('brand_events')
-        .select('event_id, brand_id, title, event_date, verification, category_impacts, category, credibility, source_tier, score_eligible, upvotes, downvotes')
+        .select('event_id, brand_id, title, event_date, verification, category_impacts, category, credibility, source_tier, score_eligible, upvotes, downvotes, brand_relevance_score, is_marketing_noise')
         .order('event_date', { ascending: false })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
