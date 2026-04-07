@@ -57,11 +57,11 @@ export function EvidenceSection({ brandId, brandName, limit = 5 }: EvidenceSecti
     queryFn: async () => {
       const { data, error } = await supabase
         .from("brand_events")
-        .select("event_id, description, category, event_date, source_url, verification")
+        .select("event_id, description, category, event_date, source_url, verification, impact_labor, impact_environment, impact_politics, impact_social")
         .eq("brand_id", brandId)
         .eq("score_eligible", true)
         .order("event_date", { ascending: false })
-        .limit(limit);
+        .limit(limit * 3); // fetch extra so we can re-sort by impact magnitude
 
       if (error) {
         console.warn("[EvidenceSection] Query error:", error.message);
