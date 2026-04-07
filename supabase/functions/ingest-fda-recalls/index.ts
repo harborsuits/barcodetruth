@@ -314,6 +314,7 @@ Deno.serve(async (req) => {
         scanned: totalScanned,
         inserted: allEvents.length,
         skipped: totalSkipped,
+        mismatched: totalMismatched,
         endpoints_searched: FDA_ENDPOINTS.map(e => e.label),
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
