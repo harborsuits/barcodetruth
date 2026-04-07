@@ -412,14 +412,25 @@ async function saveToCache(supabase: any, productData: any) {
         }, { onConflict: 'brand_id,task' });
       } catch (e) { console.warn('[saveToCache] Enrichment queue failed:', e); }
 
-      // Ensure brand_scores row exists — mark as is_baseline so UI can distinguish
+      // Ensure brand_scores row exists — but NEVER overwrite existing real scores
       try {
-        await supabase.from('brand_scores').upsert({
-          brand_id: brandId,
-          score: 50, score_labor: 50, score_environment: 50,
-          score_politics: 50, score_social: 50,
-          last_updated: new Date().toISOString(),
-        }, { onConflict: 'brand_id' });
+        const { data: existingScore } = await supabase
+          .from('brand_scores')
+          .select('brand_id')
+          .eq('brand_id', brandId)
+          .maybeSingle();
+        
+        if (!existingScore) {
+          await supabase.from('brand_scores').insert({
+            brand_id: brandId,
+            score: 50, score_labor: 50, score_environment: 50,
+            score_politics: 50, score_social: 50,
+            last_updated: new Date().toISOString(),
+          });
+          console.log(`[saveToCache] Created baseline score for brand ${brandId}`);
+        } else {
+          console.log(`[saveToCache] Score already exists for brand ${brandId}, skipping`);
+        }
       } catch (e) { console.warn('[saveToCache] Score init failed:', e); }
     }
   }
