@@ -326,7 +326,6 @@ export default function ScanResultV1() {
 
   const reasons = buildReasons(scoreData, counts, brandInfo?.parent_company, brandInfo?.name);
 
-  console.log('[ScanResult] scoreData:', scoreData, 'counts:', counts, 'isNearBaseline:', isNearBaseline, 'hasMinimalEvidence:', hasMinimalEvidence, 'effectiveScore:', effectiveScore, 'brandInfo:', brandInfo?.id, brandInfo?.name, brandInfo?.status);
   const verdictLabel = effectiveScore === null ? "Checking..." : effectiveScore >= 65 ? "Good" : effectiveScore >= 40 ? "Mixed" : "Avoid";
 
   // Logo
