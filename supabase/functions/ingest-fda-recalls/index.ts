@@ -282,10 +282,11 @@ Deno.serve(async (req) => {
 
         // Rate limit between queries
         await new Promise(resolve => setTimeout(resolve, 200));
+        } // end searchFields loop
       }
     }
 
-    console.log(`[ingest-fda] Done: scanned=${totalScanned}, inserted=${allEvents.length}, skipped=${totalSkipped}`);
+    console.log(`[ingest-fda] Done: scanned=${totalScanned}, inserted=${allEvents.length}, skipped=${totalSkipped}, mismatched=${totalMismatched}`);
 
     // Enqueue coalesced push if events were created
     if (allEvents.length > 0) {
