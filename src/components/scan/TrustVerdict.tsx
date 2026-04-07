@@ -1,4 +1,4 @@
-import { ShieldCheck, ShieldAlert, ShieldX, Clock, FileCheck, Building2, Globe, BarChart3 } from "lucide-react";
+import { ShieldCheck, ShieldAlert, ShieldX, Clock, FileCheck, Building2, Globe, BarChart3, Signal } from "lucide-react";
 
 export interface TrustVerdictProps {
   score: number | null;
@@ -109,9 +109,12 @@ export function TrustVerdict({ score, brandName, reasons, hasEvidence, category,
             </span>
             <span className="text-sm text-muted-foreground ml-1">/100</span>
             {eventCount != null && eventCount > 0 && (
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Based on {eventCount} verified event{eventCount !== 1 ? "s" : ""}
-              </p>
+              <div className="mt-1 flex items-center justify-end gap-1.5">
+                <Signal className={`h-3 w-3 ${eventCount >= 20 ? 'text-success' : eventCount >= 5 ? 'text-warning' : 'text-muted-foreground'}`} />
+                <p className="text-[10px] text-muted-foreground">
+                  {eventCount >= 20 ? 'Strong data' : eventCount >= 5 ? 'Moderate data' : 'Limited data'} · {eventCount} event{eventCount !== 1 ? "s" : ""}
+                </p>
+              </div>
             )}
           </div>
         )}
