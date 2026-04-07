@@ -483,6 +483,7 @@ Deno.serve(async (req: Request) => {
           .gt('weight', 0.05);
 
         if (rSignals && rSignals.length > 0) {
+          console.log(`[Reservoir] Brand ${brandId}: found ${rSignals.length} signals`);
           // Group by signal_type, take top 5 per group
           const grouped: Record<string, typeof rSignals> = {};
           for (const sig of rSignals) {
