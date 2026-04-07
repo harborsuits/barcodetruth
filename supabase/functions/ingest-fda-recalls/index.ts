@@ -193,6 +193,13 @@ Deno.serve(async (req) => {
             const recallNumber = recall.recall_number;
             if (!recallNumber) { totalSkipped++; continue; }
 
+            // Entity mismatch guard: reject recalls that don't actually mention this brand
+            if (isEntityMismatch(brand.name, recall)) {
+              totalMismatched++;
+              console.log(`[ingest-fda] ⛔ Mismatch rejected: "${(recall.product_description || '').substring(0, 60)}" is not ${brand.name}`);
+              continue;
+            }
+
             const sourceUrl = `https://www.fda.gov/safety/recalls-market-withdrawals-safety-alerts`;
             const uniqueUrl = `${sourceUrl}#${recallNumber}`;
 
