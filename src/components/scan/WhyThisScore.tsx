@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { HelpCircle, ChevronDown, ChevronUp, ShieldCheck, Filter, BarChart3, Signal, Clock } from "lucide-react";
+import { HelpCircle, ChevronDown, ChevronUp, ShieldCheck, Filter, BarChart3, Signal, Clock, Brain } from "lucide-react";
 import { useState } from "react";
 
 interface WhyThisScoreProps {

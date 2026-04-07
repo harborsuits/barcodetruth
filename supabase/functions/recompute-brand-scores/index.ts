@@ -471,6 +471,55 @@ Deno.serve(async (req: Request) => {
         overallScore = Math.round((scoreLabor + scoreEnv + scorePolitics + scoreSocial) / 4);
       }
 
+      // ── Reservoir adjustment (±5 max, grouped ±2 per type) ──
+      let reservoirAdj = 0;
+      const reservoirSignalsUsed: Array<{ signal_type: string; weight: number; confidence: number; adjustment: number }> = [];
+      try {
+        const { data: rSignals } = await supabase
+          .from('reservoir_signals')
+          .select('signal_type, weight, confidence, dimension, category')
+          .or(`brand_id.eq.${brandId},brand_id.is.null`)
+          .gt('weight', 0.05);
+
+        if (rSignals && rSignals.length > 0) {
+          // Group by signal_type, take top 5 per group
+          const grouped: Record<string, typeof rSignals> = {};
+          for (const sig of rSignals) {
+            if (sig.weight * sig.confidence < 0.1) continue; // noise floor
+            if (!grouped[sig.signal_type]) grouped[sig.signal_type] = [];
+            grouped[sig.signal_type].push(sig);
+          }
+
+          for (const [sType, sigs] of Object.entries(grouped)) {
+            const topSigs = sigs
+              .sort((a, b) => (b.weight * b.confidence) - (a.weight * a.confidence))
+              .slice(0, 5);
+            const modifier = sType === 'certification_signal' ? 1.5 : -1.5;
+            let groupAdj = 0;
+            for (const s of topSigs) {
+              const contrib = s.weight * s.confidence * modifier;
+              groupAdj += contrib;
+              reservoirSignalsUsed.push({ signal_type: s.signal_type, weight: s.weight, confidence: s.confidence, adjustment: Math.round(contrib * 100) / 100 });
+            }
+            reservoirAdj += Math.max(-2, Math.min(2, groupAdj)); // clamp per group
+          }
+          reservoirAdj = Math.max(-5, Math.min(5, Math.round(reservoirAdj * 10) / 10)); // clamp total
+        }
+      } catch (resErr) {
+        console.error('Reservoir fetch error (graceful skip):', resErr);
+        reservoirAdj = 0;
+      }
+
+      if (reservoirAdj !== 0) {
+        overallScore = Math.max(0, Math.min(100, Math.round(overallScore + reservoirAdj)));
+        // Log adjustment
+        reservoirAuditRows.push({
+          brand_id: brandId,
+          adjustment: reservoirAdj,
+          signals_used: reservoirSignalsUsed,
+        });
+      }
+
       // Collect event audit updates
       for (const pe of brandData.per_event) {
         const totalContrib = pe.contrib.labor + pe.contrib.environment + pe.contrib.politics + pe.contrib.social;
