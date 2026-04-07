@@ -71,7 +71,26 @@ export function EvidenceSection({ brandId, brandName, limit = 5 }: EvidenceSecti
         console.warn("[EvidenceSection] Query error:", error.message);
         return [];
       }
-      return (data || []) as unknown as EvidenceItem[];
+      const items = (data || []) as unknown as EvidenceItem[];
+      
+      // Re-sort by impact magnitude (highest first), then verification quality, then recency
+      const verificationRank = (v: string | null) => v === 'official' ? 3 : v === 'corroborated' ? 2 : 1;
+      const impactMagnitude = (ev: EvidenceItem) => 
+        Math.abs(ev.impact_labor || 0) + Math.abs(ev.impact_environment || 0) + 
+        Math.abs(ev.impact_politics || 0) + Math.abs(ev.impact_social || 0);
+      
+      items.sort((a, b) => {
+        const magDiff = impactMagnitude(b) - impactMagnitude(a);
+        if (magDiff !== 0) return magDiff;
+        const verDiff = verificationRank(b.verification) - verificationRank(a.verification);
+        if (verDiff !== 0) return verDiff;
+        // Recency as tiebreaker
+        const dateA = a.event_date ? new Date(a.event_date).getTime() : 0;
+        const dateB = b.event_date ? new Date(b.event_date).getTime() : 0;
+        return dateB - dateA;
+      });
+      
+      return items.slice(0, limit);
     },
   });
 
