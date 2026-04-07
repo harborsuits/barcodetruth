@@ -453,6 +453,7 @@ Deno.serve(async (req: Request) => {
     const auditRows: any[] = [];
     const scoreUpserts: any[] = [];
     const eventUpdates: Array<{ event_id: string; decay_multiplier: number; weighted_impact_score: number; community_multiplier: number }> = [];
+    const reservoirAuditRows: Array<{ brand_id: string; adjustment: number; signals_used: any[] }> = [];
 
     for (const [brandId, brandData] of brandScoresMap) {
       const scoreLabor = applyScoreFloor(computeDimensionScore(brandData.dimensions.labor_sum, brandData.dimensions.labor_count, brandData.dimensions.labor_worst), brandData.dimensions.labor_count);
@@ -620,7 +621,18 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Batch update event audit trail (fire-and-forget, non-blocking)
+    // Batch insert reservoir adjustment audit trail
+    if (reservoirAuditRows.length > 0) {
+      for (const raChunk of chunk(reservoirAuditRows, 50)) {
+        try {
+          await supabase.from('reservoir_adjustments').insert(raChunk);
+        } catch (e) {
+          console.error('[Reservoir Audit] batch insert error:', e);
+        }
+      }
+      console.log(`Logged ${reservoirAuditRows.length} reservoir adjustments`);
+    }
+
     // Only update unique event_ids (inherited events may duplicate)
     const uniqueUpdates = new Map<string, typeof eventUpdates[0]>();
     for (const u of eventUpdates) {
