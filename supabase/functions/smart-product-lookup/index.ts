@@ -348,8 +348,8 @@ async function saveToCache(supabase: any, productData: any) {
     if (match) {
       brandId = match.id;
       
-      // Auto-promote non-active brands
-      if (match.status !== 'active') {
+      // Auto-promote stub/building brands to active (don't touch ready brands)
+      if (match.status === 'stub' || match.status === 'building') {
         console.log(`[saveToCache] Auto-promoting brand "${rawBrandName}" from "${match.status}" to "active"`);
         await supabase.from('brands').update({ status: 'active' }).eq('id', match.id);
       }
