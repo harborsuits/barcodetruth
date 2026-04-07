@@ -3688,6 +3688,7 @@ export type Database = {
           norm_name: string | null
           ownership_confidence: string | null
           parent_company: string | null
+          parent_company_id: string | null
           push_paused: boolean
           slug: string
           status: string | null
@@ -3745,6 +3746,7 @@ export type Database = {
           norm_name?: string | null
           ownership_confidence?: string | null
           parent_company?: string | null
+          parent_company_id?: string | null
           push_paused?: boolean
           slug: string
           status?: string | null
@@ -3802,6 +3804,7 @@ export type Database = {
           norm_name?: string | null
           ownership_confidence?: string | null
           parent_company?: string | null
+          parent_company_id?: string | null
           push_paused?: boolean
           slug?: string
           status?: string | null
