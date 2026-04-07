@@ -1067,6 +1067,15 @@ Deno.serve(async (req) => {
           impactAbs
         );
 
+        // Layer 4: Apply automated event filters (entity attribution + noise detection)
+        const filterResult = applyEventFilters(
+          title, body, b.name, b.aliases, b.parent_company, eligibility.score_eligible
+        );
+        
+        if (filterResult.filter_reason) {
+          console.log(`[Filter] ${b.name}: ${filterResult.filter_reason} — "${title.slice(0, 50)}..." (relevance=${filterResult.brand_relevance_score})`);
+        }
+
         // 1) Upsert brand_events first (so FK exists)
         const { error: evErr } = await supabase
           .from("brand_events")
@@ -1088,9 +1097,12 @@ Deno.serve(async (req) => {
             is_irrelevant: isIrrelevant,
             feed_visible: eligibility.feed_visible,
             profile_relevant: eligibility.profile_relevant,
-            score_eligible: eligibility.score_eligible,
+            score_eligible: filterResult.score_eligible, // Uses filtered eligibility
             impact_confidence: confidence,
             is_press_release: isPressRelease,
+            brand_relevance_score: filterResult.brand_relevance_score,
+            is_marketing_noise: filterResult.is_marketing_noise,
+            score_excluded_reason: filterResult.filter_reason || null,
             impact_labor:       mainCategory === 'labor'       ? finalImpact : 0,
             impact_environment: mainCategory === 'environment' ? finalImpact : 0,
             impact_politics:    mainCategory === 'politics'    ? finalImpact : 0,
