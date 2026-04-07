@@ -13,7 +13,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
-type Brand = { id: string; name: string; aliases: string[]; ticker: string | null; newsroom_domains: string[]; monitoring_config?: any; match_policy?: { match_mode: string; required_context: string[]; blocked_context: string[] } };
+type Brand = { id: string; name: string; aliases: string[]; ticker: string | null; newsroom_domains: string[]; monitoring_config?: any; match_policy?: { match_mode: string; required_context: string[]; blocked_context: string[] }; parent_company?: string | null };
 type GdeltItem = { url: string; title: string; seendate: string; domain?: string };
 type NewsArticle = { title: string; summary: string; url: string; published_at: string; source_name: string; category?: "labor" | "environment" | "politics" | "social" };
 
