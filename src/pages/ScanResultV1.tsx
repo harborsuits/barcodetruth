@@ -212,7 +212,7 @@ export default function ScanResultV1() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("brands" as any)
-        .select("id, name, slug, status, logo_url, description, enrichment_stage, enrichment_stage_updated_at, enrichment_started_at, parent_company_id, parent_company, website")
+        .select("id, name, slug, status, logo_url, description, enrichment_stage, enrichment_stage_updated_at, enrichment_started_at, parent_company, website")
         .eq("id", product!.brand_id)
         .limit(1)
         .maybeSingle();
@@ -227,7 +227,6 @@ export default function ScanResultV1() {
         enrichment_stage: string | null;
         enrichment_stage_updated_at: string | null;
         enrichment_started_at: string | null;
-        parent_company_id: string | null;
         parent_company: string | null;
         website: string | null;
       } | null;
