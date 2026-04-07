@@ -5,6 +5,7 @@ import { compareTwoStrings } from "https://esm.sh/string-similarity@4.0.4";
 import { RELEVANCE_MIN_ACCEPTED, RELEVANCE_MAX_SCORE } from "../_shared/scoringConstants.ts";
 import { enabledSources, getApiKey, SourceId } from "../_shared/sourceRegistry.ts";
 import { fetchBudgeted } from "../_shared/fetchBudgeted.ts";
+import { applyEventFilters } from "../_shared/eventFilters.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,7 +13,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
-type Brand = { id: string; name: string; aliases: string[]; ticker: string | null; newsroom_domains: string[]; monitoring_config?: any; match_policy?: { match_mode: string; required_context: string[]; blocked_context: string[] } };
+type Brand = { id: string; name: string; aliases: string[]; ticker: string | null; newsroom_domains: string[]; monitoring_config?: any; match_policy?: { match_mode: string; required_context: string[]; blocked_context: string[] }; parent_company?: string | null };
 type GdeltItem = { url: string; title: string; seendate: string; domain?: string };
 type NewsArticle = { title: string; summary: string; url: string; published_at: string; source_name: string; category?: "labor" | "environment" | "politics" | "social" };
 
@@ -800,7 +801,7 @@ Deno.serve(async (req) => {
       console.log(`[Orchestrator] Fetching specific brand: ${brandId}`);
       const { data, error: brandError } = await supabase
         .from("brands")
-        .select("id,name,aliases,ticker,newsroom_domains,monitoring_config")
+        .select("id,name,aliases,ticker,newsroom_domains,monitoring_config,parent_company")
         .eq("id", brandId)
         .limit(1);
       if (brandError) {
@@ -814,14 +815,15 @@ Deno.serve(async (req) => {
         ticker: b.ticker || null,
         newsroom_domains: b.newsroom_domains || [],
         monitoring_config: (b as any).monitoring_config || null,
-        match_policy: policyMap.get(b.id) || undefined
+        match_policy: policyMap.get(b.id) || undefined,
+        parent_company: b.parent_company || null
       }));
       console.log(`[Orchestrator] Found brand: ${brands[0]?.name || 'none'} (match_mode: ${brands[0]?.match_policy?.match_mode || 'normal'})`);
     } else {
       console.log("[Orchestrator] Fetching active brands (no specific brand_id)");
       const { data, error: brandsError } = await supabase
         .from("brands")
-        .select("id,name,aliases,ticker,newsroom_domains,monitoring_config")
+        .select("id,name,aliases,ticker,newsroom_domains,monitoring_config,parent_company")
         .eq("is_active", true)
         .limit(10);
       if (brandsError) {
@@ -835,7 +837,8 @@ Deno.serve(async (req) => {
         ticker: b.ticker || null,
         newsroom_domains: b.newsroom_domains || [],
         monitoring_config: (b as any).monitoring_config || null,
-        match_policy: policyMap.get(b.id) || undefined
+        match_policy: policyMap.get(b.id) || undefined,
+        parent_company: b.parent_company || null
       }));
       console.log(`[Orchestrator] Found ${brands.length} active brands`);
     }
@@ -1064,6 +1067,15 @@ Deno.serve(async (req) => {
           impactAbs
         );
 
+        // Layer 4: Apply automated event filters (entity attribution + noise detection)
+        const filterResult = applyEventFilters(
+          title, body, b.name, b.aliases, b.parent_company, eligibility.score_eligible
+        );
+        
+        if (filterResult.filter_reason) {
+          console.log(`[Filter] ${b.name}: ${filterResult.filter_reason} — "${title.slice(0, 50)}..." (relevance=${filterResult.brand_relevance_score})`);
+        }
+
         // 1) Upsert brand_events first (so FK exists)
         const { error: evErr } = await supabase
           .from("brand_events")
@@ -1085,9 +1097,12 @@ Deno.serve(async (req) => {
             is_irrelevant: isIrrelevant,
             feed_visible: eligibility.feed_visible,
             profile_relevant: eligibility.profile_relevant,
-            score_eligible: eligibility.score_eligible,
+            score_eligible: filterResult.score_eligible, // Uses filtered eligibility
             impact_confidence: confidence,
             is_press_release: isPressRelease,
+            brand_relevance_score: filterResult.brand_relevance_score,
+            is_marketing_noise: filterResult.is_marketing_noise,
+            score_excluded_reason: filterResult.filter_reason || null,
             impact_labor:       mainCategory === 'labor'       ? finalImpact : 0,
             impact_environment: mainCategory === 'environment' ? finalImpact : 0,
             impact_politics:    mainCategory === 'politics'    ? finalImpact : 0,

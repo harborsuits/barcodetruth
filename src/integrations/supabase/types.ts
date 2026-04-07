@@ -1891,6 +1891,7 @@ export type Database = {
           ai_summary: string | null
           article_text: string | null
           brand_id: string
+          brand_relevance_score: number | null
           category: Database["public"]["Enums"]["event_category"]
           category_code: string | null
           category_confidence: number | null
@@ -1907,6 +1908,7 @@ export type Database = {
           disambiguation_reason: string | null
           disputed: boolean | null
           downvotes: number | null
+          duplicate_cluster_id: string | null
           duplicate_of: string | null
           event_date: string | null
           event_id: string
@@ -1917,6 +1919,7 @@ export type Database = {
           impact_politics: number | null
           impact_social: number | null
           is_irrelevant: boolean | null
+          is_marketing_noise: boolean | null
           is_press_release: boolean | null
           is_test: boolean
           jurisdiction: string | null
@@ -1951,6 +1954,7 @@ export type Database = {
           ai_summary?: string | null
           article_text?: string | null
           brand_id: string
+          brand_relevance_score?: number | null
           category?: Database["public"]["Enums"]["event_category"]
           category_code?: string | null
           category_confidence?: number | null
@@ -1967,6 +1971,7 @@ export type Database = {
           disambiguation_reason?: string | null
           disputed?: boolean | null
           downvotes?: number | null
+          duplicate_cluster_id?: string | null
           duplicate_of?: string | null
           event_date?: string | null
           event_id?: string
@@ -1977,6 +1982,7 @@ export type Database = {
           impact_politics?: number | null
           impact_social?: number | null
           is_irrelevant?: boolean | null
+          is_marketing_noise?: boolean | null
           is_press_release?: boolean | null
           is_test?: boolean
           jurisdiction?: string | null
@@ -2013,6 +2019,7 @@ export type Database = {
           ai_summary?: string | null
           article_text?: string | null
           brand_id?: string
+          brand_relevance_score?: number | null
           category?: Database["public"]["Enums"]["event_category"]
           category_code?: string | null
           category_confidence?: number | null
@@ -2029,6 +2036,7 @@ export type Database = {
           disambiguation_reason?: string | null
           disputed?: boolean | null
           downvotes?: number | null
+          duplicate_cluster_id?: string | null
           duplicate_of?: string | null
           event_date?: string | null
           event_id?: string
@@ -2039,6 +2047,7 @@ export type Database = {
           impact_politics?: number | null
           impact_social?: number | null
           is_irrelevant?: boolean | null
+          is_marketing_noise?: boolean | null
           is_press_release?: boolean | null
           is_test?: boolean
           jurisdiction?: string | null
