@@ -337,6 +337,9 @@ Deno.serve(async (req: Request) => {
 
     for (const event of cappedEvents) {
       if (!event.score_eligible) { eventsSkippedTier3++; continue; }
+      // Layer 4: Skip marketing noise and parent-only events even if score_eligible
+      if (event.is_marketing_noise) { eventsSkippedTier3++; continue; }
+      if (event.brand_relevance_score !== null && event.brand_relevance_score !== undefined && event.brand_relevance_score < 2) { eventsSkippedTier3++; continue; }
 
       const eventDate = new Date(event.event_date);
       const recencyWeight = getRecencyWeight(eventDate, now);
