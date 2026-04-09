@@ -1,54 +1,91 @@
 
 
-# Fix Barcode Normalization Bug
+# Brand Rotation + RSS Enhancement — Implementation Plan
 
-## Problem
-12-digit UPCs (e.g., `037000089872`) fail to resolve because the database stores barcodes inconsistently — some as 12-digit UPC-A, some as 13-digit EAN-13. The current lookup functions don't cover all format permutations.
+## What This Solves
 
-## Root Cause
-Two RPC functions have incomplete normalization:
+Right now the orchestrator runs every 30 minutes and tries to hit all brands with rate-limited APIs (Guardian, NYT, GNews, etc.) — burning through free-tier quotas in hours. Meanwhile, RSS feeds (21 sources, unlimited) already run every 15 minutes but aren't connected to brand-level rotation.
 
-1. **`get_product_by_barcode`** — matches `raw` OR `normalize(raw)` (which pads 12→13), but never tries stripping a leading zero from a 13-digit input to match a 12-digit stored barcode
-2. **`scan_product_lookup`** — does only exact match (`WHERE p.barcode = p_upc`), no normalization at all
+## What Gets Built
 
-## Fix
+### 1. Brand Rotation Scheduler (new edge function)
+A lightweight `rotate-brand-ingestion` function that:
+- Runs **twice daily** (every 12 hours) via pg_cron
+- Selects the next batch of brands to ingest, ordered by `last_news_ingestion` (oldest first)
+- Processes **15-20 brands per run** (fits within free-tier API budgets)
+- Calls the existing `unified-news-orchestrator` for each brand sequentially
+- Updates `last_news_ingestion` after each brand completes
 
-### Single database migration that updates both functions:
+With 1,665 brands and 2 runs/day × 15 brands = 30 brands/day, full rotation takes ~55 days. High-priority brands (fortune_500, large) get weighted to appear more frequently.
 
-**`get_product_by_barcode`** — change the WHERE clause to match on 3 variants:
-- Raw input as-is
-- Normalized (12→13 padded)
-- Stripped (if 13 digits starting with '0', try the 12-digit version)
+### 2. Cron Schedule Cleanup
+- **Remove**: `batch-process-brands-v2` (every 30 min) and `batch-processor-breaking` (hourly) — these are the quota burners
+- **Add**: `rotate-brand-ingestion` at `0 */12 * * *` (every 12 hours)
+- **Keep**: `pull-feeds-15m` (RSS is unlimited and already works)
 
-**`scan_product_lookup`** — same 3-variant WHERE clause using `normalize_barcode()` plus the strip-leading-zero fallback.
+### 3. RSS → Brand Event Linking (enhancement)
+Currently RSS items land in `rss_items` and get processed by `brand-match`. Verify this pipeline actually creates `brand_events` from RSS items — if not, add the bridge so RSS becomes a real unlimited data source for brand scoring.
 
-```sql
-WHERE pbp.barcode IN (
-  p_raw_gtin,                                    -- exact match
-  public.normalize_barcode(p_raw_gtin),           -- 12→13 padded
-  CASE WHEN length(regexp_replace(p_raw_gtin, '\D', '', 'g')) = 13 
-       AND regexp_replace(p_raw_gtin, '\D', '', 'g') LIKE '0%'
-       THEN substring(regexp_replace(p_raw_gtin, '\D', '', 'g') FROM 2)  -- 13→12 stripped
-       ELSE NULL END
-)
+## Architecture
+
+```text
+Every 15 min (unchanged):
+  pull-feeds → rss_items → brand-match → brand_events
+
+Every 12 hours (NEW):
+  rotate-brand-ingestion
+    → pick 15-20 brands (oldest last_news_ingestion first)
+    → for each: call unified-news-orchestrator
+    → API-keyed sources stay within daily budgets
+    → GDELT always runs (unlimited)
 ```
 
-### No edge function changes needed
-Both `get-product-by-barcode/index.ts` and `scan-product/index.ts` pass the barcode straight to the RPC — the fix is entirely in the SQL functions.
+## API Budget Math (12h schedule)
 
-### No frontend changes needed
-The frontend already sends the raw barcode to the edge functions.
+| Source | Daily Limit | 2 runs × 15 brands = 30 calls | Status |
+|--------|------------|-------------------------------|--------|
+| Guardian | 500 | 30 | ✅ ~6% used |
+| GDELT | 5000 | 30 | ✅ trivial |
+| NewsAPI | 100 | 30 | ✅ ~30% used |
+| NYT | 500 | 30 | ✅ ~6% used |
+| GNews | 100 | 30 | ✅ ~30% used |
+| Mediastack | 16 | 16 (capped) | ✅ budget-aware |
+| Currents | 20 | 20 (capped) | ✅ budget-aware |
 
-## Test Cases
-- `037000089872` (12-digit) → resolves via pad to `0037000089872`
-- `0037000089872` (13-digit) → resolves via exact or strip to `037000089872`
-- `028400064057` (12-digit) → resolves
-- `999999999999` → returns notFound gracefully
+All sources stay well within free-tier limits.
 
 ## Files Changed
 
 | File | Action |
 |------|--------|
-| New SQL migration | Update both `get_product_by_barcode` and `scan_product_lookup` functions |
+| `supabase/functions/rotate-brand-ingestion/index.ts` | **New** — rotation scheduler (~120 lines) |
+| SQL via insert tool | Remove old cron jobs, add new 12h cron |
+| Possibly `supabase/functions/pull-feeds/index.ts` | Verify RSS→brand_events pipeline works end-to-end |
 
-One migration, zero edge function changes, zero frontend changes.
+## Priority Weighting Logic
+
+```text
+SELECT id, name, last_news_ingestion
+FROM brands
+WHERE is_active = true
+ORDER BY
+  CASE company_size
+    WHEN 'fortune_500' THEN 1
+    WHEN 'large' THEN 2
+    WHEN 'medium' THEN 3
+    ELSE 4
+  END,
+  last_news_ingestion ASC NULLS FIRST
+LIMIT 20;
+```
+
+Fortune 500 brands get checked every ~2 weeks; smaller brands every ~2 months. All brands eventually get covered.
+
+## Safety
+
+- Existing `unified-news-orchestrator` is untouched — rotation just calls it
+- `fetchBudgeted` + `try_spend` still enforce per-source limits
+- 15-minute cooldown slots prevent duplicate runs
+- RSS pipeline continues independently (unlimited)
+- If rotation function fails, nothing breaks — brands just wait for next run
+
