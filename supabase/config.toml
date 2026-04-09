@@ -217,6 +217,10 @@ verify_jwt = false
 [functions.resolve-company-gleif]
 verify_jwt = false
 
+# Brand rotation scheduler
+[functions.rotate-brand-ingestion]
+verify_jwt = false
+
 # Batch recategorization (admin)
 [functions.batch-recategorize]
 verify_jwt = true
