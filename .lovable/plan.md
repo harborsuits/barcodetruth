@@ -1,112 +1,54 @@
 
 
-# Reservoir: Adaptive Intelligence Layer — Implementation Plan
+# Fix Barcode Normalization Bug
 
-## What Gets Built
+## Problem
+12-digit UPCs (e.g., `037000089872`) fail to resolve because the database stores barcodes inconsistently — some as 12-digit UPC-A, some as 13-digit EAN-13. The current lookup functions don't cover all format permutations.
 
-A pattern-memory system that detects repeated behavioral signals, computes a bounded score adjustment (±5 max), and surfaces learning insights in the "Why this score?" UI. Core scoring math is untouched.
+## Root Cause
+Two RPC functions have incomplete normalization:
 
-```text
-[existing engine] → base_score
-                        │
-   reservoir_signals → adjustment (±5 max, grouped ±2 per type)
-                        │
-                  final_score = clamp(base + adj, 0, 100)
+1. **`get_product_by_barcode`** — matches `raw` OR `normalize(raw)` (which pads 12→13), but never tries stripping a leading zero from a 13-digit input to match a 12-digit stored barcode
+2. **`scan_product_lookup`** — does only exact match (`WHERE p.barcode = p_upc`), no normalization at all
+
+## Fix
+
+### Single database migration that updates both functions:
+
+**`get_product_by_barcode`** — change the WHERE clause to match on 3 variants:
+- Raw input as-is
+- Normalized (12→13 padded)
+- Stripped (if 13 digits starting with '0', try the 12-digit version)
+
+**`scan_product_lookup`** — same 3-variant WHERE clause using `normalize_barcode()` plus the strip-leading-zero fallback.
+
+```sql
+WHERE pbp.barcode IN (
+  p_raw_gtin,                                    -- exact match
+  public.normalize_barcode(p_raw_gtin),           -- 12→13 padded
+  CASE WHEN length(regexp_replace(p_raw_gtin, '\D', '', 'g')) = 13 
+       AND regexp_replace(p_raw_gtin, '\D', '', 'g') LIKE '0%'
+       THEN substring(regexp_replace(p_raw_gtin, '\D', '', 'g') FROM 2)  -- 13→12 stripped
+       ELSE NULL END
+)
 ```
 
-Fallback: no signals or query failure → adjustment = 0. Zero regression risk.
+### No edge function changes needed
+Both `get-product-by-barcode/index.ts` and `scan-product/index.ts` pass the barcode straight to the RPC — the fix is entirely in the SQL functions.
 
----
+### No frontend changes needed
+The frontend already sends the raw barcode to the edge functions.
 
-## Phase 1: Database Migration
-
-**Two new tables:**
-
-- **`reservoir_signals`** — pattern storage: `signal_type` (recall_pattern / violation_pattern / certification_signal), `brand_id` (nullable), `category` (nullable for category-wide patterns), `dimension`, `weight` (float, starts 1.0), `confidence` (float), `evidence_count`, `last_seen`, `created_at`
-- **`reservoir_adjustments`** — audit trail: `brand_id`, `adjustment` (float), `signals_used` (jsonb), `computed_at`
-
-RLS: service role writes, authenticated reads.
-
----
-
-## Phase 2: Edge Function — `update-reservoir`
-
-**New file:** `supabase/functions/update-reservoir/index.ts`
-
-Runs daily via pg_cron. For each brand with ≥3 score-eligible events:
-
-1. **Recall patterns** — count events with recall/safety keywords in title → if ≥3, upsert signal
-2. **Violation patterns** — count OSHA/EPA penalty events → if ≥3, upsert signal
-3. **Certifications** — detect B-Corp, Fair Trade, organic keywords → upsert positive signal
-
-**Weight formula** (with all requested refinements):
-```
-recency_factor = e^(-days_since_last_seen / 180)
-weight = min(1.0, evidence_count * 0.15 * recency_factor)
-confidence = min(1.0, ln(1 + corroborated_count))
-```
-
-**Safeguards built in:**
-- Daily decay: `weight *= 0.99`, delete where `< 0.01`
-- Max 5 signals per type per brand (prevents large-brand stacking)
-- Category signals require `evidence_count >= 5`
-- Brands with `< 3` total events skipped entirely
-
----
-
-## Phase 3: Integrate into `recompute-brand-scores`
-
-**File:** `supabase/functions/recompute-brand-scores/index.ts`
-
-After line ~472 (where `overallScore` is computed), add ~25 lines:
-
-1. Batch-fetch `reservoir_signals` for brand IDs being scored (+ category-level signals via `.or()`)
-2. Group by `signal_type`, take top 5 per group
-3. Per group: `group_adj = clamp(sum(w * conf * modifier), -2, 2)` where modifier = +1.5 certification, -1.5 negative
-4. Noise floor: skip signals where `weight * confidence < 0.1`
-5. Total: `adjustment = clamp(sum_of_groups, -5, 5)`
-6. Apply: `overallScore = clamp(overallScore + adjustment, 0, 100)`
-7. Log to `reservoir_adjustments`
-
----
-
-## Phase 4: UI — "Learning Signals" in WhyThisScore
-
-**File:** `src/components/scan/WhyThisScore.tsx`
-
-Add a query for `reservoir_adjustments` (latest for this brand). If adjustment was applied, insert a new section between "Data confidence" and "Integrity note":
-
-- Header: "🧠 Learning signals" with Brain icon
-- Bullets like: "System detected repeated recall patterns" / "Certified sustainability credentials recognized"
-- Show adjustment magnitude: "Score adjusted by −2 based on behavioral patterns"
-
----
-
-## Phase 5: pg_cron Schedule
-
-Schedule `update-reservoir` daily at 3 AM UTC (after the existing 6-hourly recompute cycle). Use insert tool (not migration) since it contains project-specific URLs/keys.
-
----
+## Test Cases
+- `037000089872` (12-digit) → resolves via pad to `0037000089872`
+- `0037000089872` (13-digit) → resolves via exact or strip to `037000089872`
+- `028400064057` (12-digit) → resolves
+- `999999999999` → returns notFound gracefully
 
 ## Files Changed
 
 | File | Action |
 |------|--------|
-| SQL migration | Create 2 tables + RLS |
-| `supabase/functions/update-reservoir/index.ts` | New (~150 lines) |
-| `supabase/functions/recompute-brand-scores/index.ts` | Add ~25 lines after line 472 |
-| `src/components/scan/WhyThisScore.tsx` | Add learning signals section (~30 lines) |
-| pg_cron (via insert tool) | Schedule daily run |
+| New SQL migration | Update both `get_product_by_barcode` and `scan_product_lookup` functions |
 
-## Safety Summary
-
-- ±5 total cap, ±2 per signal type
-- Max 5 signals per type (stacking prevention)
-- Noise floor: `w * conf < 0.1` → skip
-- Category signals need ≥5 evidence
-- Brands need ≥3 events to generate signals
-- Certification modifier: +1.5 (not +2, keeps balance)
-- Daily 1% decay, auto-cleanup at 0.01
-- Graceful degradation: failure = adjustment 0
-- Full audit trail in `reservoir_adjustments`
-
+One migration, zero edge function changes, zero frontend changes.
