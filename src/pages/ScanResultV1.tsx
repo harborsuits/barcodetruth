@@ -430,63 +430,44 @@ export default function ScanResultV1() {
   }
 
   // ─── Building state ───
-  if (brandIsBuilding || brandIsFailed) {
+  // If we have a score, fall through to ready state with preliminary flag
+  if ((brandIsBuilding || brandIsFailed) && effectiveScore === null) {
     return (
       <div className="min-h-screen bg-background">
         <ScanHeader onBack={() => navigate(-1)} />
         <main className="container max-w-md mx-auto px-4 py-6 space-y-4">
-          <Card className="border-warning/30 bg-warning/5">
+          <Card>
             <CardContent className="pt-6 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-warning/20 flex items-center justify-center flex-shrink-0">
-                  {brandIsFailed ? <AlertCircle className="h-6 w-6 text-warning" /> : <Loader2 className="h-6 w-6 text-warning animate-spin" />}
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold">{brandIsFailed ? "Profile needs review" : "Building this profile"}</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {brandIsFailed ? "Verifying identity — usually takes a few minutes" : "ETA ~30 seconds — this page updates automatically"}
-                  </p>
-                </div>
+              <div>
+                <h2 className="text-lg font-semibold">{displayBrandName || "Resolving brand..."}</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Profile building — check back soon
+                </p>
               </div>
-              <EnrichmentStageProgress
-                stage={brandInfo?.enrichment_stage as any}
-                stageUpdatedAt={brandInfo?.enrichment_stage_updated_at}
-                startedAt={brandInfo?.enrichment_started_at}
-                status={brandInfo?.status || "stub"}
-                brandName={brandInfo?.name}
-              />
               <div className="pt-2 border-t space-y-2">
                 <div>
                   <p className="text-xs text-muted-foreground">Product</p>
                   <p className="font-medium">{product.name}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Brand</p>
-                  <p className="font-medium">{displayBrandName || "Resolving..."}</p>
-                </div>
               </div>
               <Button variant="outline" className="w-full" onClick={handleSaveScan} disabled={saved}>
                 {saved ? <><Check className="h-4 w-4 mr-2" />Saved</> : <><Save className="h-4 w-4 mr-2" />Save to My Scans</>}
               </Button>
-              {!showCorrection ? (
-                <Button variant="ghost" size="sm" className="w-full text-muted-foreground" onClick={() => setShowCorrection(true)}>
-                  Help improve this brand's data
+              {brandInfo?.slug && (
+                <Button variant="outline" className="w-full" onClick={() => navigate(`/brand/${brandInfo.slug}`, { state: { scannedBrandId: brandInfo?.id, scannedBrandName: displayBrandName || brandInfo?.name } })}>
+                  <ExternalLink className="h-4 w-4 mr-2" />View Profile
                 </Button>
-              ) : (
-                <CorrectionForm brandName={brandInfo?.name || ""} onSubmit={handleCorrection} />
               )}
+              <Button variant="ghost" className="w-full" onClick={() => navigate("/scan")}>Scan Another Product</Button>
             </CardContent>
           </Card>
-          <div className="space-y-2">
-            <Button variant="outline" className="w-full" onClick={() => brandInfo?.slug && navigate(`/brand/${brandInfo.slug}`, { state: { scannedBrandId: brandInfo?.id, scannedBrandName: displayBrandName || brandInfo?.name } })}>
-              <ExternalLink className="h-4 w-4 mr-2" />View Profile Anyway
-            </Button>
-            <Button variant="ghost" className="w-full" onClick={() => navigate("/scan")}>Scan Another Product</Button>
-          </div>
         </main>
       </div>
     );
   }
+
+  // Flag for preliminary badge in ready state
+  const isPreliminary = brandIsBuilding || brandIsFailed;
 
   // Detect if this is effectively an unknown/unrated brand
   const isUnknownBrand = !product?.brand_id || (!brandLoading && !displayBrandName) || displayBrandName === "Unknown Brand" || displayBrandName === "Unknown";
