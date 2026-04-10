@@ -287,12 +287,15 @@ export default function Search() {
           <>
             {/* Featured brand card when exactly one brand result */}
             {showFeatured && (
-              <FeaturedBrandCard
-                brand={brands[0]}
-                score={brandScores.get(brands[0].id) ?? null}
-                loading={scoresLoading}
-                onClick={() => navigate(`/brand/${brands[0].id}`)}
-              />
+              <>
+                <div className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wide">Best match</div>
+                <FeaturedBrandCard
+                  brand={brands[0]}
+                  score={brandScores.get(brands[0].id) ?? null}
+                  loading={scoresLoading}
+                  onClick={() => navigate(`/brand/${brands[0].id}`)}
+                />
+              </>
             )}
 
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
@@ -372,17 +375,9 @@ export default function Search() {
                               className="font-medium"
                               dangerouslySetInnerHTML={{ __html: highlightMatch(group.name, query) }}
                             />
-                            <div className="flex items-center gap-2 mt-1">
-                              {formatCategory(group.category) && (
-                                <span className="text-sm text-muted-foreground">
-                                  {formatCategory(group.category)}
-                                </span>
-                              )}
-                              {group.count > 1 && (
-                                <span className="text-xs text-muted-foreground/70">
-                                  • {group.count} sizes &amp; packages
-                                </span>
-                              )}
+                            <div className="text-sm text-muted-foreground mt-1">
+                              {formatCategory(group.category)}
+                              {group.count > 1 && ` · ${group.count} variants`}
                             </div>
                           </div>
                         </div>
