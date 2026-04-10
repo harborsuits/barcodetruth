@@ -117,12 +117,11 @@ export function PersonalizedScoreCard({
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <p className="font-medium">Building Score</p>
+              <p className="font-medium">Preliminary Score</p>
               <Badge variant="outline" className="text-xs">Early Data</Badge>
             </div>
             <p className="text-sm text-muted-foreground">
-              We're analyzing {eventsCount} event{eventsCount !== 1 ? 's' : ''} to calculate an ethical score. 
-              Check back soon for a complete assessment.
+              Based on {eventsCount} public record{eventsCount !== 1 ? 's' : ''}. Coverage expands weekly.
             </p>
           </div>
         </div>

@@ -121,10 +121,10 @@ export function WhoProfits({ brandId, brandName = "This brand", companyType }: W
           <div className="p-4 rounded-lg bg-muted/50 border border-border">
             <div className="flex items-center gap-2 mb-1">
               <Clock className="h-4 w-4 text-muted-foreground" />
-              <p className="text-sm font-medium text-muted-foreground">Ownership Data Pending</p>
+              <p className="text-sm font-medium text-muted-foreground">Ownership</p>
             </div>
             <p className="text-xs text-muted-foreground">
-              We haven't verified the ownership structure yet. Check back soon.
+              No parent company identified. This brand appears independently operated.
             </p>
           </div>
         )}

@@ -29,7 +29,7 @@ export function OutlookConfidenceBadge({ brandId }: OutlookConfidenceBadgeProps)
 
   return (
     <Badge variant={hasData ? "default" : "secondary"} className="text-xs">
-      {hasData ? confidence : 'Researching'}
+      {hasData ? confidence : 'Early data'}
     </Badge>
   );
 }

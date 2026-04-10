@@ -90,7 +90,7 @@ export function OwnershipSection({ brandId, brandName }: OwnershipSectionProps) 
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">
-              This brand appears to be independently operated or we're still researching its corporate structure.
+              This brand appears to be independently operated. No parent company identified.
             </p>
           </CardContent>
         </Card>

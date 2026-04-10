@@ -26,17 +26,17 @@ export function confidenceMeta(
   
   if (events === 0) {
     return { 
-      label: 'Researching', 
+      label: 'Early', 
       level: 'none',
-      color: 'text-warning' 
+      color: 'text-muted-foreground' 
     };
   }
   
   if (w < 0.35) {
     return { 
-      label: 'Researching', 
+      label: 'Early', 
       level: 'low',
-      color: 'text-warning' 
+      color: 'text-muted-foreground' 
     };
   }
   
