@@ -1,48 +1,55 @@
 
 
-# Wire Personalized Scoring into Scan Result Page
+# Upgrade Homepage: Show Real Results, Not Promises
 
-## What Changes
+## What We're Doing
 
-The scan result page currently displays the raw `brand_scores.score` from the database. The personalized scoring hook (`usePersonalizedBrandScore`) and user preference infrastructure already exist but aren't connected. This plan plugs them together so two users scanning the same product see different scores based on their values.
+Adding three new components to the existing homepage (between existing sections). Nothing gets removed or redesigned.
 
-## Implementation
+## New Components
 
-### 1. Add auth + personalized score hooks to `ScanResultV1.tsx`
+### 1. `LiveScanDemo` — placed between HeroSection and HowItWorks
 
-- Import `usePersonalizedBrandScore` from `@/hooks/usePersonalizedBrandScore`
-- Get the current user via `supabase.auth.getUser()` (or a shared auth hook if one exists)
-- Call `usePersonalizedBrandScore(brandInfo?.id, user?.id)` alongside the existing `scoreData` query
-- When the personalized result is available, use its `personalScore` and per-category scores instead of the raw `brand_scores` values
-- Fall back to the existing `scoreData` for logged-out users or if personalization data is missing
+A curated "See it in action" section showing 2-3 real brand results using your actual `TrustVerdict` component in a compact preview mode. Uses hardcoded brand IDs for brands with differentiated scores (not baseline-50). Each card shows:
+- Brand name + logo (via `useBrandLogo`)  
+- `TrustVerdict` rendered in compact form (score, verdict label, top 1 reason)
+- Click navigates to `/brand/{slug}`
 
-### 2. Overlay personalized scores onto the existing score variables
+Data source: fetches real `brand_scores` + `brands` rows for 3 curated brand IDs at render time. No fake data.
 
-Replace the score derivation block (lines ~295-330) with logic that:
-- If personalized result exists: use `personalizedResult.personalScore` as `overallScore`, and `personalizedResult.categoryScores` for the four dimensions
-- If not: keep current `scoreData` behavior (no regression for anonymous users)
-- The existing baseline/insufficient-evidence gates remain — they still suppress scores with < 5 events
+### 2. `TryItSearch` — placed below HowItWorks (before TrendingPreview)
 
-### 3. Show a "Personalized for you" indicator
+Three tappable pill buttons with real brand names (e.g., "Nestlé", "Coca-Cola", "Nike"). Tapping one navigates to `/search?q={name}`. Simple, no new logic — just `navigate()`. Gives instant "try it" interactivity without building anything.
 
-- Add a small badge or text near the score when personalization is active (e.g., "Based on your values" with a link to `/settings`)
-- When not logged in, show nothing (or a subtle "Sign in to personalize" nudge)
+### 3. `PersonalizationTeaser` — placed below TryItSearch
 
-### 4. Surface top score drivers from the personalized result
+Shows the four value dimensions as toggle chips (Labor, Environment, Politics, Social). On toggle, a single demo brand's score visibly shifts using `computePersonalizedScore` from `@/lib/personalizedScoring` with the toggled weights. Text: "Two people. Same product. Different scores." with a CTA to sign up or go to settings.
 
-The `ScoringResult` object includes `topPositive` and `topNegative` contributions. Pass these into the `WhyThisScore` component or display them inline so users understand *why* their personal score differs from the default.
+## Updated Home.tsx Discover tab
 
-## Files Changed
+```text
+<HeroSection />
+<LiveScanDemo />        ← NEW
+<HowItWorks />
+<TryItSearch />         ← NEW  
+<PersonalizationTeaser /> ← NEW
+<TrendingPreview />
+<AttributionFooter />
+```
+
+## Enhancing TrendingPreview (existing component)
+
+Add one line of context per brand — the top reason from `buildReasons()` logic (e.g., "3 labor issues on record"). This uses data already available in `brand_trending` view. No new queries.
+
+## Files
 
 | File | Action |
 |------|--------|
-| `src/pages/ScanResultV1.tsx` | Add personalized score hook, conditional score overlay, personalization badge |
+| `src/components/landing/LiveScanDemo.tsx` | New — curated real scan results |
+| `src/components/landing/TryItSearch.tsx` | New — tappable brand pills |
+| `src/components/landing/PersonalizationTeaser.tsx` | New — interactive value weight demo |
+| `src/components/landing/TrendingPreview.tsx` | Edit — add top reason line per brand |
+| `src/pages/Home.tsx` | Edit — add 3 new components to Discover tab |
 
-No new files. No backend changes. No database changes.
-
-## What the User Sees After This
-
-- **Logged in with preferences set**: Score reflects their value weights. A "Based on your values" label appears. Category breakdowns shift based on what they care about.
-- **Logged in, no preferences**: Falls back to equal-weight default (same as current behavior).
-- **Not logged in**: Exact same experience as today. No regression.
+No backend changes. No database changes. No modifications to existing components other than TrendingPreview getting one extra line of text per item.
 
