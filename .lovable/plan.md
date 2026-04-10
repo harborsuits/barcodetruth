@@ -1,47 +1,71 @@
 
 
-# Wire Community Layer + Upgrade Personalization Prompts
+# Always Deliver an Answer — Kill Pipeline UI, Ship Provisional Scores
+
+## Problem
+`BuildingProfile` shows "Researching this brand", progress bars, and "Score will publish later" — exposing backend pipeline state instead of delivering answers. Users see an unfinished product and leave.
 
 ## Changes
 
-### 1. `src/components/brand/CommunityOutlookCard.tsx` — Add empty-state guard
+### 1. Create `src/lib/buildReasons.ts` — Shared reason generator
+Extract `buildReasons()` from `ScanResultV1.tsx` (lines 64-90) into a standalone module. Enhance it to also consider pillar scores (e.g., `labor_score < 50` → "Weak labor practices score") when event counts are zero but scores exist. Both `BuildingProfile` and `ScanResultV1` import from here. Remove the inline copy from `ScanResultV1`.
 
-After the existing loading skeleton (line ~157), before the main card render: if `outlook` has no categories or all categories have `n === 0`, return a friendly "Be the first to rate this brand" card.
+### 2. Create `src/lib/getConfidenceLabel.ts` — Confidence framing
+Maps completeness percentage to user-facing labels:
+- `<40%` → "Early" (muted color)
+- `40-70%` → "Growing" (yellow)  
+- `>70%` → "High" (green)
 
-### 2. `src/pages/ScanResultV1.tsx` — Two insertions
+### 3. Rewrite `src/components/brand/BuildingProfile.tsx` — Live profile
 
-**A. Upgrade personalization prompt (lines 575-595)**
+**Add query**: Fetch `brand_scores` for this brand (same pattern as ScanResultV1 line 248-267, selecting `score, score_labor, score_environment, score_politics, score_social`).
 
-Replace the current subtle link/badge with a `min-h-[60px]` wrapper containing three states:
-- Logged out: muted card with "This score is generic. Sign in to personalize →"
-- Logged in, no preferences: "Personalize your score in 10 seconds. Set your values →"
-- Logged in + personalized: existing "Based on your values" badge (kept as-is)
+**New layout order**:
+1. **Brand Identity Header** — change badge from "Building profile" to "Live profile"
+2. **Provisional Score + Confidence** — if score exists: large score number + "Preliminary · evolving" badge + confidence label from completeness. If no score but has events: "Limited data — {N} records analyzed"
+3. **Top Reasons** — use shared `buildReasons()` with fetched score pillars + evidence counts. Header: "Why this score (so far)". Max 3 bullet points
+4. **Stats line** — single line: "Based on {N} public records across {M} categories" (not a card, not "verified")
+5. **Ownership** — keep existing `OwnershipRevealBuilding` (moved down from current position)
+6. **Power & Profit** — keep
+7. **Help improve actions** — keep
 
-**B. Community block (after line 638, after AlternativesSection)**
+**Remove entirely**:
+- "Researching this brand" card with Search icon (lines 64-102)
+- Progress bar with "Research progress: 88%" (lines 86-100)
+- "Score will publish once we verify enough sources" (line 122)
+- "What we found so far" stats card (lines 104-127)
 
-Insert new block with:
-- `CommunityOutlookCard` (with safe props: `brandInfo?.id`, fallback brand name)
-- "Rate this brand" button opening `RateBrandModal`
-- "Community opinions evolve over time" caption
-- New `showRateModal` state + `RateBrandModal` render
+### 4. Update `src/pages/ScanResultV1.tsx` — Kill building-state pipeline UI (lines 458-514)
 
-### 3. `src/pages/BrandProfileV1.tsx` — One insertion
+Replace the entire building state block. New logic:
+- If `scoreData` exists (query already runs at line 248): **fall through to the ready state** instead of returning early. Add a `brandIsBuilding` flag so the ready-state UI can show a "Preliminary" note on the score.
+- If no score and no brand info: show slim card with brand name + "Profile building — check back soon" + ownership + Save button (no pipeline stages, no `EnrichmentStageProgress`).
 
-**After AlternativesSection (line 687), before details collapsible (line 689)**
+Remove `EnrichmentStageProgress` import (line 15) — no longer user-facing.
 
-Same community block pattern:
-- `CommunityOutlookCard` with `resolvedBrandId` and `brand.name`
-- "Rate this brand" button + `RateBrandModal`
-- Caption text
-- New `showRateModal` state
+### 5. Update `src/pages/BrandProfileV1.tsx` — Fix null-score verdict (line 590)
 
-### Files
+Change: `hasEvidence ? 'Analyzing' : 'Not yet rated'`  
+To: `hasEvidence ? 'Limited Data' : 'Not yet rated'`
+
+When verdict is "Limited Data", show `"{evidenceTotal} records found"` as subtitle instead of "Score will appear once verified data is reviewed".
+
+### 6. Update `src/components/brand/DataLimitationsNotice.tsx` — Reframe "collecting" (lines 55-59)
+
+- Title: "Data collection in progress" → "Building a complete picture"
+- Description: → "This profile is continuously updated as new public records are verified."
+- Subtext: → "Coverage grows automatically over time."
+
+## Files
 
 | File | Action |
 |------|--------|
-| `src/components/brand/CommunityOutlookCard.tsx` | Add empty-state guard before main render |
-| `src/pages/ScanResultV1.tsx` | Import community components, upgrade personalization prompt, add community block after Alternatives |
-| `src/pages/BrandProfileV1.tsx` | Import community components, add community block after Alternatives |
+| `src/lib/buildReasons.ts` | New — shared reason generator |
+| `src/lib/getConfidenceLabel.ts` | New — confidence label helper |
+| `src/components/brand/BuildingProfile.tsx` | Major rewrite — provisional score, reasons, kill pipeline UI |
+| `src/pages/ScanResultV1.tsx` | Remove building-state pipeline block, fall through to ready state with preliminary flag |
+| `src/pages/BrandProfileV1.tsx` | Change null-score verdict from "Analyzing" to "Limited Data" |
+| `src/components/brand/DataLimitationsNotice.tsx` | Reframe "collecting" copy |
 
-No database changes. No new components.
+No database changes.
 
