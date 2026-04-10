@@ -572,10 +572,32 @@ export default function ScanResultV1() {
         </div>
 
         {/* ─── 1. INSTANT VERDICT ─── */}
+        {isPersonalized && !suppressScore && (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-accent/10 border border-accent/20 rounded-md text-xs text-accent-foreground">
+            <Sparkles className="h-3.5 w-3.5 text-accent-foreground/70" />
+            <span>Based on your values</span>
+            <button
+              onClick={() => navigate("/settings")}
+              className="ml-auto text-accent-foreground/60 hover:text-accent-foreground underline underline-offset-2"
+            >
+              Edit
+            </button>
+          </div>
+        )}
+        {!currentUserId && effectiveScore !== null && (
+          <button
+            onClick={() => navigate("/auth")}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Sparkles className="h-3 w-3" />
+            Sign in to personalize your score
+          </button>
+        )}
+
         <TrustVerdict
           score={effectiveScore}
           brandName={displayBrandName || ""}
-          reasons={(isBaselineScore || isInsufficientEvidence) ? ["Limited data — score requires at least 5 verified events"] : reasons}
+          reasons={(isBaselineScore || isInsufficientEvidence) ? ["Limited data — score requires at least 5 verified events"] : effectiveReasons}
           hasEvidence={(counts.total || 0) > 0}
           category={displayCategory || product?.category}
           parentCompany={displayParent || brandInfo?.parent_company}
