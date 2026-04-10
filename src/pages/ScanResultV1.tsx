@@ -12,7 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { AlternativesSection } from "@/components/brand/AlternativesSection";
 import { CommunityOutlookCard } from "@/components/brand/CommunityOutlookCard";
 import { RateBrandModal } from "@/components/brand/RateBrandModal";
-import { EnrichmentStageProgress } from "@/components/brand/EnrichmentStageProgress";
+
 import { EvidenceSection } from "@/components/scan/EvidenceSection";
 import { TrustVerdict } from "@/components/scan/TrustVerdict";
 import { WhyThisScore } from "@/components/scan/WhyThisScore";
