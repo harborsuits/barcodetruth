@@ -1,43 +1,47 @@
 
 
-# Brand-First Search + Product Deduplication
+# Wire Community Layer + Upgrade Personalization Prompts
 
-## What We're Doing
+## Changes
 
-Upgrading `Search.tsx` so search feels like an answer engine, not a database browser. No new pages, no backend changes.
+### 1. `src/components/brand/CommunityOutlookCard.tsx` — Add empty-state guard
 
-## Changes (all in `src/pages/Search.tsx`)
+After the existing loading skeleton (line ~157), before the main card render: if `outlook` has no categories or all categories have `n === 0`, return a friendly "Be the first to rate this brand" card.
 
-### 1. Reorder tabs: Brands first
-Change tab order to **Brands | Products | Companies**. Auto-select "brands" tab when brand results exist (unless URL already specifies a tab).
+### 2. `src/pages/ScanResultV1.tsx` — Two insertions
 
-### 2. Featured brand card (above tabs)
-When exactly ONE brand result exists, render a prominent card above the tabs showing:
-- Brand name + score + verdict badge (Good/Mixed/Avoid)
-- Top reason (e.g., "3 labor violations")
-- "View full breakdown" link to `/brand/{id}`
+**A. Upgrade personalization prompt (lines 575-595)**
 
-Score fetched from `brand_scores` after search completes. Skeleton state while loading.
+Replace the current subtle link/badge with a `min-h-[60px]` wrapper containing three states:
+- Logged out: muted card with "This score is generic. Sign in to personalize →"
+- Logged in, no preferences: "Personalize your score in 10 seconds. Set your values →"
+- Logged in + personalized: existing "Based on your values" badge (kept as-is)
 
-### 3. Product deduplication in Products tab
-Group products client-side by normalized name + brand_id:
-```text
-normalize = lowercase, strip non-alphanumeric
-group key = normalize(name) + brand_id
-```
-Each group renders one card: "Coca-Cola — Soft drinks — 12 sizes & packages". Click navigates to first barcode's scan result.
+**B. Community block (after line 638, after AlternativesSection)**
 
-### 4. Inline score badges on brand results
-After search results arrive, one query fetches scores for all returned brand IDs. Small colored badge (Good/Mixed/Avoid) on each brand card, skeleton while loading.
+Insert new block with:
+- `CommunityOutlookCard` (with safe props: `brandInfo?.id`, fallback brand name)
+- "Rate this brand" button opening `RateBrandModal`
+- "Community opinions evolve over time" caption
+- New `showRateModal` state + `RateBrandModal` render
 
-### 5. Verdict logic
-Reuse same thresholds from `LiveScanDemo.tsx`: 65+ Good, 40+ Mixed, below Avoid.
+### 3. `src/pages/BrandProfileV1.tsx` — One insertion
 
-## Files
+**After AlternativesSection (line 687), before details collapsible (line 689)**
+
+Same community block pattern:
+- `CommunityOutlookCard` with `resolvedBrandId` and `brand.name`
+- "Rate this brand" button + `RateBrandModal`
+- Caption text
+- New `showRateModal` state
+
+### Files
 
 | File | Action |
 |------|--------|
-| `src/pages/Search.tsx` | Reorder tabs, add featured card, group products, fetch + show brand scores inline |
+| `src/components/brand/CommunityOutlookCard.tsx` | Add empty-state guard before main render |
+| `src/pages/ScanResultV1.tsx` | Import community components, upgrade personalization prompt, add community block after Alternatives |
+| `src/pages/BrandProfileV1.tsx` | Import community components, add community block after Alternatives |
 
-No database changes. No new components needed.
+No database changes. No new components.
 
