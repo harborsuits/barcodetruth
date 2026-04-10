@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, Package, AlertCircle, Loader2, Check, Save, ExternalLink, Search, Users, TrendingUp, HelpCircle } from "lucide-react";
+import { ArrowLeft, Package, AlertCircle, Loader2, Check, Save, ExternalLink, Search, Users, TrendingUp, HelpCircle, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,6 +21,7 @@ import { OwnershipReveal } from "@/components/scan/OwnershipReveal";
 import { ShareCard, getGrade } from "@/components/scan/ShareCard";
 import { useBrandLogo } from "@/hooks/useBrandLogo";
 import { useDisplayProfile } from "@/hooks/useDisplayProfile";
+import { usePersonalizedBrandScore } from "@/hooks/usePersonalizedBrandScore";
 
 // ─── Correction form (unchanged) ───
 function CorrectionForm({ brandName, onSubmit }: { brandName: string; onSubmit: (data: { name?: string; website?: string }) => void }) {
@@ -124,6 +125,12 @@ export default function ScanResultV1() {
   const navState = location.state as { product?: any; brand?: any; source?: string } | null;
   const [showCorrection, setShowCorrection] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Auth state for personalization
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setCurrentUserId(user?.id ?? undefined));
+  }, []);
 
   if (!barcode) {
     return (
@@ -286,18 +293,20 @@ export default function ScanResultV1() {
   const displayCategory = displayProfile?.category_label || formatCategory(product?.category);
   const displayParent = displayProfile?.parent_display_name || (brandInfo?.parent_company ? formatBrandName(brandInfo.parent_company) : null);
 
+  // Personalized scoring — overlays raw scores when user is logged in with preferences
+  const { data: personalizedResult } = usePersonalizedBrandScore(brandInfo?.id, currentUserId);
+  const isPersonalized = !!personalizedResult && !!currentUserId;
+
   // States
   const brandIsReady = brandInfo?.status === "ready" || brandInfo?.status === "active";
   const brandIsBuilding = brandInfo?.status === "stub" || brandInfo?.status === "building";
   const brandIsFailed = brandInfo?.status === "failed";
   const brandExists = Boolean(brandInfo?.id);
 
-  const overallScore = scoreData?.overall ?? null;
+  const overallScore = isPersonalized ? personalizedResult.personalScore : (scoreData?.overall ?? null);
   const counts = evidenceCounts || { labor: 0, environment: 0, politics: 0, social: 0, total: 0 };
 
   // Detect near-baseline scores: all dimensions within ±3 of 50 with minimal evidence
-  // This catches both flat-50 baselines AND weakly-differentiated scores (47-53)
-  // that result from low-impact events providing no meaningful signal
   const isNearBaseline = scoreData && (
     (scoreData.overall === null || (scoreData.overall >= 47 && scoreData.overall <= 53)) &&
     (scoreData.score_labor === null || (scoreData.score_labor >= 47 && scoreData.score_labor <= 53)) &&
@@ -305,18 +314,19 @@ export default function ScanResultV1() {
     (scoreData.score_politics === null || (scoreData.score_politics >= 47 && scoreData.score_politics <= 53)) &&
     (scoreData.score_social === null || (scoreData.score_social >= 47 && scoreData.score_social <= 53))
   );
-  // MINIMUM SIGNAL THRESHOLD: suppress verdict if fewer than 5 direct events
-  // regardless of score value — a single event shouldn't drive a verdict
   const hasMinimalEvidence = (counts.total || 0) < 5;
   const isBaselineScore = isNearBaseline && hasMinimalEvidence;
-  // Also suppress any score backed by < 5 events even if outside baseline range
   const isInsufficientEvidence = hasMinimalEvidence && !isNearBaseline;
 
-  const effectiveScore = (isBaselineScore || isInsufficientEvidence) ? null : overallScore;
-  const effectiveLabor = (isBaselineScore || isInsufficientEvidence) ? null : (scoreData?.score_labor ?? null);
-  const effectiveEnv = (isBaselineScore || isInsufficientEvidence) ? null : (scoreData?.score_environment ?? null);
-  const effectivePol = (isBaselineScore || isInsufficientEvidence) ? null : (scoreData?.score_politics ?? null);
-  const effectiveSoc = (isBaselineScore || isInsufficientEvidence) ? null : (scoreData?.score_social ?? null);
+  // When personalized, use personalized category scores; otherwise use raw DB scores
+  // Evidence gates still apply — suppress if < 5 events
+  const suppressScore = isBaselineScore || isInsufficientEvidence;
+  const effectiveScore = suppressScore ? null : overallScore;
+
+  const effectiveLabor = suppressScore ? null : (isPersonalized ? Math.round(personalizedResult.categoryScores.labor * 10 + 50) : (scoreData?.score_labor ?? null));
+  const effectiveEnv = suppressScore ? null : (isPersonalized ? Math.round(personalizedResult.categoryScores.environment * 10 + 50) : (scoreData?.score_environment ?? null));
+  const effectivePol = suppressScore ? null : (isPersonalized ? Math.round(personalizedResult.categoryScores.politics * 10 + 50) : (scoreData?.score_politics ?? null));
+  const effectiveSoc = suppressScore ? null : (isPersonalized ? Math.round(personalizedResult.categoryScores.social * 10 + 50) : (scoreData?.score_social ?? null));
 
   const dimensions = [
     { key: "labor", label: "Labor & Safety", score: effectiveLabor, evidenceCount: counts.labor, summary: getDimensionSummary("labor", effectiveLabor, counts.labor) },
@@ -325,7 +335,20 @@ export default function ScanResultV1() {
     { key: "social", label: "Social Impact", score: effectiveSoc, evidenceCount: counts.social, summary: getDimensionSummary("social", effectiveSoc, counts.social) },
   ];
 
-  const reasons = buildReasons(scoreData, counts, brandInfo?.parent_company, brandInfo?.name);
+  const reasons = isPersonalized && !suppressScore
+    ? personalizedResult.contributions
+        .filter(c => Math.abs(c.contribution) > 0.05)
+        .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
+        .slice(0, 3)
+        .map(c => {
+          const label = c.category === 'labor' ? 'Labor' : c.category === 'environment' ? 'Environment' : c.category === 'politics' ? 'Politics' : 'Social';
+          const dir = c.isPositive ? 'positive' : 'negative';
+          return `${label}: ${dir} impact (weight: ${Math.round(c.weight * 100)}%)`;
+        })
+    : buildReasons(scoreData, counts, brandInfo?.parent_company, brandInfo?.name);
+
+  // Fallback if personalized reasons are empty
+  const effectiveReasons = reasons.length > 0 ? reasons : buildReasons(scoreData, counts, brandInfo?.parent_company, brandInfo?.name);
 
   const verdictLabel = effectiveScore === null ? "Checking..." : effectiveScore >= 65 ? "Good" : effectiveScore >= 40 ? "Mixed" : "Avoid";
 
@@ -549,10 +572,32 @@ export default function ScanResultV1() {
         </div>
 
         {/* ─── 1. INSTANT VERDICT ─── */}
+        {isPersonalized && !suppressScore && (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-accent/10 border border-accent/20 rounded-md text-xs text-accent-foreground">
+            <Sparkles className="h-3.5 w-3.5 text-accent-foreground/70" />
+            <span>Based on your values</span>
+            <button
+              onClick={() => navigate("/settings")}
+              className="ml-auto text-accent-foreground/60 hover:text-accent-foreground underline underline-offset-2"
+            >
+              Edit
+            </button>
+          </div>
+        )}
+        {!currentUserId && effectiveScore !== null && (
+          <button
+            onClick={() => navigate("/auth")}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Sparkles className="h-3 w-3" />
+            Sign in to personalize your score
+          </button>
+        )}
+
         <TrustVerdict
           score={effectiveScore}
           brandName={displayBrandName || ""}
-          reasons={(isBaselineScore || isInsufficientEvidence) ? ["Limited data — score requires at least 5 verified events"] : reasons}
+          reasons={(isBaselineScore || isInsufficientEvidence) ? ["Limited data — score requires at least 5 verified events"] : effectiveReasons}
           hasEvidence={(counts.total || 0) > 0}
           category={displayCategory || product?.category}
           parentCompany={displayParent || brandInfo?.parent_company}
