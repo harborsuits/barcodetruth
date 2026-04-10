@@ -322,10 +322,10 @@ export default function ScanResultV1() {
           const dir = c.isPositive ? 'positive' : 'negative';
           return `${label}: ${dir} impact (weight: ${Math.round(c.weight * 100)}%)`;
         })
-    : buildReasons({ scores: { score_labor: scoreData?.score_labor, score_environment: scoreData?.score_environment, score_politics: scoreData?.score_politics, score_social: scoreData?.score_social, overall: scoreData?.score }, evidenceCounts: counts, parentName: brandInfo?.parent_company, brandName: brandInfo?.name });
+    : buildReasons({ scores: { score_labor: scoreData?.score_labor, score_environment: scoreData?.score_environment, score_politics: scoreData?.score_politics, score_social: scoreData?.score_social, overall: scoreData?.overall }, evidenceCounts: counts, parentName: brandInfo?.parent_company, brandName: brandInfo?.name });
 
   // Fallback if personalized reasons are empty
-  const effectiveReasons = reasons.length > 0 ? reasons : buildReasons({ scores: { score_labor: scoreData?.score_labor, score_environment: scoreData?.score_environment, score_politics: scoreData?.score_politics, score_social: scoreData?.score_social, overall: scoreData?.score }, evidenceCounts: counts, parentName: brandInfo?.parent_company, brandName: brandInfo?.name });
+  const effectiveReasons = reasons.length > 0 ? reasons : buildReasons({ scores: { score_labor: scoreData?.score_labor, score_environment: scoreData?.score_environment, score_politics: scoreData?.score_politics, score_social: scoreData?.score_social, overall: scoreData?.overall }, evidenceCounts: counts, parentName: brandInfo?.parent_company, brandName: brandInfo?.name });
 
   const verdictLabel = effectiveScore === null ? "Checking..." : effectiveScore >= 65 ? "Good" : effectiveScore >= 40 ? "Mixed" : "Avoid";
 
