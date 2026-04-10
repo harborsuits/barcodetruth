@@ -567,6 +567,10 @@ export default function ScanResultV1() {
           )}
         </div>
 
+        {isPreliminary && effectiveScore !== null && (
+          <div className="text-xs text-muted-foreground text-center">Preliminary · based on available data</div>
+        )}
+
         <TrustVerdict
           score={effectiveScore}
           brandName={displayBrandName || ""}
