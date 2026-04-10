@@ -17,8 +17,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { BrandIdentityHeader } from "@/components/brand/BrandIdentityHeader";
 import { PowerProfitCard } from "@/components/brand/PowerProfitCard";
 import { useDisplayProfile } from "@/hooks/useDisplayProfile";
-import { buildReasons } from "@/lib/buildReasons";
 import { getConfidenceLabel } from "@/lib/getConfidenceLabel";
+import { ReasonProofList } from "@/components/brand/ReasonProofList";
 
 interface BrandData {
   id: string;
