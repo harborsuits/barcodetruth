@@ -587,7 +587,7 @@ export default function BrandProfileV1() {
   // Verdict — use evidence count from hook above
   const hasEvidence = (evidenceTotal || 0) > 0;
   const getVerdict = (s: number | null) => {
-    if (s === null) return { label: hasEvidence ? 'Analyzing' : 'Not yet rated', color: 'bg-muted text-muted-foreground', emoji: '—' };
+    if (s === null) return { label: hasEvidence ? 'Limited Data' : 'Not yet rated', color: 'bg-muted text-muted-foreground', emoji: '—' };
     if (s >= 65) return { label: 'Good', color: 'bg-success/15 text-success', emoji: '🟢' };
     if (s >= 40) return { label: 'Mixed', color: 'bg-warning/15 text-warning', emoji: '🟡' };
     return { label: 'Avoid', color: 'bg-destructive/15 text-destructive', emoji: '🔴' };

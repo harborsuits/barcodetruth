@@ -60,34 +60,8 @@ function CorrectionForm({ brandName, onSubmit }: { brandName: string; onSubmit: 
   );
 }
 
-// ─── Score reason generator ───
-function buildReasons(scores: any, evidenceCounts: Record<string, number>, parentName?: string | null, brandName?: string): string[] {
-  const reasons: string[] = [];
-  const s = scores || {};
-
-  if (s.score_labor != null && s.score_labor < 45) {
-    const c = evidenceCounts.labor || 0;
-    reasons.push(c > 0 ? `${c} labor/workplace safety issue${c !== 1 ? "s" : ""} on record` : "Below-average labor practices record");
-  }
-  if (s.score_environment != null && s.score_environment < 45) {
-    const c = evidenceCounts.environment || 0;
-    reasons.push(c > 0 ? `${c} environmental compliance issue${c !== 1 ? "s" : ""} flagged` : "Environmental record needs improvement");
-  }
-  if (s.score_politics != null && s.score_politics < 45) {
-    reasons.push("Significant political lobbying or donation exposure");
-  }
-  if (s.score_social != null && s.score_social < 45) {
-    reasons.push("Social responsibility concerns identified");
-  }
-  if (parentName && parentName !== brandName) {
-    reasons.push(`Owned by ${parentName} — a large parent company`);
-  }
-  if (reasons.length === 0 && s.overall != null) {
-    if (s.overall >= 65) reasons.push("No major issues found in checked sources");
-    else reasons.push("Mixed record across multiple categories");
-  }
-  return reasons.slice(0, 3);
-}
+// ─── Score reason generator (shared) ───
+import { buildReasons } from "@/lib/buildReasons";
 
 function getLetterGrade(score: number | null): string {
   if (score === null) return "—";
