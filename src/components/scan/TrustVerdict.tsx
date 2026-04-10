@@ -87,7 +87,7 @@ export function TrustVerdict({ score, brandName, reasons, hasEvidence, category,
 
   const displayReasons = reasons.length > 0
     ? reasons
-    : (isLimitedData ? buildFallbackInsights(brandName, category, parentCompany, hasEvidence) : []);
+    : (isAnalyzing ? buildFallbackInsights(brandName, category, parentCompany, hasEvidence) : []);
 
   return (
     <div className={`${verdict.bgClassName} border border-border rounded-lg p-5 space-y-4`}>

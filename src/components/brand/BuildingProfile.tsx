@@ -68,17 +68,13 @@ export function BuildingProfile({ brand, stateData }: BuildingProfileProps) {
   const confidence = getConfidenceLabel(completeness);
   const parentName = displayProfile?.parent_display_name || brand.parent_company;
 
-  const reasons = buildReasons({
-    scores: {
-      score_labor: scoreData?.score_labor,
-      score_environment: scoreData?.score_environment,
-      score_politics: scoreData?.score_politics,
-      score_social: scoreData?.score_social,
-      overall: score,
-    },
-    parentName,
-    brandName: displayName,
-  });
+  const scoreInputs = {
+    score_labor: scoreData?.score_labor,
+    score_environment: scoreData?.score_environment,
+    score_politics: scoreData?.score_politics,
+    score_social: scoreData?.score_social,
+    overall: score,
+  };
 
   return (
     <div className="container max-w-md mx-auto px-4 py-6 space-y-4">
