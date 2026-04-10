@@ -210,8 +210,8 @@ function NoHoldersMessage({ exchange }: { exchange: string | null }) {
     <div className="p-3 rounded-lg bg-muted/30 border border-dashed">
       <p className="text-xs text-muted-foreground">
         {isUS 
-          ? "Top holders not yet verified — we're processing SEC filings."
-          : `Top holders not available yet for this exchange (${exchange || 'non-US'}). We're adding international filings.`
+          ? "Ownership data is still being expanded from SEC filings."
+          : `Ownership data for ${exchange || 'non-US'} exchanges is being added.`
         }
       </p>
     </div>
@@ -400,7 +400,7 @@ function ConfidenceFooter({ confidence }: { confidence: string }) {
     high: 'Verified from official filings',
     medium: 'Inferred from public sources',
     low: 'Limited data available',
-    none: 'Gathering data...',
+    none: 'Updated continuously from public records',
   };
 
   return (
