@@ -80,16 +80,25 @@ const highlightMatch = (name: string, q: string) => {
   return escapedName.replace(regex, '<mark class="bg-primary/20">$1</mark>');
 };
 
-// --- Verdict badge component ---
+// --- Verdict badge component (fixed-size to prevent layout shift) ---
 function VerdictBadge({ score, loading }: { score: number | null; loading: boolean }) {
-  if (loading) return <Skeleton className="h-5 w-14 rounded-full" />;
-  const v = getVerdict(score);
-  const Icon = v.icon;
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${v.bg} ${v.className}`}>
-      <Icon className="h-3 w-3" />
-      {v.label}
-    </span>
+    <div className="min-w-[80px] h-[28px] flex items-center justify-center">
+      {loading ? (
+        <div className="h-5 w-16 bg-muted animate-pulse rounded-full" />
+      ) : score !== null ? (
+        (() => {
+          const v = getVerdict(score);
+          const Icon = v.icon;
+          return (
+            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${v.bg} ${v.className}`}>
+              <Icon className="h-3 w-3" />
+              {v.label}
+            </span>
+          );
+        })()
+      ) : null}
+    </div>
   );
 }
 
@@ -129,6 +138,9 @@ function FeaturedBrandCard({ brand, score, loading, onClick }: {
             Score: {Math.round(score)}/100
           </div>
         )}
+        <div className="text-xs text-muted-foreground/70 mt-2">
+          This applies to all products from this brand
+        </div>
         <div className="flex items-center gap-1 mt-3 text-sm text-primary font-medium">
           View full breakdown <ArrowRight className="h-3.5 w-3.5" />
         </div>
