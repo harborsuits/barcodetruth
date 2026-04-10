@@ -32,37 +32,15 @@ import { bt } from '@/lib/behaviorTracker';
 // State B: Building (in progress) - gathering evidence, show progress
 // State C: Needs Review (mismatch) - identity confidence low or name mismatch detected
 
-function EnrichmentProgress({
-  status, 
-  message, 
-  step, 
-  totalSteps 
-}: { 
-  status: string; 
-  message: string; 
-  step: number; 
-  totalSteps: number;
-}) {
-  if (status === 'idle' || status === 'complete') return null;
-  
-  return (
-    <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg space-y-2">
-      <div className="flex items-center gap-2">
-        <Loader2 className="h-4 w-4 animate-spin text-primary" />
-        <span className="text-sm font-medium">{message}</span>
-      </div>
-      <Progress value={(step / totalSteps) * 100} className="h-1" />
-    </div>
-  );
-}
+// EnrichmentProgress removed — no pipeline UI exposed to users
 
 function ScoreDisplay({ score }: { score: number | null }) {
   if (score === null || score === undefined) {
     return (
       <div className="text-center p-4 bg-muted/50 rounded-lg">
-        <p className="text-sm font-medium text-muted-foreground">Analyzing</p>
+        <p className="text-sm font-medium text-muted-foreground">Limited Data</p>
         <p className="text-xs text-muted-foreground mt-1">
-          We're still processing public records for this brand. Score will appear once verified data is reviewed.
+          Not enough verified records to generate a score yet.
         </p>
       </div>
     );
@@ -655,7 +633,18 @@ export default function BrandProfileV1() {
 
           {/* Top reasons */}
           {resolvedBrandId && (
-            <TopReasons brandId={resolvedBrandId} parentCompany={brand.parent_company} brandName={brand.name} dimScores={dimScores} />
+            <ReasonProofList
+              brandId={resolvedBrandId}
+              brandName={brand.name}
+              parentName={brand.parent_company}
+              scores={{
+                score_labor: dimScores.labor,
+                score_environment: dimScores.environment,
+                score_politics: dimScores.politics,
+                score_social: dimScores.social,
+                overall: scoreValue,
+              }}
+            />
           )}
 
           {/* Score transparency */}
@@ -666,15 +655,7 @@ export default function BrandProfileV1() {
           )}
         </div>
 
-        {/* Enrichment progress if still running */}
-        {enrichmentProgress.status === 'enriching' && (
-          <EnrichmentProgress 
-            status={enrichmentProgress.status}
-            message={enrichmentProgress.message}
-            step={enrichmentProgress.step}
-            totalSteps={enrichmentProgress.totalSteps}
-          />
-        )}
+        {/* Enrichment progress removed — no pipeline UI */}
 
         {/* ─── 2. OWNERSHIP REVEAL ─── */}
         {resolvedBrandId && (
@@ -779,66 +760,5 @@ export default function BrandProfileV1() {
   );
 }
 
-/* ═══ TOP REASONS — "Why this score?" inline ═══ */
-function TopReasons({ brandId, parentCompany, brandName, dimScores }: { brandId: string; parentCompany?: string | null; brandName: string; dimScores: Record<string, number | null> }) {
-  const { data: counts } = useQuery({
-    queryKey: ['brand-evidence-counts-profile', brandId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('brand_events')
-        .select('category')
-        .eq('brand_id', brandId)
-        .eq('is_irrelevant', false);
-      if (error || !data) return { labor: 0, environment: 0, politics: 0, social: 0 };
-      const c: Record<string, number> = { labor: 0, environment: 0, politics: 0, social: 0 };
-      data.forEach((e: any) => { if (e.category && c[e.category] !== undefined) c[e.category]++; });
-      return c;
-    },
-    enabled: !!brandId,
-  });
-
-  const reasons: string[] = [];
-  const c = counts || { labor: 0, environment: 0, politics: 0, social: 0 };
-
-  if (dimScores.labor != null && dimScores.labor < 45) {
-    reasons.push(c.labor > 0 ? `${c.labor} labor/safety issue${c.labor !== 1 ? 's' : ''} on record` : 'Below-average labor practices');
-  }
-  if (dimScores.environment != null && dimScores.environment < 45) {
-    reasons.push(c.environment > 0 ? `${c.environment} environmental issue${c.environment !== 1 ? 's' : ''} flagged` : 'Environmental record needs improvement');
-  }
-  if (dimScores.politics != null && dimScores.politics < 45) {
-    reasons.push('Significant political lobbying exposure');
-  }
-  if (dimScores.social != null && dimScores.social < 45) {
-    reasons.push('Social responsibility concerns identified');
-  }
-  if (parentCompany && parentCompany !== brandName) {
-    reasons.push(`Owned by ${parentCompany}`);
-  }
-  if (reasons.length === 0) {
-    const overall = Object.values(dimScores).filter(v => v != null);
-    if (overall.length === 0) {
-      reasons.push('We\'re still processing public records for this brand');
-    } else {
-      const avg = overall.reduce((a, b) => a! + b!, 0)! / overall.length;
-      if (avg >= 65) reasons.push('No major issues found in checked sources');
-      else reasons.push('Mixed record across categories');
-    }
-  }
-
-  if (reasons.length === 0) return null;
-
-  return (
-    <div className="space-y-1.5 pt-3 border-t border-border/50">
-      <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Why</p>
-      {reasons.slice(0, 3).map((r, i) => (
-        <p key={i} className="text-sm flex items-start gap-2">
-          <span className="text-muted-foreground mt-0.5">•</span>
-          <span>{r}</span>
-        </p>
-      ))}
-    </div>
-  );
-}
-
+// TopReasons removed — replaced by shared ReasonProofList component
 
