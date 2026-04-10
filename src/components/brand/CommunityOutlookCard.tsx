@@ -184,6 +184,9 @@ export function CommunityOutlookCard({ brandId, brandName }: CommunityOutlookCar
           <p className="text-sm text-muted-foreground">
             Be the first to rate {brandName}
           </p>
+          <p className="text-xs text-muted-foreground">
+            Your input helps others make better choices
+          </p>
         </div>
       </Card>
     );
