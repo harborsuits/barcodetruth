@@ -441,7 +441,7 @@ export default function ScanResultV1() {
               <div>
                 <h2 className="text-lg font-semibold">{displayBrandName || "Resolving brand..."}</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Profile building — check back soon
+                  Live profile — updated continuously from public records
                 </p>
               </div>
               <div className="pt-2 border-t space-y-2">

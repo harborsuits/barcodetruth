@@ -86,7 +86,7 @@ export function ConsumerSummary({
     // Ownership Pending
     summaryPoints.push({
       icon: <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />,
-      text: `We're still verifying ownership details for ${brandName}. Check back soon.`,
+      text: `Ownership details for ${brandName} are limited. Coverage expands weekly.`,
     });
   }
 
@@ -127,7 +127,7 @@ export function ConsumerSummary({
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-lg">What We Know So Far</h3>
+        <h3 className="font-semibold text-lg">Brand Overview</h3>
         <Badge variant="outline" className="text-xs">
           <Clock className="h-3 w-3 mr-1" />
           Auto-updated

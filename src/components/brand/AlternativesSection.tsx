@@ -185,7 +185,7 @@ export function AlternativesSection({ brandId, brandName }: AlternativesSectionP
               We're still building alternatives for this category.
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Check back soon — our coverage expands weekly.
+              Our coverage expands weekly as we add more brands.
             </p>
           </div>
         ) : (

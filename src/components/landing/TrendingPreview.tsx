@@ -149,9 +149,9 @@ export function TrendingPreview() {
         {!trending.length ? (
           <div className="text-center py-8 px-4 bg-elevated-1 border border-border rounded-lg">
             <Clock className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
-            <h3 className="font-semibold text-sm mb-1">Building trending data</h3>
+            <h3 className="font-semibold text-sm mb-1">Trending brands</h3>
             <p className="text-xs text-muted-foreground">
-              Brand scores are being processed. Check back soon.
+              Scan a product to see which brands people are checking.
             </p>
           </div>
         ) : trending.map((brand) => {

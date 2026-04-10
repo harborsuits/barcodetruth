@@ -248,7 +248,7 @@ export const Scan = () => {
           
           toast({ 
             title: "We're on it", 
-            description: result.message || "We're gathering evidence for this brand. Check back soon for updates.",
+            description: result.message || "We've started a live profile for this brand. Results update continuously.",
             variant: "default"
           });
           
