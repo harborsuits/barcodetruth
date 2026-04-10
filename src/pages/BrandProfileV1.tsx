@@ -26,6 +26,7 @@ import { BuildingProfile } from '@/components/brand/BuildingProfile';
 import { NeedsReviewProfile } from '@/components/brand/NeedsReviewProfile';
 import { deduplicateEvents } from '@/lib/deduplicateEvents';
 import { bt } from '@/lib/behaviorTracker';
+import { ReasonProofList } from '@/components/brand/ReasonProofList';
 
 // V1 Consumer Contract - with 3 explicit states:
 // State A: Assessable (full profile) - identity verified + 3+ dimensions with evidence
