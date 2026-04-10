@@ -1,91 +1,48 @@
 
 
-# Brand Rotation + RSS Enhancement — Implementation Plan
+# Wire Personalized Scoring into Scan Result Page
 
-## What This Solves
+## What Changes
 
-Right now the orchestrator runs every 30 minutes and tries to hit all brands with rate-limited APIs (Guardian, NYT, GNews, etc.) — burning through free-tier quotas in hours. Meanwhile, RSS feeds (21 sources, unlimited) already run every 15 minutes but aren't connected to brand-level rotation.
+The scan result page currently displays the raw `brand_scores.score` from the database. The personalized scoring hook (`usePersonalizedBrandScore`) and user preference infrastructure already exist but aren't connected. This plan plugs them together so two users scanning the same product see different scores based on their values.
 
-## What Gets Built
+## Implementation
 
-### 1. Brand Rotation Scheduler (new edge function)
-A lightweight `rotate-brand-ingestion` function that:
-- Runs **twice daily** (every 12 hours) via pg_cron
-- Selects the next batch of brands to ingest, ordered by `last_news_ingestion` (oldest first)
-- Processes **15-20 brands per run** (fits within free-tier API budgets)
-- Calls the existing `unified-news-orchestrator` for each brand sequentially
-- Updates `last_news_ingestion` after each brand completes
+### 1. Add auth + personalized score hooks to `ScanResultV1.tsx`
 
-With 1,665 brands and 2 runs/day × 15 brands = 30 brands/day, full rotation takes ~55 days. High-priority brands (fortune_500, large) get weighted to appear more frequently.
+- Import `usePersonalizedBrandScore` from `@/hooks/usePersonalizedBrandScore`
+- Get the current user via `supabase.auth.getUser()` (or a shared auth hook if one exists)
+- Call `usePersonalizedBrandScore(brandInfo?.id, user?.id)` alongside the existing `scoreData` query
+- When the personalized result is available, use its `personalScore` and per-category scores instead of the raw `brand_scores` values
+- Fall back to the existing `scoreData` for logged-out users or if personalization data is missing
 
-### 2. Cron Schedule Cleanup
-- **Remove**: `batch-process-brands-v2` (every 30 min) and `batch-processor-breaking` (hourly) — these are the quota burners
-- **Add**: `rotate-brand-ingestion` at `0 */12 * * *` (every 12 hours)
-- **Keep**: `pull-feeds-15m` (RSS is unlimited and already works)
+### 2. Overlay personalized scores onto the existing score variables
 
-### 3. RSS → Brand Event Linking (enhancement)
-Currently RSS items land in `rss_items` and get processed by `brand-match`. Verify this pipeline actually creates `brand_events` from RSS items — if not, add the bridge so RSS becomes a real unlimited data source for brand scoring.
+Replace the score derivation block (lines ~295-330) with logic that:
+- If personalized result exists: use `personalizedResult.personalScore` as `overallScore`, and `personalizedResult.categoryScores` for the four dimensions
+- If not: keep current `scoreData` behavior (no regression for anonymous users)
+- The existing baseline/insufficient-evidence gates remain — they still suppress scores with < 5 events
 
-## Architecture
+### 3. Show a "Personalized for you" indicator
 
-```text
-Every 15 min (unchanged):
-  pull-feeds → rss_items → brand-match → brand_events
+- Add a small badge or text near the score when personalization is active (e.g., "Based on your values" with a link to `/settings`)
+- When not logged in, show nothing (or a subtle "Sign in to personalize" nudge)
 
-Every 12 hours (NEW):
-  rotate-brand-ingestion
-    → pick 15-20 brands (oldest last_news_ingestion first)
-    → for each: call unified-news-orchestrator
-    → API-keyed sources stay within daily budgets
-    → GDELT always runs (unlimited)
-```
+### 4. Surface top score drivers from the personalized result
 
-## API Budget Math (12h schedule)
-
-| Source | Daily Limit | 2 runs × 15 brands = 30 calls | Status |
-|--------|------------|-------------------------------|--------|
-| Guardian | 500 | 30 | ✅ ~6% used |
-| GDELT | 5000 | 30 | ✅ trivial |
-| NewsAPI | 100 | 30 | ✅ ~30% used |
-| NYT | 500 | 30 | ✅ ~6% used |
-| GNews | 100 | 30 | ✅ ~30% used |
-| Mediastack | 16 | 16 (capped) | ✅ budget-aware |
-| Currents | 20 | 20 (capped) | ✅ budget-aware |
-
-All sources stay well within free-tier limits.
+The `ScoringResult` object includes `topPositive` and `topNegative` contributions. Pass these into the `WhyThisScore` component or display them inline so users understand *why* their personal score differs from the default.
 
 ## Files Changed
 
 | File | Action |
 |------|--------|
-| `supabase/functions/rotate-brand-ingestion/index.ts` | **New** — rotation scheduler (~120 lines) |
-| SQL via insert tool | Remove old cron jobs, add new 12h cron |
-| Possibly `supabase/functions/pull-feeds/index.ts` | Verify RSS→brand_events pipeline works end-to-end |
+| `src/pages/ScanResultV1.tsx` | Add personalized score hook, conditional score overlay, personalization badge |
 
-## Priority Weighting Logic
+No new files. No backend changes. No database changes.
 
-```text
-SELECT id, name, last_news_ingestion
-FROM brands
-WHERE is_active = true
-ORDER BY
-  CASE company_size
-    WHEN 'fortune_500' THEN 1
-    WHEN 'large' THEN 2
-    WHEN 'medium' THEN 3
-    ELSE 4
-  END,
-  last_news_ingestion ASC NULLS FIRST
-LIMIT 20;
-```
+## What the User Sees After This
 
-Fortune 500 brands get checked every ~2 weeks; smaller brands every ~2 months. All brands eventually get covered.
-
-## Safety
-
-- Existing `unified-news-orchestrator` is untouched — rotation just calls it
-- `fetchBudgeted` + `try_spend` still enforce per-source limits
-- 15-minute cooldown slots prevent duplicate runs
-- RSS pipeline continues independently (unlimited)
-- If rotation function fails, nothing breaks — brands just wait for next run
+- **Logged in with preferences set**: Score reflects their value weights. A "Based on your values" label appears. Category breakdowns shift based on what they care about.
+- **Logged in, no preferences**: Falls back to equal-weight default (same as current behavior).
+- **Not logged in**: Exact same experience as today. No regression.
 
