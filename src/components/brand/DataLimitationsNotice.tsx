@@ -53,9 +53,9 @@ const LIMITATION_CONTENT: Record<LimitationType, {
   },
   'collecting': {
     icon: Search,
-    title: "Data collection in progress",
-    description: "We're still gathering information about this brand. Check back later for a more complete picture.",
-    subtext: "Initial profiles are built within a few hours of first scan."
+    title: "Building a complete picture",
+    description: "This profile is continuously updated as new public records are verified.",
+    subtext: "Coverage grows automatically over time."
   }
 };
 

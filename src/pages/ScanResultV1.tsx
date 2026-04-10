@@ -12,7 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { AlternativesSection } from "@/components/brand/AlternativesSection";
 import { CommunityOutlookCard } from "@/components/brand/CommunityOutlookCard";
 import { RateBrandModal } from "@/components/brand/RateBrandModal";
-import { EnrichmentStageProgress } from "@/components/brand/EnrichmentStageProgress";
+
 import { EvidenceSection } from "@/components/scan/EvidenceSection";
 import { TrustVerdict } from "@/components/scan/TrustVerdict";
 import { WhyThisScore } from "@/components/scan/WhyThisScore";
@@ -60,34 +60,8 @@ function CorrectionForm({ brandName, onSubmit }: { brandName: string; onSubmit: 
   );
 }
 
-// ─── Score reason generator ───
-function buildReasons(scores: any, evidenceCounts: Record<string, number>, parentName?: string | null, brandName?: string): string[] {
-  const reasons: string[] = [];
-  const s = scores || {};
-
-  if (s.score_labor != null && s.score_labor < 45) {
-    const c = evidenceCounts.labor || 0;
-    reasons.push(c > 0 ? `${c} labor/workplace safety issue${c !== 1 ? "s" : ""} on record` : "Below-average labor practices record");
-  }
-  if (s.score_environment != null && s.score_environment < 45) {
-    const c = evidenceCounts.environment || 0;
-    reasons.push(c > 0 ? `${c} environmental compliance issue${c !== 1 ? "s" : ""} flagged` : "Environmental record needs improvement");
-  }
-  if (s.score_politics != null && s.score_politics < 45) {
-    reasons.push("Significant political lobbying or donation exposure");
-  }
-  if (s.score_social != null && s.score_social < 45) {
-    reasons.push("Social responsibility concerns identified");
-  }
-  if (parentName && parentName !== brandName) {
-    reasons.push(`Owned by ${parentName} — a large parent company`);
-  }
-  if (reasons.length === 0 && s.overall != null) {
-    if (s.overall >= 65) reasons.push("No major issues found in checked sources");
-    else reasons.push("Mixed record across multiple categories");
-  }
-  return reasons.slice(0, 3);
-}
+// ─── Score reason generator (shared) ───
+import { buildReasons } from "@/lib/buildReasons";
 
 function getLetterGrade(score: number | null): string {
   if (score === null) return "—";
@@ -348,10 +322,10 @@ export default function ScanResultV1() {
           const dir = c.isPositive ? 'positive' : 'negative';
           return `${label}: ${dir} impact (weight: ${Math.round(c.weight * 100)}%)`;
         })
-    : buildReasons(scoreData, counts, brandInfo?.parent_company, brandInfo?.name);
+    : buildReasons({ scores: { score_labor: scoreData?.score_labor, score_environment: scoreData?.score_environment, score_politics: scoreData?.score_politics, score_social: scoreData?.score_social, overall: scoreData?.overall }, evidenceCounts: counts, parentName: brandInfo?.parent_company, brandName: brandInfo?.name });
 
   // Fallback if personalized reasons are empty
-  const effectiveReasons = reasons.length > 0 ? reasons : buildReasons(scoreData, counts, brandInfo?.parent_company, brandInfo?.name);
+  const effectiveReasons = reasons.length > 0 ? reasons : buildReasons({ scores: { score_labor: scoreData?.score_labor, score_environment: scoreData?.score_environment, score_politics: scoreData?.score_politics, score_social: scoreData?.score_social, overall: scoreData?.overall }, evidenceCounts: counts, parentName: brandInfo?.parent_company, brandName: brandInfo?.name });
 
   const verdictLabel = effectiveScore === null ? "Checking..." : effectiveScore >= 65 ? "Good" : effectiveScore >= 40 ? "Mixed" : "Avoid";
 
@@ -456,63 +430,44 @@ export default function ScanResultV1() {
   }
 
   // ─── Building state ───
-  if (brandIsBuilding || brandIsFailed) {
+  // If we have a score, fall through to ready state with preliminary flag
+  if ((brandIsBuilding || brandIsFailed) && effectiveScore === null) {
     return (
       <div className="min-h-screen bg-background">
         <ScanHeader onBack={() => navigate(-1)} />
         <main className="container max-w-md mx-auto px-4 py-6 space-y-4">
-          <Card className="border-warning/30 bg-warning/5">
+          <Card>
             <CardContent className="pt-6 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-warning/20 flex items-center justify-center flex-shrink-0">
-                  {brandIsFailed ? <AlertCircle className="h-6 w-6 text-warning" /> : <Loader2 className="h-6 w-6 text-warning animate-spin" />}
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold">{brandIsFailed ? "Profile needs review" : "Building this profile"}</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {brandIsFailed ? "Verifying identity — usually takes a few minutes" : "ETA ~30 seconds — this page updates automatically"}
-                  </p>
-                </div>
+              <div>
+                <h2 className="text-lg font-semibold">{displayBrandName || "Resolving brand..."}</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Profile building — check back soon
+                </p>
               </div>
-              <EnrichmentStageProgress
-                stage={brandInfo?.enrichment_stage as any}
-                stageUpdatedAt={brandInfo?.enrichment_stage_updated_at}
-                startedAt={brandInfo?.enrichment_started_at}
-                status={brandInfo?.status || "stub"}
-                brandName={brandInfo?.name}
-              />
               <div className="pt-2 border-t space-y-2">
                 <div>
                   <p className="text-xs text-muted-foreground">Product</p>
                   <p className="font-medium">{product.name}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Brand</p>
-                  <p className="font-medium">{displayBrandName || "Resolving..."}</p>
-                </div>
               </div>
               <Button variant="outline" className="w-full" onClick={handleSaveScan} disabled={saved}>
                 {saved ? <><Check className="h-4 w-4 mr-2" />Saved</> : <><Save className="h-4 w-4 mr-2" />Save to My Scans</>}
               </Button>
-              {!showCorrection ? (
-                <Button variant="ghost" size="sm" className="w-full text-muted-foreground" onClick={() => setShowCorrection(true)}>
-                  Help improve this brand's data
+              {brandInfo?.slug && (
+                <Button variant="outline" className="w-full" onClick={() => navigate(`/brand/${brandInfo.slug}`, { state: { scannedBrandId: brandInfo?.id, scannedBrandName: displayBrandName || brandInfo?.name } })}>
+                  <ExternalLink className="h-4 w-4 mr-2" />View Profile
                 </Button>
-              ) : (
-                <CorrectionForm brandName={brandInfo?.name || ""} onSubmit={handleCorrection} />
               )}
+              <Button variant="ghost" className="w-full" onClick={() => navigate("/scan")}>Scan Another Product</Button>
             </CardContent>
           </Card>
-          <div className="space-y-2">
-            <Button variant="outline" className="w-full" onClick={() => brandInfo?.slug && navigate(`/brand/${brandInfo.slug}`, { state: { scannedBrandId: brandInfo?.id, scannedBrandName: displayBrandName || brandInfo?.name } })}>
-              <ExternalLink className="h-4 w-4 mr-2" />View Profile Anyway
-            </Button>
-            <Button variant="ghost" className="w-full" onClick={() => navigate("/scan")}>Scan Another Product</Button>
-          </div>
         </main>
       </div>
     );
   }
+
+  // Flag for preliminary badge in ready state
+  const isPreliminary = brandIsBuilding || brandIsFailed;
 
   // Detect if this is effectively an unknown/unrated brand
   const isUnknownBrand = !product?.brand_id || (!brandLoading && !displayBrandName) || displayBrandName === "Unknown Brand" || displayBrandName === "Unknown";
@@ -611,6 +566,10 @@ export default function ScanResultV1() {
             </div>
           )}
         </div>
+
+        {isPreliminary && effectiveScore !== null && (
+          <div className="text-xs text-muted-foreground text-center">Preliminary · based on available data</div>
+        )}
 
         <TrustVerdict
           score={effectiveScore}
