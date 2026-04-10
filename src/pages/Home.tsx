@@ -5,6 +5,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { TrendingPreview } from "@/components/landing/TrendingPreview";
 import { HowItWorks } from "@/components/landing/HowItWorks";
+import { LiveScanDemo } from "@/components/landing/LiveScanDemo";
+import { TryItSearch } from "@/components/landing/TryItSearch";
+import { PersonalizationTeaser } from "@/components/landing/PersonalizationTeaser";
 import { AttributionFooter } from "@/components/AttributionFooter";
 import { WelcomeTour } from "@/components/WelcomeTour";
 import { useSnapshotPrewarm } from "@/hooks/useSnapshotPrewarm";
@@ -42,7 +45,10 @@ export const Home = () => {
 
           <TabsContent value="discover" className="space-y-10 mt-0">
             <HeroSection />
+            <LiveScanDemo />
             <HowItWorks />
+            <TryItSearch />
+            <PersonalizationTeaser />
             <TrendingPreview />
             <AttributionFooter />
           </TabsContent>
