@@ -293,18 +293,20 @@ export default function ScanResultV1() {
   const displayCategory = displayProfile?.category_label || formatCategory(product?.category);
   const displayParent = displayProfile?.parent_display_name || (brandInfo?.parent_company ? formatBrandName(brandInfo.parent_company) : null);
 
+  // Personalized scoring — overlays raw scores when user is logged in with preferences
+  const { data: personalizedResult } = usePersonalizedBrandScore(brandInfo?.id, currentUserId);
+  const isPersonalized = !!personalizedResult && !!currentUserId;
+
   // States
   const brandIsReady = brandInfo?.status === "ready" || brandInfo?.status === "active";
   const brandIsBuilding = brandInfo?.status === "stub" || brandInfo?.status === "building";
   const brandIsFailed = brandInfo?.status === "failed";
   const brandExists = Boolean(brandInfo?.id);
 
-  const overallScore = scoreData?.overall ?? null;
+  const overallScore = isPersonalized ? personalizedResult.personalScore : (scoreData?.overall ?? null);
   const counts = evidenceCounts || { labor: 0, environment: 0, politics: 0, social: 0, total: 0 };
 
   // Detect near-baseline scores: all dimensions within ±3 of 50 with minimal evidence
-  // This catches both flat-50 baselines AND weakly-differentiated scores (47-53)
-  // that result from low-impact events providing no meaningful signal
   const isNearBaseline = scoreData && (
     (scoreData.overall === null || (scoreData.overall >= 47 && scoreData.overall <= 53)) &&
     (scoreData.score_labor === null || (scoreData.score_labor >= 47 && scoreData.score_labor <= 53)) &&
@@ -312,18 +314,19 @@ export default function ScanResultV1() {
     (scoreData.score_politics === null || (scoreData.score_politics >= 47 && scoreData.score_politics <= 53)) &&
     (scoreData.score_social === null || (scoreData.score_social >= 47 && scoreData.score_social <= 53))
   );
-  // MINIMUM SIGNAL THRESHOLD: suppress verdict if fewer than 5 direct events
-  // regardless of score value — a single event shouldn't drive a verdict
   const hasMinimalEvidence = (counts.total || 0) < 5;
   const isBaselineScore = isNearBaseline && hasMinimalEvidence;
-  // Also suppress any score backed by < 5 events even if outside baseline range
   const isInsufficientEvidence = hasMinimalEvidence && !isNearBaseline;
 
-  const effectiveScore = (isBaselineScore || isInsufficientEvidence) ? null : overallScore;
-  const effectiveLabor = (isBaselineScore || isInsufficientEvidence) ? null : (scoreData?.score_labor ?? null);
-  const effectiveEnv = (isBaselineScore || isInsufficientEvidence) ? null : (scoreData?.score_environment ?? null);
-  const effectivePol = (isBaselineScore || isInsufficientEvidence) ? null : (scoreData?.score_politics ?? null);
-  const effectiveSoc = (isBaselineScore || isInsufficientEvidence) ? null : (scoreData?.score_social ?? null);
+  // When personalized, use personalized category scores; otherwise use raw DB scores
+  // Evidence gates still apply — suppress if < 5 events
+  const suppressScore = isBaselineScore || isInsufficientEvidence;
+  const effectiveScore = suppressScore ? null : overallScore;
+
+  const effectiveLabor = suppressScore ? null : (isPersonalized ? Math.round(personalizedResult.categoryScores.labor * 10 + 50) : (scoreData?.score_labor ?? null));
+  const effectiveEnv = suppressScore ? null : (isPersonalized ? Math.round(personalizedResult.categoryScores.environment * 10 + 50) : (scoreData?.score_environment ?? null));
+  const effectivePol = suppressScore ? null : (isPersonalized ? Math.round(personalizedResult.categoryScores.politics * 10 + 50) : (scoreData?.score_politics ?? null));
+  const effectiveSoc = suppressScore ? null : (isPersonalized ? Math.round(personalizedResult.categoryScores.social * 10 + 50) : (scoreData?.score_social ?? null));
 
   const dimensions = [
     { key: "labor", label: "Labor & Safety", score: effectiveLabor, evidenceCount: counts.labor, summary: getDimensionSummary("labor", effectiveLabor, counts.labor) },
@@ -332,7 +335,20 @@ export default function ScanResultV1() {
     { key: "social", label: "Social Impact", score: effectiveSoc, evidenceCount: counts.social, summary: getDimensionSummary("social", effectiveSoc, counts.social) },
   ];
 
-  const reasons = buildReasons(scoreData, counts, brandInfo?.parent_company, brandInfo?.name);
+  const reasons = isPersonalized && !suppressScore
+    ? personalizedResult.contributions
+        .filter(c => Math.abs(c.contribution) > 0.05)
+        .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
+        .slice(0, 3)
+        .map(c => {
+          const label = c.category === 'labor' ? 'Labor' : c.category === 'environment' ? 'Environment' : c.category === 'politics' ? 'Politics' : 'Social';
+          const dir = c.isPositive ? 'positive' : 'negative';
+          return `${label}: ${dir} impact (weight: ${Math.round(c.weight * 100)}%)`;
+        })
+    : buildReasons(scoreData, counts, brandInfo?.parent_company, brandInfo?.name);
+
+  // Fallback if personalized reasons are empty
+  const effectiveReasons = reasons.length > 0 ? reasons : buildReasons(scoreData, counts, brandInfo?.parent_company, brandInfo?.name);
 
   const verdictLabel = effectiveScore === null ? "Checking..." : effectiveScore >= 65 ? "Good" : effectiveScore >= 40 ? "Mixed" : "Avoid";
 
