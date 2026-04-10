@@ -127,6 +127,7 @@ export default function ScanResultV1() {
   const navState = location.state as { product?: any; brand?: any; source?: string } | null;
   const [showCorrection, setShowCorrection] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showRateModal, setShowRateModal] = useState(false);
 
   // Auth state for personalization
   const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
