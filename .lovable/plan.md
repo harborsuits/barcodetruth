@@ -1,55 +1,43 @@
 
 
-# Upgrade Homepage: Show Real Results, Not Promises
+# Brand-First Search + Product Deduplication
 
 ## What We're Doing
 
-Adding three new components to the existing homepage (between existing sections). Nothing gets removed or redesigned.
+Upgrading `Search.tsx` so search feels like an answer engine, not a database browser. No new pages, no backend changes.
 
-## New Components
+## Changes (all in `src/pages/Search.tsx`)
 
-### 1. `LiveScanDemo` — placed between HeroSection and HowItWorks
+### 1. Reorder tabs: Brands first
+Change tab order to **Brands | Products | Companies**. Auto-select "brands" tab when brand results exist (unless URL already specifies a tab).
 
-A curated "See it in action" section showing 2-3 real brand results using your actual `TrustVerdict` component in a compact preview mode. Uses hardcoded brand IDs for brands with differentiated scores (not baseline-50). Each card shows:
-- Brand name + logo (via `useBrandLogo`)  
-- `TrustVerdict` rendered in compact form (score, verdict label, top 1 reason)
-- Click navigates to `/brand/{slug}`
+### 2. Featured brand card (above tabs)
+When exactly ONE brand result exists, render a prominent card above the tabs showing:
+- Brand name + score + verdict badge (Good/Mixed/Avoid)
+- Top reason (e.g., "3 labor violations")
+- "View full breakdown" link to `/brand/{id}`
 
-Data source: fetches real `brand_scores` + `brands` rows for 3 curated brand IDs at render time. No fake data.
+Score fetched from `brand_scores` after search completes. Skeleton state while loading.
 
-### 2. `TryItSearch` — placed below HowItWorks (before TrendingPreview)
-
-Three tappable pill buttons with real brand names (e.g., "Nestlé", "Coca-Cola", "Nike"). Tapping one navigates to `/search?q={name}`. Simple, no new logic — just `navigate()`. Gives instant "try it" interactivity without building anything.
-
-### 3. `PersonalizationTeaser` — placed below TryItSearch
-
-Shows the four value dimensions as toggle chips (Labor, Environment, Politics, Social). On toggle, a single demo brand's score visibly shifts using `computePersonalizedScore` from `@/lib/personalizedScoring` with the toggled weights. Text: "Two people. Same product. Different scores." with a CTA to sign up or go to settings.
-
-## Updated Home.tsx Discover tab
-
+### 3. Product deduplication in Products tab
+Group products client-side by normalized name + brand_id:
 ```text
-<HeroSection />
-<LiveScanDemo />        ← NEW
-<HowItWorks />
-<TryItSearch />         ← NEW  
-<PersonalizationTeaser /> ← NEW
-<TrendingPreview />
-<AttributionFooter />
+normalize = lowercase, strip non-alphanumeric
+group key = normalize(name) + brand_id
 ```
+Each group renders one card: "Coca-Cola — Soft drinks — 12 sizes & packages". Click navigates to first barcode's scan result.
 
-## Enhancing TrendingPreview (existing component)
+### 4. Inline score badges on brand results
+After search results arrive, one query fetches scores for all returned brand IDs. Small colored badge (Good/Mixed/Avoid) on each brand card, skeleton while loading.
 
-Add one line of context per brand — the top reason from `buildReasons()` logic (e.g., "3 labor issues on record"). This uses data already available in `brand_trending` view. No new queries.
+### 5. Verdict logic
+Reuse same thresholds from `LiveScanDemo.tsx`: 65+ Good, 40+ Mixed, below Avoid.
 
 ## Files
 
 | File | Action |
 |------|--------|
-| `src/components/landing/LiveScanDemo.tsx` | New — curated real scan results |
-| `src/components/landing/TryItSearch.tsx` | New — tappable brand pills |
-| `src/components/landing/PersonalizationTeaser.tsx` | New — interactive value weight demo |
-| `src/components/landing/TrendingPreview.tsx` | Edit — add top reason line per brand |
-| `src/pages/Home.tsx` | Edit — add 3 new components to Discover tab |
+| `src/pages/Search.tsx` | Reorder tabs, add featured card, group products, fetch + show brand scores inline |
 
-No backend changes. No database changes. No modifications to existing components other than TrendingPreview getting one extra line of text per item.
+No database changes. No new components needed.
 
