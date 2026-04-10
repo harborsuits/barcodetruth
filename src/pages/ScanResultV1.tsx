@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { AlternativesSection } from "@/components/brand/AlternativesSection";
+import { CommunityOutlookCard } from "@/components/brand/CommunityOutlookCard";
+import { RateBrandModal } from "@/components/brand/RateBrandModal";
 import { EnrichmentStageProgress } from "@/components/brand/EnrichmentStageProgress";
 import { EvidenceSection } from "@/components/scan/EvidenceSection";
 import { TrustVerdict } from "@/components/scan/TrustVerdict";
@@ -125,6 +127,7 @@ export default function ScanResultV1() {
   const navState = location.state as { product?: any; brand?: any; source?: string } | null;
   const [showCorrection, setShowCorrection] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showRateModal, setShowRateModal] = useState(false);
 
   // Auth state for personalization
   const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
@@ -572,27 +575,42 @@ export default function ScanResultV1() {
         </div>
 
         {/* ─── 1. INSTANT VERDICT ─── */}
-        {isPersonalized && !suppressScore && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-accent/10 border border-accent/20 rounded-md text-xs text-accent-foreground">
-            <Sparkles className="h-3.5 w-3.5 text-accent-foreground/70" />
-            <span>Based on your values</span>
-            <button
-              onClick={() => navigate("/settings")}
-              className="ml-auto text-accent-foreground/60 hover:text-accent-foreground underline underline-offset-2"
-            >
-              Edit
-            </button>
-          </div>
-        )}
-        {!currentUserId && effectiveScore !== null && (
-          <button
-            onClick={() => navigate("/auth")}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Sparkles className="h-3 w-3" />
-            Sign in to personalize your score
-          </button>
-        )}
+        <div className="min-h-[60px]">
+          {isPersonalized && !suppressScore && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-accent/10 border border-accent/20 rounded-md text-xs text-accent-foreground">
+              <Sparkles className="h-3.5 w-3.5 text-accent-foreground/70" />
+              <span className="font-semibold">Based on your values</span>
+              <button
+                onClick={() => navigate("/settings")}
+                className="ml-auto text-accent-foreground/60 hover:text-accent-foreground underline underline-offset-2"
+              >
+                Edit
+              </button>
+            </div>
+          )}
+          {currentUserId && !isPersonalized && effectiveScore !== null && (
+            <div className="rounded-lg bg-muted p-4 text-sm">
+              Personalize your score in 10 seconds.
+              <button
+                className="ml-2 font-medium underline"
+                onClick={() => navigate("/onboarding")}
+              >
+                Set your values →
+              </button>
+            </div>
+          )}
+          {!currentUserId && effectiveScore !== null && (
+            <div className="rounded-lg bg-muted p-4 text-sm">
+              This score is generic.
+              <button
+                className="ml-2 font-medium underline"
+                onClick={() => navigate("/auth")}
+              >
+                Sign in to personalize →
+              </button>
+            </div>
+          )}
+        </div>
 
         <TrustVerdict
           score={effectiveScore}
@@ -635,6 +653,27 @@ export default function ScanResultV1() {
         {/* ─── 4. BETTER ALTERNATIVES ─── */}
         {brandInfo?.id && (
           <AlternativesSection brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name || "this brand"} />
+        )}
+
+        {/* ─── 4b. COMMUNITY OUTLOOK ─── */}
+        {brandInfo?.id && (
+          <div className="mt-6">
+            <CommunityOutlookCard brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name || "This brand"} />
+            <div className="mt-3 flex justify-center">
+              <Button variant="outline" onClick={() => setShowRateModal(true)}>
+                Rate this brand
+              </Button>
+            </div>
+            <RateBrandModal
+              open={showRateModal}
+              onOpenChange={setShowRateModal}
+              brandId={brandInfo.id}
+              brandName={displayBrandName || brandInfo.name || "This brand"}
+            />
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              Community opinions evolve over time
+            </p>
+          </div>
         )}
 
         {/* ─── 5. DETAILED BREAKDOWN (collapsible) ─── */}

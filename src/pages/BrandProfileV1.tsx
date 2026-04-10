@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useDisplayProfile } from '@/hooks/useDisplayProfile';
 import { isBaselineScore } from '@/lib/isBaselineScore';
 import { AlternativesSection } from '@/components/brand/AlternativesSection';
+import { CommunityOutlookCard } from '@/components/brand/CommunityOutlookCard';
+import { RateBrandModal } from '@/components/brand/RateBrandModal';
 import { CorporateFamilyTree } from '@/components/brand/CorporateFamilyTree';
 import { ScoreTransparency } from '@/components/brand/ScoreTransparency';
 import { ConfidenceBadge } from '@/components/brand/ConfidenceBadge';
@@ -311,6 +313,7 @@ export default function BrandProfileV1() {
   const { toast } = useToast();
   const isAdmin = useIsAdmin();
   const [verifying, setVerifying] = useState(false);
+  const [showRateModal, setShowRateModal] = useState(false);
   const slugOrId = id || brandId;
   const isUuidRoute = isUUID(slugOrId);
   
@@ -684,6 +687,27 @@ export default function BrandProfileV1() {
         {/* ─── 3. BETTER ALTERNATIVES (moved up) ─── */}
         {resolvedBrandId && (
           <AlternativesSection brandId={resolvedBrandId} brandName={brand.name} />
+        )}
+
+        {/* ─── 3b. COMMUNITY OUTLOOK ─── */}
+        {resolvedBrandId && (
+          <div className="mt-6">
+            <CommunityOutlookCard brandId={resolvedBrandId} brandName={brand?.name || "This brand"} />
+            <div className="mt-3 flex justify-center">
+              <Button variant="outline" onClick={() => setShowRateModal(true)}>
+                Rate this brand
+              </Button>
+            </div>
+            <RateBrandModal
+              open={showRateModal}
+              onOpenChange={setShowRateModal}
+              brandId={resolvedBrandId}
+              brandName={brand?.name || "This brand"}
+            />
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              Community opinions evolve over time
+            </p>
+          </div>
         )}
 
         {/* ─── 4. DETAILS (collapsible) ─── */}
