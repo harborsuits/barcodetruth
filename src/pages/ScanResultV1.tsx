@@ -126,6 +126,12 @@ export default function ScanResultV1() {
   const [showCorrection, setShowCorrection] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // Auth state for personalization
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setCurrentUserId(user?.id ?? undefined));
+  }, []);
+
   if (!barcode) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
