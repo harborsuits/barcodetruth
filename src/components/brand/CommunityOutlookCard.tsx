@@ -174,6 +174,21 @@ export function CommunityOutlookCard({ brandId, brandName }: CommunityOutlookCar
     );
   }
 
+  // Empty-state guard: no categories or all have 0 ratings
+  const hasAnyRatings = outlook?.categories?.some((c: CategoryOutlook) => c.n > 0);
+  if (!outlook?.categories || !hasAnyRatings) {
+    return (
+      <Card className="p-6 text-center">
+        <div className="flex flex-col items-center gap-2">
+          <Users className="w-5 h-5 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            Be the first to rate {brandName}
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <>
       <Card className="p-6 space-y-6">
