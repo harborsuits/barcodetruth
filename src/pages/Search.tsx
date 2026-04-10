@@ -80,16 +80,25 @@ const highlightMatch = (name: string, q: string) => {
   return escapedName.replace(regex, '<mark class="bg-primary/20">$1</mark>');
 };
 
-// --- Verdict badge component ---
+// --- Verdict badge component (fixed-size to prevent layout shift) ---
 function VerdictBadge({ score, loading }: { score: number | null; loading: boolean }) {
-  if (loading) return <Skeleton className="h-5 w-14 rounded-full" />;
-  const v = getVerdict(score);
-  const Icon = v.icon;
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${v.bg} ${v.className}`}>
-      <Icon className="h-3 w-3" />
-      {v.label}
-    </span>
+    <div className="min-w-[80px] h-[28px] flex items-center justify-center">
+      {loading ? (
+        <div className="h-5 w-16 bg-muted animate-pulse rounded-full" />
+      ) : score !== null ? (
+        (() => {
+          const v = getVerdict(score);
+          const Icon = v.icon;
+          return (
+            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${v.bg} ${v.className}`}>
+              <Icon className="h-3 w-3" />
+              {v.label}
+            </span>
+          );
+        })()
+      ) : null}
+    </div>
   );
 }
 
@@ -129,6 +138,9 @@ function FeaturedBrandCard({ brand, score, loading, onClick }: {
             Score: {Math.round(score)}/100
           </div>
         )}
+        <div className="text-xs text-muted-foreground/70 mt-2">
+          This applies to all products from this brand
+        </div>
         <div className="flex items-center gap-1 mt-3 text-sm text-primary font-medium">
           View full breakdown <ArrowRight className="h-3.5 w-3.5" />
         </div>
@@ -275,12 +287,15 @@ export default function Search() {
           <>
             {/* Featured brand card when exactly one brand result */}
             {showFeatured && (
-              <FeaturedBrandCard
-                brand={brands[0]}
-                score={brandScores.get(brands[0].id) ?? null}
-                loading={scoresLoading}
-                onClick={() => navigate(`/brand/${brands[0].id}`)}
-              />
+              <>
+                <div className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wide">Best match</div>
+                <FeaturedBrandCard
+                  brand={brands[0]}
+                  score={brandScores.get(brands[0].id) ?? null}
+                  loading={scoresLoading}
+                  onClick={() => navigate(`/brand/${brands[0].id}`)}
+                />
+              </>
             )}
 
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
@@ -360,17 +375,9 @@ export default function Search() {
                               className="font-medium"
                               dangerouslySetInnerHTML={{ __html: highlightMatch(group.name, query) }}
                             />
-                            <div className="flex items-center gap-2 mt-1">
-                              {formatCategory(group.category) && (
-                                <span className="text-sm text-muted-foreground">
-                                  {formatCategory(group.category)}
-                                </span>
-                              )}
-                              {group.count > 1 && (
-                                <span className="text-xs text-muted-foreground/70">
-                                  • {group.count} sizes &amp; packages
-                                </span>
-                              )}
+                            <div className="text-sm text-muted-foreground mt-1">
+                              {formatCategory(group.category)}
+                              {group.count > 1 && ` · ${group.count} variants`}
                             </div>
                           </div>
                         </div>
