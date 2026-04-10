@@ -5,9 +5,7 @@ import {
   Building2, 
   ExternalLink, 
   AlertCircle,
-  Clock,
-  Search,
-  BarChart3,
+  Radio,
   MessageSquarePlus,
 } from "lucide-react";
 import { useState } from "react";
@@ -19,6 +17,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { BrandIdentityHeader } from "@/components/brand/BrandIdentityHeader";
 import { PowerProfitCard } from "@/components/brand/PowerProfitCard";
 import { useDisplayProfile } from "@/hooks/useDisplayProfile";
+import { buildReasons } from "@/lib/buildReasons";
+import { getConfidenceLabel } from "@/lib/getConfidenceLabel";
 
 interface BrandData {
   id: string;
@@ -50,6 +50,36 @@ export function BuildingProfile({ brand, stateData }: BuildingProfileProps) {
   const categoryLabel = displayProfile?.category_label;
   const completeness = displayProfile?.profile_completeness || 0;
 
+  // Fetch score data (same pattern as ScanResultV1)
+  const { data: scoreData } = useQuery({
+    queryKey: ["brand_score_building", brand.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("brand_scores" as any)
+        .select("score, score_labor, score_environment, score_politics, score_social")
+        .eq("brand_id", brand.id)
+        .maybeSingle();
+      return data as any;
+    },
+    enabled: !!brand.id,
+  });
+
+  const score = scoreData?.score ?? null;
+  const confidence = getConfidenceLabel(completeness);
+  const parentName = displayProfile?.parent_display_name || brand.parent_company;
+
+  const reasons = buildReasons({
+    scores: {
+      score_labor: scoreData?.score_labor,
+      score_environment: scoreData?.score_environment,
+      score_politics: scoreData?.score_politics,
+      score_social: scoreData?.score_social,
+      overall: score,
+    },
+    parentName,
+    brandName: displayName,
+  });
+
   return (
     <div className="container max-w-md mx-auto px-4 py-6 space-y-4">
       {/* ─── Brand Identity ─── */}
@@ -57,77 +87,66 @@ export function BuildingProfile({ brand, stateData }: BuildingProfileProps) {
         brandName={displayName}
         logoUrl={displayProfile?.logo_url || brand.logo_url}
         website={brand.website}
-        badge={<Badge variant="outline" className="text-xs"><Clock className="h-3 w-3 mr-1" />Building profile</Badge>}
+        badge={<Badge variant="outline" className="text-xs"><Radio className="h-3 w-3 mr-1" />Live profile</Badge>}
         subtitle={categoryLabel || undefined}
       />
 
-      {/* ─── Status: What we know so far ─── */}
-      <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="pt-5 pb-5">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 bg-primary/10 flex items-center justify-center flex-shrink-0 rounded">
-              <Search className="h-5 w-5 text-primary" />
+      {/* ─── Provisional Score + Confidence ─── */}
+      {score !== null ? (
+        <Card className="border-primary/20">
+          <CardContent className="pt-5 pb-5">
+            <div className="flex items-center gap-3">
+              <div className="text-4xl font-bold text-foreground">
+                {Math.round(score)}
+              </div>
+              <div className="flex flex-col gap-1">
+                <Badge variant="secondary" className="text-xs w-fit">
+                  Preliminary · evolving
+                </Badge>
+                <span className={`text-xs ${confidence.className}`}>
+                  Confidence: {confidence.label} ({completeness}% coverage)
+                </span>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-foreground">
-                Researching this brand
-              </h3>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {displayProfile?.summary || 
-                  (totalEvents > 0 
-                    ? `Found ${totalEvents} public record${totalEvents !== 1 ? 's' : ''}. Verifying before publishing a score.`
-                    : `Searching public databases for ${displayName}. This can take a few minutes.`
-                  )
-                }
-              </p>
-            </div>
-          </div>
 
-          {/* Real progress indicator */}
-          {completeness > 0 && (
-            <div className="mt-4 space-y-1.5">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Research progress</span>
-                <span>{completeness}%</span>
+            {/* Top reasons */}
+            {reasons.length > 0 && (
+              <div className="mt-4">
+                <p className="text-sm font-medium text-foreground mb-1.5">Why this score (so far)</p>
+                <ul className="text-sm text-muted-foreground space-y-1 ml-4 list-disc">
+                  {reasons.map((r, i) => (
+                    <li key={i}>{r}</li>
+                  ))}
+                </ul>
               </div>
-              <div className="h-1.5 bg-border rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-primary/60 rounded-full transition-all duration-500" 
-                  style={{ width: `${Math.min(completeness, 100)}%` }} 
-                />
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ─── What we found (only show if there's real data) ─── */}
-      {totalEvents > 0 && (
-        <Card>
-          <CardContent className="pt-5 pb-5 space-y-3">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">What we found so far</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-muted/30 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-foreground">{totalEvents}</p>
-                <p className="text-xs text-muted-foreground">Public records</p>
-              </div>
-              <div className="bg-muted/30 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-foreground">{dimsCovered}</p>
-                <p className="text-xs text-muted-foreground">Categories covered</p>
-              </div>
-            </div>
-            {dimsCovered > 0 && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <BarChart3 className="h-3 w-3" />
-                Score will publish once we verify enough sources for a confident rating.
-              </p>
             )}
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="pt-5 pb-5">
+            <p className="text-sm text-muted-foreground">
+              {totalEvents > 0
+                ? `Limited data — ${totalEvents} record${totalEvents !== 1 ? "s" : ""} analyzed`
+                : `Searching public databases for ${displayName}`
+              }
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Live accountability profile — updated continuously from public records
+            </p>
           </CardContent>
         </Card>
       )}
 
-      {/* ─── Ownership (only if known) ─── */}
-      <OwnershipRevealBuilding brandId={brand.id} brandName={displayName} parentCompany={displayProfile?.parent_display_name || brand.parent_company} />
+      {/* ─── Stats line ─── */}
+      {totalEvents > 0 && (
+        <p className="text-xs text-muted-foreground text-center">
+          Based on {totalEvents} public records across {dimsCovered} categor{dimsCovered !== 1 ? "ies" : "y"}
+        </p>
+      )}
+
+      {/* ─── Ownership ─── */}
+      <OwnershipRevealBuilding brandId={brand.id} brandName={displayName} parentCompany={parentName} />
 
       {/* ─── Power & Profit ─── */}
       <PowerProfitCard brandId={brand.id} brandName={displayName} />
@@ -155,7 +174,7 @@ export function BuildingProfile({ brand, stateData }: BuildingProfileProps) {
       </div>
 
       <p className="text-xs text-center text-muted-foreground px-4">
-        Based on verified public records. Coverage expands weekly.
+        Based on public records. Coverage expands weekly.
       </p>
 
       {/* Dialogs */}
@@ -175,7 +194,7 @@ export function BuildingProfile({ brand, stateData }: BuildingProfileProps) {
   );
 }
 
-// Ownership reveal for building profiles — show parent even before score is ready
+// Ownership reveal for building profiles
 function OwnershipRevealBuilding({ brandId, brandName, parentCompany }: { brandId: string; brandName: string; parentCompany?: string | null }) {
   const { data: ownership, isLoading } = useQuery({
     queryKey: ["ownership-reveal", brandId],
@@ -195,7 +214,6 @@ function OwnershipRevealBuilding({ brandId, brandName, parentCompany }: { brandI
   const ultimateParent = chain.length > 1 ? chain[chain.length - 1] : null;
   const parentName = ultimateParent?.name || parentCompany;
 
-  // Don't show anything if no ownership data — no fake "Not verified yet" 
   if (!parentName || parentName === brandName) return null;
 
   return (
