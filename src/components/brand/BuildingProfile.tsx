@@ -105,17 +105,15 @@ export function BuildingProfile({ brand, stateData }: BuildingProfileProps) {
               </div>
             </div>
 
-            {/* Top reasons */}
-            {reasons.length > 0 && (
-              <div className="mt-4">
-                <p className="text-sm font-medium text-foreground mb-1.5">Why this score (so far)</p>
-                <ul className="text-sm text-muted-foreground space-y-1 ml-4 list-disc">
-                  {reasons.map((r, i) => (
-                    <li key={i}>{r}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            {/* Top reasons with proof */}
+            <div className="mt-4">
+              <ReasonProofList
+                brandId={brand.id}
+                brandName={displayName}
+                parentName={parentName}
+                scores={scoreInputs}
+              />
+            </div>
           </CardContent>
         </Card>
       ) : (
