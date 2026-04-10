@@ -296,8 +296,8 @@ export default function ScanResultV1() {
   const isInsufficientEvidence = hasMinimalEvidence && !isNearBaseline;
 
   // When personalized, use personalized category scores; otherwise use raw DB scores
-  // Evidence gates still apply — suppress if < 5 events
-  const suppressScore = isBaselineScore || isInsufficientEvidence;
+  // Only suppress if baseline AND no evidence at all
+  const suppressScore = isBaselineScore && !((counts.total || 0) > 0);
   const effectiveScore = suppressScore ? null : overallScore;
 
   const effectiveLabor = suppressScore ? null : (isPersonalized ? Math.round(personalizedResult.categoryScores.labor * 10 + 50) : (scoreData?.score_labor ?? null));

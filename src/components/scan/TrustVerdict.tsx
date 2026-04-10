@@ -85,9 +85,9 @@ export function TrustVerdict({ score, brandName, reasons, hasEvidence, category,
   const Icon = verdict.icon;
   const isAnalyzing = score === null;
 
-  const displayReasons = isAnalyzing && reasons.length <= 1
-    ? buildFallbackInsights(brandName, category, parentCompany, hasEvidence)
-    : reasons;
+  const displayReasons = reasons.length > 0
+    ? reasons
+    : (isAnalyzing ? buildFallbackInsights(brandName, category, parentCompany, hasEvidence) : []);
 
   return (
     <div className={`${verdict.bgClassName} border border-border rounded-lg p-5 space-y-4`}>
