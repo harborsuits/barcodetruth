@@ -15,7 +15,7 @@ import { RateBrandModal } from "@/components/brand/RateBrandModal";
 
 import { EvidenceSection } from "@/components/scan/EvidenceSection";
 import { TrustVerdict } from "@/components/scan/TrustVerdict";
-import { WhyThisScore } from "@/components/scan/WhyThisScore";
+import { ReasonProofList } from "@/components/brand/ReasonProofList";
 import { ScoreBreakdownCard } from "@/components/scan/ScoreBreakdownCard";
 import { formatCategory } from "@/lib/formatCategory";
 import { formatBrandName, formatProductName } from "@/lib/formatBrandName";
