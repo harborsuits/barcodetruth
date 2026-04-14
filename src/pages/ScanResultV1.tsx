@@ -15,7 +15,7 @@ import { RateBrandModal } from "@/components/brand/RateBrandModal";
 
 import { EvidenceSection } from "@/components/scan/EvidenceSection";
 import { TrustVerdict } from "@/components/scan/TrustVerdict";
-import { WhyThisScore } from "@/components/scan/WhyThisScore";
+import { ReasonProofList } from "@/components/brand/ReasonProofList";
 import { ScoreBreakdownCard } from "@/components/scan/ScoreBreakdownCard";
 import { formatCategory } from "@/lib/formatCategory";
 import { formatBrandName, formatProductName } from "@/lib/formatBrandName";
@@ -430,43 +430,8 @@ export default function ScanResultV1() {
   }
 
   // ─── Building state ───
-  // If we have a score, fall through to ready state with preliminary flag
-  if ((brandIsBuilding || brandIsFailed) && effectiveScore === null) {
-    return (
-      <div className="min-h-screen bg-background">
-        <ScanHeader onBack={() => navigate(-1)} />
-        <main className="container max-w-md mx-auto px-4 py-6 space-y-4">
-          <Card>
-            <CardContent className="pt-6 space-y-4">
-              <div>
-                <h2 className="text-lg font-semibold">{displayBrandName || "Resolving brand..."}</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Live profile — updated continuously from public records
-                </p>
-              </div>
-              <div className="pt-2 border-t space-y-2">
-                <div>
-                  <p className="text-xs text-muted-foreground">Product</p>
-                  <p className="font-medium">{product.name}</p>
-                </div>
-              </div>
-              <Button variant="outline" className="w-full" onClick={handleSaveScan} disabled={saved}>
-                {saved ? <><Check className="h-4 w-4 mr-2" />Saved</> : <><Save className="h-4 w-4 mr-2" />Save to My Scans</>}
-              </Button>
-              {brandInfo?.slug && (
-                <Button variant="outline" className="w-full" onClick={() => navigate(`/brand/${brandInfo.slug}`, { state: { scannedBrandId: brandInfo?.id, scannedBrandName: displayBrandName || brandInfo?.name } })}>
-                  <ExternalLink className="h-4 w-4 mr-2" />View Profile
-                </Button>
-              )}
-              <Button variant="ghost" className="w-full" onClick={() => navigate("/scan")}>Scan Another Product</Button>
-            </CardContent>
-          </Card>
-        </main>
-      </div>
-    );
-  }
-
-  // Flag for preliminary badge in ready state
+  // If we have no score at all and brand is building, still fall through
+  // to ready state — TrustVerdict and ReasonProofList handle null scores gracefully
   const isPreliminary = brandIsBuilding || brandIsFailed;
 
   // Detect if this is effectively an unknown/unrated brand
@@ -521,52 +486,7 @@ export default function ScanResultV1() {
           </CardContent>
         </Card>
 
-        {/* ═══ RATING ═══ */}
-        <div className="pt-1">
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-3 flex items-center gap-1.5">
-            <Search className="h-3 w-3" />
-            Who makes this?
-          </p>
-        </div>
-
-        {/* ─── 1. INSTANT VERDICT ─── */}
-        <div className="min-h-[60px]">
-          {isPersonalized && !suppressScore && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-accent/10 border border-accent/20 rounded-md text-xs text-accent-foreground">
-              <Sparkles className="h-3.5 w-3.5 text-accent-foreground/70" />
-              <span className="font-semibold">Based on your values</span>
-              <button
-                onClick={() => navigate("/settings")}
-                className="ml-auto text-accent-foreground/60 hover:text-accent-foreground underline underline-offset-2"
-              >
-                Edit
-              </button>
-            </div>
-          )}
-          {currentUserId && !isPersonalized && effectiveScore !== null && (
-            <div className="rounded-lg bg-muted p-4 text-sm">
-              Personalize your score in 10 seconds.
-              <button
-                className="ml-2 font-medium underline"
-                onClick={() => navigate("/onboarding")}
-              >
-                Set your values →
-              </button>
-            </div>
-          )}
-          {!currentUserId && effectiveScore !== null && (
-            <div className="rounded-lg bg-muted p-4 text-sm">
-              This score is generic.
-              <button
-                className="ml-2 font-medium underline"
-                onClick={() => navigate("/auth")}
-              >
-                Sign in to personalize →
-              </button>
-            </div>
-          )}
-        </div>
-
+        {/* ═══ BLOCK 1: VERDICT (dominant) ═══ */}
         {isPreliminary && effectiveScore !== null && (
           <div className="text-xs text-muted-foreground text-center">Preliminary · based on available data</div>
         )}
@@ -584,87 +504,62 @@ export default function ScanResultV1() {
           eventCount={counts.total || 0}
         />
 
-        {/* ─── 1b. WHY THIS SCORE ─── */}
-        {brandInfo?.id && effectiveScore !== null && (
-          <WhyThisScore
+        {/* ═══ BLOCK 2: REASONS WITH PROOF ═══ */}
+        {brandInfo?.id && (
+          <ReasonProofList
             brandId={brandInfo.id}
             brandName={displayBrandName || brandInfo.name}
-            score={effectiveScore}
-            scoreDimensions={scoreData ? {
+            parentName={displayParent || brandInfo.parent_company}
+            scores={{
               score_labor: effectiveLabor,
               score_environment: effectiveEnv,
               score_politics: effectivePol,
               score_social: effectiveSoc,
-            } : undefined}
+              overall: effectiveScore,
+            }}
           />
         )}
 
-        {/* ─── 2. OWNERSHIP ─── */}
-        {brandInfo?.id && (
-          <OwnershipReveal brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name} parentCompany={displayParent || brandInfo.parent_company} />
-        )}
-
-        {/* ─── 3. EVIDENCE / NEWS ─── */}
-        {brandInfo?.id && (
-          <EvidenceSection brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name} />
-        )}
-
-        {/* ─── 4. BETTER ALTERNATIVES ─── */}
+        {/* ═══ BLOCK 3: BETTER ALTERNATIVES ═══ */}
         {brandInfo?.id && (
           <AlternativesSection brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name || "this brand"} />
         )}
 
-        {/* ─── 4b. COMMUNITY OUTLOOK ─── */}
-        {brandInfo?.id && (
-          <div className="mt-6">
-            <CommunityOutlookCard brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name || "This brand"} />
-            <div className="mt-3 flex justify-center">
-              <Button variant="outline" onClick={() => setShowRateModal(true)}>
-                Rate this brand
-              </Button>
-            </div>
-            <RateBrandModal
-              open={showRateModal}
-              onOpenChange={setShowRateModal}
-              brandId={brandInfo.id}
-              brandName={displayBrandName || brandInfo.name || "This brand"}
-            />
-            <p className="text-xs text-muted-foreground text-center mt-2">
-              Community opinions evolve over time
-            </p>
-          </div>
-        )}
-
-        {/* ─── 5. DETAILED BREAKDOWN (collapsible) ─── */}
-        {brandInfo?.id && (
-          <details className="group">
-            <summary className="flex items-center justify-between cursor-pointer p-4 bg-elevated-1 border border-border rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              See detailed breakdown
-              <span className="text-xs group-open:rotate-180 transition-transform">▼</span>
-            </summary>
-            <div className="mt-2">
-              <ScoreBreakdownCard brandId={brandInfo.id} dimensions={dimensions} />
-            </div>
-          </details>
-        )}
-
-        {/* ─── 6. SHARE ─── */}
-        <ShareCard
-          brandName={displayBrandName || brandInfo?.name || ""}
-          score={effectiveScore}
-          verdict={verdictLabel}
-          dimensions={dimensions.map((d) => ({ label: d.label, grade: getLetterGrade(d.score) }))}
-        />
-
-        {/* Actions */}
+        {/* ═══ BLOCK 4: SCAN ANOTHER ═══ */}
         <div className="space-y-2">
+          <Button variant="outline" className="w-full" onClick={() => navigate("/scan")}>Scan Another Product</Button>
           {brandInfo?.slug && (
             <Button variant="ghost" className="w-full text-sm text-muted-foreground" onClick={() => navigate(`/brand/${brandInfo.slug}`, { state: { scannedBrandId: brandInfo.id, scannedBrandName: displayBrandName || brandInfo.name } })}>
               More about this company →
             </Button>
           )}
-          <Button variant="outline" className="w-full" onClick={() => navigate("/scan")}>Scan Another Product</Button>
         </div>
+
+        {/* ═══ COLLAPSED: See proof & details ═══ */}
+        {brandInfo?.id && (
+          <details className="group">
+            <summary className="flex items-center justify-between cursor-pointer p-4 bg-elevated-1 border border-border rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              See proof & details
+              <span className="text-xs group-open:rotate-180 transition-transform">▼</span>
+            </summary>
+            <div className="mt-3 space-y-4">
+              <OwnershipReveal brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name} parentCompany={displayParent || brandInfo.parent_company} />
+              <EvidenceSection brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name} />
+              <ScoreBreakdownCard brandId={brandInfo.id} dimensions={dimensions} />
+              <CommunityOutlookCard brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name || "This brand"} />
+              <div className="flex justify-center">
+                <Button variant="outline" onClick={() => setShowRateModal(true)}>Rate this brand</Button>
+              </div>
+              <RateBrandModal open={showRateModal} onOpenChange={setShowRateModal} brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name || "This brand"} />
+              <ShareCard
+                brandName={displayBrandName || brandInfo?.name || ""}
+                score={effectiveScore}
+                verdict={verdictLabel}
+                dimensions={dimensions.map((d) => ({ label: d.label, grade: getLetterGrade(d.score) }))}
+              />
+            </div>
+          </details>
+        )}
 
         {/* Beta */}
         <p className="text-xs text-center text-muted-foreground px-4 pb-4">
