@@ -430,43 +430,8 @@ export default function ScanResultV1() {
   }
 
   // ─── Building state ───
-  // If we have a score, fall through to ready state with preliminary flag
-  if ((brandIsBuilding || brandIsFailed) && effectiveScore === null) {
-    return (
-      <div className="min-h-screen bg-background">
-        <ScanHeader onBack={() => navigate(-1)} />
-        <main className="container max-w-md mx-auto px-4 py-6 space-y-4">
-          <Card>
-            <CardContent className="pt-6 space-y-4">
-              <div>
-                <h2 className="text-lg font-semibold">{displayBrandName || "Resolving brand..."}</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Live profile — updated continuously from public records
-                </p>
-              </div>
-              <div className="pt-2 border-t space-y-2">
-                <div>
-                  <p className="text-xs text-muted-foreground">Product</p>
-                  <p className="font-medium">{product.name}</p>
-                </div>
-              </div>
-              <Button variant="outline" className="w-full" onClick={handleSaveScan} disabled={saved}>
-                {saved ? <><Check className="h-4 w-4 mr-2" />Saved</> : <><Save className="h-4 w-4 mr-2" />Save to My Scans</>}
-              </Button>
-              {brandInfo?.slug && (
-                <Button variant="outline" className="w-full" onClick={() => navigate(`/brand/${brandInfo.slug}`, { state: { scannedBrandId: brandInfo?.id, scannedBrandName: displayBrandName || brandInfo?.name } })}>
-                  <ExternalLink className="h-4 w-4 mr-2" />View Profile
-                </Button>
-              )}
-              <Button variant="ghost" className="w-full" onClick={() => navigate("/scan")}>Scan Another Product</Button>
-            </CardContent>
-          </Card>
-        </main>
-      </div>
-    );
-  }
-
-  // Flag for preliminary badge in ready state
+  // If we have no score at all and brand is building, still fall through
+  // to ready state — TrustVerdict and ReasonProofList handle null scores gracefully
   const isPreliminary = brandIsBuilding || brandIsFailed;
 
   // Detect if this is effectively an unknown/unrated brand
