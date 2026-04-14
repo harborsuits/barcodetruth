@@ -1,71 +1,67 @@
 
 
-# Always Deliver an Answer — Kill Pipeline UI, Ship Provisional Scores
+# Decision Engine Refactor — Loop-First Product
 
-## Problem
-`BuildingProfile` shows "Researching this brand", progress bars, and "Score will publish later" — exposing backend pipeline state instead of delivering answers. Users see an unfinished product and leave.
+## What This Does
+Transforms the app from a "scanner with data" into a "decision loop": **Scan → Verdict → Alternative → Next scan**. No new backend work. Pure subtraction + reframing.
 
 ## Changes
 
-### 1. Create `src/lib/buildReasons.ts` — Shared reason generator
-Extract `buildReasons()` from `ScanResultV1.tsx` (lines 64-90) into a standalone module. Enhance it to also consider pillar scores (e.g., `labor_score < 50` → "Weak labor practices score") when event counts are zero but scores exist. Both `BuildingProfile` and `ScanResultV1` import from here. Remove the inline copy from `ScanResultV1`.
+### 1. Home → Scan-First Entry Point
+**File: `src/pages/Home.tsx`**
 
-### 2. Create `src/lib/getConfidenceLabel.ts` — Confidence framing
-Maps completeness percentage to user-facing labels:
-- `<40%` → "Early" (muted color)
-- `40-70%` → "Growing" (yellow)  
-- `>70%` → "High" (green)
+Remove the tab system, remove `LiveScanDemo`, `TryItSearch`, `PersonalizationTeaser`, `TrendingPreview`, `AttributionFooter`, `WelcomeTour`.
 
-### 3. Rewrite `src/components/brand/BuildingProfile.tsx` — Live profile
+New layout:
+- Simplified `HeroSection` (scan CTA + search bar only)
+- Compact inline "How it works" row (3 icons, one line each — keep `HowItWorks` but make it smaller)
+- Recent scans list (if logged in, pulled from `MyScansTab` data, shown as compact list — not a tab)
 
-**Add query**: Fetch `brand_scores` for this brand (same pattern as ScanResultV1 line 248-267, selecting `score, score_labor, score_environment, score_politics, score_social`).
+Remove bottom nav items `Trending`. Keep: **Scan**, **Search**, **Settings** (+ Admin if admin).
 
-**New layout order**:
-1. **Brand Identity Header** — change badge from "Building profile" to "Live profile"
-2. **Provisional Score + Confidence** — if score exists: large score number + "Preliminary · evolving" badge + confidence label from completeness. If no score but has events: "Limited data — {N} records analyzed"
-3. **Top Reasons** — use shared `buildReasons()` with fetched score pillars + evidence counts. Header: "Why this score (so far)". Max 3 bullet points
-4. **Stats line** — single line: "Based on {N} public records across {M} categories" (not a card, not "verified")
-5. **Ownership** — keep existing `OwnershipRevealBuilding` (moved down from current position)
-6. **Power & Profit** — keep
-7. **Help improve actions** — keep
+### 2. HeroSection → Tool, Not Marketing
+**File: `src/components/landing/HeroSection.tsx`**
 
-**Remove entirely**:
-- "Researching this brand" card with Search icon (lines 64-102)
-- Progress bar with "Research progress: 88%" (lines 86-100)
-- "Score will publish once we verify enough sources" (line 122)
-- "What we found so far" stats card (lines 104-127)
+Remove the `ScannerIdleAnimation` box (saves 480px of viewport). Remove the staggered motion delays. Keep:
+- Tagline: "Know what's behind every barcode" (one line, no animation)
+- "Scan a Product" button (dominant, full-width)
+- Search bar below
 
-### 4. Update `src/pages/ScanResultV1.tsx` — Kill building-state pipeline UI (lines 458-514)
+### 3. ScanResult → 5-Block Decision Screen
+**File: `src/pages/ScanResultV1.tsx`**
 
-Replace the entire building state block. New logic:
-- If `scoreData` exists (query already runs at line 248): **fall through to the ready state** instead of returning early. Add a `brandIsBuilding` flag so the ready-state UI can show a "Preliminary" note on the score.
-- If no score and no brand info: show slim card with brand name + "Profile building — check back soon" + ownership + Save button (no pipeline stages, no `EnrichmentStageProgress`).
+**Above the fold (always visible):**
+1. Product card (keep as-is)
+2. `TrustVerdict` — make it the dominant element (larger score, bolder verdict text)
+3. `ReasonProofList` — replace `WhyThisScore` with the shared component (max 3 reasons with proof anchors)
+4. `AlternativesSection` — move UP to position 4 (currently position 6)
+5. "Scan Another Product" button
 
-Remove `EnrichmentStageProgress` import (line 15) — no longer user-facing.
+**Below the fold — collapsed under "See proof & details":**
+- `OwnershipReveal`
+- `EvidenceSection`
+- `ScoreBreakdownCard`
+- `CommunityOutlookCard` + rate button
+- `ShareCard`
 
-### 5. Update `src/pages/BrandProfileV1.tsx` — Fix null-score verdict (line 590)
+**Remove entirely:**
+- All 3 personalization banners (lines 534-567: "Based on your values", "Personalize your score", "This score is generic")
+- "Who makes this?" label (line 526-530)
+- Separate `WhyThisScore` component (replaced by `ReasonProofList`)
 
-Change: `hasEvidence ? 'Analyzing' : 'Not yet rated'`  
-To: `hasEvidence ? 'Limited Data' : 'Not yet rated'`
+**Building state (lines 432-466):** Render the same 5-block layout. `TrustVerdict` and `ReasonProofList` already handle null scores. Always show alternatives. Never show emptiness.
 
-When verdict is "Limited Data", show `"{evidenceTotal} records found"` as subtitle instead of "Score will appear once verified data is reviewed".
+### 4. Stronger Collapse Label
+Replace `"See detailed breakdown"` with `"See proof & details"` — specific, trust-building language instead of generic "view details".
 
-### 6. Update `src/components/brand/DataLimitationsNotice.tsx` — Reframe "collecting" (lines 55-59)
-
-- Title: "Data collection in progress" → "Building a complete picture"
-- Description: → "This profile is continuously updated as new public records are verified."
-- Subtext: → "Coverage grows automatically over time."
-
-## Files
+## Technical Details
 
 | File | Action |
 |------|--------|
-| `src/lib/buildReasons.ts` | New — shared reason generator |
-| `src/lib/getConfidenceLabel.ts` | New — confidence label helper |
-| `src/components/brand/BuildingProfile.tsx` | Major rewrite — provisional score, reasons, kill pipeline UI |
-| `src/pages/ScanResultV1.tsx` | Remove building-state pipeline block, fall through to ready state with preliminary flag |
-| `src/pages/BrandProfileV1.tsx` | Change null-score verdict from "Analyzing" to "Limited Data" |
-| `src/components/brand/DataLimitationsNotice.tsx` | Reframe "collecting" copy |
+| `src/pages/Home.tsx` | Strip to scan-first layout, remove tabs, remove 5 landing sections |
+| `src/components/landing/HeroSection.tsx` | Remove animation box, simplify to CTA + search |
+| `src/pages/ScanResultV1.tsx` | Reorder to 5-block layout, collapse secondary content, remove personalization banners, unify building state, replace WhyThisScore with ReasonProofList |
+| `src/components/landing/HowItWorks.tsx` | Compact to single-row inline format |
 
-No database changes.
+No database changes. No new components. Backend untouched.
 
