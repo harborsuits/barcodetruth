@@ -21,6 +21,19 @@ function generateSlug(name: string): string {
     .slice(0, 50);
 }
 
+// Aggressive brand-name normalization for fuzzy dedupe.
+// "Coca-Cola Inc." -> "cocacola"
+// "The Kraft Heinz Company" -> "kraftheinz"
+const CORP_SUFFIX_RE = /\b(inc|incorporated|corp|corporation|co|company|llc|ltd|limited|plc|gmbh|sa|ag|nv|holdings|group|brands|foods|beverages|international|global|worldwide|enterprises)\b\.?/gi;
+function normalizeBrandKey(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/^the\s+/i, '')
+    .replace(CORP_SUFFIX_RE, '')
+    .replace(/[^a-z0-9]+/g, '')
+    .trim();
+}
+
 // Find an available slug with incrementing suffix (-2, -3, etc.)
 // deno-lint-ignore no-explicit-any
 async function findAvailableSlug(supabase: any, baseSlug: string): Promise<string> {
