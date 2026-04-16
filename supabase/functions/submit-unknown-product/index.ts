@@ -185,7 +185,9 @@ Deno.serve(async (req) => {
     if (brand_name && brand_name.trim().length > 0) {
       const normalizedBrandName = brand_name.trim();
       const candidateSlug = generateSlug(normalizedBrandName);
+      const fuzzyKey = normalizeBrandKey(normalizedBrandName);
 
+      // 1) Exact slug match
       const { data: slugMatch } = await supabase
         .from('brands')
         .select('id, slug')
@@ -195,8 +197,9 @@ Deno.serve(async (req) => {
       if (slugMatch) {
         brandId = slugMatch.id;
         brandSlug = slugMatch.slug;
-        console.log('[submit-unknown-product] Found brand by slug:', slugMatch);
+        console.log('[submit-unknown-product] Brand match (slug):', slugMatch);
       } else {
+        // 2) Exact name match (case-insensitive)
         const { data: nameMatch } = await supabase
           .from('brands')
           .select('id, slug')
@@ -206,8 +209,55 @@ Deno.serve(async (req) => {
         if (nameMatch) {
           brandId = nameMatch.id;
           brandSlug = nameMatch.slug;
-          console.log('[submit-unknown-product] Found brand by exact name:', nameMatch);
-        } else {
+          console.log('[submit-unknown-product] Brand match (name):', nameMatch);
+        } else if (fuzzyKey.length >= 3) {
+          // 3) Fuzzy match via brand_aliases (external_name normalized)
+          const { data: aliasRows } = await supabase
+            .from('brand_aliases')
+            .select('canonical_brand_id, external_name');
+          const aliasHit = (aliasRows || []).find(
+            (r: { external_name: string | null }) =>
+              r.external_name && normalizeBrandKey(r.external_name) === fuzzyKey
+          );
+          if (aliasHit) {
+            const { data: aliasBrand } = await supabase
+              .from('brands')
+              .select('id, slug')
+              .eq('id', aliasHit.canonical_brand_id)
+              .maybeSingle();
+            if (aliasBrand) {
+              brandId = aliasBrand.id;
+              brandSlug = aliasBrand.slug;
+              console.log('[submit-unknown-product] Brand match (alias):', aliasBrand);
+            }
+          }
+
+          // 4) Fuzzy match via brand_display_profiles.normalized_name
+          if (!brandId) {
+            const { data: profiles } = await supabase
+              .from('brand_display_profiles')
+              .select('brand_id, normalized_name');
+            const profileHit = (profiles || []).find(
+              (p: { normalized_name: string | null }) =>
+                p.normalized_name && normalizeBrandKey(p.normalized_name) === fuzzyKey
+            );
+            if (profileHit) {
+              const { data: profBrand } = await supabase
+                .from('brands')
+                .select('id, slug')
+                .eq('id', profileHit.brand_id)
+                .maybeSingle();
+              if (profBrand) {
+                brandId = profBrand.id;
+                brandSlug = profBrand.slug;
+                console.log('[submit-unknown-product] Brand match (display profile):', profBrand);
+              }
+            }
+          }
+        }
+
+        // 5) Genuinely new — create stub + queue enrichment
+        if (!brandId) {
           const availableSlug = await findAvailableSlug(supabase, candidateSlug);
 
           const { data: newBrand, error: brandError } = await supabase
@@ -229,6 +279,26 @@ Deno.serve(async (req) => {
           brandId = newBrand.id;
           brandSlug = newBrand.slug;
           console.log('[submit-unknown-product] Created brand stub:', { brandId, brandSlug });
+
+          // Record the alias used at submission for future dedupe
+          await supabase.from('brand_aliases').insert({
+            canonical_brand_id: brandId,
+            external_name: normalizedBrandName,
+            source: 'user_submission',
+            created_by: userId,
+          }).then(({ error }) => {
+            if (error) console.warn('[submit-unknown-product] Alias record failed:', error.message);
+          });
+
+          // Queue enrichment immediately — do not wait on cron
+          await supabase.from('brand_enrichment_queue').insert({
+            brand_id: brandId,
+            task: 'full_enrichment',
+            status: 'pending',
+          }).then(({ error }) => {
+            if (error) console.warn('[submit-unknown-product] Enrichment queue insert failed:', error.message);
+            else console.log('[submit-unknown-product] Queued enrichment for', brandId);
+          });
         }
       }
     } else {
