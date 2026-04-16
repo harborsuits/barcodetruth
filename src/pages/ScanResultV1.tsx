@@ -384,8 +384,24 @@ export default function ScanResultV1() {
     }
   };
 
-  // ─── Loading ───
-  if (productLoading) {
+  // ─── No barcode in URL ───
+  if (!barcode) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-6 space-y-4 text-center">
+            <Package className="h-12 w-12 mx-auto text-muted-foreground" />
+            <h2 className="text-lg font-semibold">No barcode provided</h2>
+            <p className="text-sm text-muted-foreground">Please scan a product barcode to see results.</p>
+            <Button onClick={() => navigate("/scan")} className="w-full">Scan a Product</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // ─── Unified loading (single skeleton, no double-flash) ───
+  if (productLoading || (product?.brand_id && brandLoading)) {
     return (
       <div className="min-h-screen bg-background">
         <ScanHeader onBack={() => navigate(-1)} />
@@ -398,14 +414,37 @@ export default function ScanResultV1() {
     );
   }
 
-  if (product?.brand_id && brandLoading) {
+  // ─── Polling timed out — brand stuck in "building" >60s ───
+  if (pollTimedOut && (brandInfo?.status === "stub" || brandInfo?.status === "building")) {
     return (
       <div className="min-h-screen bg-background">
         <ScanHeader onBack={() => navigate(-1)} />
-        <main className="container max-w-md mx-auto px-4 py-6 space-y-4">
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-24 w-full" />
+        <main className="container max-w-md mx-auto px-4 py-6">
+          <Card>
+            <CardContent className="pt-6 space-y-4 text-center">
+              <Sparkles className="h-10 w-10 mx-auto text-muted-foreground" />
+              <h2 className="text-lg font-semibold">We're still gathering data on this brand</h2>
+              <p className="text-sm text-muted-foreground">
+                {displayBrandName ? `${displayBrandName} is being built right now.` : "This brand is being built right now."} Check back in a few minutes — we'll keep improving it.
+              </p>
+              <div className="flex gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    pollStartRef.current = Date.now();
+                    setPollTimedOut(false);
+                    refetchBrand();
+                  }}
+                >
+                  Try again
+                </Button>
+                <Button className="flex-1" onClick={() => navigate("/scan")}>
+                  Scan another
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </main>
       </div>
     );
