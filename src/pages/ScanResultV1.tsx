@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, Package, AlertCircle, Loader2, Check, Save, ExternalLink, Search, Users, TrendingUp, HelpCircle, Sparkles } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -98,6 +98,7 @@ export default function ScanResultV1() {
   const { barcode } = useParams<{ barcode: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const navState = location.state as { product?: any; brand?: any; source?: string } | null;
   const [showCorrection, setShowCorrection] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -357,17 +358,20 @@ export default function ScanResultV1() {
       return;
     }
     try {
-      const proposedWebsite = data.website
-        ? (data.website.startsWith("http") ? data.website : `https://${data.website}`)
+      // Whitelist allowed correction fields — never accept arbitrary keys
+      const cleanName = data.name?.trim().slice(0, 200) || null;
+      const proposedWebsite = data.website?.trim()
+        ? (data.website.trim().startsWith("http") ? data.website.trim() : `https://${data.website.trim()}`).slice(0, 500)
         : null;
-      const proposed_changes: Record<string, any> = {};
-      if (data.name) proposed_changes.name = data.name;
-      if (proposedWebsite) proposed_changes.website = proposedWebsite;
+      const proposed_changes: { name?: string; website?: string } = {
+        ...(cleanName ? { name: cleanName } : {}),
+        ...(proposedWebsite ? { website: proposedWebsite } : {}),
+      };
       if (Object.keys(proposed_changes).length === 0) return;
 
       const { error } = await supabase.from("brand_corrections").insert({
         brand_id: brandInfo.id,
-        proposed_name: data.name ?? null,
+        proposed_name: cleanName,
         proposed_website: proposedWebsite,
         proposed_changes,
         submitter_user_id: user.id,
@@ -406,9 +410,42 @@ export default function ScanResultV1() {
       <div className="min-h-screen bg-background">
         <ScanHeader onBack={() => navigate(-1)} />
         <main className="container max-w-md mx-auto px-4 py-6 space-y-4">
+          <Card>
+            <CardContent className="pt-6 pb-4 flex items-center gap-3">
+              <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium">Analyzing this brand…</p>
+                <p className="text-xs text-muted-foreground">Pulling evidence and computing your score.</p>
+              </div>
+            </CardContent>
+          </Card>
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
+        </main>
+      </div>
+    );
+  }
+
+  // ─── Brand still building (status = stub/building) but not yet timed out ───
+  // Surface this immediately instead of silently polling for 60s
+  const isBuildingNow = !pollTimedOut && (brandInfo?.status === "stub" || brandInfo?.status === "building");
+  if (isBuildingNow) {
+    return (
+      <div className="min-h-screen bg-background">
+        <ScanHeader onBack={() => navigate(-1)} />
+        <main className="container max-w-md mx-auto px-4 py-6 space-y-4">
+          <Card>
+            <CardContent className="pt-6 pb-4 flex items-center gap-3">
+              <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium">Analyzing {displayBrandName || "this brand"}…</p>
+                <p className="text-xs text-muted-foreground">First-time scan — building the profile from live sources. This usually takes under a minute.</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-20 w-full" />
         </main>
       </div>
     );
@@ -432,9 +469,10 @@ export default function ScanResultV1() {
                   variant="outline"
                   className="flex-1"
                   onClick={() => {
+                    // Reset poll window AND invalidate cache to force a fresh lifecycle
                     pollStartRef.current = Date.now();
                     setPollTimedOut(false);
-                    refetchBrand();
+                    queryClient.invalidateQueries({ queryKey: ["brand-info-v1", product?.brand_id] });
                   }}
                 >
                   Try again
