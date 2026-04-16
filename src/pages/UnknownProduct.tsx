@@ -127,22 +127,22 @@ export default function UnknownProduct() {
       }
 
       if (data?.status === "recognized" || data?.already_exists) {
-        toast({ title: "We already recognize this product", description: "Redirecting to its profile…" });
+        toast({ title: "We already recognize this product", description: "Loading its profile…" });
         setTimeout(() => {
-          if (data?.brand_slug) navigate(`/brand/${data.brand_slug}`);
-          else if (data?.brand_id) navigate(`/brand/${data.brand_id}`);
-          else navigate("/");
-        }, 1500);
+          navigate(`/scan-result/${barcode}`, {
+            state: { justSubmitted: true, alreadyExisted: true },
+          });
+        }, 1200);
       } else {
         toast({
           title: "Submission received",
-          description: "Your photo proof helps us verify accuracy. Live now, flagged for review.",
+          description: "Building this brand's profile now — your photo helps verify accuracy.",
         });
         setTimeout(() => {
-          if (data?.brand_slug) navigate(`/brand/${data.brand_slug}`, { state: { pending: true } });
-          else if (data?.brand_id) navigate(`/brand/${data.brand_id}`, { state: { pending: true } });
-          else navigate("/");
-        }, 2200);
+          navigate(`/scan-result/${barcode}`, {
+            state: { justSubmitted: true, brandSlug: data?.brand_slug },
+          });
+        }, 1500);
       }
     },
     onError: (error: Error) => {
