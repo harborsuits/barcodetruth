@@ -437,10 +437,12 @@ export const Scan = () => {
       setError(err.message);
       setScanResult('idle');
       toast({
-        title: "Camera error",
-        description: err.message,
+        title: "We can't access your camera",
+        description: "Try manual entry instead.",
         variant: "destructive"
       });
+      setShowManual(true);
+      setTimeout(() => manualInputRef.current?.focus(), 50);
     }
   });
 
