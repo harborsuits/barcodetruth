@@ -117,8 +117,10 @@ serve(async (req) => {
       .rpc("search_catalog", { p_q: rawTerm, p_limit: 10 });
     const brandsArr = (exactMatches as any)?.brands || [];
 
-    const exactResults = (exactMatches || []).map(b => ({
-      ...b,
+    const exactResults = brandsArr.map((b: any) => ({
+      id: b.id,
+      name: b.name,
+      parent_company: b.parent_company,
       confidence: b.name.toLowerCase() === rawTerm.toLowerCase() ? 1.0 : 0.85,
       match_type: "exact"
     }));
