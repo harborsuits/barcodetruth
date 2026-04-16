@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, Package, AlertCircle, Loader2, Check, Save, ExternalLink, Search, Users, TrendingUp, HelpCircle, Sparkles } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -98,6 +98,7 @@ export default function ScanResultV1() {
   const { barcode } = useParams<{ barcode: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const navState = location.state as { product?: any; brand?: any; source?: string } | null;
   const [showCorrection, setShowCorrection] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -357,17 +358,20 @@ export default function ScanResultV1() {
       return;
     }
     try {
-      const proposedWebsite = data.website
-        ? (data.website.startsWith("http") ? data.website : `https://${data.website}`)
+      // Whitelist allowed correction fields — never accept arbitrary keys
+      const cleanName = data.name?.trim().slice(0, 200) || null;
+      const proposedWebsite = data.website?.trim()
+        ? (data.website.trim().startsWith("http") ? data.website.trim() : `https://${data.website.trim()}`).slice(0, 500)
         : null;
-      const proposed_changes: Record<string, any> = {};
-      if (data.name) proposed_changes.name = data.name;
-      if (proposedWebsite) proposed_changes.website = proposedWebsite;
+      const proposed_changes: { name?: string; website?: string } = {
+        ...(cleanName ? { name: cleanName } : {}),
+        ...(proposedWebsite ? { website: proposedWebsite } : {}),
+      };
       if (Object.keys(proposed_changes).length === 0) return;
 
       const { error } = await supabase.from("brand_corrections").insert({
         brand_id: brandInfo.id,
-        proposed_name: data.name ?? null,
+        proposed_name: cleanName,
         proposed_website: proposedWebsite,
         proposed_changes,
         submitter_user_id: user.id,
@@ -432,9 +436,10 @@ export default function ScanResultV1() {
                   variant="outline"
                   className="flex-1"
                   onClick={() => {
+                    // Reset poll window AND invalidate cache to force a fresh lifecycle
                     pollStartRef.current = Date.now();
                     setPollTimedOut(false);
-                    refetchBrand();
+                    queryClient.invalidateQueries({ queryKey: ["brand-info-v1", product?.brand_id] });
                   }}
                 >
                   Try again
