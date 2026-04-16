@@ -34,21 +34,31 @@ const CATEGORY_KEYWORDS: Record<string, string> = {
 };
 
 function matchCategory(reason: string): string | null {
-  if (reason.toLowerCase().includes("labor") || reason.toLowerCase().includes("workplace") || reason.toLowerCase().includes("osha")) return "labor";
-  if (reason.toLowerCase().includes("environment") || reason.toLowerCase().includes("epa") || reason.toLowerCase().includes("emission")) return "environment";
-  if (reason.toLowerCase().includes("politic") || reason.toLowerCase().includes("lobbying") || reason.toLowerCase().includes("donation")) return "politics";
-  if (reason.toLowerCase().includes("social")) return "social";
+  const r = reason.toLowerCase();
+  if (r.includes("labor") || r.includes("workplace") || r.includes("osha")) return "labor";
+  if (r.includes("environment") || r.includes("epa") || r.includes("emission")) return "environment";
+  if (r.includes("politic") || r.includes("lobbying") || r.includes("donation")) return "politics";
+  if (r.includes("social")) return "social";
   return null;
 }
 
+// Keyword filters per category — an event must contain at least one of these
+// to be a believable proof anchor. Prevents "labor violations → merger headline" mismatches.
+const CATEGORY_PROOF_KEYWORDS: Record<string, RegExp> = {
+  labor: /\b(strike|union|wage|osha|workplace|labor|worker|fired|layoff|harass|discriminat|safety violation|injur|fatal)\b/i,
+  environment: /\b(epa|pollut|emission|spill|contaminat|toxic|waste|climate|greenhouse|fine|cleanup|hazard|leak|chemical)\b/i,
+  politics: /\b(lobby|donat|pac|election|campaign|fec|political|legisl|regulat)\b/i,
+  social: /\b(boycott|controvers|protest|community|diversit|charit|donation|human rights)\b/i,
+};
+
 export function ReasonProofList({ brandId, brandName, parentName, scores }: ReasonProofListProps) {
-  // Fetch evidence counts + one example per category
+  // Fetch evidence with enough detail to filter proof anchors per category
   const { data } = useQuery({
     queryKey: ["reason-proof", brandId],
     queryFn: async () => {
       const { data: events, error } = await supabase
         .from("brand_events")
-        .select("category, title, description, event_date, source_url")
+        .select("category, title, description, event_date, source_url, score_eligible")
         .eq("brand_id", brandId)
         .eq("is_irrelevant", false)
         .order("event_date", { ascending: false })
@@ -63,11 +73,16 @@ export function ReasonProofList({ brandId, brandName, parentName, scores }: Reas
         const cat = e.category as string;
         if (!cat) return;
         counts[cat] = (counts[cat] || 0) + 1;
-        if (!examples[cat] && (e.title || e.description)) {
-          const title = e.title || (e.description?.slice(0, 80) + "…");
-          const year = e.event_date ? new Date(e.event_date).getFullYear().toString() : undefined;
-          examples[cat] = { title, date: year };
-        }
+
+        // Only attach as proof if: score_eligible AND title/description matches category keywords
+        if (examples[cat] || e.score_eligible === false) return;
+        const text = `${e.title || ""} ${e.description || ""}`;
+        const filter = CATEGORY_PROOF_KEYWORDS[cat];
+        if (filter && !filter.test(text)) return;
+
+        const title = e.title || (e.description?.slice(0, 80) + "…");
+        const year = e.event_date ? new Date(e.event_date).getFullYear().toString() : undefined;
+        examples[cat] = { title, date: year };
       });
 
       return { counts, examples };
@@ -85,7 +100,7 @@ export function ReasonProofList({ brandId, brandName, parentName, scores }: Reas
     brandName,
   });
 
-  // Attach proof examples to reasons
+  // Attach proof examples to reasons (only when the example is category-aligned)
   const items: ReasonWithProof[] = reasons.map((label) => {
     const cat = matchCategory(label);
     const example = cat ? examples[cat] : undefined;
@@ -109,11 +124,18 @@ export function ReasonProofList({ brandId, brandName, parentName, scores }: Reas
           <span className="text-muted-foreground text-xs mt-0.5">•</span>
           <div className="min-w-0">
             <p className="text-sm leading-snug">{item.label}</p>
-            {item.example && (
+            {item.example ? (
               <p className="text-xs text-muted-foreground mt-0.5">
                 → {item.example.title}{item.example.date ? ` (${item.example.date})` : ""}
               </p>
-            )}
+            ) : matchCategory(item.label) ? (
+              <a
+                href={`/brands/${brandId}/proof#${matchCategory(item.label)}`}
+                className="text-xs text-primary hover:underline mt-0.5 inline-block"
+              >
+                → See full evidence
+              </a>
+            ) : null}
           </div>
         </div>
       ))}

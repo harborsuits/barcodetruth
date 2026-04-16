@@ -132,12 +132,8 @@ export function BuildingProfile({ brand, stateData }: BuildingProfileProps) {
         </Card>
       )}
 
-      {/* ─── Stats line ─── */}
-      {totalEvents > 0 && (
-        <p className="text-xs text-muted-foreground text-center">
-          Based on {totalEvents} public records across {dimsCovered} categor{dimsCovered !== 1 ? "ies" : "y"}
-        </p>
-      )}
+      {/* ─── Stats line — show per-category counts so the breakdown is auditable ─── */}
+      {totalEvents > 0 && <CategoryCountChips brandId={brand.id} totalEvents={totalEvents} />}
 
       {/* ─── Ownership ─── */}
       <OwnershipRevealBuilding brandId={brand.id} brandName={displayName} parentCompany={parentName} />
