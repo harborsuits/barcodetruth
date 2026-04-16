@@ -1,13 +1,10 @@
 
-User picked: Validity first + Soft gate with photo proof. I have enough context from the audit to plan directly. No need to re-explore.
+User provided exact patch instructions. Plan is just to execute them. Need to view Scan.tsx to map current names to new ones since I don't have its current contents in context.
 
-Validity-first scope (5 trust killers from audit):
-1. Accent search ("Nestle" ≠ "Nestlé") — needs `unaccent` on both sides in `search_catalog` RPC + `search-brands` edge function
-2. Quick-tap NESTLÉ → unknown barcode — fix hardcoded test barcodes
-3. "Drake mixtape" leak in identity card — extend entity-mismatch keyword scan + flag corrupted rows
-4. Evidence linkage weak — "4 labor violations" headline ties to merger story. Need stricter category↔event matching in `ReasonProofList`
-5. Category display mismatch — "160 records across 4 categories" but UI only shows "Power & Profit". Render all category counts.
+Quick scope:
+- `src/pages/Scan.tsx`: jargon replacements, hint block, manual entry validation + autofocus + numeric inputMode, FAQ → visible "Need help?" button, camera-fail toast with manual-entry action, demo brands rename, HTTPS copy
+- `src/pages/UnknownProduct.tsx`: lead with two CTAs (Search by brand / Scan another), wrap existing Add Product card in Collapsible behind "Submit this product", add moderation copy
 
-Plus soft-gate Add Product: require photo upload, auto-publish with `community_submitted=true` flag, queue for review.
+UnknownProduct already has Collapsible available (component exists) and already has the photo + moderation logic. Just reordering + collapsing.
 
-Keep it tight. ~6 file touches + 1 migration + 1 storage bucket.
+No DB, no edge functions. Pure UI/copy. ~2 file edits.
