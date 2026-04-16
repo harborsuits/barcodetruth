@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, Package, AlertCircle, Loader2, Check, Save, ExternalLink, Search, Users, TrendingUp, HelpCircle, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -109,21 +109,6 @@ export default function ScanResultV1() {
     supabase.auth.getUser().then(({ data: { user } }) => setCurrentUserId(user?.id ?? undefined));
   }, []);
 
-  if (!barcode) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full">
-          <CardContent className="pt-6 space-y-4 text-center">
-            <Package className="h-12 w-12 mx-auto text-muted-foreground" />
-            <h2 className="text-lg font-semibold">No barcode provided</h2>
-            <p className="text-sm text-muted-foreground">Please scan a product barcode to see results.</p>
-            <Button onClick={() => navigate("/scan")} className="w-full">Scan a Product</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   // Normalize barcode: pad 12-digit UPC-A to 13-digit EAN-13
   const normalizedBarcode = barcode && /^\d{12}$/.test(barcode) ? '0' + barcode : barcode;
 
@@ -187,12 +172,24 @@ export default function ScanResultV1() {
     enabled: !!barcode,
   });
 
+  // Cap polling at 60s to prevent infinite loops on stuck "building" brands
+  const pollStartRef = useRef<number>(Date.now());
+  const [pollTimedOut, setPollTimedOut] = useState(false);
+  const MAX_POLL_MS = 60_000;
+
   const { data: brandInfo, isLoading: brandLoading, refetch: refetchBrand } = useQuery({
     queryKey: ["brand-info-v1", product?.brand_id],
     enabled: !!product?.brand_id,
     refetchInterval: (query) => {
       const status = (query.state.data as any)?.status;
-      return status === "stub" || status === "building" ? 5000 : false;
+      const isBuilding = status === "stub" || status === "building";
+      if (!isBuilding) return false;
+      const elapsed = Date.now() - pollStartRef.current;
+      if (elapsed >= MAX_POLL_MS) {
+        if (!pollTimedOut) setPollTimedOut(true);
+        return false;
+      }
+      return 5000;
     },
     queryFn: async () => {
       const { data, error } = await supabase
@@ -351,29 +348,60 @@ export default function ScanResultV1() {
     }
   };
 
-  // Correction submit
+  // Correction submit — routes to moderation queue, never writes brands directly
   const handleCorrection = async (data: { name?: string; website?: string }) => {
     if (!brandInfo?.id) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast({ title: "Sign in to submit corrections", description: "We use this to track quality of community input." });
+      return;
+    }
     try {
-      const updates: Record<string, any> = {};
-      if (data.name) updates.name = data.name;
-      if (data.website) {
-        updates.website = data.website.startsWith("http") ? data.website : `https://${data.website}`;
-        updates.canonical_domain = data.website.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
-      }
-      if (Object.keys(updates).length > 0) {
-        await supabase.from("brands").update(updates).eq("id", brandInfo.id);
-        toast({ title: "Thanks!", description: "Your correction has been submitted." });
-        setShowCorrection(false);
-        refetchBrand();
-      }
-    } catch {
-      toast({ title: "Failed to submit", variant: "destructive" });
+      const proposedWebsite = data.website
+        ? (data.website.startsWith("http") ? data.website : `https://${data.website}`)
+        : null;
+      const proposed_changes: Record<string, any> = {};
+      if (data.name) proposed_changes.name = data.name;
+      if (proposedWebsite) proposed_changes.website = proposedWebsite;
+      if (Object.keys(proposed_changes).length === 0) return;
+
+      const { error } = await supabase.from("brand_corrections").insert({
+        brand_id: brandInfo.id,
+        proposed_name: data.name ?? null,
+        proposed_website: proposedWebsite,
+        proposed_changes,
+        submitter_user_id: user.id,
+      });
+      if (error) throw error;
+      toast({
+        title: "Thanks — we'll review this",
+        description: "Your suggestion was submitted. We'll update the brand if verified.",
+      });
+      setShowCorrection(false);
+    } catch (e: any) {
+      console.error("[ScanResult] correction submit failed:", e);
+      toast({ title: "Failed to submit", description: e?.message, variant: "destructive" });
     }
   };
 
-  // ─── Loading ───
-  if (productLoading) {
+  // ─── No barcode in URL ───
+  if (!barcode) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-6 space-y-4 text-center">
+            <Package className="h-12 w-12 mx-auto text-muted-foreground" />
+            <h2 className="text-lg font-semibold">No barcode provided</h2>
+            <p className="text-sm text-muted-foreground">Please scan a product barcode to see results.</p>
+            <Button onClick={() => navigate("/scan")} className="w-full">Scan a Product</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // ─── Unified loading (single skeleton, no double-flash) ───
+  if (productLoading || (product?.brand_id && brandLoading)) {
     return (
       <div className="min-h-screen bg-background">
         <ScanHeader onBack={() => navigate(-1)} />
@@ -386,14 +414,37 @@ export default function ScanResultV1() {
     );
   }
 
-  if (product?.brand_id && brandLoading) {
+  // ─── Polling timed out — brand stuck in "building" >60s ───
+  if (pollTimedOut && (brandInfo?.status === "stub" || brandInfo?.status === "building")) {
     return (
       <div className="min-h-screen bg-background">
         <ScanHeader onBack={() => navigate(-1)} />
-        <main className="container max-w-md mx-auto px-4 py-6 space-y-4">
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-24 w-full" />
+        <main className="container max-w-md mx-auto px-4 py-6">
+          <Card>
+            <CardContent className="pt-6 space-y-4 text-center">
+              <Sparkles className="h-10 w-10 mx-auto text-muted-foreground" />
+              <h2 className="text-lg font-semibold">We're still gathering data on this brand</h2>
+              <p className="text-sm text-muted-foreground">
+                {displayBrandName ? `${displayBrandName} is being built right now.` : "This brand is being built right now."} Check back in a few minutes — we'll keep improving it.
+              </p>
+              <div className="flex gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    pollStartRef.current = Date.now();
+                    setPollTimedOut(false);
+                    refetchBrand();
+                  }}
+                >
+                  Try again
+                </Button>
+                <Button className="flex-1" onClick={() => navigate("/scan")}>
+                  Scan another
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </main>
       </div>
     );
