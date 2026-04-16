@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { barcode, product_name, brand_name, category } = await req.json();
+    const { barcode, product_name, brand_name, category, photo_url } = await req.json();
 
     if (!barcode || !isValidBarcode(barcode)) {
       return new Response(
@@ -69,6 +69,14 @@ Deno.serve(async (req) => {
     if (!product_name || typeof product_name !== 'string' || product_name.trim().length === 0) {
       return new Response(
         JSON.stringify({ error: 'Product name is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Soft-gate: photo proof is required for community submissions
+    if (!photo_url || typeof photo_url !== 'string' || !photo_url.startsWith('http')) {
+      return new Response(
+        JSON.stringify({ error: 'A product photo is required to submit. This helps us verify accuracy.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -242,6 +250,7 @@ Deno.serve(async (req) => {
     }
 
     // Create product — use upsert-style: catch duplicate gracefully
+    // Soft-gate: community submissions enter the review queue (review_status='pending')
     const { data: newProduct, error: productError } = await supabase
       .from('products')
       .insert({
@@ -251,9 +260,14 @@ Deno.serve(async (req) => {
         category: category || null,
         confidence_score: 40,
         data_source: 'user_submitted',
+        community_submitted: true,
+        submission_photo_url: photo_url,
+        submitted_by: userId,
+        review_status: 'pending',
         metadata: {
           submitted_by: userId,
           submitted_at: new Date().toISOString(),
+          photo_url,
         },
       })
       .select('id')
