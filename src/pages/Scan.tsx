@@ -1004,35 +1004,37 @@ export const Scan = () => {
           </CardContent>
         </Card>
 
-        {/* FAQ Drawer */}
-        <details className="rounded-lg border p-4 bg-card">
-          <summary className="cursor-pointer select-none text-sm font-medium">
-            Having trouble? (FAQ)
-          </summary>
-          <div className="mt-3 space-y-3 text-sm text-muted-foreground">
-            <div>
-              <div className="font-medium text-foreground">Why won't my camera start?</div>
-              <ul className="list-disc pl-5 mt-1">
-                <li>Use HTTPS (or localhost)—browsers block cameras on insecure pages.</li>
-                <li>Allow camera permission in your browser settings.</li>
-                <li>Close other apps using the camera (Zoom/Teams/etc.).</li>
-                <li>Your browser/device may not support camera access—use "Enter barcode instead".</li>
-              </ul>
+        {/* Help Dialog */}
+        <Dialog open={showHelp} onOpenChange={setShowHelp}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Scanner help</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 text-sm text-muted-foreground">
+              <div>
+                <div className="font-medium text-foreground mb-1">Why won't my camera start?</div>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Use HTTPS (or localhost) — browsers block cameras on insecure pages.</li>
+                  <li>Allow camera permission in your browser settings.</li>
+                  <li>Close other apps using the camera (Zoom, Teams, etc.).</li>
+                  <li>If your device doesn't support camera access, use Manual Entry.</li>
+                </ul>
+              </div>
+              <div>
+                <div className="font-medium text-foreground mb-1">It's too dark or won't detect.</div>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Move to brighter light or use the flashlight if available.</li>
+                  <li>Fill about 60% of the frame with the barcode; avoid glare and curve.</li>
+                  <li>If the code is damaged, type the digits manually.</li>
+                </ul>
+              </div>
+              <div>
+                <div className="font-medium text-foreground mb-1">Which codes are supported?</div>
+                <p>EAN-13, EAN-8, UPC-A, UPC-E, ITF, Code 128, Code 39. QR and Data Matrix aren't supported yet.</p>
+              </div>
             </div>
-            <div>
-              <div className="font-medium text-foreground">It's too dark / won't detect.</div>
-              <ul className="list-disc pl-5 mt-1">
-                <li>Move to brighter light or use the flashlight if available.</li>
-                <li>Fill ~60% of the reticle with the barcode; avoid glare and curve.</li>
-                <li>If the code is damaged, type the digits manually.</li>
-              </ul>
-            </div>
-            <div>
-              <div className="font-medium text-foreground">Which codes are supported?</div>
-              <p className="mt-1">EAN-13, EAN-8, UPC-A, UPC-E, ITF, Code 128, Code 39 (QR/Data Matrix not yet).</p>
-            </div>
-          </div>
-        </details>
+          </DialogContent>
+        </Dialog>
       </main>
 
       {/* Auth Modal */}
