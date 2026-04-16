@@ -410,9 +410,42 @@ export default function ScanResultV1() {
       <div className="min-h-screen bg-background">
         <ScanHeader onBack={() => navigate(-1)} />
         <main className="container max-w-md mx-auto px-4 py-6 space-y-4">
+          <Card>
+            <CardContent className="pt-6 pb-4 flex items-center gap-3">
+              <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium">Analyzing this brand…</p>
+                <p className="text-xs text-muted-foreground">Pulling evidence and computing your score.</p>
+              </div>
+            </CardContent>
+          </Card>
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
+        </main>
+      </div>
+    );
+  }
+
+  // ─── Brand still building (status = stub/building) but not yet timed out ───
+  // Surface this immediately instead of silently polling for 60s
+  const isBuildingNow = !pollTimedOut && (brandInfo?.status === "stub" || brandInfo?.status === "building");
+  if (isBuildingNow) {
+    return (
+      <div className="min-h-screen bg-background">
+        <ScanHeader onBack={() => navigate(-1)} />
+        <main className="container max-w-md mx-auto px-4 py-6 space-y-4">
+          <Card>
+            <CardContent className="pt-6 pb-4 flex items-center gap-3">
+              <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium">Analyzing {displayBrandName || "this brand"}…</p>
+                <p className="text-xs text-muted-foreground">First-time scan — building the profile from live sources. This usually takes under a minute.</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-20 w-full" />
         </main>
       </div>
     );
