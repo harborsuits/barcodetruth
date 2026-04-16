@@ -109,21 +109,6 @@ export default function ScanResultV1() {
     supabase.auth.getUser().then(({ data: { user } }) => setCurrentUserId(user?.id ?? undefined));
   }, []);
 
-  if (!barcode) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full">
-          <CardContent className="pt-6 space-y-4 text-center">
-            <Package className="h-12 w-12 mx-auto text-muted-foreground" />
-            <h2 className="text-lg font-semibold">No barcode provided</h2>
-            <p className="text-sm text-muted-foreground">Please scan a product barcode to see results.</p>
-            <Button onClick={() => navigate("/scan")} className="w-full">Scan a Product</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   // Normalize barcode: pad 12-digit UPC-A to 13-digit EAN-13
   const normalizedBarcode = barcode && /^\d{12}$/.test(barcode) ? '0' + barcode : barcode;
 
