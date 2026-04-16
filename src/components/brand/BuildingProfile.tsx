@@ -19,6 +19,7 @@ import { PowerProfitCard } from "@/components/brand/PowerProfitCard";
 import { useDisplayProfile } from "@/hooks/useDisplayProfile";
 import { getConfidenceLabel } from "@/lib/getConfidenceLabel";
 import { ReasonProofList } from "@/components/brand/ReasonProofList";
+import { CategoryCountChips } from "@/components/brand/CategoryCountChips";
 
 interface BrandData {
   id: string;
