@@ -880,7 +880,7 @@ export const Scan = () => {
                           if (manualError) setManualError('');
                         }}
                         onKeyDown={(e) => e.key === 'Enter' && handleManualSubmit()}
-                        maxLength={14}
+                        maxLength={13}
                         className="flex-1"
                         aria-label="Enter barcode digits manually"
                         aria-invalid={!!manualError}
