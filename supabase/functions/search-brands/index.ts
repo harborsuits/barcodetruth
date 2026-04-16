@@ -84,7 +84,10 @@ serve(async (req) => {
     const escapedRaw = escapeLike(rawTerm);
     const escapedNormalized = escapeLike(normalized);
     
-    // Step 1: Check aliases (exact + normalized)
+    // Step 1: Check aliases (exact + normalized + accent-stripped)
+    // Strip accents on the query so "Nestle" matches "Nestlé" aliases
+    const accentStripped = normalized.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const escapedAccentStripped = escapeLike(accentStripped);
     const { data: aliasMatches } = await supabase
       .from("brand_aliases")
       .select(`
@@ -97,7 +100,7 @@ serve(async (req) => {
           status
         )
       `)
-      .or(`external_name.ilike.${escapedRaw},external_name.ilike.${escapedNormalized}`)
+      .or(`external_name.ilike.${escapedRaw},external_name.ilike.${escapedNormalized},external_name.ilike.${escapedAccentStripped}`)
       .limit(5);
 
     const aliasResults = (aliasMatches || [])
@@ -109,13 +112,10 @@ serve(async (req) => {
         matched_alias: m.external_name
       }));
 
-    // Step 2: Exact/prefix match on brands (active only)
+    // Step 2: Exact/prefix match on brands (active only) — accent-insensitive via RPC
     const { data: exactMatches } = await supabase
-      .from("brands")
-      .select("id, name, parent_company")
-      .eq("status", "active")
-      .or(`name.ilike.${escapedRaw},name.ilike.${escapedRaw}%`)
-      .limit(10);
+      .rpc("search_catalog", { p_q: rawTerm, p_limit: 10 });
+    const brandsArr = (exactMatches as any)?.brands || [];
 
     const exactResults = (exactMatches || []).map(b => ({
       ...b,
