@@ -27,6 +27,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { upsertStoredScan } from "@/lib/recentScans";
 
 // Validate product barcode format
@@ -56,6 +62,8 @@ export const Scan = () => {
   const [pendingBarcode, setPendingBarcode] = useState<string | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [manualError, setManualError] = useState('');
   const lastDetectedRef = useRef<string | null>(null);
   const lastDetectedAtRef = useRef<number>(0);
   
@@ -429,10 +437,12 @@ export const Scan = () => {
       setError(err.message);
       setScanResult('idle');
       toast({
-        title: "Camera error",
-        description: err.message,
+        title: "We can't access your camera",
+        description: "Try manual entry instead.",
         variant: "destructive"
       });
+      setShowManual(true);
+      setTimeout(() => manualInputRef.current?.focus(), 50);
     }
   });
 
@@ -545,16 +555,13 @@ export const Scan = () => {
 
   const handleManualSubmit = () => {
     const trimmed = manualBarcode.trim();
-    if (isValidProductBarcode(trimmed)) {
-      handleConfirmedLookup(trimmed);
-      setManualBarcode('');
-    } else {
-      toast({
-        title: "Invalid barcode",
-        description: "Please enter 8, 12, or 13 digits",
-        variant: "destructive"
-      });
+    if (!/^\d+$/.test(trimmed) || ![8, 12, 13].includes(trimmed.length)) {
+      setManualError('Barcode must be 8, 12, or 13 digits.');
+      return;
     }
+    setManualError('');
+    handleConfirmedLookup(trimmed);
+    setManualBarcode('');
   };
 
   const onUploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -616,15 +623,15 @@ export const Scan = () => {
   return (
     <div className="min-h-screen bg-background forensic-grid">
       <main className="container max-w-2xl mx-auto px-4 py-6 space-y-4">
-        {/* Forensic header */}
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">INVESTIGATOR_MODULE</p>
-            <p className="font-mono text-[10px] uppercase tracking-widest text-primary/60">ACTIVE_SESSION_ONLINE</p>
+            <p className="text-sm font-semibold text-foreground">Scanner</p>
+            <p className="text-xs text-muted-foreground">Ready</p>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="h-1.5 w-1.5 bg-success rounded-full animate-pulse" />
-            <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">SYSTEM_STATUS</span>
+            <span className="text-xs text-muted-foreground">Online</span>
           </div>
         </div>
 
@@ -671,8 +678,8 @@ export const Scan = () => {
                 />
               </div>
 
-              {/* Debug overlay - shows scanning status */}
-              {isScanning && (
+              {/* Debug overlay - dev only */}
+              {isScanning && import.meta.env.DEV && (
                 <div className="absolute bottom-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-mono z-30">
                   <div>Status: {isPaused ? 'PAUSED' : 'SCANNING'}</div>
                   <div>Camera: {facingMode}</div>
@@ -777,52 +784,63 @@ export const Scan = () => {
             {scanResult === 'idle' && (
               <div className="mt-6 space-y-4 text-center">
                 <div className="space-y-2">
-                  <h3 className="font-semibold">System Ready for Ingestion</h3>
+                  <h3 className="font-semibold">Ready to scan</h3>
                   <p className="text-sm text-muted-foreground">
-                    Position a product barcode in front of your camera for instant brand analysis
+                    Point your camera at a product barcode for instant brand analysis.
                   </p>
                   {!is_subscribed && (
-                    <p className="text-sm font-medium text-primary font-mono">
+                    <p className="text-sm font-medium text-primary">
                       {scans_remaining} scans remaining
                     </p>
                   )}
                 </div>
-                
+
                 {error && (
                   <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
                     <p className="text-sm text-destructive">{error}</p>
                   </div>
                 )}
-                
+
+                {/* Quick limitations hint */}
+                <div className="text-xs text-muted-foreground space-y-0.5">
+                  <p>Works best in bright, even light</p>
+                  <p>Supports UPC and EAN barcodes (not QR codes yet)</p>
+                </div>
+
                 <div className="flex flex-col gap-3 items-center">
-                <div className="flex items-center gap-3 justify-center">
-                  <Button 
-                    onClick={startScanner} 
+                <div className="flex items-center gap-3 justify-center flex-wrap">
+                  <Button
+                    onClick={startScanner}
                     aria-label="Start barcode scanner"
                     disabled={!isSecure || !can_scan}
-                    className="font-mono text-xs uppercase tracking-wider"
                   >
                     <Camera className="mr-2 h-4 w-4" />
                     Start Camera
                   </Button>
-                  <Button 
-                    variant="secondary" 
-                    onClick={onManualFallbackClick} 
+                  <Button
+                    variant="secondary"
+                    onClick={onManualFallbackClick}
                     aria-label="Enter barcode manually"
                     disabled={!can_scan}
-                    className="font-mono text-xs uppercase tracking-wider"
                   >
                     Manual Entry
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowHelp(true)}
+                    aria-label="Open scanner help"
+                  >
+                    Need help?
+                  </Button>
                 </div>
                   <div className="flex items-center gap-2">
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       size="sm"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={!can_scan}
                       aria-label="Upload barcode photo"
-                      className="font-mono text-[10px] uppercase tracking-wider"
                     >
                       <Upload className="mr-2 h-4 w-4" />
                       Upload photo
@@ -837,15 +855,17 @@ export const Scan = () => {
                     />
                   </div>
                 </div>
-                
-                <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">
-                  Data transmitted over secure HTTPS. No images stored.
+
+                <p className="text-xs text-muted-foreground">
+                  Secure connection — we don't store your photos.
                 </p>
 
                 {/* Manual barcode entry */}
                 {showManual && (
-                  <div className="pt-4 border-t border-border">
-                    <label htmlFor="manual-barcode" className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">BARCODE_IDENTIFIER</label>
+                  <div className="pt-4 border-t border-border text-left">
+                    <label htmlFor="manual-barcode" className="text-sm font-medium text-foreground">
+                      Barcode number
+                    </label>
                     <div className="mt-2 flex items-center gap-2">
                       <Input
                         id="manual-barcode"
@@ -853,43 +873,50 @@ export const Scan = () => {
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        placeholder="Enter Barcode Identifier..."
+                        placeholder="Enter 8–13 digit barcode"
                         value={manualBarcode}
-                        onChange={(e) => setManualBarcode(e.target.value.replace(/\D/g, ''))}
+                        onChange={(e) => {
+                          setManualBarcode(e.target.value.replace(/\D/g, ''));
+                          if (manualError) setManualError('');
+                        }}
                         onKeyDown={(e) => e.key === 'Enter' && handleManualSubmit()}
                         maxLength={14}
-                        className="flex-1 bg-card border-border/30 font-mono text-sm"
+                        className="flex-1"
                         aria-label="Enter barcode digits manually"
+                        aria-invalid={!!manualError}
                       />
-                      <Button 
-                        onClick={handleManualSubmit} 
+                      <Button
+                        onClick={handleManualSubmit}
                         disabled={manualBarcode.length < 8}
-                        className="font-mono text-xs uppercase tracking-wider"
                       >
-                        INITIALIZE AUDIT
+                        Look up
                       </Button>
                     </div>
+                    {manualError && (
+                      <p className="text-sm text-destructive mt-2">{manualError}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Most product barcodes are 12 (UPC) or 13 (EAN) digits.
+                    </p>
                   </div>
                 )}
 
-                {/* Quick-tap brand chips */}
+                {/* Demo brands */}
                 <div className="pt-4 border-t border-border">
-                  <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3">
-                    QUICK_TAP_TEST_BRANDS
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Try a demo scan
                   </p>
                   <div className="flex flex-wrap gap-2 justify-center">
                     {[
-                      // Verified barcodes that resolve in our DB (audit fix: NESTLÉ→unknown leak)
-                      { name: "COCA-COLA", upc: "0049000042566" },
-                      { name: "KRAFT", upc: "0021000615261" },
-                      { name: "LINDT", upc: "0037466017631" },
-                      { name: "POPPI", upc: "0810063710071" },
+                      { name: "Coca-Cola", upc: "0049000042566" },
+                      { name: "Kraft", upc: "0021000615261" },
+                      { name: "Lindt", upc: "0037466017631" },
+                      { name: "Poppi", upc: "0810063710071" },
                     ].map((item) => (
                       <Button
                         key={item.upc}
                         variant="outline"
                         size="sm"
-                        className="font-mono text-[10px] uppercase tracking-wider px-3"
                         onClick={() => handleConfirmedLookup(item.upc)}
                         disabled={!can_scan}
                       >
@@ -979,35 +1006,37 @@ export const Scan = () => {
           </CardContent>
         </Card>
 
-        {/* FAQ Drawer */}
-        <details className="rounded-lg border p-4 bg-card">
-          <summary className="cursor-pointer select-none text-sm font-medium">
-            Having trouble? (FAQ)
-          </summary>
-          <div className="mt-3 space-y-3 text-sm text-muted-foreground">
-            <div>
-              <div className="font-medium text-foreground">Why won't my camera start?</div>
-              <ul className="list-disc pl-5 mt-1">
-                <li>Use HTTPS (or localhost)—browsers block cameras on insecure pages.</li>
-                <li>Allow camera permission in your browser settings.</li>
-                <li>Close other apps using the camera (Zoom/Teams/etc.).</li>
-                <li>Your browser/device may not support camera access—use "Enter barcode instead".</li>
-              </ul>
+        {/* Help Dialog */}
+        <Dialog open={showHelp} onOpenChange={setShowHelp}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Scanner help</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 text-sm text-muted-foreground">
+              <div>
+                <div className="font-medium text-foreground mb-1">Why won't my camera start?</div>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Use HTTPS (or localhost) — browsers block cameras on insecure pages.</li>
+                  <li>Allow camera permission in your browser settings.</li>
+                  <li>Close other apps using the camera (Zoom, Teams, etc.).</li>
+                  <li>If your device doesn't support camera access, use Manual Entry.</li>
+                </ul>
+              </div>
+              <div>
+                <div className="font-medium text-foreground mb-1">It's too dark or won't detect.</div>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Move to brighter light or use the flashlight if available.</li>
+                  <li>Fill about 60% of the frame with the barcode; avoid glare and curve.</li>
+                  <li>If the code is damaged, type the digits manually.</li>
+                </ul>
+              </div>
+              <div>
+                <div className="font-medium text-foreground mb-1">Which codes are supported?</div>
+                <p>EAN-13, EAN-8, UPC-A, UPC-E, ITF, Code 128, Code 39. QR and Data Matrix aren't supported yet.</p>
+              </div>
             </div>
-            <div>
-              <div className="font-medium text-foreground">It's too dark / won't detect.</div>
-              <ul className="list-disc pl-5 mt-1">
-                <li>Move to brighter light or use the flashlight if available.</li>
-                <li>Fill ~60% of the reticle with the barcode; avoid glare and curve.</li>
-                <li>If the code is damaged, type the digits manually.</li>
-              </ul>
-            </div>
-            <div>
-              <div className="font-medium text-foreground">Which codes are supported?</div>
-              <p className="mt-1">EAN-13, EAN-8, UPC-A, UPC-E, ITF, Code 128, Code 39 (QR/Data Matrix not yet).</p>
-            </div>
-          </div>
-        </details>
+          </DialogContent>
+        </Dialog>
       </main>
 
       {/* Auth Modal */}

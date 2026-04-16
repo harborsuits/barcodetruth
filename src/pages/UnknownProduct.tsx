@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Trophy, Package, Camera, Loader2, Check, ShieldCheck, Upload, X } from "lucide-react";
+import { ArrowLeft, Trophy, Package, Camera, Loader2, Check, ShieldCheck, Upload, X, Search, ScanLine } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -43,6 +44,7 @@ export default function UnknownProduct() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [showSubmitForm, setShowSubmitForm] = useState(false);
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -233,7 +235,19 @@ export default function UnknownProduct() {
           </CardContent>
         </Card>
 
-        {/* Transparency: what happens with this submission */}
+        {/* Primary actions: search or scan again come first */}
+        <div className="grid grid-cols-2 gap-2">
+          <Button onClick={() => navigate("/search")} variant="default" className="w-full">
+            <Search className="h-4 w-4 mr-2" />
+            Search by brand
+          </Button>
+          <Button onClick={() => navigate("/scan")} variant="secondary" className="w-full">
+            <ScanLine className="h-4 w-4 mr-2" />
+            Scan another label
+          </Button>
+        </div>
+
+        {/* Transparency: what happens with submissions */}
         <Card className="border-border bg-elevated-1">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-start gap-3">
@@ -241,131 +255,135 @@ export default function UnknownProduct() {
               <div className="space-y-1">
                 <p className="text-sm font-medium">How submissions work</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Your submission goes <span className="font-medium">live immediately</span> and is flagged as <span className="font-medium">community-submitted</span> until verified. A photo is required so we can check accuracy. Repeated invalid submissions may limit your ability to contribute.
+                  Submissions go live immediately and are flagged as <span className="font-medium">community-submitted</span> until our team verifies the photo. A clear photo of the front of the package is required so we can check accuracy.
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <h3 className="text-base font-semibold">Product Details</h3>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Photo upload (REQUIRED — soft gate) */}
-            <div className="space-y-2">
-              <Label>
-                Product Photo <span className="text-destructive">*</span>
-              </Label>
-              {photoPreview ? (
-                <div className="relative w-full aspect-square max-h-64 rounded border border-border overflow-hidden bg-muted">
-                  <img src={photoPreview} alt="Product preview" className="w-full h-full object-contain" />
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className="absolute top-2 right-2 h-8 w-8"
-                    onClick={clearPhoto}
-                    type="button"
-                    aria-label="Remove photo"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full aspect-video rounded border-2 border-dashed border-border hover:border-primary/50 hover:bg-elevated-1 transition-colors flex flex-col items-center justify-center gap-2 p-4"
-                >
-                  <Camera className="h-8 w-8 text-muted-foreground" />
-                  <p className="text-sm text-foreground">Take or upload a photo</p>
-                  <p className="text-xs text-muted-foreground">Show the front of the package — JPG/PNG, ≤5 MB</p>
-                </button>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handlePhotoSelect}
-                className="hidden"
-              />
-              {!photoFile && (
-                <p className="text-xs text-muted-foreground">A clear photo helps us verify the brand and prevents bad data.</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="product-name">
-                Product Name <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="product-name"
-                placeholder="e.g., Organic Whole Milk"
-                value={productName}
-                onChange={(e) => setProductName(e.target.value)}
-                maxLength={120}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="brand-name">Brand Name (optional)</Label>
-              <Input
-                id="brand-name"
-                placeholder="e.g., Horizon Organic"
-                value={brandName}
-                onChange={(e) => setBrandName(e.target.value)}
-                maxLength={80}
-              />
-              <p className="text-xs text-muted-foreground">If you don't know the brand, we'll try to identify it.</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="category">Category (optional)</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger id="category">
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={() => submitProduct.mutate()}
-              disabled={!canSubmit}
-            >
-              {uploading ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Uploading photo…</>
-              ) : submitProduct.isPending ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Submitting…</>
-              ) : (
-                <><Upload className="h-4 w-4 mr-2" />Submit & Follow</>
-              )}
+        {/* Add Product (collapsed by default) */}
+        <Collapsible open={showSubmitForm} onOpenChange={setShowSubmitForm}>
+          <CollapsibleTrigger asChild>
+            <Button variant="outline" className="w-full">
+              {showSubmitForm ? "Hide submission form" : "Submit this product"}
             </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-3">
+            <Card>
+              <CardHeader>
+                <h3 className="text-base font-semibold">Product Details</h3>
+                <p className="text-xs text-muted-foreground">
+                  What we need: a clear photo of the front of the package. Submissions are reviewed before being trusted.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Photo upload (REQUIRED — soft gate) */}
+                <div className="space-y-2">
+                  <Label>
+                    Product Photo <span className="text-destructive">*</span>
+                  </Label>
+                  {photoPreview ? (
+                    <div className="relative w-full aspect-square max-h-64 rounded border border-border overflow-hidden bg-muted">
+                      <img src={photoPreview} alt="Product preview" className="w-full h-full object-contain" />
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        className="absolute top-2 right-2 h-8 w-8"
+                        onClick={clearPhoto}
+                        type="button"
+                        aria-label="Remove photo"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full aspect-video rounded border-2 border-dashed border-border hover:border-primary/50 hover:bg-elevated-1 transition-colors flex flex-col items-center justify-center gap-2 p-4"
+                    >
+                      <Camera className="h-8 w-8 text-muted-foreground" />
+                      <p className="text-sm text-foreground">Take or upload a photo</p>
+                      <p className="text-xs text-muted-foreground">Show the front of the package — JPG/PNG, ≤5 MB</p>
+                    </button>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handlePhotoSelect}
+                    className="hidden"
+                  />
+                  {!photoFile && (
+                    <p className="text-xs text-muted-foreground">A clear photo helps us verify the brand and prevents bad data.</p>
+                  )}
+                </div>
 
-            <p className="text-xs text-center text-muted-foreground">
-              You'll be notified when this brand's profile is ready.
-            </p>
-          </CardContent>
-        </Card>
+                <div className="space-y-2">
+                  <Label htmlFor="product-name">
+                    Product Name <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="product-name"
+                    placeholder="e.g., Organic Whole Milk"
+                    value={productName}
+                    onChange={(e) => setProductName(e.target.value)}
+                    maxLength={120}
+                  />
+                </div>
 
-        <div className="space-y-2">
-          <Button variant="ghost" className="w-full" onClick={() => navigate("/search")}>
-            Search Existing Brands
-          </Button>
-          <Button variant="ghost" className="w-full" onClick={() => navigate("/scan")}>
-            Scan Different Product
-          </Button>
-        </div>
+                <div className="space-y-2">
+                  <Label htmlFor="brand-name">Brand Name (optional)</Label>
+                  <Input
+                    id="brand-name"
+                    placeholder="e.g., Horizon Organic"
+                    value={brandName}
+                    onChange={(e) => setBrandName(e.target.value)}
+                    maxLength={80}
+                  />
+                  <p className="text-xs text-muted-foreground">If you don't know the brand, we'll try to identify it.</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="category">Category (optional)</Label>
+                  <Select value={category} onValueChange={setCategory}>
+                    <SelectTrigger id="category">
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIES.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={() => submitProduct.mutate()}
+                  disabled={!canSubmit}
+                >
+                  {uploading ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Uploading photo…</>
+                  ) : submitProduct.isPending ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Submitting…</>
+                  ) : (
+                    <><Upload className="h-4 w-4 mr-2" />Submit & Follow</>
+                  )}
+                </Button>
+
+                <p className="text-xs text-center text-muted-foreground">
+                  You'll be notified when this brand's profile is ready.
+                </p>
+              </CardContent>
+            </Card>
+          </CollapsibleContent>
+        </Collapsible>
       </main>
     </div>
   );
