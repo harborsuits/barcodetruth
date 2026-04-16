@@ -428,8 +428,12 @@ export default function ScanResultV1() {
   }
 
   // ─── Brand still building (status = stub/building) but not yet timed out ───
-  // Surface this immediately instead of silently polling for 60s
-  const isBuildingNow = !pollTimedOut && (brandInfo?.status === "stub" || brandInfo?.status === "building");
+  // Surface this immediately instead of silently polling for 60s.
+  // Guard on `brandInfo` truthiness to avoid flicker before first fetch resolves.
+  const isBuildingNow =
+    !pollTimedOut &&
+    !!brandInfo &&
+    (brandInfo.status === "stub" || brandInfo.status === "building");
   if (isBuildingNow) {
     return (
       <div className="min-h-screen bg-background">
