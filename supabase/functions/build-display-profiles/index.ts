@@ -279,6 +279,11 @@ Deno.serve(async (req) => {
         'is an airport', 'is a stadium', 'is a park',
         'film directed by', 'is a television', 'is a song', 'is an album',
         'census-designated place', 'unincorporated community',
+        // Media-content leaks (audit: "Drake mixtape" issue)
+        'mixtape', 'studio album', 'debut album', 'discography', 'filmography',
+        'box office', 'rapper', 'hip-hop artist', 'hip hop artist', 'singer-songwriter',
+        'television series', 'media franchise', 'fictional character', 'video game',
+        'is a novel', 'is a comic', 'is a franchise', 'is a character',
       ];
       const matchedPattern = NON_BRAND_PATTERNS.find(p => desc.includes(p));
       if (matchedPattern) {

@@ -879,10 +879,11 @@ export const Scan = () => {
                   </p>
                   <div className="flex flex-wrap gap-2 justify-center">
                     {[
+                      // Verified barcodes that resolve in our DB (audit fix: NESTLÉ→unknown leak)
                       { name: "COCA-COLA", upc: "0049000042566" },
-                      { name: "PEPSI", upc: "0012000000348" },
-                      { name: "NESTLÉ", upc: "0028000805050" },
-                      { name: "KRAFT", upc: "0021000010240" },
+                      { name: "KRAFT", upc: "0021000615261" },
+                      { name: "LINDT", upc: "0037466017631" },
+                      { name: "POPPI", upc: "0810063710071" },
                     ].map((item) => (
                       <Button
                         key={item.upc}

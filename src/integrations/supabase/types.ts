@@ -7051,6 +7051,7 @@ export type Database = {
           brand_id: string | null
           cache_expires_at: string | null
           category: string | null
+          community_submitted: boolean
           confidence_score: number | null
           created_at: string
           data_source: string | null
@@ -7058,7 +7059,10 @@ export type Database = {
           image_url: string | null
           metadata: Json | null
           name: string
+          review_status: string
           source: string | null
+          submission_photo_url: string | null
+          submitted_by: string | null
           upc_type: string | null
           updated_at: string
           valid_checksum: boolean | null
@@ -7068,6 +7072,7 @@ export type Database = {
           brand_id?: string | null
           cache_expires_at?: string | null
           category?: string | null
+          community_submitted?: boolean
           confidence_score?: number | null
           created_at?: string
           data_source?: string | null
@@ -7075,7 +7080,10 @@ export type Database = {
           image_url?: string | null
           metadata?: Json | null
           name: string
+          review_status?: string
           source?: string | null
+          submission_photo_url?: string | null
+          submitted_by?: string | null
           upc_type?: string | null
           updated_at?: string
           valid_checksum?: boolean | null
@@ -7085,6 +7093,7 @@ export type Database = {
           brand_id?: string | null
           cache_expires_at?: string | null
           category?: string | null
+          community_submitted?: boolean
           confidence_score?: number | null
           created_at?: string
           data_source?: string | null
@@ -7092,7 +7101,10 @@ export type Database = {
           image_url?: string | null
           metadata?: Json | null
           name?: string
+          review_status?: string
           source?: string | null
+          submission_photo_url?: string | null
+          submitted_by?: string | null
           upc_type?: string | null
           updated_at?: string
           valid_checksum?: boolean | null
@@ -12176,6 +12188,7 @@ export type Database = {
         Returns: boolean
       }
       unaccent: { Args: { "": string }; Returns: string }
+      unaccent_lower_immutable: { Args: { t: string }; Returns: string }
       unlock_stale_jobs: { Args: { timeout_seconds: number }; Returns: number }
       upc_check_digit: { Args: { barcode: string }; Returns: string }
       upsert_coalesced_job: {

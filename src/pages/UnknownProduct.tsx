@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Trophy, Package, Camera, Loader2, Check } from "lucide-react";
+import { ArrowLeft, Trophy, Package, Camera, Loader2, Check, ShieldCheck, Upload, X } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -16,9 +16,6 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-// Contribution-focused page for unknown barcodes
-// Goal: Turn "failure" into "you're early — help us identify it"
-
 const CATEGORIES = [
   "Food & Beverages",
   "Personal Care",
@@ -31,39 +28,86 @@ const CATEGORIES = [
   "Other",
 ] as const;
 
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5 MB
+
 export default function UnknownProduct() {
   const { barcode } = useParams<{ barcode: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [productName, setProductName] = useState("");
   const [brandName, setBrandName] = useState("");
   const [category, setCategory] = useState<string>("");
   const [submitted, setSubmitted] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
-  // Submit unknown product mutation
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Photo must be an image", variant: "destructive" });
+      return;
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      toast({ title: "Photo too large", description: "Please choose an image under 5 MB.", variant: "destructive" });
+      return;
+    }
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const clearPhoto = () => {
+    setPhotoFile(null);
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const submitProduct = useMutation({
     mutationFn: async () => {
-      if (!barcode || !productName.trim()) {
-        throw new Error("Product name is required");
+      if (!barcode || !productName.trim()) throw new Error("Product name is required");
+      if (!photoFile) throw new Error("A product photo is required");
+
+      // Auth check — uploads need a logged-in user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error("Please sign in to submit a product.");
       }
 
-      const { data, error } = await supabase.functions.invoke('submit-unknown-product', {
+      setUploading(true);
+      // Upload photo to private bucket under user's folder
+      const ext = photoFile.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${user.id}/${barcode}-${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("product-submissions")
+        .upload(path, photoFile, { contentType: photoFile.type, upsert: false });
+      if (uploadError) {
+        setUploading(false);
+        throw uploadError;
+      }
+      // Signed URL (24h) for the edge function to record
+      const { data: signed } = await supabase.storage
+        .from("product-submissions")
+        .createSignedUrl(path, 60 * 60 * 24);
+      setUploading(false);
+
+      const { data, error } = await supabase.functions.invoke("submit-unknown-product", {
         body: {
           barcode,
           product_name: productName.trim(),
           brand_name: brandName.trim() || null,
           category: category || null,
-        }
+          photo_url: signed?.signedUrl || null,
+        },
       });
-
       if (error) throw error;
       return data;
     },
     onSuccess: (data) => {
       setSubmitted(true);
-
-      // Save to localStorage scan history so it shows in My Scans
       try {
         const raw = localStorage.getItem("recent_scans");
         const all = raw ? JSON.parse(raw) : [];
@@ -72,60 +116,43 @@ export default function UnknownProduct() {
           product_name: productName.trim(),
           brand_name: brandName.trim() || undefined,
           timestamp: Date.now(),
-          status: data?.status || 'pending',
+          status: data?.status || "pending",
         };
-        // Avoid duplicates
         const filtered = all.filter((s: any) => s.upc !== barcode);
         localStorage.setItem("recent_scans", JSON.stringify([entry, ...filtered].slice(0, 50)));
       } catch (e) {
-        console.warn('Failed to save to scan history:', e);
+        console.warn("Failed to save to scan history:", e);
       }
 
-      if (data?.status === 'recognized' || data?.already_exists) {
-        toast({
-          title: "We already recognize this product",
-          description: "Redirecting to its profile…",
-        });
+      if (data?.status === "recognized" || data?.already_exists) {
+        toast({ title: "We already recognize this product", description: "Redirecting to its profile…" });
         setTimeout(() => {
-          if (data?.brand_slug) {
-            navigate(`/brand/${data.brand_slug}`);
-          } else if (data?.brand_id) {
-            navigate(`/brand/${data.brand_id}`);
-          } else {
-            navigate('/');
-          }
+          if (data?.brand_slug) navigate(`/brand/${data.brand_slug}`);
+          else if (data?.brand_id) navigate(`/brand/${data.brand_id}`);
+          else navigate("/");
         }, 1500);
-      } else if (data?.status === 'under_investigation' || data?.already_queued) {
-        toast({
-          title: "Already under investigation",
-          description: `This product is queued for review — ${data.scan_count || 'multiple'} people are interested.`,
-        });
       } else {
         toast({
-          title: "Thanks for contributing!",
-          description: "We're building this brand's profile now.",
+          title: "Submission received",
+          description: "Your photo proof helps us verify accuracy. Live now, flagged for review.",
         });
         setTimeout(() => {
-          if (data?.brand_slug) {
-            navigate(`/brand/${data.brand_slug}`, { state: { pending: true } });
-          } else if (data?.brand_id) {
-            navigate(`/brand/${data.brand_id}`, { state: { pending: true } });
-          } else {
-            navigate('/');
-          }
-        }, 2000);
+          if (data?.brand_slug) navigate(`/brand/${data.brand_slug}`, { state: { pending: true } });
+          else if (data?.brand_id) navigate(`/brand/${data.brand_id}`, { state: { pending: true } });
+          else navigate("/");
+        }, 2200);
       }
     },
     onError: (error: Error) => {
+      setUploading(false);
       toast({
-        title: "Something went wrong",
-        description: "Please try again in a moment.",
+        title: "Submission failed",
+        description: error.message || "Please try again in a moment.",
         variant: "destructive",
       });
     },
   });
 
-  // No barcode provided
   if (!barcode) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -133,7 +160,7 @@ export default function UnknownProduct() {
           <CardContent className="pt-6 space-y-4 text-center">
             <Package className="h-12 w-12 mx-auto text-muted-foreground" />
             <h2 className="text-lg font-semibold">No barcode provided</h2>
-            <Button onClick={() => navigate('/scan')} className="w-full">
+            <Button onClick={() => navigate("/scan")} className="w-full">
               Scan a Product
             </Button>
           </CardContent>
@@ -142,7 +169,6 @@ export default function UnknownProduct() {
     );
   }
 
-  // Success state
   if (submitted) {
     return (
       <div className="min-h-screen bg-background">
@@ -153,12 +179,12 @@ export default function UnknownProduct() {
                 <Check className="h-8 w-8 text-primary" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-xl font-semibold">Product Under Investigation</h2>
+                <h2 className="text-xl font-semibold">Submission received</h2>
                 <p className="text-sm text-muted-foreground">
-                  This product has been queued for enrichment. We're verifying the brand, gathering evidence, and building a full profile.
+                  Your product is live now and flagged as <span className="font-medium">community-submitted</span> until our team verifies the photo.
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  You'll be notified when it's ready.
+                <p className="text-xs text-muted-foreground">
+                  If something doesn't match, we may correct or remove it during review.
                 </p>
               </div>
               <div className="flex items-center justify-center gap-2 text-sm text-primary">
@@ -176,9 +202,10 @@ export default function UnknownProduct() {
     );
   }
 
+  const canSubmit = !!productName.trim() && !!photoFile && !submitProduct.isPending && !uploading;
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b">
         <div className="container max-w-md mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
@@ -191,15 +218,12 @@ export default function UnknownProduct() {
       </header>
 
       <main className="container max-w-md mx-auto px-4 py-6 space-y-6">
-        {/* Hero section */}
         <Card className="border-primary/20 bg-primary/5">
           <CardContent className="pt-6 space-y-3 text-center">
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
               <Trophy className="h-6 w-6 text-primary" />
             </div>
-            <h2 className="text-lg font-semibold">
-              We don't recognize this barcode yet
-            </h2>
+            <h2 className="text-lg font-semibold">We don't recognize this barcode yet</h2>
             <p className="text-sm text-muted-foreground">
               Add it now — it'll work instantly for everyone next time.
             </p>
@@ -209,13 +233,69 @@ export default function UnknownProduct() {
           </CardContent>
         </Card>
 
-        {/* Submission form */}
+        {/* Transparency: what happens with this submission */}
+        <Card className="border-border bg-elevated-1">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium">How submissions work</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Your submission goes <span className="font-medium">live immediately</span> and is flagged as <span className="font-medium">community-submitted</span> until verified. A photo is required so we can check accuracy. Repeated invalid submissions may limit your ability to contribute.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <h3 className="text-base font-semibold">Product Details</h3>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Product name (required) */}
+            {/* Photo upload (REQUIRED — soft gate) */}
+            <div className="space-y-2">
+              <Label>
+                Product Photo <span className="text-destructive">*</span>
+              </Label>
+              {photoPreview ? (
+                <div className="relative w-full aspect-square max-h-64 rounded border border-border overflow-hidden bg-muted">
+                  <img src={photoPreview} alt="Product preview" className="w-full h-full object-contain" />
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="absolute top-2 right-2 h-8 w-8"
+                    onClick={clearPhoto}
+                    type="button"
+                    aria-label="Remove photo"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full aspect-video rounded border-2 border-dashed border-border hover:border-primary/50 hover:bg-elevated-1 transition-colors flex flex-col items-center justify-center gap-2 p-4"
+                >
+                  <Camera className="h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm text-foreground">Take or upload a photo</p>
+                  <p className="text-xs text-muted-foreground">Show the front of the package — JPG/PNG, ≤5 MB</p>
+                </button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handlePhotoSelect}
+                className="hidden"
+              />
+              {!photoFile && (
+                <p className="text-xs text-muted-foreground">A clear photo helps us verify the brand and prevents bad data.</p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="product-name">
                 Product Name <span className="text-destructive">*</span>
@@ -225,11 +305,10 @@ export default function UnknownProduct() {
                 placeholder="e.g., Organic Whole Milk"
                 value={productName}
                 onChange={(e) => setProductName(e.target.value)}
-                autoFocus
+                maxLength={120}
               />
             </div>
 
-            {/* Brand name (optional) */}
             <div className="space-y-2">
               <Label htmlFor="brand-name">Brand Name (optional)</Label>
               <Input
@@ -237,13 +316,11 @@ export default function UnknownProduct() {
                 placeholder="e.g., Horizon Organic"
                 value={brandName}
                 onChange={(e) => setBrandName(e.target.value)}
+                maxLength={80}
               />
-              <p className="text-xs text-muted-foreground">
-                If you don't know the brand, we'll try to identify it.
-              </p>
+              <p className="text-xs text-muted-foreground">If you don't know the brand, we'll try to identify it.</p>
             </div>
 
-            {/* Category (optional) */}
             <div className="space-y-2">
               <Label htmlFor="category">Category (optional)</Label>
               <Select value={category} onValueChange={setCategory}>
@@ -260,20 +337,18 @@ export default function UnknownProduct() {
               </Select>
             </div>
 
-            {/* Submit button */}
             <Button
               className="w-full"
               size="lg"
               onClick={() => submitProduct.mutate()}
-              disabled={!productName.trim() || submitProduct.isPending}
+              disabled={!canSubmit}
             >
-              {submitProduct.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Submitting...
-                </>
+              {uploading ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Uploading photo…</>
+              ) : submitProduct.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Submitting…</>
               ) : (
-                "Submit & Follow"
+                <><Upload className="h-4 w-4 mr-2" />Submit & Follow</>
               )}
             </Button>
 
@@ -283,20 +358,11 @@ export default function UnknownProduct() {
           </CardContent>
         </Card>
 
-        {/* Alternative actions */}
         <div className="space-y-2">
-          <Button
-            variant="ghost"
-            className="w-full"
-            onClick={() => navigate('/search')}
-          >
+          <Button variant="ghost" className="w-full" onClick={() => navigate("/search")}>
             Search Existing Brands
           </Button>
-          <Button
-            variant="ghost"
-            className="w-full"
-            onClick={() => navigate('/scan')}
-          >
+          <Button variant="ghost" className="w-full" onClick={() => navigate("/scan")}>
             Scan Different Product
           </Button>
         </div>
