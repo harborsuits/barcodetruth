@@ -77,8 +77,6 @@ const OwnershipTree = lazyNamed(() => import("./pages/OwnershipTree"), "default"
 
 const queryClient = new QueryClient();
 
-const Launch = lazyNamed(() => import("./pages/Launch"), "default");
-
 const HeaderWrapper = () => {
   const location = useLocation();
   if (location.pathname === "/onboarding" || location.pathname === "/launch" || location.pathname === "/") return null;
