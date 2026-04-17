@@ -11141,6 +11141,14 @@ export type Database = {
           },
         ]
       }
+      v_brand_duplicate_clusters: {
+        Row: {
+          brands: Json | null
+          cluster_size: number | null
+          normalized_name: string | null
+        }
+        Relationships: []
+      }
       v_brand_parent: {
         Row: {
           brand_id: string | null
@@ -12175,6 +12183,10 @@ export type Database = {
       log_unknown_barcode: {
         Args: { p_barcode: string; p_user_agent?: string }
         Returns: undefined
+      }
+      merge_brands: {
+        Args: { p_canonical_id: string; p_duplicate_id: string }
+        Returns: Json
       }
       merge_staged_products_batch: {
         Args: { batch_size?: number; dry_run?: boolean }
