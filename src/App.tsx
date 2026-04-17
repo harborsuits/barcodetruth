@@ -24,7 +24,8 @@ const Auth = lazyNamed(() => import("./pages/Auth"), "default");
 const BrandRedirect = lazyNamed(() => import("./components/routes/BrandRedirect"), "BrandRedirect");
 
 // Lazy load heavy routes
-const Home = lazyNamed(() => import("./pages/Home"), "Home");
+const HomeRouter = lazyNamed(() => import("./pages/HomeRouter"), "default");
+const WhyTrustUs = lazyNamed(() => import("./pages/WhyTrustUs"), "default");
 const Search = lazyNamed(() => import("./pages/Search"), "default");
 const Discover = lazyNamed(() => import("./pages/Discover"), "default");
 // V1 Consumer Contract - simplified pages
@@ -80,7 +81,7 @@ const Launch = lazyNamed(() => import("./pages/Launch"), "default");
 
 const HeaderWrapper = () => {
   const location = useLocation();
-  if (location.pathname === "/onboarding" || location.pathname === "/launch") return null;
+  if (location.pathname === "/onboarding" || location.pathname === "/launch" || location.pathname === "/") return null;
   return <Header />;
 };
 
@@ -113,22 +114,30 @@ const App = () => {
               </Suspense>
             } 
           />
+          {/* /launch is now consolidated into / — keep redirect for any inbound links */}
+          <Route path="/launch" element={<Navigate to="/" replace />} />
           <Route
-            path="/launch"
+            path="/"
             element={
               <Suspense fallback={<RouteFallback label="Loading…" />}>
-                <Launch />
+                <HomeRouter />
               </Suspense>
             }
           />
           <Route
-            path="/"
+            path="/how-scores-work"
             element={
-              <ProtectedRoute>
-                <Suspense fallback={<RouteFallback label="Loading home…" />}>
-                  <Home />
-                </Suspense>
-              </ProtectedRoute>
+              <Suspense fallback={<RouteFallback label="Loading…" />}>
+                <Methodology />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/why-trust-us"
+            element={
+              <Suspense fallback={<RouteFallback label="Loading…" />}>
+                <WhyTrustUs />
+              </Suspense>
             }
           />
           <Route
