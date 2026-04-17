@@ -6,7 +6,7 @@ export function AlternativesPreview() {
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
           <p className="text-xs uppercase tracking-[3px] text-muted-foreground font-medium mb-2">
-            The payoff
+What to buy instead
           </p>
           <h2 className="font-display font-bold text-2xl sm:text-3xl text-foreground">
             Know what to buy instead.
