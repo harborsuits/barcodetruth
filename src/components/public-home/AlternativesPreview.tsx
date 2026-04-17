@@ -6,10 +6,10 @@ export function AlternativesPreview() {
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
           <p className="text-xs uppercase tracking-[3px] text-muted-foreground font-medium mb-2">
-            Don't just judge — switch
+            The payoff
           </p>
           <h2 className="font-display font-bold text-2xl sm:text-3xl text-foreground">
-            We show you a better option.
+            Know what to buy instead.
           </h2>
         </div>
 

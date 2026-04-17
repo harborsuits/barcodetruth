@@ -31,7 +31,7 @@ export function PublicHero() {
           </Button>
         </div>
         <p className="text-xs text-muted-foreground/70 pt-1">
-          Independent · No brand payments · No ads
+          Independent. No brand influence.
         </p>
       </div>
     </section>

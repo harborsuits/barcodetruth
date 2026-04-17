@@ -28,8 +28,8 @@ export function SampleVerdict() {
               <span className="text-3xl font-extrabold tracking-tighter text-foreground">48</span>
               <span className="text-sm text-muted-foreground ml-1">/100</span>
               <div className="mt-1 flex items-center justify-end gap-1.5">
-                <Signal className="h-3 w-3 text-success" />
-                <p className="text-[10px] text-muted-foreground">Strong data · 34 events</p>
+                <Signal className="h-3 w-3 text-warning" />
+                <p className="text-[10px] text-muted-foreground">Confidence: Moderate · 34 events</p>
               </div>
             </div>
           </div>

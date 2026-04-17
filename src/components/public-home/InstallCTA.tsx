@@ -11,7 +11,7 @@ export function InstallCTA() {
           Ready in the aisle.
         </h2>
         <p className="text-sm text-muted-foreground max-w-lg mx-auto">
-          Add Barcode Truth to your home screen for one-tap access. No app store, no install — works anywhere your camera does.
+          Works instantly on your phone — no download needed.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
           <Button asChild size="lg" className="h-12 px-8 gradient-forensic text-background">
