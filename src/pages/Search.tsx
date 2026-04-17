@@ -269,7 +269,22 @@ export default function Search() {
         </div>
 
         {isSearching && (
-          <div className="text-center py-8 text-muted-foreground">Searching...</div>
+          <div className="space-y-2" aria-label="Searching">
+            {[0, 1, 2, 3].map((i) => (
+              <Card key={i} className="overflow-hidden">
+                <CardContent className="pt-4 pb-3">
+                  <div className="flex items-start gap-3">
+                    <Skeleton className="h-5 w-5 rounded mt-0.5 shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-2/3" />
+                      <Skeleton className="h-3 w-1/3" />
+                    </div>
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         )}
 
         {!isSearching && query && totalResults === 0 && (
@@ -277,9 +292,27 @@ export default function Search() {
         )}
 
         {!isSearching && !query && (
-          <div className="text-center py-8 space-y-2">
-            <p className="text-muted-foreground">Start typing to search for products, brands, and companies</p>
-            <p className="text-xs text-muted-foreground/70">Not all products are indexed yet — we're growing daily</p>
+          <div className="py-6 space-y-6">
+            <div className="text-center space-y-1">
+              <p className="text-sm text-muted-foreground">Search for products, brands, or companies</p>
+              <p className="text-xs text-muted-foreground/70">Not all products are indexed yet — we're growing daily</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground/70 font-medium mb-2 text-center">
+                Try a popular brand
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {["Tony's Chocolonely", "Coca-Cola", "Nestlé", "Patagonia", "Apple", "Nike"].map((name) => (
+                  <button
+                    key={name}
+                    onClick={() => setQuery(name)}
+                    className="px-3 py-1.5 text-xs rounded-full border border-border bg-card hover:bg-muted transition-colors text-foreground"
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
