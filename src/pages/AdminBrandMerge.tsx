@@ -29,8 +29,10 @@ export default function AdminBrandMerge() {
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("v_brand_duplicate_clusters" as never)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const client = supabase as any;
+    const { data, error } = await client
+      .from("v_brand_duplicate_clusters")
       .select("*")
       .order("cluster_size", { ascending: false })
       .limit(100);
@@ -38,7 +40,7 @@ export default function AdminBrandMerge() {
     if (error) {
       toast({ title: "Failed to load", description: error.message, variant: "destructive" });
     } else {
-      setClusters((data as unknown as Cluster[]) || []);
+      setClusters((data as Cluster[]) || []);
     }
     setLoading(false);
   };
@@ -47,9 +49,11 @@ export default function AdminBrandMerge() {
     load();
   }, []);
 
-  const mergeOne = async (clusterKey: string, canonicalId: string, duplicateId: string) => {
+  const mergeOne = async (_clusterKey: string, canonicalId: string, duplicateId: string) => {
     setMerging(`${canonicalId}->${duplicateId}`);
-    const { data, error } = await supabase.rpc("merge_brands" as never, {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const client = supabase as any;
+    const { data, error } = await client.rpc("merge_brands", {
       p_canonical_id: canonicalId,
       p_duplicate_id: duplicateId,
     });
@@ -87,8 +91,8 @@ export default function AdminBrandMerge() {
         </p>
       </div>
 
-      <div className="flex items-center gap-2 p-3 rounded-md border border-amber-500/30 bg-amber-500/5 text-sm">
-        <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+      <div className="flex items-center gap-2 p-3 rounded-md border border-destructive/30 bg-destructive/5 text-sm">
+        <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0" />
         <span>
           Merges are <strong>not reversible</strong>. Verify the brands are truly the same entity
           (e.g. "Apple" vs "Apple Bank" should NOT be merged).

@@ -61,6 +61,7 @@ const AdminBrandManager = lazyNamed(() => import("./pages/AdminBrandManager"), "
 const AdminOwnershipAudit = lazyNamed(() => import("./pages/AdminOwnershipAudit"), "default");
 const AdminProductCoverage = lazyNamed(() => import("./pages/AdminProductCoverage"), "default");
 const AdminFuzzyReview = lazyNamed(() => import("./pages/AdminFuzzyReview"), "default");
+const AdminBrandMerge = lazyNamed(() => import("./pages/AdminBrandMerge"), "default");
 const Feed = lazyNamed(() => import("./pages/Feed"), "default");
 const AdminCoverageMetrics = lazyNamed(() => import("./pages/AdminCoverageMetrics"), "default");
 const BootstrapAdmin = lazyNamed(() => import("./pages/BootstrapAdmin"), "default");
@@ -636,6 +637,20 @@ const App = () => {
                   <RouteErrorBoundary>
                     <Suspense fallback={<RouteFallback label="Loading disputes…" />}>
                       <AdminDisputes />
+                    </Suspense>
+                  </RouteErrorBoundary>
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/brand-merge"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <RouteErrorBoundary>
+                    <Suspense fallback={<RouteFallback label="Loading brand merge…" />}>
+                      <AdminBrandMerge />
                     </Suspense>
                   </RouteErrorBoundary>
                 </AdminRoute>
