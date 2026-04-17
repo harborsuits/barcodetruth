@@ -198,27 +198,29 @@ Deno.serve(async (req) => {
         brandId = slugMatch.id;
         brandSlug = slugMatch.slug;
         console.log('[submit-unknown-product] Brand match (slug):', slugMatch);
-      } else {
-        // 2) Exact name match (case-insensitive)
-        const { data: nameMatch } = await supabase
+      } else if (fuzzyKey.length >= 3) {
+        // 2) Indexed normalized_name match on brands (O(log n))
+        const { data: normMatch } = await supabase
           .from('brands')
           .select('id, slug')
-          .ilike('name', normalizedBrandName)
+          .eq('normalized_name', fuzzyKey)
+          .order('status', { ascending: true }) // prefer non-stub
+          .limit(1)
           .maybeSingle();
 
-        if (nameMatch) {
-          brandId = nameMatch.id;
-          brandSlug = nameMatch.slug;
-          console.log('[submit-unknown-product] Brand match (name):', nameMatch);
-        } else if (fuzzyKey.length >= 3) {
-          // 3) Fuzzy match via brand_aliases (external_name normalized)
-          const { data: aliasRows } = await supabase
+        if (normMatch) {
+          brandId = normMatch.id;
+          brandSlug = normMatch.slug;
+          console.log('[submit-unknown-product] Brand match (normalized_name):', normMatch);
+        } else {
+          // 3) Indexed alias lookup
+          const { data: aliasHit } = await supabase
             .from('brand_aliases')
-            .select('canonical_brand_id, external_name');
-          const aliasHit = (aliasRows || []).find(
-            (r: { external_name: string | null }) =>
-              r.external_name && normalizeBrandKey(r.external_name) === fuzzyKey
-          );
+            .select('canonical_brand_id')
+            .eq('normalized_name', fuzzyKey)
+            .limit(1)
+            .maybeSingle();
+
           if (aliasHit) {
             const { data: aliasBrand } = await supabase
               .from('brands')
@@ -232,15 +234,14 @@ Deno.serve(async (req) => {
             }
           }
 
-          // 4) Fuzzy match via brand_display_profiles.normalized_name
+          // 4) Indexed display-profile lookup
           if (!brandId) {
-            const { data: profiles } = await supabase
+            const { data: profileHit } = await supabase
               .from('brand_display_profiles')
-              .select('brand_id, normalized_name');
-            const profileHit = (profiles || []).find(
-              (p: { normalized_name: string | null }) =>
-                p.normalized_name && normalizeBrandKey(p.normalized_name) === fuzzyKey
-            );
+              .select('brand_id')
+              .eq('normalized_name', fuzzyKey)
+              .limit(1)
+              .maybeSingle();
             if (profileHit) {
               const { data: profBrand } = await supabase
                 .from('brands')

@@ -340,6 +340,7 @@ export type Database = {
           created_by: string | null
           external_name: string
           id: string
+          normalized_name: string | null
           source: string
         }
         Insert: {
@@ -348,6 +349,7 @@ export type Database = {
           created_by?: string | null
           external_name: string
           id?: string
+          normalized_name?: string | null
           source: string
         }
         Update: {
@@ -356,6 +358,7 @@ export type Database = {
           created_by?: string | null
           external_name?: string
           id?: string
+          normalized_name?: string | null
           source?: string
         }
         Relationships: [
@@ -3846,6 +3849,7 @@ export type Database = {
           newsroom_domains: string[] | null
           next_enrichment_at: string | null
           norm_name: string | null
+          normalized_name: string | null
           ownership_confidence: string | null
           parent_company: string | null
           parent_company_id: string | null
@@ -3904,6 +3908,7 @@ export type Database = {
           newsroom_domains?: string[] | null
           next_enrichment_at?: string | null
           norm_name?: string | null
+          normalized_name?: string | null
           ownership_confidence?: string | null
           parent_company?: string | null
           parent_company_id?: string | null
@@ -3962,6 +3967,7 @@ export type Database = {
           newsroom_domains?: string[] | null
           next_enrichment_at?: string | null
           norm_name?: string | null
+          normalized_name?: string | null
           ownership_confidence?: string | null
           parent_company?: string | null
           parent_company_id?: string | null
@@ -11819,6 +11825,10 @@ export type Database = {
         }[]
       }
       cleanup_old_notification_logs: { Args: never; Returns: number }
+      compute_brand_normalized_key: {
+        Args: { input_name: string }
+        Returns: string
+      }
       compute_brand_score: {
         Args: { p_brand: string }
         Returns: {
