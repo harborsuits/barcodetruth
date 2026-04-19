@@ -5240,6 +5240,42 @@ export type Database = {
         }
         Relationships: []
       }
+      coverage_requests: {
+        Row: {
+          barcode: string | null
+          brand_id: string | null
+          brand_name: string | null
+          created_at: string
+          id: string
+          reason: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          barcode?: string | null
+          brand_id?: string | null
+          brand_name?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          barcode?: string | null
+          brand_id?: string | null
+          brand_name?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       cron_runs: {
         Row: {
           fn: string
@@ -12234,6 +12270,15 @@ export type Database = {
       refresh_brand_coverage: { Args: never; Returns: undefined }
       refresh_community_outlook: { Args: never; Returns: undefined }
       refresh_coverage_materialized_view: { Args: never; Returns: undefined }
+      request_brand_coverage: {
+        Args: {
+          p_barcode?: string
+          p_brand_id?: string
+          p_brand_name?: string
+          p_reason?: string
+        }
+        Returns: string
+      }
       reservoir_daily_decay: { Args: never; Returns: undefined }
       reset_stale_building_brands: { Args: never; Returns: number }
       resolve_company_by_identifier: {
