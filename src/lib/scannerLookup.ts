@@ -93,9 +93,15 @@ export async function lookupScanAndLog(
     }
 
     if (!finalProduct) {
-      // Log unknown barcode for enrichment queue
+      // Log unknown barcode for enrichment queue.
+      // RPC signature: log_unknown_barcode(p_barcode text, p_user_agent text)
       try {
-        await supabase.rpc('log_unknown_barcode' as any, { p_barcode: rawGtin });
+        const ua = typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown';
+        const { error: rpcErr } = await supabase.rpc('log_unknown_barcode', {
+          p_barcode: rawGtin,
+          p_user_agent: ua,
+        });
+        if (rpcErr) console.warn('log_unknown_barcode error:', rpcErr);
       } catch (e) {
         console.warn('Failed to log unknown barcode:', e);
       }

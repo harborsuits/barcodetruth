@@ -1,4 +1,4 @@
-import { ShieldAlert, Building2, Globe, Signal, FileCheck } from "lucide-react";
+import { ShieldAlert, Building2, Globe, Signal, FileCheck, Info } from "lucide-react";
 
 export function SampleVerdict() {
   return (
@@ -14,10 +14,14 @@ export function SampleVerdict() {
         </div>
 
         <div className="bg-warning/10 border border-border rounded-lg p-5 space-y-4">
+          {/* Sample badge — make it unmistakable this is illustrative */}
           <div className="flex items-center justify-between">
             <div>
+              <div className="inline-flex items-center gap-1.5 mb-2 px-2 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">
+                <Info className="h-3 w-3" /> Sample verdict · illustrative
+              </div>
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
-                Sample · Coca-Cola Classic
+                Coca-Cola Classic
               </p>
               <div className="flex items-center gap-3">
                 <ShieldAlert className="h-8 w-8 text-warning" />
@@ -29,17 +33,17 @@ export function SampleVerdict() {
               <span className="text-sm text-muted-foreground ml-1">/100</span>
               <div className="mt-1 flex items-center justify-end gap-1.5">
                 <Signal className="h-3 w-3 text-warning" />
-                <p className="text-[10px] text-muted-foreground">Confidence: Moderate · 34 events</p>
+                <p className="text-[10px] text-muted-foreground">Confidence: Moderate</p>
               </div>
             </div>
           </div>
 
           <div className="space-y-1.5 pt-3 border-t border-border/50">
-            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Top concerns</p>
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">What we typically surface</p>
             {[
-              "Plastic pollution lawsuits filed in CA & NY (2023–24)",
-              "$5.1M federal lobbying spend (2024) — beverage tax opposition",
-              "Sugar-content health-marketing settlements",
+              "Recent recalls and regulatory actions",
+              "News coverage of labor, environment & social issues",
+              "Parent-company ownership and corporate ties",
             ].map((r) => (
               <div key={r} className="flex items-start gap-2">
                 <span className="text-muted-foreground text-xs mt-0.5">•</span>
@@ -59,7 +63,7 @@ export function SampleVerdict() {
             </p>
             <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 pt-1">
               <FileCheck className="h-3 w-3" />
-              Updated daily · Sources: SEC, FDA, Guardian, Reuters, NYT, federal lobbying disclosures
+              Sources today: FDA recall feeds, Guardian, Reuters, AP, and other licensed news APIs. We're expanding to SEC filings and federal lobbying data next.
             </p>
           </div>
         </div>
