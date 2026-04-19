@@ -172,39 +172,12 @@ Deno.serve(async (req) => {
           })
           .eq("id", brand.id);
 
-        // ALWAYS calculate score after ingestion (even if 0 new events, for baseline refresh)
-        console.log(`[Batch Processor] Triggering score calculation for ${brand.name}...`);
-        try {
-          const scoreResponse = await fetch(
-            `${supabaseUrl}/functions/v1/calculate-brand-score`,
-            {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${serviceKey}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                brand_id: brand.id,
-                persist: true
-              })
-            }
-          );
-
-          if (scoreResponse.ok) {
-            const scoreData = await scoreResponse.json();
-            console.log(`[Batch Processor] Score calculated for ${brand.name}:`, {
-              labor: scoreData.final?.score_labor,
-              environment: scoreData.final?.score_environment,
-              politics: scoreData.final?.score_politics,
-              social: scoreData.final?.score_social
-            });
-          } else {
-            const errorText = await scoreResponse.text();
-            console.error(`[Batch Processor] Score calculation failed for ${brand.name} (${scoreResponse.status}):`, errorText);
-          }
-        } catch (scoreError) {
-          console.error(`[Batch Processor] Score calculation error for ${brand.name}:`, scoreError);
-        }
+        // Per-brand score recompute is no longer triggered here.
+        // Scores are refreshed by the nightly `recompute-brand-scores` cron, which
+        // operates over all brands at once for consistency. Calling a per-brand
+        // function from this loop produced 404s (the legacy `calculate-brand-score`
+        // function does not exist) and offered no benefit during ingestion.
+        console.log(`[Batch Processor] Skipping per-brand score call for ${brand.name} (handled by nightly recompute-brand-scores).`);
 
         results.succeeded++;
         results.details.push({

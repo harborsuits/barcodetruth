@@ -20,6 +20,7 @@ import { ScoreBreakdownCard } from "@/components/scan/ScoreBreakdownCard";
 import { formatCategory } from "@/lib/formatCategory";
 import { formatBrandName, formatProductName } from "@/lib/formatBrandName";
 import { OwnershipReveal } from "@/components/scan/OwnershipReveal";
+import { RequestCoverageCTA } from "@/components/scan/RequestCoverageCTA";
 import { ShareCard, getGrade } from "@/components/scan/ShareCard";
 import { useBrandLogo } from "@/hooks/useBrandLogo";
 import { useDisplayProfile } from "@/hooks/useDisplayProfile";
@@ -597,25 +598,47 @@ export default function ScanResultV1() {
           eventCount={counts.total || 0}
         />
 
-        {/* ═══ BLOCK 2: REASONS WITH PROOF ═══ */}
-        {brandInfo?.id && (
-          <ReasonProofList
-            brandId={brandInfo.id}
-            brandName={displayBrandName || brandInfo.name}
-            parentName={displayParent || brandInfo.parent_company}
-            scores={{
-              score_labor: effectiveLabor,
-              score_environment: effectiveEnv,
-              score_politics: effectivePol,
-              score_social: effectiveSoc,
-              overall: effectiveScore,
-            }}
-          />
-        )}
+        {/* Weak / baseline brands → no fake reasons or alternatives.
+            Show only the Request-Priority-Coverage CTA. */}
+        {(isBaselineScore || isInsufficientEvidence || effectiveScore === null) ? (
+          <Card className="border-dashed">
+            <CardContent className="pt-5 pb-5 space-y-3 text-center">
+              <p className="text-sm font-medium text-foreground">Building evidence on this brand</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                We don't have enough verified events yet to score {displayBrandName || "this brand"} with confidence.
+                Request priority coverage and we'll move it to the front of our ingestion queue.
+              </p>
+              <RequestCoverageCTA
+                brandId={brandInfo?.id ?? null}
+                brandName={displayBrandName || brandInfo?.name || null}
+                barcode={barcode ?? null}
+                className="w-full"
+              />
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {/* ═══ BLOCK 2: REASONS WITH PROOF ═══ */}
+            {brandInfo?.id && (
+              <ReasonProofList
+                brandId={brandInfo.id}
+                brandName={displayBrandName || brandInfo.name}
+                parentName={displayParent || brandInfo.parent_company}
+                scores={{
+                  score_labor: effectiveLabor,
+                  score_environment: effectiveEnv,
+                  score_politics: effectivePol,
+                  score_social: effectiveSoc,
+                  overall: effectiveScore,
+                }}
+              />
+            )}
 
-        {/* ═══ BLOCK 3: BETTER ALTERNATIVES ═══ */}
-        {brandInfo?.id && (
-          <AlternativesSection brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name || "this brand"} />
+            {/* ═══ BLOCK 3: BETTER ALTERNATIVES ═══ */}
+            {brandInfo?.id && (
+              <AlternativesSection brandId={brandInfo.id} brandName={displayBrandName || brandInfo.name || "this brand"} />
+            )}
+          </>
         )}
 
         {/* ═══ BLOCK 4: SCAN ANOTHER ═══ */}
