@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
     // Check both raw barcode and normalized form
     const { data: existingProduct } = await supabase
       .from('products')
-      .select('id, brand_id')
+      .select('id, brand_id, barcode, name, category')
       .or(`barcode.eq.${barcode},barcode.eq.0${barcode},barcode.eq.00${barcode}`)
       .limit(1)
       .maybeSingle();
@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
 
       const { data: existingBrand } = await supabase
         .from('brands')
-        .select('id, slug')
+        .select('id, slug, name, status, logo_url, website, parent_company')
         .eq('id', existingProduct.brand_id)
         .maybeSingle();
 
@@ -141,6 +141,14 @@ Deno.serve(async (req) => {
           product_id: existingProduct.id,
           brand_id: existingProduct.brand_id,
           brand_slug: existingBrand?.slug || null,
+          product: {
+            id: existingProduct.id,
+            barcode: existingProduct.barcode,
+            name: existingProduct.name,
+            brand_id: existingProduct.brand_id,
+            category: existingProduct.category,
+          },
+          brand: existingBrand || null,
           already_exists: true,
           status: 'recognized',
         }),
@@ -377,12 +385,12 @@ Deno.serve(async (req) => {
         // Fetch the existing product
         const { data: raceProduct } = await supabase
           .from('products')
-          .select('id, brand_id')
+          .select('id, brand_id, barcode, name, category')
           .eq('barcode', barcode)
           .maybeSingle();
 
         const { data: raceBrand } = raceProduct?.brand_id
-          ? await supabase.from('brands').select('id, slug').eq('id', raceProduct.brand_id).maybeSingle()
+          ? await supabase.from('brands').select('id, slug, name, status, logo_url, website, parent_company').eq('id', raceProduct.brand_id).maybeSingle()
           : { data: null };
 
         if (userId && raceProduct?.brand_id) {
@@ -397,6 +405,16 @@ Deno.serve(async (req) => {
             product_id: raceProduct?.id || null,
             brand_id: raceProduct?.brand_id || brandId,
             brand_slug: raceBrand?.slug || brandSlug,
+            product: raceProduct
+              ? {
+                  id: raceProduct.id,
+                  barcode: raceProduct.barcode,
+                  name: raceProduct.name,
+                  brand_id: raceProduct.brand_id,
+                  category: raceProduct.category,
+                }
+              : null,
+            brand: raceBrand || null,
             already_exists: true,
             status: 'recognized',
           }),
@@ -435,11 +453,27 @@ Deno.serve(async (req) => {
         });
     }
 
+    const { data: resolvedBrand } = brandId
+      ? await supabase
+          .from('brands')
+          .select('id, slug, name, status, logo_url, website, parent_company')
+          .eq('id', brandId)
+          .maybeSingle()
+      : { data: null };
+
     return new Response(
       JSON.stringify({
         product_id: newProduct.id,
         brand_id: brandId,
         brand_slug: brandSlug,
+        product: {
+          id: newProduct.id,
+          barcode,
+          name: product_name.trim(),
+          brand_id: brandId,
+          category: category || null,
+        },
+        brand: resolvedBrand || null,
         success: true,
         status: 'created',
       }),
