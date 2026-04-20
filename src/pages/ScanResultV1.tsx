@@ -100,7 +100,14 @@ export default function ScanResultV1() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const navState = location.state as { product?: any; brand?: any; source?: string } | null;
+  const navState = location.state as {
+    product?: any;
+    brand?: any;
+    source?: string;
+    justSubmitted?: boolean;
+    alreadyExisted?: boolean;
+    brandSlug?: string;
+  } | null;
   const [showCorrection, setShowCorrection] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showRateModal, setShowRateModal] = useState(false);
@@ -124,6 +131,7 @@ export default function ScanResultV1() {
   } : null;
 
   const navBrandName = navState?.brand?.name || navState?.product?.brands?.name || null;
+  const justSubmitted = navState?.justSubmitted === true;
 
   // ─── Smart product lookup (internal DB → OpenFoodFacts → UPCitemdb) ───
   const { data: product, isLoading: productLoading, error: productError } = useQuery({
@@ -495,9 +503,31 @@ export default function ScanResultV1() {
 
   // ─── Not found → redirect to Add Product ───
   // Only redirect if we genuinely have no product data from any source
-  if (!productLoading && (productError || !product) && !navProduct && !navBrandName) {
+  if (!productLoading && (productError || !product) && !navProduct && !navBrandName && !justSubmitted) {
     navigate(`/unknown/${barcode}`, { replace: true });
     return null;
+  }
+
+  if (!productLoading && !product && justSubmitted) {
+    return (
+      <div className="min-h-screen bg-background">
+        <ScanHeader onBack={() => navigate("/scan")} />
+        <main className="container max-w-md mx-auto px-4 py-6 space-y-4">
+          <Card>
+            <CardContent className="pt-6 space-y-3 text-center">
+              <Check className="h-10 w-10 mx-auto text-primary" />
+              <h2 className="text-lg font-semibold">Submission received</h2>
+              <p className="text-sm text-muted-foreground">
+                We saved your product submission and are refreshing its result now.
+              </p>
+              <Button onClick={() => window.location.reload()} className="w-full">
+                Refresh result
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
   }
 
   // If we have nav state (from history) but DB lookup failed, show what we have
