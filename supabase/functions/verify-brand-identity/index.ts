@@ -231,7 +231,7 @@ Deno.serve(async (req) => {
     // Fetch brand data
     const { data: brand, error: brandError } = await supabase
       .from('brands')
-      .select('id, name, website, ticker, exchange, wikidata_qid, identity_confidence, status')
+      .select('id, name, website, ticker, wikidata_qid, identity_confidence, status')
       .eq('id', brand_id)
       .single();
 
