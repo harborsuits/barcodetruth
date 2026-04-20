@@ -149,6 +149,8 @@ Deno.serve(async (req) => {
     }
 
     // ── Case 2: Barcode already in the unknown_barcodes queue ──
+    // Keep the queue record updated, but do NOT short-circuit a real user submission.
+    // If the user provided product details + photo proof, we should still create the brand/product.
     const { data: existingUnknown } = await supabase
       .from('unknown_barcodes')
       .select('id, barcode, scan_count')
@@ -158,23 +160,33 @@ Deno.serve(async (req) => {
     if (existingUnknown) {
       console.log('[submit-unknown-product] Barcode already in unknown queue, incrementing interest');
 
-      // Increment scan count and update timestamp
-      await supabase
+      // Increment scan count and update timestamp using the real column name.
+      const { error: unknownUpdateError } = await supabase
         .from('unknown_barcodes')
         .update({
           scan_count: (existingUnknown.scan_count || 1) + 1,
-          last_scanned_at: new Date().toISOString(),
+          last_seen_at: new Date().toISOString(),
         })
         .eq('id', existingUnknown.id);
 
-      return new Response(
-        JSON.stringify({
-          already_queued: true,
-          status: 'under_investigation',
-          scan_count: (existingUnknown.scan_count || 1) + 1,
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (unknownUpdateError) {
+        console.warn('[submit-unknown-product] Failed to update existing unknown barcode row:', unknownUpdateError.message);
+      }
+
+      // If this is only a lightweight ping, return the queue state.
+      // But if the user is submitting a real product report, continue below and create the product.
+      if (!product_name?.trim() || !photo_url) {
+        return new Response(
+          JSON.stringify({
+            already_queued: true,
+            status: 'under_investigation',
+            scan_count: (existingUnknown.scan_count || 1) + 1,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log('[submit-unknown-product] Existing unknown barcode has a real submission payload; continuing to create product.');
     }
 
     // ── Case 3: Genuinely new — find or create brand, create product ──
@@ -397,6 +409,20 @@ Deno.serve(async (req) => {
     }
 
     console.log('[submit-unknown-product] Created product:', newProduct);
+
+    if (existingUnknown) {
+      await supabase
+        .from('unknown_barcodes')
+        .update({
+          status: 'resolved',
+          resolved_product_id: newProduct.id,
+          last_seen_at: new Date().toISOString(),
+        })
+        .eq('id', existingUnknown.id)
+        .then(({ error }) => {
+          if (error) console.warn('[submit-unknown-product] Failed to resolve unknown barcode row:', error.message);
+        });
+    }
 
     // Set up follow for notifications
     if (userId && brandId) {
