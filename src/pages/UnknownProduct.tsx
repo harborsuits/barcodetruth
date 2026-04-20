@@ -130,7 +130,14 @@ export default function UnknownProduct() {
         toast({ title: "We already recognize this product", description: "Loading its profile…" });
         setTimeout(() => {
           navigate(`/scan-result/${barcode}`, {
-            state: { justSubmitted: true, alreadyExisted: true },
+            state: {
+              justSubmitted: true,
+              alreadyExisted: true,
+              product: data?.product,
+              brand: data?.brand,
+              brandSlug: data?.brand_slug,
+              source: "submit-unknown-product",
+            },
           });
         }, 1200);
       } else {
@@ -140,7 +147,13 @@ export default function UnknownProduct() {
         });
         setTimeout(() => {
           navigate(`/scan-result/${barcode}`, {
-            state: { justSubmitted: true, brandSlug: data?.brand_slug },
+            state: {
+              justSubmitted: true,
+              product: data?.product,
+              brand: data?.brand,
+              brandSlug: data?.brand_slug,
+              source: "submit-unknown-product",
+            },
           });
         }, 1500);
       }
