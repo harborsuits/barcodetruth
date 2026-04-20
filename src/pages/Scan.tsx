@@ -221,19 +221,7 @@ export const Scan = () => {
         source: smartLookup?.source
       }, null, 2));
       
-      // Handle "not found" response (edge function returns 404 but supabase wraps it)
-      // The data will contain { product: null, requires_submission: true } for not found
-      if (smartLookup?.requires_submission === true || smartLookup?.source === 'not_found') {
-        setScanResult('not_found');
-        const dur = Math.round(performance.now() - t0);
-        console.log('[Analytics] scan_not_found_requires_submission', { barcode, dur_ms: dur });
-        
-        // Navigate to unknown product submission page
-        const route = `/unknown/${barcode}`;
-        console.log('[Scan] navigating to unknown product page:', route);
-        navigate(route);
-        return;
-      }
+      const smartLookupNotFound = smartLookup?.requires_submission === true || smartLookup?.source === 'not_found';
       
       // Handle actual error (network failure, etc)
       if (smartError && !smartLookup) {
@@ -252,16 +240,26 @@ export const Scan = () => {
 
         if (result.notFound) {
           setScanResult('not_found');
+          if (smartLookupNotFound) {
+            console.log('[Analytics] scan_not_found_requires_submission', { barcode, dur_ms: dur, via: 'fallback' });
+            const route = `/unknown/${barcode}`;
+            console.log('[Scan] navigating to unknown product page after fallback miss:', route);
+            setTimeout(() => {
+              navigate(route);
+            }, 600);
+            return;
+          }
+
           console.log('[Analytics] scan_not_found_soft_promise', { barcode, dur_ms: dur });
-          
+
           toast({ 
             title: "We're on it", 
             description: result.message || "We've started a live profile for this brand. Results update continuously.",
             variant: "default"
           });
-          
+
           analytics.track('scan_not_found_soft_promise', { barcode });
-          
+
           // Navigate to result page instead of going idle
           setTimeout(() => {
             navigate(`/scan-result/${barcode}`);
