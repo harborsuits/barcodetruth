@@ -70,6 +70,32 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+
+    // Require authenticated user — kills drive-by spam.
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabase = createClient(
+      supabaseUrl,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    const token = authHeader.replace(/^Bearer\s+/i, '');
+    const { data: { user } } = await supabase.auth.getUser(token);
+    if (!user) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const userId: string = user.id;
+
     const { barcode, product_name, brand_name, category, photo_url } = await req.json();
 
     if (!barcode || !isValidBarcode(barcode)) {
@@ -86,26 +112,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Soft-gate: photo proof is required for community submissions
-    if (!photo_url || typeof photo_url !== 'string' || !photo_url.startsWith('http')) {
+    // Photo proof is required AND must live in our own storage bucket.
+    // Reject arbitrary http(s) URLs (the old XSS / spam vector).
+    const storagePrefix = `${supabaseUrl}/storage/v1/object/`;
+    if (
+      !photo_url ||
+      typeof photo_url !== 'string' ||
+      !photo_url.startsWith(storagePrefix)
+    ) {
       return new Response(
-        JSON.stringify({ error: 'A product photo is required to submit. This helps us verify accuracy.' }),
+        JSON.stringify({ error: 'A product photo uploaded through the app is required.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-    }
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-
-    // Get user ID from auth header if present
-    let userId: string | null = null;
-    const authHeader = req.headers.get('authorization');
-    if (authHeader) {
-      const token = authHeader.replace('Bearer ', '');
-      const { data: { user } } = await supabase.auth.getUser(token);
-      userId = user?.id || null;
     }
 
     console.log('[submit-unknown-product] Processing:', { barcode, product_name, brand_name, category, userId });
