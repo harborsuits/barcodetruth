@@ -17,6 +17,9 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const _gate = await requireAdminOrInternal(req, "rotate-brand-ingestion");
+  if (_gate) return _gate;
+
   const headers = { ...corsHeaders, "Content-Type": "application/json" };
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
