@@ -146,7 +146,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.delete-brand-data]
-verify_jwt = false
+verify_jwt = true
 
 [functions.verify-event]
 verify_jwt = true
