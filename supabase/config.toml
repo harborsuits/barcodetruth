@@ -202,13 +202,13 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.auto-accept-claims]
-verify_jwt = false
+verify_jwt = true
 
 [functions.submit-product-claim]
 verify_jwt = false
 
 [functions.batch-process-brands]
-verify_jwt = false
+verify_jwt = true
 
 [functions.refresh-coverage-cache]
 verify_jwt = false
