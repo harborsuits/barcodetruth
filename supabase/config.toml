@@ -219,7 +219,7 @@ verify_jwt = false
 
 # Brand rotation scheduler
 [functions.rotate-brand-ingestion]
-verify_jwt = false
+verify_jwt = true
 
 # Batch recategorization (admin)
 [functions.batch-recategorize]
