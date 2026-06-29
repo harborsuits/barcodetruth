@@ -179,9 +179,11 @@ function applyScoreFloor(score: number, eventCount: number): number {
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders }
-  const _gate = await requireAdminOrInternal(req, "recompute-brand-scores"); if (_gate) return _gate;
 );
   }
+  const _gate = await requireAdminOrInternal(req, "recompute-brand-scores");
+  if (_gate) return _gate;
+
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;

@@ -74,9 +74,11 @@ function sanitizeDate(d: string | null | undefined): string {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders }
-  const _gate = await requireAdminOrInternal(req, "bulk-ingest-osha-historical"); if (_gate) return _gate;
 );
   }
+  const _gate = await requireAdminOrInternal(req, "bulk-ingest-osha-historical");
+  if (_gate) return _gate;
+
 
   try {
     const supabase = createClient(

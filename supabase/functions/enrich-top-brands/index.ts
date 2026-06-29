@@ -9,9 +9,11 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders }
-  const _gate = await requireAdminOrInternal(req, "enrich-top-brands"); if (_gate) return _gate;
 );
   }
+  const _gate = await requireAdminOrInternal(req, "enrich-top-brands");
+  if (_gate) return _gate;
+
 
   try {
     const supabase = createClient(

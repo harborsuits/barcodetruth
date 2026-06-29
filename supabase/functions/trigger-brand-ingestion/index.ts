@@ -10,9 +10,11 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders }
-  const _gate = await requireAdminOrInternal(req, "trigger-brand-ingestion"); if (_gate) return _gate;
 );
   }
+  const _gate = await requireAdminOrInternal(req, "trigger-brand-ingestion");
+  if (_gate) return _gate;
+
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;

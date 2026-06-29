@@ -216,9 +216,11 @@ Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
       console.log('[STEP 2a] CORS preflight - returning');
       return new Response(null, { headers: corsHeaders }
-  const _gate = await requireAdminOrInternal(req, "enrich-brand-wiki"); if (_gate) return _gate;
 );
     }
+  const _gate = await requireAdminOrInternal(req, "enrich-brand-wiki");
+  if (_gate) return _gate;
+
 
     // Health check
     console.log('[STEP 3] Checking pathname');
