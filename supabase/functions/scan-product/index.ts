@@ -77,7 +77,7 @@ Deno.serve(async (req: Request) => {
     if (error) {
       console.error('Database error:', error);
       return new Response(
-        JSON.stringify({ error: 'Database query failed', message: error.message }),
+        JSON.stringify({ error: 'Database query failed' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -113,7 +113,7 @@ Deno.serve(async (req: Request) => {
   } catch (e: any) {
     console.error('Scan error:', e);
     return new Response(
-      JSON.stringify({ error: 'Scan failed', message: e?.message ?? 'Unknown error' }),
+      JSON.stringify({ error: 'Scan failed' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

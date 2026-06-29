@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireAdminOrInternal } from "../_shared/adminAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,8 +15,12 @@ interface ProcessingMode {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders }
+);
   }
+  const _gate = await requireAdminOrInternal(req, "batch-process-brands");
+  if (_gate) return _gate;
+
 
   try {
     const supabase = createClient(
@@ -102,7 +107,7 @@ Deno.serve(async (req) => {
         if (fairError) {
           console.error("[Batch] Fair rotation error:", fairError);
           return new Response(
-            JSON.stringify({ error: fairError.message }),
+            JSON.stringify({ error: 'Query failed' }),
             { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
@@ -202,7 +207,7 @@ Deno.serve(async (req) => {
         results.details.push({
           brand: brand.name,
           status: 'failed',
-          error: error instanceof Error ? error.message : String(error)
+          error: 'An unexpected error occurred'
         });
       }
 
@@ -226,8 +231,7 @@ Deno.serve(async (req) => {
     console.error("[Batch Processor] Fatal error:", error);
     return new Response(
       JSON.stringify({
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : String(error)
+        error: "Internal server error"
       }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

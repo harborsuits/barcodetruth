@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireAdminOrInternal } from "../_shared/adminAuth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -214,8 +215,12 @@ Deno.serve(async (req) => {
     console.log('[STEP 2] Checking method:', req.method);
     if (req.method === 'OPTIONS') {
       console.log('[STEP 2a] CORS preflight - returning');
-      return new Response(null, { headers: corsHeaders });
+      return new Response(null, { headers: corsHeaders }
+);
     }
+  const _gate = await requireAdminOrInternal(req, "enrich-brand-wiki");
+  if (_gate) return _gate;
+
 
     // Health check
     console.log('[STEP 3] Checking pathname');

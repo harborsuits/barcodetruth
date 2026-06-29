@@ -1,8 +1,14 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireAdminOrInternal } from "../_shared/adminAuth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+const SAFE_ERRORS = {
+  invalid_input: "Invalid request data",
+  internal_error: "An unexpected error occurred",
 };
 
 Deno.serve(async (req) => {
@@ -10,24 +16,33 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const gate = await requireAdminOrInternal(req, "delete-brand-data");
+  if (gate) return gate;
+
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { persistSession: false } },
     );
 
-    const { brand_name } = await req.json();
-
-    if (!brand_name) {
+    let body: unknown;
+    try { body = await req.json(); } catch {
       return new Response(
-        JSON.stringify({ error: "brand_name is required" }),
+        JSON.stringify({ error: SAFE_ERRORS.invalid_input }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const brand_name = (body as { brand_name?: unknown })?.brand_name;
+    if (!brand_name || typeof brand_name !== "string" || brand_name.trim().length < 2 || brand_name.includes("%")) {
+      return new Response(
+        JSON.stringify({ error: SAFE_ERRORS.invalid_input }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     console.log(`[delete-brand-data] Deleting data for: ${brand_name}`);
 
-    // Get brand IDs first
     const { data: brands } = await supabase
       .from('brands')
       .select('id')
@@ -42,44 +57,26 @@ Deno.serve(async (req) => {
 
     const brandIds = brands.map(b => b.id);
 
-    // Delete in order (foreign keys)
-    await supabase
-      .from('company_ownership')
-      .delete()
-      .in('child_brand_id', brandIds);
-
-    await supabase
-      .from('products')
-      .delete()
-      .in('brand_id', brandIds);
-
-    await supabase
-      .from('brands')
-      .delete()
-      .in('id', brandIds);
-
-    // Also delete companies
-    await supabase
-      .from('companies')
-      .delete()
-      .ilike('name', `%${brand_name}%`);
+    await supabase.from('company_ownership').delete().in('child_brand_id', brandIds);
+    await supabase.from('products').delete().in('brand_id', brandIds);
+    await supabase.from('brands').delete().in('id', brandIds);
+    await supabase.from('companies').delete().ilike('name', `%${brand_name}%`);
 
     console.log(`[delete-brand-data] ✅ Deleted all data for ${brand_name}`);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         deleted_brands: brands.length,
-        message: `Deleted all data for ${brand_name}`
+        message: `Deleted all data for ${brand_name}`,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
     console.error('[delete-brand-data] Error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: SAFE_ERRORS.internal_error }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

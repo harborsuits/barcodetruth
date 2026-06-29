@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireAdminOrInternal } from "../_shared/adminAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -163,8 +164,12 @@ function generateSummary(brand: any, scoreState: string, parentName: string | nu
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders }
+);
   }
+  const _gate = await requireAdminOrInternal(req, "build-display-profiles");
+  if (_gate) return _gate;
+
 
   try {
     const supabase = createClient(

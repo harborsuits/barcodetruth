@@ -157,8 +157,11 @@ function mdToHtml(md: string): string {
   return md
     .split(/\n{2,}/)
     .map(p => {
-      const withLinks = p.replace(
-        /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, 
+      // Escape ALL HTML first to prevent XSS, then re-apply only the
+      // markdown link transformation on the already-escaped, safe text.
+      const escaped = escapeHtml(p);
+      const withLinks = escaped.replace(
+        /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
         '<a href="$2" target="_blank" rel="noreferrer" class="text-primary hover:underline">$1</a>'
       );
       return `<p>${withLinks}</p>`;

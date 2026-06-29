@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireAdminOrInternal } from "../_shared/adminAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,8 +44,12 @@ const ATTRIBUTE_SIGNALS: Record<string, string[]> = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders }
+);
   }
+  const _gate = await requireAdminOrInternal(req, "auto-seed-categories");
+  if (_gate) return _gate;
+
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;

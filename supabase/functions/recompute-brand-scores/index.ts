@@ -1,6 +1,7 @@
 // TICKET D: Nightly brand score recomputation (v3 - performance fix)
 // Fixed: queries brand_events directly instead of slow view, chunks .in() calls, batches writes
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { requireAdminOrInternal } from "../_shared/adminAuth.ts";
 import { compareTwoStrings } from 'https://esm.sh/string-similarity@4.0.4';
 import { corsHeaders } from '../_shared/cors.ts';
 import { TIER_SCORE_WEIGHTS, type SourceTier } from '../_shared/sourceTiers.ts';
@@ -177,8 +178,12 @@ function applyScoreFloor(score: number, eventCount: number): number {
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders }
+);
   }
+  const _gate = await requireAdminOrInternal(req, "recompute-brand-scores");
+  if (_gate) return _gate;
+
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
