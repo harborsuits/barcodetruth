@@ -2,6 +2,7 @@
 // Runs twice daily, picks 15-20 brands by priority (oldest + largest first),
 // calls unified-news-orchestrator for each, then updates last_news_ingestion.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireAdminOrInternal } from "../_shared/adminAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
