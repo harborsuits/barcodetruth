@@ -1,36 +1,42 @@
+## Goal
+Lock down the three active emergencies from the audit: the catalog self-destruct endpoint, the expensive public job endpoints, and the spam-vector submission endpoint. Then sweep `config.toml` so every mutating/cost-incurring function requires a JWT.
 
-The user has given thorough feedback on barcodetruth.com. Let me check what's already done vs what's still needed.
+## Changes
 
-Looking at current state:
-- Hero ✅ (strong line, animation)
-- ExampleStrip ✅ (3 sample verdicts — proof)
-- HowItWorksThreeStep ✅
-- SampleVerdict ✅ (with confidence label)
-- AlternativesPreview ✅
-- TrustStrip ✅
-- InstallCTA ✅
-- PublicFAQ ✅
+### 1. `delete-brand-data` — immediate kill switch + proper gate
+- `supabase/config.toml`: set `[functions.delete-brand-data] verify_jwt = true` (currently `false`).
+- `supabase/functions/delete-brand-data/index.ts`: keep the existing `requireAdminOrInternal` check, but add a hard short-circuit at the top of the handler that returns `403 { error: "Disabled" }` unless an env flag `ENABLE_DELETE_BRAND_DATA=true` is set. Default = disabled. This neutralizes the wipe risk even if auth is ever misconfigured.
 
-So most of the feedback (#1 proof, #2 trust signals) is **already shipped** on the public homepage. The user may not realize this because they're logged in and seeing the private `Home` page (which is just HeroSection + HowItWorks + bottom nav with Scan/Search/Settings/Admin).
+### 2. Expensive public jobs — require JWT at the gateway
+Flip `verify_jwt = true` in `supabase/config.toml` for:
+- `batch-process-brands`
+- `recompute-brand-scores`
+- `bulk-calculate-scores`
+- `process-brand-stubs`
+- `rotate-brand-ingestion`
+- `auto-accept-claims`
 
-The feedback items #3 (nav cleanup) and #4 (search friction) actually apply to the **logged-in app**, not the public site. That's where Admin is exposed in the bottom nav, and where Search shows "Loading search…".
+These already have (or will get) `requireAdminOrInternal` in code, but the cron path uses `x-internal-token` + service-role Authorization header, which satisfies `verify_jwt = true`. So scheduled jobs keep working; anonymous curls get rejected at the gateway.
 
-Real gaps to address:
+Add `requireAdminOrInternal` to `rotate-brand-ingestion/index.ts` (currently has no in-code auth check — only file in this list missing it).
 
-**Gap A — Admin in primary nav (private Home)**
-Already gated by `useIsAdmin`, but still appears alongside consumer items. Move it out of the primary 3-icon strip — keep it accessible but visually de-emphasized (e.g., small icon in header, or only inside Settings).
+### 3. `submit-unknown-product` — require login + tighten validation
+- `supabase/config.toml`: set `[functions.submit-unknown-product] verify_jwt = true`.
+- `supabase/functions/submit-unknown-product/index.ts`:
+  - Extract user via `supabase.auth.getClaims(token)`; reject if no user.
+  - Require submitted `userId` to equal `claims.sub` (or just use the claim and ignore the body field).
+  - Validate `photo_url`: must be `null/empty` OR start with the project's storage public URL prefix (`${SUPABASE_URL}/storage/v1/object/public/` or signed URL prefix). Reject arbitrary `http(s)://...`.
+  - Keep existing barcode/brand validation.
 
-**Gap B — Search loading + dead-end**
-"Loading search…" feels slow → replace with skeleton + suggested/popular brands. When a product isn't indexed → offer "Request indexing" / "Submit this product" CTA instead of dead-end.
+### 4. Config sweep (documentation only in this plan)
+After the above, every remaining `verify_jwt = false` function in `config.toml` should be one of: public read (`get-product-by-barcode`, `search-brands`, `v1-brands`, `smart-product-lookup`, `scan-product`, `get-brand-sources`, `get-brand-proof`, `community-*`, `subscribe-push`/`unsubscribe-push`, `stripe-webhook`, external-source webhooks). No action this round, but flagged for a follow-up pass.
 
-**Gap C — Trust links visibility on private Home**
-Logged-in users land on `Home.tsx` which has HeroSection + HowItWorks but no link to /how-scores-work or /why-trust-us. Add a small "Trust & methodology" footer link row.
+## Out of scope (intentionally deferred)
+- SECURITY DEFINER views (#4) and privacy contact (#2) — user said these are next, not this round.
+- Per-user rate limiting on `submit-unknown-product` — JWT requirement alone removes the day-one flood.
+- Migrating `delete-brand-data` to a SQL-only operation — env-flag disable is the pragmatic stop-gap.
 
-**Gap D — Public homepage trust link prominence**
-ExampleStrip and SampleVerdict don't link to /how-scores-work. Add inline links so curious users can drill in.
-
-I should ask one clarifying question because the user's feedback mixes public + private surfaces, and I want to confirm priority before touching the in-app nav.
-
-Actually — let me just present a focused plan. The user is clearly action-oriented and the gaps are clear.
-
-Plan scope: keep it tight. 4 changes.
+## Verification
+- `supabase--curl_edge_functions` against `delete-brand-data` with no auth → expect 401 (gateway). With admin JWT and `ENABLE_DELETE_BRAND_DATA` unset → expect 403 `Disabled`.
+- Curl `bulk-calculate-scores` with no auth → expect 401.
+- Curl `submit-unknown-product` with no auth → expect 401; with a user JWT and a `photo_url` of `http://evil.example/x.jpg` → expect 400.
