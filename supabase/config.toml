@@ -78,7 +78,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.submit-unknown-product]
-verify_jwt = false
+verify_jwt = true
 
 # Search & API
 [functions.search-brands]
