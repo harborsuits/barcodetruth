@@ -155,7 +155,7 @@ serve(async (req) => {
     console.error('Error in trigger-brand-ingestion:', error);
     return new Response(
       JSON.stringify({ 
-        error: error instanceof Error ? error.message : String(error),
+        error: 'An unexpected error occurred',
         success: false 
       }),
       { 
