@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireAdminOrInternal } from "../_shared/adminAuth.ts";
 import {
   loadMatchCache,
   matchFirmToBrand,
@@ -72,7 +73,9 @@ function sanitizeDate(d: string | null | undefined): string {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders }
+  const _gate = await requireAdminOrInternal(req, "bulk-ingest-osha-historical"); if (_gate) return _gate;
+);
   }
 
   try {
