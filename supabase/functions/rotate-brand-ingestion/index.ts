@@ -2,6 +2,7 @@
 // Runs twice daily, picks 15-20 brands by priority (oldest + largest first),
 // calls unified-news-orchestrator for each, then updates last_news_ingestion.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireAdminOrInternal } from "../_shared/adminAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,6 +16,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const _gate = await requireAdminOrInternal(req, "rotate-brand-ingestion");
+  if (_gate) return _gate;
 
   const headers = { ...corsHeaders, "Content-Type": "application/json" };
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";

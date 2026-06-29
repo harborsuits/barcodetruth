@@ -16,6 +16,15 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Hard kill switch: this endpoint is destructive. Disabled by default;
+  // only enabled when ENABLE_DELETE_BRAND_DATA=true is set in env.
+  if (Deno.env.get("ENABLE_DELETE_BRAND_DATA") !== "true") {
+    return new Response(
+      JSON.stringify({ error: "Disabled" }),
+      { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
   const gate = await requireAdminOrInternal(req, "delete-brand-data");
   if (gate) return gate;
 
