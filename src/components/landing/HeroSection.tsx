@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Search, ScanLine } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ScannerIdleAnimation } from "@/components/ScannerIdleAnimation";
 
 export function HeroSection() {
   const navigate = useNavigate();
@@ -29,6 +30,20 @@ export function HeroSection() {
             Scan any product. Instantly see who owns it, the biggest red flags, and better alternatives.
           </p>
         </div>
+
+        {/* Phone scanner animation */}
+        <div className="flex justify-center w-full animate-fade-in">
+          <div className="relative w-[220px] sm:w-[260px]">
+            <div className="rounded-[2.5rem] border-[3px] border-border/30 bg-card p-2 shadow-2xl shadow-primary/10">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-background rounded-b-2xl z-10" />
+              <div className="rounded-[2rem] overflow-hidden bg-background aspect-[9/19]">
+                <ScannerIdleAnimation />
+              </div>
+            </div>
+            <div className="absolute -inset-8 bg-primary/8 rounded-full blur-3xl -z-10" />
+          </div>
+        </div>
+
 
         {/* CTAs */}
         <div className="space-y-3 w-full">
