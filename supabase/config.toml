@@ -53,10 +53,10 @@ verify_jwt = false
 
 # Scoring
 [functions.recompute-brand-scores]
-verify_jwt = false
+verify_jwt = true
 
 [functions.bulk-calculate-scores]
-verify_jwt = false
+verify_jwt = true
 
 [functions.recompute-brand-vectors]
 verify_jwt = false
