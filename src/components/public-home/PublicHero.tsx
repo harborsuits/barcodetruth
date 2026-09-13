@@ -23,7 +23,7 @@ export function PublicHero() {
             Feel better about{" "}
             <span className="text-teal-200">what goes in your basket.</span>
           </h1>
-          <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl leading-relaxed">
+          <p className="text-lg sm:text-xl text-slate-300 max-w-2xl leading-relaxed">
             Know who owns it. Check what matters to you. Explore a different brand—or a farm down the road.
           </p>
           <div className="text-left space-y-3"><h2 className="font-semibold">What matters to you today?</h2><ShoppingReasonPicker value={reason} onChange={setReason} />{reason === 'local' && <a href="#local-shopping" className="inline-flex text-sm underline text-teal-200">Explore farmstands and markets ↓</a>}</div>
@@ -51,13 +51,13 @@ export function PublicHero() {
               </Link>
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground/70 pt-1">
+          <p className="text-xs text-slate-400 pt-1">
             Sources and coverage shown with each check. Your selected reason stays in memory as you browse; a reload clears it.
           </p>
         </div>
 
         {/* Animation column — phone mockup */}
-        <div className="flex justify-center animate-fade-in">
+        <div className="hidden lg:flex justify-center animate-fade-in">
           <div className="relative w-[240px] sm:w-[280px]">
             {/* Phone bezel */}
             <div className="rounded-[2.5rem] border-[3px] border-border/30 bg-card p-2 shadow-2xl shadow-primary/10">
