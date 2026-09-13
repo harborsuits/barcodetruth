@@ -36,6 +36,7 @@ function OwnershipCard({ brand }: { brand: TeaBrand }) {
     <p className="text-sm text-muted-foreground leading-relaxed">{record.summary}</p>
     <a className="block text-sm underline" href={record.source} target="_blank" rel="noopener noreferrer">{record.sourceName}</a>
     {brand === 'twinings' && <div className="border-t pt-3 space-y-2 text-sm text-muted-foreground">
+      <a className="block underline" href="https://www.abf.co.uk/about-us/our-history" target="_blank" rel="noopener noreferrer">ABF history: the 1964 acquisition</a>
       <p>ABF is publicly listed. Wittington Investments is a shareholder of ABF, a separate relationship from the Twinings group connection.</p>
       <a className="block underline" href="https://www.abf.co.uk/investors/shareholder-information" target="_blank" rel="noopener noreferrer">ABF shareholder information</a>
       <p>ABF announced a proposed retail and food demerger. Its September 10, 2026 update expects completion in December 2027; this is a future plan.</p>
