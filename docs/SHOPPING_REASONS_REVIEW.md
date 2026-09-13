@@ -4,7 +4,7 @@ Built September 13, 2026, on the existing review branch. Production and its data
 
 ## Implemented
 
-Home and scan results let shoppers choose ownership, ingredients/nutrition, recalls, company actions or local shopping. Selection persists through in-app navigation in memory; full reload clears it. Explicit next-shop saves store the product, broad reason and date on this device. Specific issues and ingredient terms are not saved to accounts, URLs, analytics or an advertising profile.
+The homepage starts with product search or scanning. Product results let shoppers choose ownership, ingredients/nutrition, recalls, company actions or local shopping. Selection persists through in-app navigation in memory; a fresh homepage search starts with ownership and full reload clears it. Explicit saves store the product, broad reason and date on this device. Specific issues and ingredient terms are not saved to accounts, URLs, analytics or an advertising profile.
 
 Approved catalog records expose available label text, provenance and catalog update date. Ingredient text search never establishes allergen absence. Only bounded sugar/salt/saturated-fat values from Open Food Facts are displayed, on the dataset's 100 g / 100 ml basis; missing values are not zero. The catalog date is not a label verification date.
 
@@ -39,3 +39,11 @@ Recall status is explicitly unchecked. Official links and package-matching instr
 Browser checks: Kraft Heinz 000000100735 missing-label state; Pinwheels 0044000044268 recorded ingredients and palm-oil text match; source-labeled PAC evidence; topic controls; local area-link generation; checklist save/reload/reopen; and 390px layout. Actual phone camera, account lifecycle, alert delivery, verified political alternatives and advertiser demand remain unverified.
 
 Next finite release: build a reviewed product/criterion dataset with actual qualifying substitutions, correct entity attribution and source dates. Expand beyond ownership based on explicit ingredients or company-action criteria. Measure useful alternatives and returning shoppers before projecting advertising income. No political or health selections should be used for ad targeting.
+
+## Clarity pass — September 13, 2026
+
+The primary path is now find a product, choose a question, decide what to do next. The homepage offers one real product example, a compact explanation and optional local-shopping details. Search opens the Products tab and supports barcode entry; company results stay on their own tab. Product questions use native keyboard-accessible radios. Sources, ownership record details and alternative qualification rules expand on demand while material unknowns remain visible.
+
+The checklist is consistently called Saved for later. Its link scrolls to the saved list, including a useful empty state. Both public and signed-in home layouts include the list. Reopening a saved item restores the chosen question. Changing the question clears stale save feedback.
+
+Verified in the browser: name search to matching product, direct barcode entry, keyboard product activation and arrow-key question selection, save/reopen/remove, the saved-list anchor and empty state, local-shopping disclosure, and 390px homepage/result layouts. TypeScript, targeted ESLint and the review build pass; the 10 release tests pass. Signed-in home placement is implemented and typechecked but was not tested with a live account. Production remains unchanged.

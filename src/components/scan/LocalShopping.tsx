@@ -14,20 +14,19 @@ export function LocalShopping() {
   const [area, setArea] = useState('');
   return <section className="space-y-5" aria-labelledby="local-shopping-title">
     <div className="space-y-2">
-      <p className="text-xs uppercase tracking-widest text-teal-200">A different way to shop</p>
-      <h3 id="local-shopping-title" className="text-2xl font-bold">Your next find could be a farmstand.</h3>
-      <p className="text-sm text-slate-300 leading-relaxed">Buying produce? Explore growers and markets in an area you choose. Check the product, season and hours before making the trip.</p>
+      <h3 id="local-shopping-title" className="text-xl font-bold">Find farms and markets</h3>
+      <p className="text-sm text-slate-300 leading-relaxed">Enter an area to look for places selling fresh produce. Check stock and opening hours before you go.</p>
     </div>
     <div className="space-y-2">
       <label htmlFor="local-area" className="text-sm font-medium">Town and state, or ZIP code</label>
       <Input id="local-area" value={area} onChange={event => setArea(event.target.value)} maxLength={100} placeholder="e.g. Warren, Maine" className="rounded-lg h-12" />
       <Button asChild={!!area.trim()} disabled={!area.trim()} variant="outline" className="w-full rounded-lg h-11">
-        {area.trim() ? <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`farm stands farmers markets near ${area.trim()}`)}`} target="_blank" rel="noopener noreferrer"><MapPin className="h-4 w-4 mr-2" />Find farms on Google Maps<ArrowUpRight className="h-4 w-4 ml-2" /></a> : <span>Enter an area to find farms</span>}
+        {area.trim() ? <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`farm stands farmers markets near ${area.trim()}`)}`} target="_blank" rel="noopener noreferrer"><MapPin className="h-4 w-4 mr-2" />Search Google Maps<ArrowUpRight className="h-4 w-4 ml-2" /></a> : <span>Enter an area above</span>}
       </Button>
-      <p className="text-xs text-slate-400">Opens Google Maps with the area you enter. We do not request your device location.</p>
+      <p className="text-xs text-slate-400">Your search area is sent to Google Maps when you open the link. Device location is not used.</p>
     </div>
-    <div className="space-y-3 border-t border-border pt-4">
-      <div><h4 className="font-semibold">Explore two Maine farm markets</h4><p className="text-xs text-slate-400 mt-1">Discovery examples · not ranked by distance · not sponsored</p></div>
+    <details className="space-y-3 border-t border-border pt-4">
+      <summary className="font-semibold cursor-pointer">Two examples in Warren, Maine</summary><p className="text-xs text-slate-400">Business listings, not nearby matches. Current stock is unknown. Neither listing is sponsored.</p>
       {farms.map(farm => <article key={farm.name} className="rounded-xl border border-border bg-background/50 p-4 space-y-2">
         <div className="flex gap-2 items-center"><Store className="h-4 w-4 text-teal-200" /><h5 className="font-semibold">{farm.name}</h5></div>
         <p className="text-xs text-teal-200">{farm.town}</p>
@@ -36,6 +35,6 @@ export function LocalShopping() {
         <p className="text-xs text-slate-400">Source reviewed September 13, 2026 · current stock unconfirmed</p>
       </article>)}
       <a href="https://realmaine.com/members/" target="_blank" rel="noopener noreferrer" className="block text-sm underline underline-offset-4">Explore more producers in the Real Maine directory</a>
-    </div>
+    </details>
   </section>;
 }

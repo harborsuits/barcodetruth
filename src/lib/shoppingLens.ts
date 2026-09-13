@@ -1,9 +1,9 @@
 export const shoppingReasons = [
-  { id: 'ownership', label: 'Who owns it', short: 'Different ownership', description: 'Follow the brand to the company behind it.' },
-  { id: 'ingredients', label: 'Ingredients & nutrition', short: 'Check the label', description: 'Look at what is in this specific product.' },
-  { id: 'recalls', label: 'Recalls & alerts', short: 'Check product alerts', description: 'Check official notices against your package.' },
-  { id: 'values', label: 'Company actions', short: 'Fit with my values', description: 'Examine political spending, social issues and working conditions.' },
-  { id: 'local', label: 'Buy local', short: 'Explore local producers', description: 'Find a farm or market for your next shop.' },
+  { id: 'ownership', label: 'Ownership', short: 'Who owns the brand', description: 'See the company behind the brand.' },
+  { id: 'ingredients', label: 'Ingredients', short: 'Ingredients and nutrition', description: 'Read the available ingredients and nutrition information.' },
+  { id: 'recalls', label: 'Recall notices', short: 'Official recall notices', description: 'Check official notices against your package.' },
+  { id: 'values', label: 'Company actions', short: 'Company policies and actions', description: 'Explore political spending, policies and working conditions.' },
+  { id: 'local', label: 'Farms & markets', short: 'Local shopping', description: 'Find a place to shop in the area you choose.' },
 ] as const;
 
 export type ShoppingReason = typeof shoppingReasons[number]['id'];

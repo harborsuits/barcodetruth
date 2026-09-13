@@ -28,7 +28,7 @@ export default function Privacy() {
             <h3 className="text-lg font-semibold mt-4 mb-2">b. Information collected automatically</h3>
             <ul className="list-disc pl-6 space-y-1">
               <li><strong>Device & browser data</strong> (e.g., IP address, user-agent) for basic analytics, security, and abuse prevention.</li>
-              <li><strong>Cookies / local storage:</strong> used for session management, preferences and the device-only “Your next shop” checklist. Saving a check stores the product name, barcode, broad shopping reason and save date in this browser. Remove entries from the home page or clear this site's browser data. The checklist is not synced to your account.</li>
+              <li><strong>Cookies / local storage:</strong> used for session management, preferences and the device-only “Saved for later” checklist. Saving a check stores the product name, barcode, broad shopping reason and save date in this browser. Remove entries from the home page or clear this site's browser data. The checklist is not synced to your account.</li>
               <li><strong>Usage logs:</strong> anonymous performance and error logs to improve reliability.</li>
             </ul>
 

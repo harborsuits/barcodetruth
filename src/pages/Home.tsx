@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { useSnapshotPrewarm } from "@/hooks/useSnapshotPrewarm";
+import { NextShop } from "@/components/public-home/NextShop";
 
 export const Home = () => {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ export const Home = () => {
       <main className="max-w-screen-md mx-auto px-4 sm:px-6 pb-28 pt-6">
         <div className="space-y-10">
           <HeroSection />
+          <NextShop />
           <HowItWorks />
 
           {/* Trust & methodology footer links */}

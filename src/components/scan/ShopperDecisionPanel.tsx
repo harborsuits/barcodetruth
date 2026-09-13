@@ -21,8 +21,8 @@ export type ShopperProduct = {
 export function RecallCheck({ expanded = false }: { expanded?: boolean }) {
   return <section className="rounded-xl border border-amber-200/20 bg-amber-200/5 p-4 space-y-3" aria-label="Product safety check">
     <div className="flex items-start gap-3"><ShieldAlert className="h-5 w-5 text-amber-200 shrink-0 mt-0.5" /><div>
-      <h3 className="text-sm font-semibold text-amber-100">Recall status has not been checked for this package</h3>
-      <p className="text-xs text-slate-300 mt-1 leading-relaxed">A brand record cannot tell us whether your particular lot is affected.</p>
+      <h3 className="text-sm font-semibold text-amber-100">Recall status: not checked</h3>
+      <p className="text-sm text-slate-300 mt-1 leading-relaxed">Open an official notice below, then compare it with your package.</p>
     </div></div>
     {expanded && <ol className="list-decimal pl-5 text-sm text-slate-300 space-y-2">
       <li>Find the product name, package size and barcode in the official notice.</li>
@@ -49,20 +49,20 @@ function IngredientFacts({ product }: { product: ShopperProduct }) {
       ? [{ label, amount }] : [];
   });
   return <div className="space-y-4">
-    <div><h3 className="text-xl font-bold">Start with what’s in the package.</h3><p className="text-sm text-slate-300 mt-2">Ingredients and nutrition belong to this product. A company’s political or environmental record does not tell you whether a food meets your needs.</p></div>
+    <div><h3 className="text-xl font-bold">Ingredients and nutrition</h3><p className="text-sm text-slate-300 mt-2">Compare this recorded information with the package you’re buying.</p></div>
     {ingredients ? <>
       <div className="rounded-xl border p-4 space-y-3 bg-background/40">
         <p className="text-xs font-semibold uppercase tracking-wider text-teal-200">Recorded ingredients · check against your label</p>
         <p className="text-sm leading-relaxed">{ingredients}</p>
-        <p className="text-xs text-slate-400">{isOpenFoodFacts ? 'Source: Open Food Facts community database.' : 'Original label source has not been verified.'} {product.updatedAt ? `Catalog record updated ${product.updatedAt.slice(0, 10)}.` : ''} This is not a label verification date.</p>
+        <p className="text-xs text-slate-400">{isOpenFoodFacts ? 'Open Food Facts community record.' : 'Label source unverified.'} {product.updatedAt ? `Catalog updated ${product.updatedAt.slice(0, 10)}.` : ''} Label verification date unknown.</p>
         {isOpenFoodFacts && <a className="block text-sm underline" href={`https://world.openfoodfacts.org/product/${product.barcode}`} target="_blank" rel="noopener noreferrer">Open the source product record ↗</a>}
       </div>
       {!!nutrients.length && <div><p className="text-xs text-slate-400 mb-2">Recorded values per 100 g / 100 ml · confirm the basis on your label</p><dl className="grid grid-cols-3 gap-2">{nutrients.map(nutrient => <div key={nutrient.label} className="rounded-lg bg-background/50 p-3"><dt className="text-xs text-slate-300">{nutrient.label}</dt><dd className="font-semibold mt-1">{Number(nutrient.amount.toFixed(2))} g</dd></div>)}</dl></div>}
-      <div className="space-y-2"><label htmlFor="ingredient-term" className="text-sm font-medium">Look for an ingredient in this text</label><Input id="ingredient-term" placeholder="e.g. palm oil" maxLength={80} value={term} onChange={event => setTerm(event.target.value)} className="rounded-lg h-11" />
+      <div className="space-y-2"><label htmlFor="ingredient-term" className="text-sm font-medium">Looking for a particular ingredient?</label><Input id="ingredient-term" placeholder="e.g. palm oil" maxLength={80} value={term} onChange={event => setTerm(event.target.value)} className="rounded-lg h-11" />
         {term.trim().length >= 2 && <p className="text-sm rounded-lg bg-muted p-3" role="status">{finding === 'mentioned' ? `“${term.trim()}” appears in the recorded ingredient text.` : `The exact text “${term.trim()}” was not found. This does not establish that the ingredient or allergen is absent.`}</p>}
       </div>
-    </> : <div className="rounded-xl border border-dashed p-4 space-y-2"><h4 className="font-semibold">The ingredient label is missing from this record.</h4><p className="text-sm text-slate-300">Use the current package or the manufacturer’s product page. We cannot make a dietary match from the brand name.</p></div>}
-    <p className="text-xs text-slate-400 leading-relaxed">Text search does not detect all ingredient names, allergens or cross-contact. Check the current package and manufacturer’s allergen information before relying on a dietary choice.</p>
+    </> : <div className="rounded-xl border border-dashed p-4 space-y-2"><h4 className="font-semibold">We don’t have this product’s label yet.</h4><p className="text-sm text-slate-300">Check the package or the manufacturer’s product page for ingredients and nutrition.</p></div>}
+    <p className="text-xs text-slate-400 leading-relaxed">For allergies, check the current package and the manufacturer’s allergen information. Text search cannot rule out an allergen or cross-contact.</p>
   </div>;
 }
 
@@ -94,8 +94,8 @@ function CompanyActions({ brandId, brandName }: { brandId?: string | null; brand
   });
   const reports = data?.filter(item => mentionsShoppingTopic(`${item.title || ''} ${item.description}`, topic)).slice(0, 4);
   return <div className="space-y-4">
-    <div><h3 className="text-xl font-bold">Your values. Specific company actions.</h3><p className="text-sm text-slate-300 mt-2">Choose an issue to examine. You decide what supports your priorities.</p></div>
-    <label htmlFor="company-topic" className="block text-sm font-medium">What do you want to look into?</label>
+    <div><h3 className="text-xl font-bold">Company actions</h3><p className="text-sm text-slate-300 mt-2">Explore the issues that matter to you, with sources for each record.</p></div>
+    <label htmlFor="company-topic" className="block text-sm font-medium">Choose an issue</label>
     <select id="company-topic" value={topic} onChange={event => setTopic(event.target.value as typeof topic)} className="w-full rounded-lg bg-background border border-border p-3 text-sm">
       {topics.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
     </select>
@@ -108,18 +108,18 @@ function CompanyActions({ brandId, brandName }: { brandId?: string | null; brand
       <a href={item.source} target="_blank" rel="noopener noreferrer" className="block text-sm underline">Read the company’s source ↗</a>
       {item.additionalSource && <a href={item.additionalSource} target="_blank" rel="noopener noreferrer" className="block text-sm underline">{item.additionalLabel} ↗</a>}
     </article>)}
-    <div className="border-t pt-4 space-y-3">
-      <h4 className="font-semibold">Related reading for {brandName || 'this brand'}</h4>
-      <p className="text-xs text-slate-400">Keyword matches in up to 60 recent catalog records. These are leads to inspect; relevance, allegations and findings still need review.</p>
-      {!brandId ? <p className="text-sm">No brand is linked to this product yet.</p> : isLoading ? <p className="text-sm" role="status">Loading linked reports…</p> : error ? <div role="alert"><p className="text-sm">Reports could not be loaded.</p><Button variant="outline" size="sm" onClick={() => void refetch()}>Retry reports</Button></div> : !reports?.length ? <p className="text-sm rounded-xl border border-dashed p-4">No additional reports mentioning this topic were found in the records checked. This is not a complete review.</p> : reports.map(item => <article key={item.event_id} className="rounded-xl border bg-background/40 p-4 space-y-2">
+    <details className="border-t pt-4 space-y-3">
+      <summary className="font-semibold cursor-pointer">Related reporting about {brandName || 'this brand'}</summary>
+      <p className="text-xs text-slate-400">These articles mention this topic. They may contain allegations or disputed claims; read the source for context. Coverage is incomplete.</p>
+      {!brandId ? <p className="text-sm">No brand is linked to this product yet.</p> : isLoading ? <p className="text-sm" role="status">Loading linked reports…</p> : error ? <div role="alert"><p className="text-sm">Reports could not be loaded.</p><Button variant="outline" size="sm" onClick={() => void refetch()}>Retry reports</Button></div> : !reports?.length ? <p className="text-sm rounded-xl border border-dashed p-4">No matching articles in this view yet.</p> : reports.map(item => <article key={item.event_id} className="rounded-xl border bg-background/40 p-4 space-y-2">
         <p className="text-xs text-slate-400">Report date: {item.event_date?.slice(0, 10) || 'not recorded'}{item.disputed ? ' · Disputed record' : ''}</p>
         <p className="text-sm font-medium leading-relaxed">{item.title || item.description}</p>
         <a href={safeEvidenceUrl(item.source_url)!} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm underline underline-offset-4">Read {new URL(item.source_url!).hostname.replace(/^www\./, '')}<ArrowUpRight className="h-3 w-3" /></a>
         {item.company_response_summary && <p className="text-xs text-slate-300">Recorded company response: {item.company_response_summary}</p>}
         {safeEvidenceUrl(item.company_response_url) && <a href={safeEvidenceUrl(item.company_response_url)!} target="_blank" rel="noopener noreferrer" className="block text-sm underline">Read the company response</a>}
       </article>)}
-    </div>
-    <p className="text-xs text-slate-400">Issue selections stay in this page’s memory. They are not saved to an account or used for ad targeting.</p>
+    </details>
+    {!reviewed.length && <p className="text-sm text-slate-300">We haven’t reviewed a company record for this issue yet. Related reporting may help you investigate.</p>}
   </div>;
 }
 
@@ -133,40 +133,38 @@ export function ShopperDecisionPanel({ product }: { product: ShopperProduct }) {
     try {
       const notes = parseShopNotes(localStorage.getItem(SHOP_NOTES_KEY)).filter(note => note.barcode !== product.barcode);
       localStorage.setItem(SHOP_NOTES_KEY, JSON.stringify([{ barcode: product.barcode, name: product.name.slice(0, 250), reason, savedAt: new Date().toISOString() }, ...notes].slice(0, 30)));
-      setSaveMessage('Saved on this device. Find it under “Your next shop” on the home page.');
+      setSaveMessage('Saved. Find it under “Saved for later” on the home page.');
     } catch { setSaveMessage('This browser could not save the check. Try again with device storage available.'); }
   }
   return <div className="space-y-5">
     <section className="space-y-3" aria-labelledby="shopper-priority">
-      <div><p className="text-xs uppercase tracking-widest text-teal-200 mb-2">Make this useful to you</p><h2 id="shopper-priority" className="text-2xl sm:text-3xl font-bold">What would make you switch?</h2><p className="text-sm text-slate-300 mt-2">Start with the reason that matters today.</p></div>
+      <div><h2 id="shopper-priority" className="text-2xl sm:text-3xl font-bold">What do you want to check?</h2><p className="text-sm text-slate-300 mt-2">Choose a question to see the available information.</p></div>
       <ShoppingReasonPicker value={reason} onChange={next => { setReason(next); setSaveMessage(''); }} />
     </section>
     <section className="rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-5" aria-label={selected.label}>
       {reason === 'ownership' && <>
-        <div><h3 className="text-xl font-bold">Follow your purchase beyond the label.</h3><p className="text-sm text-slate-300 mt-2">Different brands can share an owner. Check the connection before choosing a different label.</p></div>
+        <div><h3 className="text-xl font-bold">Who’s behind {product.brandName || 'this brand'}?</h3><p className="text-sm text-slate-300 mt-2">Different brands can belong to the same company.</p></div>
         {product.brandId ? <OwnershipReveal brandId={product.brandId} brandName={product.brandName || 'this brand'} parentCompany={product.parentCompany} /> : <p className="text-sm">A confirmed brand and ownership record is not available for this product yet.</p>}
       </>}
       {reason === 'ingredients' && <IngredientFacts key={product.barcode} product={product} />}
-      {reason === 'recalls' && <><h3 className="text-xl font-bold">Check your package, not just the brand.</h3><RecallCheck expanded /></>}
+      {reason === 'recalls' && <><h3 className="text-xl font-bold">Official recall notices</h3><p className="text-sm text-slate-300">We don’t automatically check recalls yet. These sources help you check the exact product and lot yourself.</p><RecallCheck expanded /></>}
       {reason === 'values' && <CompanyActions key={product.brandId || product.barcode} brandId={product.brandId} brandName={product.brandName} />}
       {reason === 'local' && <LocalShopping />}
     </section>
-    {reason !== 'recalls' && <RecallCheck />}
+    {reason !== 'recalls' && <p className="text-xs text-slate-400 flex flex-wrap gap-x-2 gap-y-1">Recall status: not checked.<button type="button" className="underline underline-offset-4 text-slate-200" onClick={() => { setReason('recalls'); setSaveMessage(''); }}>View official recall notices</button></p>}
     {reason !== 'local' && <section className="rounded-2xl border border-teal-200/20 bg-teal-200/5 p-5 space-y-4" aria-labelledby="switch-heading">
-      <div className="flex items-center gap-2 text-teal-100"><ArrowRight className="h-5 w-5" /><h3 id="switch-heading" className="text-lg font-semibold">What to look for instead</h3></div>
-      <p className="text-sm text-slate-200">{alternativeRequirements[reason]}</p>
+      <div className="flex items-center gap-2 text-teal-100"><ArrowRight className="h-5 w-5" /><h3 id="switch-heading" className="text-lg font-semibold">Want to try something else?</h3></div>
       {teaOwnershipMatch ? <div className="space-y-2"><p className="text-sm font-semibold">Bigelow and Twinings: a sourced ownership comparison</p><p className="text-sm text-slate-300">Both sell English Breakfast tea bags. The reviewed sources identify different ownership groups. Compare the actual pack and blend before buying.</p><Button asChild variant="outline" className="rounded-lg"><Link to="/compare/english-breakfast-tea">Compare the tea options<ArrowRight className="h-4 w-4 ml-2" /></Link></Button></div> : <>
-        <p className="text-sm text-slate-300">We do not yet have a checked product alternative for this reason.</p>
-        <div className="flex flex-wrap gap-2"><Button asChild variant="outline" className="rounded-lg"><Link to="/search">Look up another product</Link></Button>{reason === 'ownership' && <Button asChild variant="ghost" className="rounded-lg"><Link to="/compare/english-breakfast-tea">See a researched tea example</Link></Button>}</div>
+        <p className="text-sm text-slate-300">We haven’t checked an alternative for “{selected.label.toLowerCase()}” yet. Look up another product to see its information.</p>
+        <Button asChild variant="outline" className="rounded-lg"><Link to="/search?tab=products">Search another product</Link></Button>
       </>}
-      {product.brandId && <details className="border-t border-border pt-3"><summary className="text-sm cursor-pointer">Explore catalog leads · fit still needs checking</summary><div className="mt-3"><AlternativesSection brandId={product.brandId} brandName={product.brandName || 'this brand'} /></div></details>}
+      <details className="border-t border-border pt-3"><summary className="text-sm cursor-pointer">How we check an alternative</summary><p className="text-sm text-slate-300 mt-2">{alternativeRequirements[reason]}</p>{product.brandId && <div className="mt-3"><AlternativesSection brandId={product.brandId} brandName={product.brandName || 'this brand'} /></div>}</details>
     </section>}
     <section className="rounded-xl border border-border p-4 space-y-3">
-      <div className="flex gap-3 items-start"><Bookmark className="h-5 w-5 text-teal-200 shrink-0 mt-1" /><div><h3 className="font-semibold">Keep this for your next shop</h3><p className="text-sm text-slate-300 mt-1">Save this product and “{selected.short.toLowerCase()}” to a checklist on this device.</p></div></div>
-      <Button variant="outline" className="w-full rounded-lg" onClick={saveCheck}>{saveMessage.startsWith('Saved') ? <Check className="h-4 w-4 mr-2" /> : <Bookmark className="h-4 w-4 mr-2" />}Save this check</Button>
+      <Button variant="outline" className="w-full rounded-lg" onClick={saveCheck}>{saveMessage.startsWith('Saved') ? <Check className="h-4 w-4 mr-2" /> : <Bookmark className="h-4 w-4 mr-2" />}Save for later</Button>
       {saveMessage && <p role="status" className="text-sm">{saveMessage}</p>}
-      <p className="text-xs text-slate-400">Device only · no account needed · this does not subscribe you to alerts</p>
+      <p className="text-xs text-slate-400">Saves this product and selected question in this browser. No alerts or account required.</p>
     </section>
-    <details className="text-xs text-slate-400"><summary className="cursor-pointer flex items-center gap-2"><FileText className="h-3.5 w-3.5" />How recommendations and sponsorship work</summary><p className="mt-2 leading-relaxed">A recommendation needs evidence for the reason you chose. Local listings do not establish ingredient safety, political alignment or current stock. These listings are unpaid. Any future paid placement must be labeled “Ad”; payment must not change the evidence or create a match.</p></details>
+    <details className="text-xs text-slate-400"><summary className="cursor-pointer flex items-center gap-2"><FileText className="h-3.5 w-3.5" />About sources and privacy</summary><p className="mt-2 leading-relaxed">Sources and dates accompany the information. Specific issue choices and ingredient search text are not saved to an account or used for ad targeting. Local listings are unpaid; they do not establish ingredient safety, political alignment or current stock. Future paid placements must say “Ad” and cannot change the evidence.</p></details>
   </div>;
 }

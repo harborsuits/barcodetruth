@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Search as SearchIcon, Package, Building2, Tag, ShieldCheck, ShieldAlert, ShieldX, Clock, ArrowRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -159,7 +159,10 @@ export default function Search() {
   const [isSearching, setIsSearching] = useState(!!searchParams.get('q'));
   const [searchError, setSearchError] = useState(false);
   const [searchAttempt, setSearchAttempt] = useState(0);
-  const [activeTab, setActiveTab] = useState<"brands" | "products" | "companies">("brands");
+  const [activeTab, setActiveTab] = useState<"brands" | "products" | "companies">(() => {
+    const tab = searchParams.get('tab');
+    return tab === 'brands' || tab === 'companies' ? tab : 'products';
+  });
   const [brandScores, setBrandScores] = useState<Map<string, number>>(new Map());
   const [scoresLoading, setScoresLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -171,7 +174,7 @@ export default function Search() {
     const q = searchParams.get('q') || '';
     const tab = searchParams.get('tab') as "brands" | "products" | "companies" | null;
     if (q) setQuery(q);
-    if (tab) {
+    if (tab === 'brands' || tab === 'products' || tab === 'companies') {
       setActiveTab(tab);
       urlTabSet.current = true;
     }
@@ -179,9 +182,8 @@ export default function Search() {
 
   // Update URL when query or tab changes
   useEffect(() => {
-    const params: any = {};
+    const params: Record<string, string> = { tab: activeTab };
     if (query) params.q = query;
-    if (activeTab !== "brands") params.tab = activeTab;
     setSearchParams(params, { replace: true });
   }, [query, activeTab, setSearchParams]);
 
@@ -210,11 +212,11 @@ export default function Search() {
         setBrands(catalogResults.brands);
         setCompanies(companyResults);
 
-        // Auto-select brands tab when brand results exist (unless URL specified tab)
-        if (!urlTabSet.current && catalogResults.brands.length > 0) {
-          setActiveTab("brands");
-        } else if (!urlTabSet.current && catalogResults.brands.length === 0 && catalogResults.products.length > 0) {
+        // Start with products so shoppers reach package-specific information.
+        if (!urlTabSet.current && catalogResults.products.length > 0) {
           setActiveTab("products");
+        } else if (!urlTabSet.current && catalogResults.brands.length > 0) {
+          setActiveTab("brands");
         }
         urlTabSet.current = false;
       })
@@ -261,16 +263,20 @@ export default function Search() {
   const groupedProducts = useMemo(() => groupProducts(products), [products]);
 
   const totalResults = products.length + brands.length + companies.length;
-  const showFeatured = brands.length === 1 && totalResults > 0;
+  const showFeatured = activeTab === 'brands' && brands.length === 1 && totalResults > 0;
 
   return (
     <div className="min-h-screen bg-background">
       <main className="container max-w-2xl mx-auto px-4 py-6">
+        <Link to="/" className="inline-block text-sm text-slate-300 underline underline-offset-4 mb-5">Back to home</Link>
+        <h1 className="text-2xl font-bold mb-2">Find your product</h1>
+        <p className="text-sm text-slate-300 mb-5">Choose the product that matches your package, then pick what you want to check.</p>
         <div className="mb-6 relative">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             ref={inputRef}
             type="search"
+            aria-label="Search products, brands and companies"
             placeholder="Search products, brands, and companies..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -343,15 +349,15 @@ export default function Search() {
               </>
             )}
 
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+            <Tabs value={activeTab} onValueChange={(v) => { urlTabSet.current = true; setActiveTab(v as 'brands' | 'products' | 'companies'); }}>
               <TabsList className="grid w-full grid-cols-3 mb-4">
-                <TabsTrigger value="brands">
-                  <Tag className="h-3.5 w-3.5 mr-1" />
-                  Brands ({brands.length})
-                </TabsTrigger>
                 <TabsTrigger value="products">
                   <Package className="h-3.5 w-3.5 mr-1" />
                   Products ({groupedProducts.length})
+                </TabsTrigger>
+                <TabsTrigger value="brands">
+                  <Tag className="h-3.5 w-3.5 mr-1" />
+                  Brands ({brands.length})
                 </TabsTrigger>
                 <TabsTrigger value="companies">
                   <Building2 className="h-3.5 w-3.5 mr-1" />
@@ -410,6 +416,8 @@ export default function Search() {
                       className="cursor-pointer hover:bg-muted/50 transition-colors"
                       onClick={() => navigate(`/scan-result/${group.firstBarcode}`)}
                       role="button"
+                      tabIndex={0}
+                      onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); navigate(`/scan-result/${group.firstBarcode}`); } }}
                       aria-label={`View ${group.name}`}
                     >
                       <CardContent className="pt-4 pb-3">
@@ -424,6 +432,7 @@ export default function Search() {
                               {formatCategory(group.category)}
                               {group.count > 1 && ` · ${group.count} variants`}
                             </div>
+                            <p className="text-xs text-slate-400 mt-1">Barcode {group.firstBarcode}</p>
                           </div>
                         </div>
                       </CardContent>

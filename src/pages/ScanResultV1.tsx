@@ -71,18 +71,18 @@ export default function ScanResultV1() {
         <h1 className="text-2xl font-semibold">We couldn’t look up this product</h1><p className="text-sm text-slate-300">The lookup failed. This does not mean the product is missing from our records.</p><Button onClick={() => void refetch()}>Try again</Button><Button variant="outline" onClick={() => navigate('/scan')}>Scan another</Button>
       </section> : !product ? <section className="rounded-2xl border p-6 space-y-4"><h1 className="text-2xl font-semibold">Submission received</h1><p>Your product details need review before we can show a confirmed record.</p><Button onClick={() => void refetch()}>Refresh result</Button></section> : <>
         <section className="rounded-2xl bg-card border border-border p-5 sm:p-6" aria-labelledby="scanned-product-name">
-          <p className="text-xs uppercase tracking-widest text-teal-200 mb-4">In your basket</p>
+          <p className="text-xs uppercase tracking-widest text-teal-200 mb-4">Product found</p>
           <div className="flex gap-4 items-center">
             {safeEvidenceUrl(product.image_url) && failedImageUrl !== product.image_url ? <img src={safeEvidenceUrl(product.image_url)!} alt="" className="w-16 h-20 object-contain rounded-xl bg-white p-1 shrink-0" onError={() => setFailedImageUrl(product.image_url!)} /> : <div className="w-16 h-20 rounded-xl bg-background/60 grid place-items-center shrink-0"><Package className="w-7 h-7 text-teal-200" /></div>}
             <div className="min-w-0"><h1 id="scanned-product-name" className="font-bold text-xl sm:text-2xl leading-tight">{name}</h1><p className="text-sm text-slate-300 mt-1">{brandLoading ? 'Loading brand…' : brandName ? `by ${brandName}` : 'Brand connection not confirmed'}</p>{category && <p className="text-xs text-slate-400 mt-1">{category}</p>}</div>
           </div>
-          <p className="text-xs text-slate-400 mt-4">Barcode {product.barcode} · catalog match · confirm your exact package</p>
+          <p className="text-xs text-slate-400 mt-4">Barcode {product.barcode} · check this matches your package</p>
           {error && <p role="alert" className="text-xs text-amber-100 mt-2">The latest lookup failed; showing previously loaded details. <button className="underline" onClick={() => void refetch()}>Retry</button></p>}
           {brandError && <p role="alert" className="text-xs text-amber-100 mt-2">The brand record could not be loaded. <button className="underline" onClick={() => void refetchBrand()}>Retry brand</button></p>}
           {brand && !['active', 'ready'].includes(brand.status || '') && <p className="text-xs text-slate-300 mt-2">This brand profile is incomplete. The product checks below remain available.</p>}
         </section>
         <ShopperDecisionPanel key={normalizedBarcode} product={{ name, barcode: product.barcode, brandId: brand?.id, brandName, parentCompany: brand?.parent_company, metadata: product.metadata, dataSource: product.data_source, updatedAt: product.updated_at }} />
-        <div className="grid sm:grid-cols-2 gap-3"><Button asChild variant="outline" className="h-12 rounded-xl"><Link to="/scan">Scan another product<ArrowRight className="h-4 w-4 ml-2" /></Link></Button><Button asChild variant="ghost" className="h-12 rounded-xl"><Link to="/">Your next shop</Link></Button></div>
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm"><Link className="inline-flex items-center gap-2 text-slate-300 underline underline-offset-4 py-2" to="/scan">Scan another product<ArrowRight className="h-4 w-4" /></Link><Link className="text-slate-300 underline underline-offset-4 py-2" to="/#saved-products">Saved for later</Link></div>
         {!brand?.id && <Link className="inline-block text-sm underline text-slate-300" to={`/unknown/${normalizedBarcode}`}>Suggest missing brand details</Link>}
       </>}
     </main>
