@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Search as SearchIcon, Package, Building2, Tag, ShieldCheck, ShieldAlert, ShieldX, Clock, ArrowRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,7 +26,7 @@ interface BrandScore {
 
 // --- Verdict logic (same thresholds as LiveScanDemo) ---
 function getVerdict(score: number | null) {
-  if (score === null) return { label: "Analyzing", icon: Clock, className: "text-muted-foreground", bg: "bg-muted/50" };
+  if (score === null) return { label: "Unrated", icon: Clock, className: "text-muted-foreground", bg: "bg-muted/50" };
   if (score >= 65) return { label: "Good", icon: ShieldCheck, className: "text-success", bg: "bg-success/10" };
   if (score >= 40) return { label: "Mixed", icon: ShieldAlert, className: "text-warning", bg: "bg-warning/10" };
   return { label: "Avoid", icon: ShieldX, className: "text-destructive", bg: "bg-destructive/10" };
@@ -139,7 +139,7 @@ function FeaturedBrandCard({ brand, score, loading, onClick }: {
           </div>
         )}
         <div className="text-xs text-muted-foreground/70 mt-2">
-          This applies to all products from this brand
+          This is a brand record. Individual product details may differ.
         </div>
         <div className="flex items-center gap-1 mt-3 text-sm text-primary font-medium">
           View full breakdown <ArrowRight className="h-3.5 w-3.5" />
@@ -152,12 +152,17 @@ function FeaturedBrandCard({ brand, score, loading, onClick }: {
 export default function Search() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => searchParams.get('q') || '');
   const [products, setProducts] = useState<ProductSearchResult[]>([]);
   const [brands, setBrands] = useState<BrandSearchResult[]>([]);
   const [companies, setCompanies] = useState<CompanySearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [activeTab, setActiveTab] = useState<"brands" | "products" | "companies">("brands");
+  const [isSearching, setIsSearching] = useState(!!searchParams.get('q'));
+  const [searchError, setSearchError] = useState(false);
+  const [searchAttempt, setSearchAttempt] = useState(0);
+  const [activeTab, setActiveTab] = useState<"brands" | "products" | "companies">(() => {
+    const tab = searchParams.get('tab');
+    return tab === 'brands' || tab === 'companies' ? tab : 'products';
+  });
   const [brandScores, setBrandScores] = useState<Map<string, number>>(new Map());
   const [scoresLoading, setScoresLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -169,7 +174,7 @@ export default function Search() {
     const q = searchParams.get('q') || '';
     const tab = searchParams.get('tab') as "brands" | "products" | "companies" | null;
     if (q) setQuery(q);
-    if (tab) {
+    if (tab === 'brands' || tab === 'products' || tab === 'companies') {
       setActiveTab(tab);
       urlTabSet.current = true;
     }
@@ -177,9 +182,8 @@ export default function Search() {
 
   // Update URL when query or tab changes
   useEffect(() => {
-    const params: any = {};
+    const params: Record<string, string> = { tab: activeTab };
     if (query) params.q = query;
-    if (activeTab !== "brands") params.tab = activeTab;
     setSearchParams(params, { replace: true });
   }, [query, activeTab, setSearchParams]);
 
@@ -194,33 +198,42 @@ export default function Search() {
       return;
     }
 
+    let cancelled = false;
     setIsSearching(true);
+    setSearchError(false);
 
     Promise.all([
       searchCatalog(debouncedQuery),
       searchCompanies(debouncedQuery),
     ])
       .then(([catalogResults, companyResults]) => {
+        if (cancelled) return;
         setProducts(catalogResults.products);
         setBrands(catalogResults.brands);
         setCompanies(companyResults);
 
-        // Auto-select brands tab when brand results exist (unless URL specified tab)
-        if (!urlTabSet.current && catalogResults.brands.length > 0) {
-          setActiveTab("brands");
-        } else if (!urlTabSet.current && catalogResults.brands.length === 0 && catalogResults.products.length > 0) {
+        // Start with products so shoppers reach package-specific information.
+        if (!urlTabSet.current && catalogResults.products.length > 0) {
           setActiveTab("products");
+        } else if (!urlTabSet.current && catalogResults.brands.length > 0) {
+          setActiveTab("brands");
         }
         urlTabSet.current = false;
       })
       .catch(error => {
+        if (cancelled) return;
+        setSearchError(true);
+        setProducts([]);
+        setBrands([]);
+        setCompanies([]);
         console.error("Search error:", error);
         toast.error("Search failed. Please try again.");
       })
       .finally(() => {
-        setIsSearching(false);
+        if (!cancelled) setIsSearching(false);
       });
-  }, [debouncedQuery]);
+    return () => { cancelled = true; };
+  }, [debouncedQuery, searchAttempt]);
 
   // Fetch brand scores after brands arrive
   useEffect(() => {
@@ -250,16 +263,20 @@ export default function Search() {
   const groupedProducts = useMemo(() => groupProducts(products), [products]);
 
   const totalResults = products.length + brands.length + companies.length;
-  const showFeatured = brands.length === 1 && totalResults > 0;
+  const showFeatured = activeTab === 'brands' && brands.length === 1 && totalResults > 0;
 
   return (
     <div className="min-h-screen bg-background">
       <main className="container max-w-2xl mx-auto px-4 py-6">
+        <Link to="/" className="inline-block text-sm text-slate-300 underline underline-offset-4 mb-5">Back to home</Link>
+        <h1 className="text-2xl font-bold mb-2">Find your product</h1>
+        <p className="text-sm text-slate-300 mb-5">Choose the product that matches your package, then pick what you want to check.</p>
         <div className="mb-6 relative">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             ref={inputRef}
             type="search"
+            aria-label="Search products, brands and companies"
             placeholder="Search products, brands, and companies..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -268,6 +285,7 @@ export default function Search() {
           />
         </div>
 
+        {searchError && <div role="alert" className="space-y-2 mb-4"><p>Search couldn't be completed. Check your connection and try again.</p><button className="underline" onClick={() => setSearchAttempt(value => value + 1)}>Try again</button></div>}
         {isSearching && (
           <div className="space-y-2" aria-label="Searching">
             {[0, 1, 2, 3].map((i) => (
@@ -287,15 +305,15 @@ export default function Search() {
           </div>
         )}
 
-        {!isSearching && query && totalResults === 0 && (
-          <EmptyStateExplainer type="search-no-results" searchQuery={query} />
+        {!isSearching && !searchError && query && query === debouncedQuery && totalResults === 0 && (
+          <p className="py-6 text-sm text-muted-foreground">No matching records found. Try another spelling or search the brand name.</p>
         )}
 
         {!isSearching && !query && (
           <div className="py-6 space-y-6">
             <div className="text-center space-y-1">
               <p className="text-sm text-muted-foreground">Search for products, brands, or companies</p>
-              <p className="text-xs text-muted-foreground/70">Not all products are indexed yet — we're growing daily</p>
+              <p className="text-xs text-muted-foreground/70">Coverage varies by brand and category.</p>
             </div>
             <div>
               <p className="text-xs uppercase tracking-wider text-muted-foreground/70 font-medium mb-2 text-center">
@@ -331,15 +349,15 @@ export default function Search() {
               </>
             )}
 
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+            <Tabs value={activeTab} onValueChange={(v) => { urlTabSet.current = true; setActiveTab(v as 'brands' | 'products' | 'companies'); }}>
               <TabsList className="grid w-full grid-cols-3 mb-4">
-                <TabsTrigger value="brands">
-                  <Tag className="h-3.5 w-3.5 mr-1" />
-                  Brands ({brands.length})
-                </TabsTrigger>
                 <TabsTrigger value="products">
                   <Package className="h-3.5 w-3.5 mr-1" />
                   Products ({groupedProducts.length})
+                </TabsTrigger>
+                <TabsTrigger value="brands">
+                  <Tag className="h-3.5 w-3.5 mr-1" />
+                  Brands ({brands.length})
                 </TabsTrigger>
                 <TabsTrigger value="companies">
                   <Building2 className="h-3.5 w-3.5 mr-1" />
@@ -398,6 +416,8 @@ export default function Search() {
                       className="cursor-pointer hover:bg-muted/50 transition-colors"
                       onClick={() => navigate(`/scan-result/${group.firstBarcode}`)}
                       role="button"
+                      tabIndex={0}
+                      onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); navigate(`/scan-result/${group.firstBarcode}`); } }}
                       aria-label={`View ${group.name}`}
                     >
                       <CardContent className="pt-4 pb-3">
@@ -412,6 +432,7 @@ export default function Search() {
                               {formatCategory(group.category)}
                               {group.count > 1 && ` · ${group.count} variants`}
                             </div>
+                            <p className="text-xs text-slate-400 mt-1">Barcode {group.firstBarcode}</p>
                           </div>
                         </div>
                       </CardContent>

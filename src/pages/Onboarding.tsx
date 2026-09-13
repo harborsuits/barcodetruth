@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { safeReturnTo, authStepPath } from "@/lib/authReturn";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Users, Leaf, Megaphone, Heart } from "lucide-react";
@@ -49,6 +50,9 @@ const DIMENSIONS: DimensionConfig[] = [
 
 export const Onboarding = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = safeReturnTo(searchParams.get('returnTo'));
+  const authPath = authStepPath('auth', returnTo);
   const { toast } = useToast();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -71,7 +75,7 @@ export const Onboarding = () => {
         .maybeSingle();
 
       if (profile?.onboarding_complete) {
-        navigate("/");
+        navigate(returnTo, { replace: true });
         return true;
       }
 
@@ -83,7 +87,7 @@ export const Onboarding = () => {
 
       if (prefs) {
         await supabase.from('profiles').upsert({ id: userId, onboarding_complete: true });
-        navigate("/");
+        navigate(returnTo, { replace: true });
         return true;
       }
 
@@ -94,7 +98,7 @@ export const Onboarding = () => {
       (event, session) => {
         if (!mounted) return;
         if (!session?.user) {
-          if (event === 'SIGNED_OUT') navigate("/auth");
+          if (event === 'SIGNED_OUT') navigate(authPath, { replace: true });
           return;
         }
         setTimeout(async () => {
@@ -109,7 +113,7 @@ export const Onboarding = () => {
       if (!mounted) return;
       if (!session?.user) {
         toast({ title: "Authentication required", description: "Please sign in to continue", variant: "destructive" });
-        navigate("/auth");
+        navigate(authPath, { replace: true });
         return;
       }
       const alreadyOnboarded = await checkOnboardingStatus(session.user.id);
@@ -120,7 +124,7 @@ export const Onboarding = () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, toast]);
+  }, [navigate, toast, returnTo, authPath]);
 
   const handleComplete = async () => {
     setLoading(true);
@@ -148,7 +152,7 @@ export const Onboarding = () => {
       sessionStorage.setItem("justCompletedOnboarding", "true");
       
       toast({ title: "Preferences saved", description: "Your values have been saved successfully" });
-      navigate("/");
+      navigate(returnTo, { replace: true });
     } catch (error) {
       console.error("Error completing onboarding:", error);
       toast({ title: "Error", description: "Failed to save preferences. Please try again.", variant: "destructive" });

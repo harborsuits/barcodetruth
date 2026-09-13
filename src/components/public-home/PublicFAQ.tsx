@@ -2,24 +2,28 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 
 const FAQ = [
   {
-    q: "Where does the data come from?",
-    a: "Public regulatory filings (SEC, FDA, EPA, OSHA), federal lobbying disclosures, court records, and reporting from outlets like Reuters, the Guardian, and the NYT. Every event on a brand profile links to its source.",
+    q: "Can I keep something for my next shopping trip?",
+    a: "Yes. Choose Save for later on a product result. Reopen it from Saved for later on the home page. Your saved products stay in this browser and can be removed there. Saving does not subscribe you to recall alerts.",
   },
   {
-    q: "Do brands pay to appear or to change their score?",
-    a: "No. Barcode Truth is independent. We don't accept payment from brands to add, change, improve, or remove scores. If our funding model ever changes, we'll disclose it on the Why Trust Us page and the rule that monetization never affects scoring will stay in place.",
+    q: "Where does the data come from?",
+    a: "Product information can include label data from Open Food Facts. Company information links to public filings, company disclosures and reporting. Check the source and date beside each record. Coverage varies, and missing information does not mean a product or company has no issues.",
+  },
+  {
+    q: "Does payment affect what you show me?",
+    a: "Current listings are unpaid. Any future sponsored placement must be labeled Ad. Payment cannot change the evidence or make a product qualify as a match for your chosen question.",
   },
   {
     q: "What happens if a product isn't in your database?",
-    a: "You can submit it. We immediately start enriching the brand profile and route you to a live result page that updates as data arrives — usually within seconds.",
+    a: "You can submit the product details for review. A submission does not verify its brand or ownership, and we cannot promise when research will be complete.",
   },
   {
-    q: "How do I report a wrong score or disputed event?",
-    a: "Every event and every brand profile has a 'Report an issue' link. Flagged events are reviewed; if disputed, the score recovers immediately while we re-verify.",
+    q: "How do I report incorrect information?",
+    a: "Use the correction or report controls where available on a record and include a source. Reports need review before information changes.",
   },
   {
     q: "Is my scan history private?",
-    a: "Scans aren't tied to your identity unless you create an account. We don't sell user data, ever. Full details on the Why Trust Us page.",
+    a: "Scanning currently requires an account and can save activity to your account. Read the Privacy page before signing up.",
   },
 ];
 

@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { authStepPath } from '@/lib/authReturn';
 import { Camera, AlertCircle, WifiOff, X, Flashlight, FlashlightOff, Wrench, Upload } from "lucide-react";
 import { ScannerIdleAnimation } from "@/components/ScannerIdleAnimation";
 import { Button } from "@/components/ui/button";
@@ -119,7 +120,7 @@ export const Scan = () => {
       setIsOffline(true);
       toast({ 
         title: "You're offline", 
-        description: "Scans will be queued and sent when you're back online",
+        description: "Reconnect to look up products. This screen does not queue offline scans.",
         variant: "destructive" 
       });
     };
@@ -187,7 +188,7 @@ export const Scan = () => {
   const handleConfirmedLookup = useCallback(async (rawBarcode: string) => {
     if (!user) {
       console.log('[Scan] No user for lookup');
-      setShowAuthModal(true);
+      navigate(authStepPath('auth', `/scan-result/${rawBarcode}`));
       return;
     }
 
@@ -221,7 +222,6 @@ export const Scan = () => {
         source: smartLookup?.source
       }, null, 2));
       
-      const smartLookupNotFound = smartLookup?.requires_submission === true || smartLookup?.source === 'not_found';
       
       // Handle actual error (network failure, etc)
       if (smartError && !smartLookup) {
@@ -238,65 +238,20 @@ export const Scan = () => {
         
         const dur = Math.round(performance.now() - t0);
 
-        if (result.notFound) {
+        if (result.notFound || !result.product) {
           setScanResult('not_found');
-          if (smartLookupNotFound) {
-            console.log('[Analytics] scan_not_found_requires_submission', { barcode, dur_ms: dur, via: 'fallback' });
-            const route = `/unknown/${barcode}`;
-            console.log('[Scan] navigating to unknown product page after fallback miss:', route);
-            setTimeout(() => {
-              navigate(route);
-            }, 600);
-            return;
-          }
-
-          console.log('[Analytics] scan_not_found_soft_promise', { barcode, dur_ms: dur });
-
-          toast({ 
-            title: "We're on it", 
-            description: result.message || "We've started a live profile for this brand. Results update continuously.",
-            variant: "default"
-          });
-
-          analytics.track('scan_not_found_soft_promise', { barcode });
-
-          // Navigate to result page instead of going idle
-          setTimeout(() => {
-            navigate(`/scan-result/${barcode}`);
-          }, 600);
+          navigate(`/unknown/${barcode}`);
           return;
         }
-
-        const { product, alternatives } = result;
-        
-        if (product) {
-          setScanResult('success');
-          console.log('[Analytics] scan_success_fallback', { 
-            barcode, 
-            brand_id: product.brand_id, 
-            dur_ms: dur 
-          });
-          
-          toast({ 
-            title: "Product found!", 
-            description: `${product.product_name} - ${product.brand_name || 'Unknown'}`
-          });
-          
-          setTimeout(() => {
-            navigate(`/brand/${product.brand_id}`);
-          }, 800);
-        } else {
-          // No product in fallback system either - navigate to scan result page
-          setScanResult('not_found');
-          toast({ 
-            title: "Product not found", 
-            description: "Checking our database for this barcode...",
-            variant: "default" 
-          });
-          setTimeout(() => {
-            navigate(`/scan-result/${barcode}`);
-          }, 600);
-        }
+        const product = result.product;
+        setScanResult('success');
+        navigate(`/scan-result/${barcode}`, {
+          state: {
+            product: { id: product.product_id, barcode, name: product.product_name, brand_id: product.brand_id },
+            brand: { id: product.brand_id, name: product.brand_name },
+            source: 'fallback',
+          },
+        });
         return;
       }
       
@@ -356,48 +311,7 @@ export const Scan = () => {
         description: `${product.name} - ${brand?.name || 'Unknown Brand'}`
       });
       
-      // Navigate based on brand status
-      setTimeout(() => {
-        if (brand?.id) {
-          // Check brand status - only go directly to brand if ready
-          const brandStatus = brand.status;
-          
-          if (brandStatus === 'ready') {
-            // Brand is ready - go directly to brand profile
-            const route = `/brand/${brand.id}`;
-            console.log('[Scan] navigating to ready brand:', route);
-            analytics.track('scan_route_brand_ready', { 
-              brand_id: brand.id, 
-              barcode,
-              product_name: product.name,
-              source: smartLookup.source
-            });
-            navigate(route, { state: { product, brand, source: smartLookup.source } });
-          } else {
-            // Brand is building/stub/failed - go to scan result page
-            const route = `/scan-result/${barcode}`;
-            console.log('[Scan] navigating to scan-result (brand building):', route, 'status:', brandStatus);
-            analytics.track('scan_route_result_building', { 
-              brand_id: brand.id,
-              brand_status: brandStatus,
-              barcode,
-              product_name: product.name,
-              source: smartLookup.source
-            });
-            navigate(route, { state: { product, brand, source: smartLookup.source } });
-          }
-        } else {
-          // Navigate to scan result page (product found but no brand profile yet)
-          const route = `/scan-result/${barcode}`;
-          console.log('[Scan] navigating to scan-result (no brand):', route);
-          analytics.track('scan_route_result_no_brand', { 
-            barcode,
-            product_name: product.name,
-            source: smartLookup.source
-          });
-          navigate(route, { state: { product, brand: null, source: smartLookup.source } });
-        }
-      }, 800);
+      navigate(`/scan-result/${barcode}`, { state: { product, brand, source: smartLookup.source } });
       
     } catch (error: any) {
       console.error('[Analytics] scan_error', error);

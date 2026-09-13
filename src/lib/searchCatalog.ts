@@ -28,7 +28,7 @@ export async function searchCatalog(q: string): Promise<CatalogSearchResponse> {
     const { data, error } = await supabase.rpc('search_catalog', {
       p_q: q,
       p_limit: 20
-    });
+    }, { get: true });
     
     if (error) throw error;
     

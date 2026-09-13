@@ -5,22 +5,22 @@ const PILLARS = [
   {
     icon: ShieldCheck,
     title: "Independent",
-    body: "We don't take payment from brands. No ads. No sponsored scores.",
+    body: "Payment cannot change evidence or create a match. Any future sponsored placement must be clearly labeled Ad.",
   },
   {
     icon: FileSearch,
     title: "Transparent",
-    body: "Every claim cites a source you can inspect. No hidden weighting.",
+    body: "Inspect the available sources. Missing evidence is a gap, not an endorsement.",
   },
   {
     icon: RefreshCw,
-    title: "Fresh",
-    body: "Scores update daily as new regulatory filings, news, and lawsuits surface.",
+    title: "Dated evidence",
+    body: "Check publication and verification dates. Older records may need another review.",
   },
   {
     icon: Flag,
     title: "Correctable",
-    body: "Disagree with a verdict? Flag it. We review every report.",
+    body: "Submit a correction with a supporting source for review.",
   },
 ];
 
@@ -33,7 +33,7 @@ export function TrustStrip() {
             Why trust us
           </p>
           <h2 className="font-display font-bold text-2xl sm:text-3xl text-foreground">
-            Receipts, not vibes.
+            Evidence you can question.
           </h2>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
