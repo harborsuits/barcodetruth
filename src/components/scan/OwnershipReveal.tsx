@@ -30,7 +30,7 @@ export function OwnershipReveal({ brandId, parentCompany }: OwnershipRevealProps
   });
   if (isLoading) return <Skeleton className="h-20 w-full" />;
   return (
-    <section className="bg-elevated-1 border border-border p-4 space-y-3" aria-labelledby="ownership-heading">
+    <section className="bg-background/40 rounded-xl border border-border p-4 space-y-3" aria-labelledby="ownership-heading">
       <h2 id="ownership-heading" className="font-semibold flex items-center gap-2"><Building2 className="h-4 w-4" />Ownership records</h2>
       {error ? <div role="alert" className="space-y-2"><p className="text-sm">Ownership records couldn't be loaded.</p><Button variant="outline" size="sm" onClick={() => void refetch()}>Try again</Button></div> : records?.length ? (
         <>
@@ -38,15 +38,15 @@ export function OwnershipReveal({ brandId, parentCompany }: OwnershipRevealProps
             const url = sourceLink(row.source_url);
             return <div key={row.id} className="text-sm space-y-1">
               <p className="font-medium">{row.name || row.parent_name || 'Company name unavailable'}</p>
-              {!row.name && row.parent_name && <p className="text-xs text-muted-foreground">Unverified name; no linked company record</p>}
-              <p className="text-xs text-muted-foreground">Recorded relationship: {row.relationship || 'unspecified'}</p>
-              {url ? <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary underline">Inspect source</a> : <p className="text-xs text-muted-foreground">Supporting source unavailable</p>}
-              <p className="text-xs text-muted-foreground">Recorded review date: {row.last_verified_at ? row.last_verified_at.slice(0, 10) : 'unavailable'}</p>
+              {!row.name && row.parent_name && <p className="text-xs text-slate-400">Unverified name; no linked company record</p>}
+              <p className="text-xs text-slate-400">Recorded relationship: {row.relationship?.replace(/_/g, ' ') || 'unspecified'}</p>
+              {url ? <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary underline">Inspect source</a> : <p className="text-xs text-slate-400">Supporting source unavailable</p>}
+              <p className="text-xs text-slate-400">Recorded review date: {row.last_verified_at ? row.last_verified_at.slice(0, 10) : 'unavailable'}</p>
             </div>;
           })}
-          <p className="text-xs text-muted-foreground">These are recorded relationships, not a verified ownership chain. Check whether the source supports the relationship and is still current.</p>
+          <p className="text-xs text-slate-400">These are recorded relationships, not a verified ownership chain. Check whether the source supports the relationship and is still current.</p>
         </>
-      ) : <div className="text-sm space-y-1"><p>Ownership not yet confirmed.</p>{parentCompany && <p className="text-xs text-muted-foreground">Unverified parent name in the brand record: {parentCompany}</p>}</div>}
+      ) : <div className="text-sm space-y-1"><p>Ownership not yet confirmed.</p>{parentCompany && <p className="text-xs text-slate-400">Unverified parent name in the brand record: {parentCompany}</p>}</div>}
     </section>
   );
 }

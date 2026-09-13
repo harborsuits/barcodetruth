@@ -49,3 +49,7 @@ Browser checks performed: public homepage/search, mobile-width layout, signed-ou
 5. Smoke-test the paired release and confirm rollback. Existing function definitions were exported locally before changes; no production function or data has been changed by this work cycle.
 
 The release remains in review until these dependencies are resolved. Broad ownership coverage, personalized alternatives, full account isolation, paid checkout and real-device acceptance are not established by these checks.
+
+## Shopping-reason preview, September 13
+
+See [SHOPPING_REASONS_REVIEW.md](SHOPPING_REASONS_REVIEW.md) for the subsequent shopper flow, source packet, tests and remaining limits. The scan result now uses explicit reasons and approved product records instead of the legacy aggregate verdict.

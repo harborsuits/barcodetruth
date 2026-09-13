@@ -5,18 +5,22 @@ import { InstallCTA } from "@/components/public-home/InstallCTA";
 import { PublicFAQ } from "@/components/public-home/PublicFAQ";
 import { PublicFooter } from "@/components/public-home/PublicFooter";
 import { Link } from 'react-router-dom';
+import { NextShop } from '@/components/public-home/NextShop';
+import { LocalShopping } from '@/components/scan/LocalShopping';
 
 export default function PublicHome() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <main className="max-w-5xl mx-auto px-4 sm:px-6">
         <PublicHero />
+        <NextShop />
         <section className="rounded-xl border border-border bg-card p-6 space-y-2" aria-labelledby="coverage-title">
           <h2 id="coverage-title" className="text-lg font-semibold">Start with packaged food and drinks</h2>
           <p className="text-sm text-muted-foreground">This is our first coverage focus. Some products have a brand record but no confirmed owner, and many categories do not yet have a supported alternative. Check the sources and dates on the record before relying on it.</p>
           <Link className="inline-block pt-2 text-sm text-primary underline" to="/compare/english-breakfast-tea">See a sourced comparison: Bigelow and Twinings tea</Link>
         </section>
         <HowItWorksThreeStep />
+        <section id="local-shopping" className="max-w-2xl mx-auto my-8 rounded-2xl border bg-card p-6 scroll-mt-20"><LocalShopping /></section>
         <TrustStrip />
         <InstallCTA />
         <PublicFAQ />

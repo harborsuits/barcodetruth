@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "node server.js",
-    "test:release": "node --test tests/unit/release-one.test.ts",
+    "test:release": "node --test tests/unit/*.test.ts",
     "dev:review": "vite --mode review --host 127.0.0.1",
     "build:review": "vite build --mode review"
   },

@@ -2,6 +2,10 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 
 const FAQ = [
   {
+    q: "Can I keep something for my next shopping trip?",
+    a: "Yes. Save a check on a product result and reopen it from Your next shop on the home page. This checklist stays in your browser and can be removed there. It is not a recall-alert subscription or a verified list of recommended products.",
+  },
+  {
     q: "Where does the data come from?",
     a: "Public regulatory filings (SEC, FDA, EPA, OSHA), federal lobbying disclosures, court records, and reporting from outlets like Reuters, the Guardian, and the NYT. Source coverage varies. Inspect the linked evidence and its date; a missing record does not establish that a company has no issues.",
   },

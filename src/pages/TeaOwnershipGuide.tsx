@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { useShoppingLens } from '@/hooks/useShoppingLens';
+import { shoppingReasons } from '@/lib/shoppingLens';
 
 const records = {
   bigelow: {
@@ -49,6 +51,7 @@ function OwnershipCard({ brand }: { brand: TeaBrand }) {
 export default function TeaOwnershipGuide() {
   const { guide } = useParams<{ guide: string }>();
   const [currentBrand, setCurrentBrand] = useState<TeaBrand>('twinings');
+  const [reason, setReason] = useShoppingLens();
   const selectedGuide = guide === 'bigelow' || guide === 'twinings' ? guide : null;
   const alternative: TeaBrand = currentBrand === 'twinings' ? 'bigelow' : 'twinings';
   if (guide && !selectedGuide) return <main className="max-w-2xl mx-auto p-6"><h1 className="text-xl font-semibold">Ownership guide unavailable</h1><Link to="/compare/english-breakfast-tea" className="underline">See the tea comparison</Link></main>;
@@ -62,6 +65,7 @@ export default function TeaOwnershipGuide() {
       <OwnershipCard brand={selectedGuide} />
       <Button asChild><Link to="/compare/english-breakfast-tea">Compare the two tea brands</Link></Button>
     </> : <>
+      {reason !== 'ownership' && <div className="rounded-xl border border-amber-200/20 bg-amber-200/5 p-4 space-y-2"><p className="text-sm">You chose “{shoppingReasons.find(item => item.id === reason)?.label}”. This guide only establishes a difference in ownership; a match for your selected reason has not been checked.</p><Button variant="outline" size="sm" onClick={() => setReason('ownership')}>Compare ownership instead</Button></div>}
       <section className="border rounded-xl p-5 space-y-4" aria-labelledby="preference-heading">
         <h2 id="preference-heading" className="text-lg font-semibold">I want a tea from a different ownership group</h2>
         <p className="text-sm text-muted-foreground">Choose the brand you currently buy:</p>

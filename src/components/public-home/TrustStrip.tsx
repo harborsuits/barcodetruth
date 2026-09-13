@@ -5,7 +5,7 @@ const PILLARS = [
   {
     icon: ShieldCheck,
     title: "Independent",
-    body: "We don't take payment from brands. No ads. No sponsored scores.",
+    body: "Payment cannot change evidence or create a match. Any future sponsored placement must be clearly labeled Ad.",
   },
   {
     icon: FileSearch,

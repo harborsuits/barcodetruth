@@ -8,7 +8,7 @@ export default function Privacy() {
           <CardHeader>
             <CardTitle className="text-3xl">Privacy Policy</CardTitle>
             <p className="text-sm text-muted-foreground">
-              <strong>Effective Date:</strong> October 2025 | <strong>Last Updated:</strong> October 2025
+              <strong>Effective Date:</strong> October 2025 | <strong>Last Updated:</strong> September 13, 2026
             </p>
           </CardHeader>
           <CardContent className="prose prose-sm max-w-none dark:prose-invert">
@@ -28,7 +28,7 @@ export default function Privacy() {
             <h3 className="text-lg font-semibold mt-4 mb-2">b. Information collected automatically</h3>
             <ul className="list-disc pl-6 space-y-1">
               <li><strong>Device & browser data</strong> (e.g., IP address, user-agent) for basic analytics, security, and abuse prevention.</li>
-              <li><strong>Cookies / local storage:</strong> used only for session management and preferences.</li>
+              <li><strong>Cookies / local storage:</strong> used for session management, preferences and the device-only “Your next shop” checklist. Saving a check stores the product name, barcode, broad shopping reason and save date in this browser. Remove entries from the home page or clear this site's browser data. The checklist is not synced to your account.</li>
               <li><strong>Usage logs:</strong> anonymous performance and error logs to improve reliability.</li>
             </ul>
 
@@ -38,6 +38,7 @@ export default function Privacy() {
             </p>
 
             <h2 className="text-xl font-semibold mt-6 mb-3">2. How We Use Information</h2>
+            <p>The shopping-reason selector stays in application memory unless you explicitly save a check on this device. Specific company-issue selections and ingredient search text are not saved to your account or used for ad targeting. Opening the local farm search sends the town or ZIP you enter to Google Maps; that external service has its own privacy practices. The local finder does not request device location.</p>
             <ul className="list-disc pl-6 space-y-1">
               <li>To provide and improve BarcodeTruth's features.</li>
               <li>To secure accounts, prevent abuse, and maintain integrity of community ratings.</li>
