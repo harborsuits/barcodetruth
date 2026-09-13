@@ -3,7 +3,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 const FAQ = [
   {
     q: "Where does the data come from?",
-    a: "Public regulatory filings (SEC, FDA, EPA, OSHA), federal lobbying disclosures, court records, and reporting from outlets like Reuters, the Guardian, and the NYT. Every event on a brand profile links to its source.",
+    a: "Public regulatory filings (SEC, FDA, EPA, OSHA), federal lobbying disclosures, court records, and reporting from outlets like Reuters, the Guardian, and the NYT. Source coverage varies. Inspect the linked evidence and its date; a missing record does not establish that a company has no issues.",
   },
   {
     q: "Do brands pay to appear or to change their score?",
@@ -11,15 +11,15 @@ const FAQ = [
   },
   {
     q: "What happens if a product isn't in your database?",
-    a: "You can submit it. We immediately start enriching the brand profile and route you to a live result page that updates as data arrives — usually within seconds.",
+    a: "You can submit the product details for review. A submission does not verify its brand or ownership, and we cannot promise when research will be complete.",
   },
   {
     q: "How do I report a wrong score or disputed event?",
-    a: "Every event and every brand profile has a 'Report an issue' link. Flagged events are reviewed; if disputed, the score recovers immediately while we re-verify.",
+    a: "Use the correction or report controls on the relevant record and include a source. Reports need review; submitting one does not establish that a claim is wrong or automatically change a score.",
   },
   {
     q: "Is my scan history private?",
-    a: "Scans aren't tied to your identity unless you create an account. We don't sell user data, ever. Full details on the Why Trust Us page.",
+    a: "Scanning currently requires an account and can save activity to your account. Read the Privacy page before signing up.",
   },
 ];
 

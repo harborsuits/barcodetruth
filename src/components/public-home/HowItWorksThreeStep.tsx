@@ -4,17 +4,17 @@ const STEPS = [
   {
     icon: ScanLine,
     title: "Scan",
-    body: "Point your camera at any barcode — food, household, beauty, beverages.",
+    body: "Scan a supported retail barcode, or search a product or brand by name.",
   },
   {
     icon: FileSearch,
     title: "See the reasons",
-    body: "Get a verdict, the score, and the specific events behind it. Every claim is sourced.",
+    body: "Check the recorded ownership and available evidence. Look for missing information and source dates.",
   },
   {
     icon: ArrowRightLeft,
     title: "Compare alternatives",
-    body: "If the product scores poorly, we show better-aligned options in the same category.",
+    body: "Explore alternatives where enough category and ownership information is available.",
   },
 ];
 
@@ -25,7 +25,7 @@ export function HowItWorksThreeStep() {
         <div className="text-center mb-8">
           <p className="text-xs uppercase tracking-[3px] text-muted-foreground font-medium mb-2">How it works</p>
           <h2 className="font-display font-bold text-2xl sm:text-3xl text-foreground">
-            Aisle-speed, receipt-grade.
+            From the label to the company.
           </h2>
         </div>
         <div className="grid sm:grid-cols-3 gap-6">

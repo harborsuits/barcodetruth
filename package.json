@@ -9,7 +9,10 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test:release": "node --test tests/unit/release-one.test.ts",
+    "dev:review": "vite --mode review --host 127.0.0.1",
+    "build:review": "vite build --mode review"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

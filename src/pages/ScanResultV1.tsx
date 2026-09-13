@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { ArrowLeft, Package, AlertCircle, Loader2, Check, Save, ExternalLink, Search, Users, TrendingUp, HelpCircle, Sparkles } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import { ShareCard, getGrade } from "@/components/scan/ShareCard";
 import { useBrandLogo } from "@/hooks/useBrandLogo";
 import { useDisplayProfile } from "@/hooks/useDisplayProfile";
 import { usePersonalizedBrandScore } from "@/hooks/usePersonalizedBrandScore";
+import { normalizeProductBarcode } from '@/lib/productBarcode';
 
 // ─── Correction form (unchanged) ───
 function CorrectionForm({ brandName, onSubmit }: { brandName: string; onSubmit: (data: { name?: string; website?: string }) => void }) {
@@ -76,22 +77,9 @@ function getLetterGrade(score: number | null): string {
   return "F";
 }
 
-function getDimensionSummary(key: string, score: number | null, count: number): string {
-  if (score === null) return "Not enough data yet";
-  if (key === "labor") {
-    if (score >= 65) return "No verified negative signal found in reviewed sources";
-    return count > 0 ? `${count} OSHA-linked incident${count !== 1 ? "s" : ""} and workplace safety concerns` : "Below-average labor practices";
-  }
-  if (key === "environment") {
-    if (score >= 65) return "No reportable issues found in reviewed sources";
-    return count > 0 ? `${count} EPA-linked compliance issue${count !== 1 ? "s" : ""}` : "Environmental record needs improvement";
-  }
-  if (key === "politics") {
-    if (score >= 65) return "Limited political spending detected";
-    return "Political lobbying and donation exposure identified";
-  }
-  if (score >= 65) return "No major concerns identified";
-  return "Social responsibility concerns found";
+function getDimensionSummary(_key: string, score: number | null, count: number): string {
+  if (score === null) return "Not enough data for a score";
+  return count > 0 ? `${count} related record${count === 1 ? '' : 's'}; inspect the evidence below` : "No supporting records available in this view";
 }
 
 // ─── Main component ───
@@ -119,7 +107,7 @@ export default function ScanResultV1() {
   }, []);
 
   // Normalize barcode: pad 12-digit UPC-A to 13-digit EAN-13
-  const normalizedBarcode = barcode && /^\d{12}$/.test(barcode) ? '0' + barcode : barcode;
+  const normalizedBarcode = normalizeProductBarcode(barcode);
 
   // Use navigation state as seed data to avoid re-query gaps
   const navProduct = navState?.product ? {
@@ -134,8 +122,10 @@ export default function ScanResultV1() {
   const justSubmitted = navState?.justSubmitted === true;
 
   // ─── Smart product lookup (internal DB → OpenFoodFacts → UPCitemdb) ───
-  const { data: product, isLoading: productLoading, error: productError } = useQuery({
+  const { data: product, isLoading: productLoading, error: productError, refetch: refetchProduct } = useQuery({
     queryKey: ["product-v1", normalizedBarcode],
+    // The fallback can enqueue research; retries must be an explicit shopper action.
+    retry: false,
     initialData: navProduct || undefined,
     queryFn: async () => {
       // First try internal DB (fast path) — try both normalized and original
@@ -145,6 +135,7 @@ export default function ScanResultV1() {
         const { data: cached } = await supabase
           .from("products")
           .select("id, barcode, name, brand_id, category")
+          .eq("review_status", "approved")
           .eq("barcode", bc)
           .order("updated_at", { ascending: false })
           .limit(1)
@@ -179,7 +170,7 @@ export default function ScanResultV1() {
       // Not found anywhere
       return null;
     },
-    enabled: !!barcode,
+    enabled: !!normalizedBarcode,
   });
 
   // Cap polling at 60s to prevent infinite loops on stuck "building" brands
@@ -398,20 +389,16 @@ export default function ScanResultV1() {
   };
 
   // ─── No barcode in URL ───
-  if (!barcode) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full">
-          <CardContent className="pt-6 space-y-4 text-center">
-            <Package className="h-12 w-12 mx-auto text-muted-foreground" />
-            <h2 className="text-lg font-semibold">No barcode provided</h2>
-            <p className="text-sm text-muted-foreground">Please scan a product barcode to see results.</p>
-            <Button onClick={() => navigate("/scan")} className="w-full">Scan a Product</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  if (!normalizedBarcode) return <Navigate to="/scan" replace />;
+
+  if (productError && !product) return (
+    <main className="max-w-md mx-auto p-6 space-y-4 text-center" role="alert">
+      <h1 className="text-xl font-semibold">We couldn't look up this product</h1>
+      <p className="text-sm text-muted-foreground">The lookup failed. This does not mean the product is missing from our records.</p>
+      <Button onClick={() => void refetchProduct()}>Try again</Button>
+      <Button variant="outline" onClick={() => navigate('/scan')}>Scan another</Button>
+    </main>
+  );
 
   // ─── Unified loading (single skeleton, no double-flash) ───
   if (productLoading || (product?.brand_id && brandLoading)) {
@@ -423,8 +410,8 @@ export default function ScanResultV1() {
             <CardContent className="pt-6 pb-4 flex items-center gap-3">
               <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" />
               <div className="text-sm">
-                <p className="font-medium">Analyzing this brand…</p>
-                <p className="text-xs text-muted-foreground">Pulling evidence and computing your score.</p>
+                <p className="font-medium">Loading the product record…</p>
+                <p className="text-xs text-muted-foreground">Checking the available product and brand information.</p>
               </div>
             </CardContent>
           </Card>
@@ -453,7 +440,7 @@ export default function ScanResultV1() {
               <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" />
               <div className="text-sm">
                 <p className="font-medium">Analyzing {displayBrandName || "this brand"}…</p>
-                <p className="text-xs text-muted-foreground">First-time scan — building the profile from live sources. This usually takes under a minute.</p>
+                <p className="text-xs text-muted-foreground">This profile is incomplete. You can scan another product while the current record is checked.</p>
               </div>
             </CardContent>
           </Card>
@@ -473,9 +460,9 @@ export default function ScanResultV1() {
           <Card>
             <CardContent className="pt-6 space-y-4 text-center">
               <Sparkles className="h-10 w-10 mx-auto text-muted-foreground" />
-              <h2 className="text-lg font-semibold">We're still gathering data on this brand</h2>
+              <h2 className="text-lg font-semibold">This brand profile is incomplete</h2>
               <p className="text-sm text-muted-foreground">
-                {displayBrandName ? `${displayBrandName} is being built right now.` : "This brand is being built right now."} Check back in a few minutes — we'll keep improving it.
+                We do not yet have enough information to show a complete profile. A completion time is not available.
               </p>
               <div className="flex gap-2 pt-2">
                 <Button
@@ -503,9 +490,8 @@ export default function ScanResultV1() {
 
   // ─── Not found → redirect to Add Product ───
   // Only redirect if we genuinely have no product data from any source
-  if (!productLoading && (productError || !product) && !navProduct && !navBrandName && !justSubmitted) {
-    navigate(`/unknown/${barcode}`, { replace: true });
-    return null;
+  if (!productLoading && !product && !navProduct && !navBrandName && !justSubmitted) {
+    return <Navigate to={`/unknown/${normalizedBarcode}`} replace />;
   }
 
   if (!productLoading && !product && justSubmitted) {
@@ -518,7 +504,7 @@ export default function ScanResultV1() {
               <Check className="h-10 w-10 mx-auto text-primary" />
               <h2 className="text-lg font-semibold">Submission received</h2>
               <p className="text-sm text-muted-foreground">
-                We saved your product submission and are refreshing its result now.
+                Your product details were submitted. Brand and ownership information still need review.
               </p>
               <Button onClick={() => window.location.reload()} className="w-full">
                 Refresh result
@@ -544,7 +530,7 @@ export default function ScanResultV1() {
               <Package className="h-10 w-10 mx-auto text-muted-foreground" />
               <h2 className="text-lg font-semibold">{navProduct?.name || "Product"}</h2>
               {navBrandName && <p className="text-sm text-muted-foreground">by {navBrandName}</p>}
-              <p className="text-xs text-muted-foreground">This product's data is being refreshed. Try scanning again.</p>
+              <p className="text-xs text-muted-foreground">Only the previously saved product details are available. Try again to check the current record.</p>
               <Button onClick={() => navigate("/scan")} className="w-full mt-2">Scan Again</Button>
             </CardContent>
           </Card>
@@ -569,9 +555,13 @@ export default function ScanResultV1() {
   // Turn failure into contribution opportunity
   // ═══════════════════════════════════════════════════
   if (isDeadEnd) {
-    // Skip dead-end screen entirely — go straight to Add Product
-    navigate(`/unknown/${barcode}`, { replace: true });
-    return null;
+    return <main className="max-w-md mx-auto p-6 space-y-4">
+      <h1 className="text-xl font-semibold">{product?.name || 'Product found'}</h1>
+      <p className="text-sm text-muted-foreground">Barcode: {normalizedBarcode}</p>
+      <p>This product has no confirmed brand profile yet. Its ownership and ethical record are unknown.</p>
+      <Button variant="outline" onClick={() => navigate(`/unknown/${normalizedBarcode}`)}>Suggest brand details</Button>
+      <Button onClick={() => navigate('/scan')}>Scan another</Button>
+    </main>;
   }
 
   // ═══════════════════════════════════════════════════
@@ -637,7 +627,7 @@ export default function ScanResultV1() {
               <p className="text-sm font-medium text-foreground">Building evidence on this brand</p>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 We don't have enough verified events yet to score {displayBrandName || "this brand"} with confidence.
-                Request priority coverage and we'll move it to the front of our ingestion queue.
+                Request coverage to help us prioritize future research.
               </p>
               <RequestCoverageCTA
                 brandId={brandInfo?.id ?? null}
@@ -710,7 +700,7 @@ export default function ScanResultV1() {
 
         {/* Beta */}
         <p className="text-xs text-center text-muted-foreground px-4 pb-4">
-          Based on verified public records. Coverage expands weekly.
+          Check the linked sources and dates. Coverage varies by brand.
         </p>
       </main>
     </div>

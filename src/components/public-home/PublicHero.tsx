@@ -1,9 +1,13 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScanLine, ArrowRight } from "lucide-react";
 import { ScannerIdleAnimation } from "@/components/ScannerIdleAnimation";
 
 export function PublicHero() {
+  const [query, setQuery] = useState("");
+  const navigate = useNavigate();
   return (
     <section className="pt-12 pb-10 sm:pt-16 sm:pb-14">
       <div className="grid lg:grid-cols-[1.15fr_1fr] gap-10 lg:gap-14 items-center">
@@ -13,17 +17,27 @@ export function PublicHero() {
             Scan · Reveal · Decide
           </p>
           <h1 className="font-display font-extrabold text-[clamp(34px,6vw,60px)] leading-[1.05] tracking-tight text-foreground">
-            Scan a barcode.{" "}
-            <span className="text-success">See who you fund.</span>
+            Know who owns it.{" "}
+            <span className="text-success">Find an alternative that fits your values.</span>
           </h1>
           <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl leading-relaxed">
-            Barcode Truth shows why a product scores the way it does and what better-aligned alternatives exist — fast enough to use while you shop.
+            Look up a product or brand, explore its ownership and available evidence, and decide what belongs in your basket.
           </p>
+          <form role="search" className="space-y-2 text-left" onSubmit={(event) => {
+            event.preventDefault();
+            if (query.trim()) navigate(`/search?q=${encodeURIComponent(query.trim())}`);
+          }}>
+            <label htmlFor="home-search" className="text-sm font-medium">Search a product, brand, or company</label>
+            <div className="flex gap-2">
+              <Input id="home-search" type="search" placeholder="Enter a name" value={query} onChange={(event) => setQuery(event.target.value)} className="h-12 min-w-0" maxLength={200} />
+              <Button type="submit" className="h-12" disabled={!query.trim()}>Search</Button>
+            </div>
+          </form>
           <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start pt-2">
             <Button asChild size="lg" className="h-12 px-8 text-sm uppercase tracking-wider gradient-forensic text-background hover:opacity-90">
               <Link to="/scan">
                 <ScanLine className="mr-2 h-5 w-5" />
-                See a real scan
+                Scan a barcode
               </Link>
             </Button>
             <Button asChild variant="outline" size="lg" className="h-12 px-8 text-sm uppercase tracking-wider border-border/40">
@@ -34,7 +48,7 @@ export function PublicHero() {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground/70 pt-1">
-            Independent. No brand influence.
+            Coverage varies by product. Missing ownership or evidence is not a positive rating.
           </p>
         </div>
 

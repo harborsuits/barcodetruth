@@ -72,16 +72,18 @@ export async function lookupScanAndLog(
         { body: { barcode: rawGtin } }
       );
       
-      if (!resolveError && resolveData?.success && resolveData.brand_id) {
+      if (resolveError) throw resolveError;
+      if (resolveData?.success && resolveData.brand_id) {
         // resolve-barcode successfully fetched and created the product
         console.log('[lookupScanAndLog] resolve-barcode succeeded:', resolveData);
         
         // Now query again to get the full product data
-        const { data: newProductData } = await supabase.functions.invoke<ProductLookupResult>(
+        const { data: newProductData, error: retryError } = await supabase.functions.invoke<ProductLookupResult>(
           'get-product-by-barcode',
           { body: { barcode: rawGtin } }
         );
         
+        if (retryError) throw retryError;
         if (isProductLookupResult(newProductData) && newProductData.brand_id) {
           finalProduct = newProductData;
         }
@@ -90,6 +92,7 @@ export async function lookupScanAndLog(
       }
     } catch (e) {
       console.warn('resolve-barcode failed:', e);
+      throw e;
     }
 
     if (!finalProduct) {
@@ -107,7 +110,7 @@ export async function lookupScanAndLog(
       }
       return { 
         notFound: true,
-        message: "We're gathering evidence for this product's brand. We'll update you when it's ready."
+        message: "No product match was found. You can submit its details for review."
       };
     }
   }

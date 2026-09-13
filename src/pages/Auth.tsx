@@ -11,6 +11,7 @@ import { z } from "zod";
 import { Separator } from "@/components/ui/separator";
 import { InstallGuide } from "@/components/InstallGuide";
 import { CinematicOnboarding } from "@/components/CinematicOnboarding";
+import { safeReturnTo, authStepPath } from "@/lib/authReturn";
 
 const authSchema = z.object({
   email: z.string().trim().email({ message: "Please enter a valid email address" }).max(255),
@@ -20,6 +21,9 @@ const authSchema = z.object({
 export default function Auth() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const returnTo = safeReturnTo(searchParams.get("returnTo"));
+  const onboardingPath = authStepPath('onboarding', returnTo);
+  const isReadOnlyPreview = import.meta.env.VITE_READ_ONLY_PREVIEW === 'true';
 
   // Dev/test overrides via query params
   const forceOnboarding = searchParams.get("onboarding") === "1";
@@ -31,9 +35,9 @@ export default function Auth() {
       localStorage.removeItem("installGuideShown");
       localStorage.removeItem("cinematicOnboardingSeen");
       localStorage.removeItem("onboardingComplete");
-      window.location.replace("/auth?onboarding=1");
+      window.location.replace(`${authStepPath('auth', returnTo)}&onboarding=1`);
     }
-  }, [resetOnboarding]);
+  }, [resetOnboarding, returnTo]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
@@ -46,11 +50,11 @@ export default function Auth() {
   const [isCheckingSession, setIsCheckingSession] = useState(!forceOnboarding);
   const [showInstallGuide, setShowInstallGuide] = useState(() => {
     if (forceOnboarding) return true;
-    return !localStorage.getItem("installGuideShown");
+    return false;
   });
   const [showCinematicOnboarding, setShowCinematicOnboarding] = useState(() => {
     if (forceOnboarding) return false; // will show after install guide
-    return !localStorage.getItem("cinematicOnboardingSeen");
+    return false;
   });
 
   // Check onboarding status from database
@@ -95,9 +99,9 @@ export default function Auth() {
             if (!mounted) return;
             const isComplete = await checkOnboardingStatus(session.user.id);
             if (isComplete) {
-              navigate("/", { replace: true });
+              navigate(returnTo, { replace: true });
             } else {
-              navigate("/onboarding", { replace: true });
+              navigate(onboardingPath, { replace: true });
             }
           }, 0);
         } else if (event === 'SIGNED_OUT') {
@@ -111,9 +115,9 @@ export default function Auth() {
       if (session?.user) {
         const isComplete = await checkOnboardingStatus(session.user.id);
         if (isComplete) {
-          navigate("/", { replace: true });
+          navigate(returnTo, { replace: true });
         } else {
-          navigate("/onboarding", { replace: true });
+          navigate(onboardingPath, { replace: true });
         }
       } else {
         setIsCheckingSession(false);
@@ -124,13 +128,17 @@ export default function Auth() {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, forceOnboarding]);
+  }, [navigate, forceOnboarding, returnTo, onboardingPath]);
 
   const handleGoogleSignIn = async () => {
+    if (isReadOnlyPreview) {
+      toast({ title: 'Read-only preview', description: 'Google sign-in is disabled in this local review.' });
+      return;
+    }
     setIsGoogleLoading(true);
     try {
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+        redirect_uri: `${window.location.origin}${authStepPath('auth', returnTo)}`,
       });
       if (result?.error) throw result.error;
     } catch (error: any) {
@@ -145,6 +153,10 @@ export default function Auth() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isReadOnlyPreview) {
+      toast({ title: 'Read-only preview', description: 'Use an isolated backend to test signing in or creating accounts.' });
+      return;
+    }
     setIsLoading(true);
 
     try {
@@ -172,7 +184,7 @@ export default function Auth() {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { emailRedirectTo: `${window.location.origin}/onboarding` },
+          options: { emailRedirectTo: `${window.location.origin}${authStepPath('auth', returnTo)}` },
         });
 
         if (error) {
@@ -192,7 +204,7 @@ export default function Auth() {
 
         if (data.user && data.session) {
           toast({ title: "Account created!", description: "Let's set up your preferences" });
-          navigate("/onboarding");
+          navigate(onboardingPath, { replace: true });
         } else {
           toast({ title: "Check your email", description: "We sent you a confirmation link" });
         }
@@ -225,15 +237,15 @@ export default function Auth() {
             await supabase.from('profiles').upsert({ id: data.user.id, onboarding_complete: true });
             localStorage.setItem("onboardingComplete", "true");
             toast({ title: "Welcome back!", description: "You're all set." });
-            navigate("/");
+            navigate(returnTo, { replace: true });
           } else {
             toast({ title: "Welcome back!", description: "Let's complete your profile setup" });
-            navigate("/onboarding");
+            navigate(onboardingPath, { replace: true });
           }
         } else {
           localStorage.setItem("onboardingComplete", "true");
           toast({ title: "Welcome back!", description: "You've successfully signed in" });
-          navigate("/");
+          navigate(returnTo, { replace: true });
         }
       }
     } catch (error: any) {
@@ -349,7 +361,7 @@ export default function Auth() {
                 </div>
               </div>
             )}
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full" disabled={isLoading || isReadOnlyPreview}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isSignUp ? "Create Account" : "Sign In"}
             </Button>
@@ -367,7 +379,7 @@ export default function Auth() {
             variant="outline"
             className="w-full"
             onClick={handleGoogleSignIn}
-            disabled={isLoading || isGoogleLoading}
+            disabled={isLoading || isGoogleLoading || isReadOnlyPreview}
           >
             {isGoogleLoading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

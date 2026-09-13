@@ -1,225 +1,45 @@
-import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
-import { Leaf, Building2, Info, ArrowRight, Loader2, Shield, Star, Repeat } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Info, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { bt } from "@/lib/behaviorTracker";
 
-interface AlternativesSectionProps {
-  brandId: string;
-  brandName: string;
-}
+type Candidate = { brand_id: string; brand_name: string; alt_group: string };
 
-interface Alternative {
-  brand_id: string;
-  brand_name: string;
-  parent_company: string | null;
-  logo_url: string | null;
-  reason: string;
-  score: number;
-  score_environment: number;
-  score_labor: number;
-  score_politics: number;
-  score_social: number;
-  company_type: string;
-  alt_group: string;
-}
-
-function useSmartAlternatives(brandId: string) {
-  return useQuery({
-    queryKey: ["smart-alternatives", brandId],
+export function AlternativesSection({ brandId, brandName }: { brandId: string; brandName: string }) {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['alternative-candidates-v1', brandId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_smart_alternatives" as any, {
-        p_brand_id: brandId,
-        p_limit: 12,
-      });
-
-      if (!error && data && (data as any[]).length > 0) {
-        return data as Alternative[];
-      }
-
-      const { data: fnData, error: fnError } = await supabase.functions.invoke("get-alternatives", {
-        body: { brand_id: brandId },
-      });
-
-      if (fnError) throw fnError;
-      return (fnData?.alternatives || []) as Alternative[];
+      const result = await supabase.rpc('get_smart_alternatives' as never, { p_brand_id: brandId, p_limit: 6 } as never, { get: true });
+      if (result.error) throw result.error;
+      // Old endpoints inferred ethical superiority from company type and missing scores.
+      // Only display the explicit candidate contract, without presenting a recommendation.
+      return ((result.data || []) as unknown as Candidate[]).filter(row => row.alt_group === 'candidate');
     },
     enabled: !!brandId,
-    staleTime: 1000 * 60 * 10,
+    retry: 1,
+    staleTime: 600_000,
   });
-}
-
-function AlternativeCard({ alt }: { alt: Alternative }) {
-  const navigate = useNavigate();
-
-  const getScoreColor = (s: number) => {
-    if (s >= 70) return "text-green-600 dark:text-green-400";
-    if (s >= 50) return "text-yellow-600 dark:text-yellow-400";
-    return "text-red-600 dark:text-red-400";
-  };
-
-  const isIndependent = ["independent", "local", "cooperative"].includes(alt.company_type);
-
   return (
-    <div className="rounded-lg border bg-card p-4 hover:bg-accent/30 transition-colors">
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
-          {alt.logo_url ? (
-            <img src={alt.logo_url} alt={alt.brand_name} className="w-full h-full object-contain" />
-          ) : (
-            <span className="text-sm font-bold text-muted-foreground">
-              {alt.brand_name?.[0]?.toUpperCase()}
-            </span>
-          )}
+    <Card><CardContent className="pt-6 space-y-3">
+      <h2 className="text-lg font-semibold">Alternatives to {brandName}</h2>
+      <p className="text-sm text-muted-foreground">A supported recommendation needs a relevant product, checked ownership, and evidence that matches your preferences.</p>
+      {isLoading ? <Loader2 className="h-5 w-5 animate-spin" aria-label="Loading alternatives" /> : error ? (
+        <div role="alert" className="space-y-2">
+          <p className="text-sm">We couldn't load alternatives. This is a lookup error, not a finding about this brand.</p>
+          <Button variant="outline" size="sm" onClick={() => void refetch()}>Try again</Button>
         </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <h4 className="font-semibold text-sm truncate">{alt.brand_name}</h4>
-            <span className={`text-sm font-bold ${getScoreColor(alt.score)}`}>
-              {Math.round(alt.score)}
-            </span>
-          </div>
-
-          {alt.parent_company && (
-            <div className="flex items-center gap-1 mt-0.5">
-              <Building2 className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground truncate">{alt.parent_company}</span>
-            </div>
-          )}
-
-          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{alt.reason}</p>
-
-          <div className="flex gap-1.5 mt-2 flex-wrap">
-            {isIndependent && (
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                <Shield className="h-2.5 w-2.5 mr-0.5" /> Independent
-              </Badge>
-            )}
-            {alt.score_environment >= 65 && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                <Leaf className="h-2.5 w-2.5 mr-0.5" /> Env {Math.round(alt.score_environment)}
-              </Badge>
-            )}
-            {alt.score_labor >= 65 && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                Labor {Math.round(alt.score_labor)}
-              </Badge>
-            )}
-          </div>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full mt-2 h-7 text-xs"
-            onClick={() => {
-              bt.track("alternative_clicked", {
-                brand_id: alt.brand_id,
-                properties: {
-                  brand_name: alt.brand_name,
-                  alt_group: alt.alt_group,
-                  company_type: alt.company_type,
-                  score: alt.score,
-                },
-              });
-              navigate(`/brand/${alt.brand_id}`);
-            }}
-          >
-            View Profile
-            <ArrowRight className="h-3 w-3 ml-1" />
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export function AlternativesSection({ brandId, brandName }: AlternativesSectionProps) {
-  const { data: alternatives, isLoading } = useSmartAlternatives(brandId);
-
-  const betterOptions = alternatives?.filter(a => a.alt_group === "better" || a.alt_group === "independent") || [];
-  const similarOptions = alternatives?.filter(a => a.alt_group === "similar" || a.alt_group === "mainstream") || [];
-
-  // Track when alternatives are shown
-  useEffect(() => {
-    if (alternatives && alternatives.length > 0) {
-      bt.track("alternatives_viewed", {
-        brand_id: brandId,
-        properties: {
-          brand_name: brandName,
-          better_count: betterOptions.length,
-          similar_count: similarOptions.length,
-          total: alternatives.length,
-        },
-      });
-    }
-  }, [alternatives?.length, brandId]);
-
-
-  return (
-    <Card>
-      <CardContent className="pt-6">
-        <h2 className="text-lg font-semibold mb-1">Alternatives to {brandName}</h2>
-        <p className="text-xs text-muted-foreground mb-3">
-          Same category — ranked by ethics, independence & ownership
-        </p>
-        <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 mb-4 space-y-0.5">
-          <p className="font-medium text-foreground/70">How we pick these</p>
-          <p>✓ Different parent company than {brandName}</p>
-          <p>✓ Same product subcategory when possible</p>
-          <p>✓ Independent & co-op brands ranked higher</p>
-        </div>
-
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : !alternatives || alternatives.length === 0 ? (
-          <div className="text-center py-6 px-4">
-            <Info className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-            <p className="text-sm text-muted-foreground">
-              We're still building alternatives for this category.
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Our coverage expands weekly as we add more brands.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-5">
-            {/* Better Options — indie/private/nonprofit */}
-            {betterOptions.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  <span className="text-sm font-semibold">Better Options</span>
-                  <span className="text-[10px] text-muted-foreground">Independent & ethical picks</span>
-                </div>
-                {betterOptions.map(alt => (
-                  <AlternativeCard key={alt.brand_id} alt={alt} />
-                ))}
-              </div>
-            )}
-
-            {/* Similar Options — same-subcategory mainstream peers */}
-            {similarOptions.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Repeat className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-semibold">Similar Products</span>
-                  <span className="text-[10px] text-muted-foreground">Same category, different ownership</span>
-                </div>
-                {similarOptions.map(alt => (
-                  <AlternativeCard key={alt.brand_id} alt={alt} />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      ) : (
+        <>
+          <p className="text-sm flex gap-2"><Info className="h-4 w-4 shrink-0 mt-0.5" />No verified recommendation is available in this view yet.</p>
+          {!!data?.length && <div className="space-y-2 border-t pt-3">
+            <h3 className="text-sm font-semibold">Brands to research in the same recorded subcategory</h3>
+            <p className="text-xs text-muted-foreground">These are research leads. Ownership, individual product suitability, and fit with your values still need checking.</p>
+            {data.map(row => <Link key={row.brand_id} to={`/brand/${row.brand_id}`} className="block rounded-md border p-3 text-sm hover:bg-muted">{row.brand_name}</Link>)}
+          </div>}
+        </>
+      )}
+    </CardContent></Card>
   );
 }

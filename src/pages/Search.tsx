@@ -26,7 +26,7 @@ interface BrandScore {
 
 // --- Verdict logic (same thresholds as LiveScanDemo) ---
 function getVerdict(score: number | null) {
-  if (score === null) return { label: "Analyzing", icon: Clock, className: "text-muted-foreground", bg: "bg-muted/50" };
+  if (score === null) return { label: "Unrated", icon: Clock, className: "text-muted-foreground", bg: "bg-muted/50" };
   if (score >= 65) return { label: "Good", icon: ShieldCheck, className: "text-success", bg: "bg-success/10" };
   if (score >= 40) return { label: "Mixed", icon: ShieldAlert, className: "text-warning", bg: "bg-warning/10" };
   return { label: "Avoid", icon: ShieldX, className: "text-destructive", bg: "bg-destructive/10" };
@@ -139,7 +139,7 @@ function FeaturedBrandCard({ brand, score, loading, onClick }: {
           </div>
         )}
         <div className="text-xs text-muted-foreground/70 mt-2">
-          This applies to all products from this brand
+          This is a brand record. Individual product details may differ.
         </div>
         <div className="flex items-center gap-1 mt-3 text-sm text-primary font-medium">
           View full breakdown <ArrowRight className="h-3.5 w-3.5" />
@@ -152,11 +152,13 @@ function FeaturedBrandCard({ brand, score, loading, onClick }: {
 export default function Search() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => searchParams.get('q') || '');
   const [products, setProducts] = useState<ProductSearchResult[]>([]);
   const [brands, setBrands] = useState<BrandSearchResult[]>([]);
   const [companies, setCompanies] = useState<CompanySearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const [isSearching, setIsSearching] = useState(!!searchParams.get('q'));
+  const [searchError, setSearchError] = useState(false);
+  const [searchAttempt, setSearchAttempt] = useState(0);
   const [activeTab, setActiveTab] = useState<"brands" | "products" | "companies">("brands");
   const [brandScores, setBrandScores] = useState<Map<string, number>>(new Map());
   const [scoresLoading, setScoresLoading] = useState(false);
@@ -194,13 +196,16 @@ export default function Search() {
       return;
     }
 
+    let cancelled = false;
     setIsSearching(true);
+    setSearchError(false);
 
     Promise.all([
       searchCatalog(debouncedQuery),
       searchCompanies(debouncedQuery),
     ])
       .then(([catalogResults, companyResults]) => {
+        if (cancelled) return;
         setProducts(catalogResults.products);
         setBrands(catalogResults.brands);
         setCompanies(companyResults);
@@ -214,13 +219,19 @@ export default function Search() {
         urlTabSet.current = false;
       })
       .catch(error => {
+        if (cancelled) return;
+        setSearchError(true);
+        setProducts([]);
+        setBrands([]);
+        setCompanies([]);
         console.error("Search error:", error);
         toast.error("Search failed. Please try again.");
       })
       .finally(() => {
-        setIsSearching(false);
+        if (!cancelled) setIsSearching(false);
       });
-  }, [debouncedQuery]);
+    return () => { cancelled = true; };
+  }, [debouncedQuery, searchAttempt]);
 
   // Fetch brand scores after brands arrive
   useEffect(() => {
@@ -268,6 +279,7 @@ export default function Search() {
           />
         </div>
 
+        {searchError && <div role="alert" className="space-y-2 mb-4"><p>Search couldn't be completed. Check your connection and try again.</p><button className="underline" onClick={() => setSearchAttempt(value => value + 1)}>Try again</button></div>}
         {isSearching && (
           <div className="space-y-2" aria-label="Searching">
             {[0, 1, 2, 3].map((i) => (
@@ -287,15 +299,15 @@ export default function Search() {
           </div>
         )}
 
-        {!isSearching && query && totalResults === 0 && (
-          <EmptyStateExplainer type="search-no-results" searchQuery={query} />
+        {!isSearching && !searchError && query && query === debouncedQuery && totalResults === 0 && (
+          <p className="py-6 text-sm text-muted-foreground">No matching records found. Try another spelling or search the brand name.</p>
         )}
 
         {!isSearching && !query && (
           <div className="py-6 space-y-6">
             <div className="text-center space-y-1">
               <p className="text-sm text-muted-foreground">Search for products, brands, or companies</p>
-              <p className="text-xs text-muted-foreground/70">Not all products are indexed yet — we're growing daily</p>
+              <p className="text-xs text-muted-foreground/70">Coverage varies by brand and category.</p>
             </div>
             <div>
               <p className="text-xs uppercase tracking-wider text-muted-foreground/70 font-medium mb-2 text-center">

@@ -2,43 +2,51 @@ import { Building2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
-interface OwnershipRevealProps {
-  brandId: string;
-  brandName: string;
-  parentCompany?: string | null;
+interface OwnershipRevealProps { brandId: string; brandName: string; parentCompany?: string | null }
+
+function sourceLink(value: string | null) {
+  try { const url = new URL(value || ''); return ['https:', 'http:'].includes(url.protocol) ? url.href : null; }
+  catch { return null; }
 }
 
-export function OwnershipReveal({ brandId, brandName, parentCompany }: OwnershipRevealProps) {
-  const { data: ownership, isLoading } = useQuery({
-    queryKey: ["ownership-reveal", brandId],
+export function OwnershipReveal({ brandId, parentCompany }: OwnershipRevealProps) {
+  const { data: records, isLoading, error, refetch } = useQuery({
+    queryKey: ['ownership-records-v1', brandId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_brand_ownership" as any, {
-        p_brand_id: brandId,
-      });
-      if (error) return null;
-      return data;
+      const { data, error } = await supabase.from('company_ownership')
+        .select('id, parent_company_id, parent_name, relationship, source_url, last_verified_at')
+        .eq('child_brand_id', brandId).eq('is_current', true);
+      if (error) throw error;
+      if (!data?.length) return [];
+      const ids = [...new Set(data.map(row => row.parent_company_id).filter(Boolean))];
+      if (!ids.length) return data.map(row => ({ ...row, name: null as string | null }));
+      const companies = await supabase.from('companies').select('id, name').in('id', ids);
+      if (companies.error) throw companies.error;
+      return data.map(row => ({ ...row, name: companies.data.find(company => company.id === row.parent_company_id)?.name }));
     },
     enabled: !!brandId,
   });
-
-  if (isLoading) return <Skeleton className="h-16 w-full" />;
-
-  const chain = (ownership as any)?.structure?.chain || [];
-  const ultimateParent = chain.length > 1 ? chain[chain.length - 1] : null;
-  const parentName = ultimateParent?.name || parentCompany;
-
-  if (!parentName || parentName === brandName) return null;
-
+  if (isLoading) return <Skeleton className="h-20 w-full" />;
   return (
-    <div className="bg-elevated-1 border border-border p-4 flex items-center gap-3">
-      <div className="w-10 h-10 bg-elevated-2 flex items-center justify-center flex-shrink-0">
-        <Building2 className="h-5 w-5 text-muted-foreground" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="label-forensic text-[10px]">Owned By</p>
-        <p className="text-base font-bold">{parentName}</p>
-      </div>
-    </div>
+    <section className="bg-elevated-1 border border-border p-4 space-y-3" aria-labelledby="ownership-heading">
+      <h2 id="ownership-heading" className="font-semibold flex items-center gap-2"><Building2 className="h-4 w-4" />Ownership records</h2>
+      {error ? <div role="alert" className="space-y-2"><p className="text-sm">Ownership records couldn't be loaded.</p><Button variant="outline" size="sm" onClick={() => void refetch()}>Try again</Button></div> : records?.length ? (
+        <>
+          {records.map(row => {
+            const url = sourceLink(row.source_url);
+            return <div key={row.id} className="text-sm space-y-1">
+              <p className="font-medium">{row.name || row.parent_name || 'Company name unavailable'}</p>
+              {!row.name && row.parent_name && <p className="text-xs text-muted-foreground">Unverified name; no linked company record</p>}
+              <p className="text-xs text-muted-foreground">Recorded relationship: {row.relationship || 'unspecified'}</p>
+              {url ? <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary underline">Inspect source</a> : <p className="text-xs text-muted-foreground">Supporting source unavailable</p>}
+              <p className="text-xs text-muted-foreground">Recorded review date: {row.last_verified_at ? row.last_verified_at.slice(0, 10) : 'unavailable'}</p>
+            </div>;
+          })}
+          <p className="text-xs text-muted-foreground">These are recorded relationships, not a verified ownership chain. Check whether the source supports the relationship and is still current.</p>
+        </>
+      ) : <div className="text-sm space-y-1"><p>Ownership not yet confirmed.</p>{parentCompany && <p className="text-xs text-muted-foreground">Unverified parent name in the brand record: {parentCompany}</p>}</div>}
+    </section>
   );
 }

@@ -76,6 +76,7 @@ const PersonProfile = lazyNamed(() => import("./pages/PersonProfile"), "default"
 const OwnershipTree = lazyNamed(() => import("./pages/OwnershipTree"), "default");
 
 const queryClient = new QueryClient();
+const TeaOwnershipGuide = lazyNamed(() => import('./pages/TeaOwnershipGuide'), 'default');
 
 const HeaderWrapper = () => {
   const location = useLocation();
@@ -96,6 +97,8 @@ const App = () => {
           <ScrollToTop />
           <HeaderWrapper />
           <Routes>
+          <Route path="/compare/english-breakfast-tea" element={<Suspense fallback={<RouteFallback label="Loading comparison…" />}><TeaOwnershipGuide /></Suspense>} />
+          <Route path="/ownership/:guide" element={<Suspense fallback={<RouteFallback label="Loading ownership guide…" />}><TeaOwnershipGuide /></Suspense>} />
           <Route 
             path="/onboarding" 
             element={
